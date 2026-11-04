@@ -457,6 +457,7 @@ func (tds *txdatabaseSuite) TestLogger_FromDb() {
 	tds.NoError(err)
 	tds.NoError(tx.Commit())
 	tds.Equal([]string{
+		"[goqu - transaction] BEGIN",
 		"[goqu - transaction] QUERY [query:=`SELECT * FROM \"items\"`] ",
 		"[goqu - transaction] EXEC [query:=`SELECT * FROM \"items\" WHERE \"id\" = ?` args:=[1]] ",
 		"[goqu - transaction] COMMIT",

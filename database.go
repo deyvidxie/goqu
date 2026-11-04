@@ -12,6 +12,10 @@ type (
 	Logger interface {
 		Printf(format string, v ...interface{})
 	}
+	ContextLogger interface {
+		Logger
+		PrintfContext(ctx context.Context, format string, v ...interface{})
+	}
 	// Interface for sql.DB, an interface is used so you can use with other
 	// libraries such as sqlx instead of the native sql.DB
 	SQLDatabase interface {
@@ -91,6 +95,7 @@ func (d *Database) Dialect() string {
 
 // Starts a new Transaction.
 func (d *Database) Begin() (*TxDatabase, error) {
+	d.traceBegin(context.Background())
 	sqlTx, err := d.Db.Begin()
 	if err != nil {
 		return nil, err
@@ -102,11 +107,13 @@ func (d *Database) Begin() (*TxDatabase, error) {
 
 // Starts a new Transaction. See sql.DB#BeginTx for option description
 func (d *Database) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TxDatabase, error) {
+	d.traceBegin(ctx)
 	sqlTx, err := d.Db.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	tx := newTxDatabase(d.dialect, d.tagName, sqlTx)
+	tx.beginCtx = ctx
 	tx.Logger(d.logger)
 	return tx, nil
 }
@@ -114,6 +121,14 @@ func (d *Database) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TxDatabas
 // WithTx starts a new transaction and executes it in Wrap method
 func (d *Database) WithTx(fn func(*TxDatabase) error) error {
 	tx, err := d.Begin()
+	if err != nil {
+		return err
+	}
+	return tx.Wrap(func() error { return fn(tx) })
+}
+
+func (d *Database) WithTxContext(ctx context.Context, opts *sql.TxOptions, fn func(*TxDatabase) error) error {
+	tx, err := d.BeginTx(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -160,17 +175,35 @@ func (d *Database) Logger(logger Logger) {
 
 // Logs a given operation with the specified sql and arguments
 func (d *Database) Trace(op, sqlString string, args ...interface{}) {
+	d.TraceContext(context.Background(), op, sqlString, args...)
+}
+
+func (d *Database) TraceContext(ctx context.Context, op, sqlString string, args ...interface{}) {
 	if d.logger != nil {
 		if sqlString != "" {
 			if len(args) != 0 {
-				d.logger.Printf("[goqu] %s [query:=`%s` args:=%+v]", op, sqlString, args)
+				logf(ctx, d.logger, "[goqu] %s [query:=`%s` args:=%+v]", op, sqlString, args)
 			} else {
-				d.logger.Printf("[goqu] %s [query:=`%s`]", op, sqlString)
+				logf(ctx, d.logger, "[goqu] %s [query:=`%s`]", op, sqlString)
 			}
 		} else {
-			d.logger.Printf("[goqu] %s", op)
+			logf(ctx, d.logger, "[goqu] %s", op)
 		}
 	}
+}
+
+func (d *Database) traceBegin(ctx context.Context) {
+	if d.logger != nil {
+		logf(ctx, d.logger, "[goqu - transaction] %s", "BEGIN")
+	}
+}
+
+func logf(ctx context.Context, logger Logger, format string, v ...interface{}) {
+	if cl, ok := logger.(ContextLogger); ok {
+		cl.PrintfContext(ctx, format, v...)
+		return
+	}
+	logger.Printf(format, v...)
 }
 
 // Uses the db to Execute the query with arguments and return the sql.Result
@@ -188,7 +221,7 @@ func (d *Database) Exec(query string, args ...interface{}) (sql.Result, error) {
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	d.Trace("EXEC", query, args...)
+	d.TraceContext(ctx, "EXEC", query, args...)
 	return d.Db.ExecContext(ctx, query, args...)
 }
 
@@ -249,7 +282,7 @@ func (d *Database) Prepare(query string) (*sql.Stmt, error) {
 //
 // query: The SQL statement to prepare.
 func (d *Database) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
-	d.Trace("PREPARE", query)
+	d.TraceContext(ctx, "PREPARE", query)
 	return d.Db.PrepareContext(ctx, query)
 }
 
@@ -304,7 +337,7 @@ func (d *Database) Query(query string, args ...interface{}) (*sql.Rows, error) {
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	d.Trace("QUERY", query, args...)
+	d.TraceContext(ctx, "QUERY", query, args...)
 	return d.Db.QueryContext(ctx, query, args...)
 }
 
@@ -347,7 +380,7 @@ func (d *Database) QueryRow(query string, args ...interface{}) *sql.Row {
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	d.Trace("QUERY ROW", query, args...)
+	d.TraceContext(ctx, "QUERY ROW", query, args...)
 	return d.Db.QueryRowContext(ctx, query, args...)
 }
 
@@ -471,12 +504,13 @@ type (
 		Rollback() error
 	}
 	TxDatabase struct {
-		logger  Logger
-		dialect string
-		tagName string
-		Tx      SQLTx
-		qf      exec.QueryFactory
-		qfOnce  sync.Once
+		logger   Logger
+		dialect  string
+		tagName  string
+		Tx       SQLTx
+		qf       exec.QueryFactory
+		qfOnce   sync.Once
+		beginCtx context.Context
 	}
 )
 
@@ -529,17 +563,28 @@ func (td *TxDatabase) Logger(logger Logger) {
 }
 
 func (td *TxDatabase) Trace(op, sqlString string, args ...interface{}) {
+	td.TraceContext(context.Background(), op, sqlString, args...)
+}
+
+func (td *TxDatabase) TraceContext(ctx context.Context, op, sqlString string, args ...interface{}) {
 	if td.logger != nil {
 		if sqlString != "" {
 			if len(args) != 0 {
-				td.logger.Printf("[goqu - transaction] %s [query:=`%s` args:=%+v] ", op, sqlString, args)
+				logf(ctx, td.logger, "[goqu - transaction] %s [query:=`%s` args:=%+v] ", op, sqlString, args)
 			} else {
-				td.logger.Printf("[goqu - transaction] %s [query:=`%s`] ", op, sqlString)
+				logf(ctx, td.logger, "[goqu - transaction] %s [query:=`%s`] ", op, sqlString)
 			}
 		} else {
-			td.logger.Printf("[goqu - transaction] %s", op)
+			logf(ctx, td.logger, "[goqu - transaction] %s", op)
 		}
 	}
+}
+
+func (td *TxDatabase) beginContext() context.Context {
+	if td.beginCtx == nil {
+		return context.Background()
+	}
+	return td.beginCtx
 }
 
 // See Database#Exec
@@ -549,7 +594,7 @@ func (td *TxDatabase) Exec(query string, args ...interface{}) (sql.Result, error
 
 // See Database#ExecContext
 func (td *TxDatabase) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	td.Trace("EXEC", query, args...)
+	td.TraceContext(ctx, "EXEC", query, args...)
 	return td.Tx.ExecContext(ctx, query, args...)
 }
 
@@ -560,7 +605,7 @@ func (td *TxDatabase) Prepare(query string) (*sql.Stmt, error) {
 
 // See Database#PrepareContext
 func (td *TxDatabase) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
-	td.Trace("PREPARE", query)
+	td.TraceContext(ctx, "PREPARE", query)
 	return td.Tx.PrepareContext(ctx, query)
 }
 
@@ -571,7 +616,7 @@ func (td *TxDatabase) Query(query string, args ...interface{}) (*sql.Rows, error
 
 // See Database#QueryContext
 func (td *TxDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	td.Trace("QUERY", query, args...)
+	td.TraceContext(ctx, "QUERY", query, args...)
 	return td.Tx.QueryContext(ctx, query, args...)
 }
 
@@ -582,7 +627,7 @@ func (td *TxDatabase) QueryRow(query string, args ...interface{}) *sql.Row {
 
 // See Database#QueryRowContext
 func (td *TxDatabase) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	td.Trace("QUERY ROW", query, args...)
+	td.TraceContext(ctx, "QUERY ROW", query, args...)
 	return td.Tx.QueryRowContext(ctx, query, args...)
 }
 
@@ -639,13 +684,13 @@ func (td *TxDatabase) ScanValContext(ctx context.Context, i interface{}, query s
 
 // COMMIT the transaction
 func (td *TxDatabase) Commit() error {
-	td.Trace("COMMIT", "")
+	td.TraceContext(td.beginContext(), "COMMIT", "")
 	return td.Tx.Commit()
 }
 
 // ROLLBACK the transaction
 func (td *TxDatabase) Rollback() error {
-	td.Trace("ROLLBACK", "")
+	td.TraceContext(td.beginContext(), "ROLLBACK", "")
 	return td.Tx.Rollback()
 }
 
