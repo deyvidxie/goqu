@@ -66,13 +66,10 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		exp.FunctionNameLower:    []byte("LCASE"),
 	}
 	opts.EscapedRunes = map[rune][]byte{
-		'\'': []byte("\\'"),
-		'"':  []byte("\\\""),
+		'\'': []byte("''"),
 		'\\': []byte("\\\\"),
-		'\n': []byte("\\n"),
-		'\r': []byte("\\r"),
-		0:    []byte("\\x00"),
-		0x1a: []byte("\\x1a"),
+		0:    []byte("\\0"),
+		0x1a: []byte("\\Z"),
 	}
 	opts.JoinTypeLookup[exp.StraightJoinType] = []byte(" STRAIGHT_JOIN ")
 	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")

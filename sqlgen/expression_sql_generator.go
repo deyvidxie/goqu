@@ -344,17 +344,13 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 	schema, table, col := ident.GetSchema(), ident.GetTable(), ident.GetCol()
 	b.GrowBuffer(len(schema) + len(table) + identifierOverhead)
 	if schema != esg.dialectOptions.EmptyString {
-		b.WriteRunes(esg.dialectOptions.QuoteRune).
-			WriteStrings(schema).
-			WriteRunes(esg.dialectOptions.QuoteRune)
+		esg.quotedIdentifierSQL(b, schema)
 	}
 	if table != esg.dialectOptions.EmptyString {
 		if schema != esg.dialectOptions.EmptyString {
 			b.WriteRunes(esg.dialectOptions.PeriodRune)
 		}
-		b.WriteRunes(esg.dialectOptions.QuoteRune).
-			WriteStrings(table).
-			WriteRunes(esg.dialectOptions.QuoteRune)
+		esg.quotedIdentifierSQL(b, table)
 	}
 	switch t := col.(type) {
 	case nil:
@@ -363,9 +359,7 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 			if table != esg.dialectOptions.EmptyString || schema != esg.dialectOptions.EmptyString {
 				b.WriteRunes(esg.dialectOptions.PeriodRune)
 			}
-			b.WriteRunes(esg.dialectOptions.QuoteRune).
-				WriteStrings(t).
-				WriteRunes(esg.dialectOptions.QuoteRune)
+			esg.quotedIdentifierSQL(b, t)
 		}
 	case exp.LiteralExpression:
 		if table != esg.dialectOptions.EmptyString || schema != esg.dialectOptions.EmptyString {
@@ -375,6 +369,11 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 	default:
 		b.SetError(errUnsupportedIdentifierExpression(col))
 	}
+}
+
+func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
+	q := string(esg.dialectOptions.QuoteRune)
+	b.WriteStrings(q, strings.ReplaceAll(name, q, q+q), q)
 }
 
 func (esg *expressionSQLGenerator) lateralExpressionSQL(b sb.SQLBuilder, le exp.LateralExpression) {
@@ -835,8 +834,7 @@ func (esg *expressionSQLGenerator) collateExpressionSQL(b sb.SQLBuilder, collate
 			b.WriteRunes(opts.PeriodRune)
 		}
 		if opts.QuoteCollation {
-			quote := string(opts.QuoteRune)
-			b.WriteStrings(quote, strings.ReplaceAll(part, quote, quote+quote), quote)
+			esg.quotedIdentifierSQL(b, part)
 		} else {
 			b.WriteStrings(part)
 		}

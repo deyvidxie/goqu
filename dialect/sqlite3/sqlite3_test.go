@@ -291,6 +291,19 @@ func (st *sqlite3Suite) TestCollate() {
 	st.Equal("0.900000", last)
 }
 
+func (st *sqlite3Suite) TestQuoteCharacterInIdentifier() {
+	ds := st.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a`b")).ScanVal(&v)
+	st.NoError(err)
+	st.True(found)
+	st.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int` > -1 OR `int").Eq(-5)).Count()
+	st.Error(err)
+}
+
 func (st *sqlite3Suite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()

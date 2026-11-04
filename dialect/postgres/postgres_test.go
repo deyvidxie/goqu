@@ -259,6 +259,19 @@ func (pt *postgresTest) TestCollate() {
 	pt.Equal(int64(10), count)
 }
 
+func (pt *postgresTest) TestQuoteCharacterInIdentifier() {
+	ds := pt.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a\"b")).ScanVal(&v)
+	pt.NoError(err)
+	pt.True(found)
+	pt.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int\" > -1 OR \"int").Eq(-5)).Count()
+	pt.Error(err)
+}
+
 func (pt *postgresTest) TestCount() {
 	ds := pt.db.From("entry")
 	count, err := ds.Count()

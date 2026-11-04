@@ -272,6 +272,50 @@ func (mt *mysqlTest) TestCollate() {
 	mt.Equal(int64(10), count)
 }
 
+func (mt *mysqlTest) TestInterpolatedStringLiteral() {
+	ds := mt.db.From("entry")
+	value := "it's a \\ path with \"quotes\"\n\r\x00\x1a"
+	var v string
+	found, err := ds.Select(goqu.V(value).As("v")).ScanVal(&v)
+	mt.NoError(err)
+	mt.True(found)
+	mt.Equal(value, v)
+
+	injection := "') OR 1=1 -- "
+	count, err := ds.Where(goqu.C("string").Eq(injection)).Count()
+	mt.NoError(err)
+	mt.Equal(int64(0), count)
+
+	tx, err := mt.db.Begin()
+	mt.Require().NoError(err)
+	defer func() { mt.NoError(tx.Rollback()) }()
+	var sqlMode string
+	mt.Require().NoError(tx.QueryRow("SELECT @@SESSION.sql_mode").Scan(&sqlMode))
+	_, err = tx.Exec("SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES'")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := tx.Exec("SET SESSION sql_mode = ?", sqlMode)
+		mt.NoError(err)
+	}()
+
+	count, err = tx.From("entry").Where(goqu.C("string").Eq(injection)).Count()
+	mt.NoError(err)
+	mt.Equal(int64(0), count)
+}
+
+func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
+	ds := mt.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a`b")).ScanVal(&v)
+	mt.NoError(err)
+	mt.True(found)
+	mt.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int` > -1 OR `int").Eq(-5)).Count()
+	mt.Error(err)
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()
