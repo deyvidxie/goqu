@@ -103,8 +103,16 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	})
 	ds.ErrorIs(err, sql.ErrTxDone)
 	ds.ErrorIs(err, cause)
+	ds.ErrorIs(err, context.Canceled)
 	ds.NoError(mock.ExpectationsWereMet())
 }
+
+type commitErrTx struct {
+	goqu.SQLTx
+	err error
+}
+
+func (t commitErrTx) Commit() error { return t.err }
 
 func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel() {
 	mDB, mock, err := sqlmock.New()
@@ -113,11 +121,30 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel(
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cause := errors.New("request aborted")
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(_ *goqu.TxDatabase) error {
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		tx.Tx = commitErrTx{err: context.Canceled}
 		cancel(cause)
 		return nil
 	})
+	ds.ErrorIs(err, context.Canceled)
 	ds.ErrorIs(err, cause)
+	ds.NotErrorIs(err, sql.ErrTxDone)
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
+func (ds *databaseSuite) TestWithTxContext_doesNotJoinCauseIntoUnrelatedError() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	constraintErr := errors.New("unique constraint violated")
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		tx.Tx = commitErrTx{err: constraintErr}
+		cancel(errors.New("request aborted"))
+		return nil
+	})
+	ds.Equal(constraintErr, err)
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
