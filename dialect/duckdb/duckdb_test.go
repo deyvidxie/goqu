@@ -133,6 +133,19 @@ func (st *duckdbSuite) TestSelectSQL() {
 	)
 }
 
+func (st *duckdbSuite) TestQuoteCharacterInIdentifier() {
+	ds := st.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a\"b")).ScanVal(&v)
+	st.NoError(err)
+	st.True(found)
+	st.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int\" > -1 OR \"int").Eq(-5)).Count()
+	st.Error(err)
+}
+
 func (st *duckdbSuite) TestCompoundQueries() {
 	ds1 := st.db.From("entry").Select("int").Where(goqu.C("int").Gt(0))
 	ds2 := st.db.From("entry").Select("int").Where(goqu.C("int").Gt(5))
