@@ -2,6 +2,7 @@ package goqu_test
 
 import (
 	"context"
+	dbsql "database/sql"
 	"fmt"
 	"sync"
 	"testing"
@@ -247,12 +248,15 @@ func (ds *databaseSuite) TestBegin() {
 	mock.ExpectBegin()
 	mock.ExpectBegin().WillReturnError(errors.New("transaction error"))
 	db := goqu.New("mock", mDB)
+	logger := new(dbTestMockLogger)
+	db.Logger(logger)
 	tx, err := db.Begin()
 	ds.NoError(err)
 	ds.Equal("mock", tx.Dialect())
 
 	_, err = db.Begin()
 	ds.EqualError(err, "goqu: transaction error")
+	ds.Equal([]string{"[goqu - transaction] BEGIN", "[goqu - transaction] BEGIN"}, logger.Messages)
 }
 
 func (ds *databaseSuite) TestBeginTx() {
@@ -262,24 +266,27 @@ func (ds *databaseSuite) TestBeginTx() {
 	mock.ExpectBegin()
 	mock.ExpectBegin().WillReturnError(errors.New("transaction error"))
 	db := goqu.New("mock", mDB)
+	logger := new(dbTestMockLogger)
+	db.Logger(logger)
 	tx, err := db.BeginTx(ctx, nil)
 	ds.NoError(err)
 	ds.Equal("mock", tx.Dialect())
 
 	_, err = db.BeginTx(ctx, nil)
 	ds.EqualError(err, "goqu: transaction error")
+	ds.Equal([]string{"[goqu - transaction] BEGIN", "[goqu - transaction] BEGIN"}, logger.Messages)
 }
 
 func (ds *databaseSuite) TestWithTx() {
 	mDB, mock, err := sqlmock.New()
 	ds.NoError(err)
+	ds.assertWithTxCases(mock, goqu.New("mock", mDB).WithTx)
+}
 
-	db := goqu.New("mock", mDB)
-
+func (ds *databaseSuite) assertWithTxCases(mock sqlmock.Sqlmock, withTx func(func(*goqu.TxDatabase) error) error) {
 	cases := []struct {
 		expectf func(sqlmock.Sqlmock)
 		f       func(*goqu.TxDatabase) error
-		wantErr bool
 		errStr  string
 	}{
 		{
@@ -287,54 +294,50 @@ func (ds *databaseSuite) TestWithTx() {
 				mock.ExpectBegin()
 				mock.ExpectCommit()
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: false,
+			f: func(_ *goqu.TxDatabase) error { return nil },
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin().WillReturnError(errors.New("transaction begin error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: true,
-			errStr:  "goqu: transaction begin error",
+			f:      func(_ *goqu.TxDatabase) error { return nil },
+			errStr: "goqu: transaction begin error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
 			},
-			f:       func(_ *goqu.TxDatabase) error { return errors.New("transaction error") },
-			wantErr: true,
-			errStr:  "goqu: transaction error",
+			f:      func(_ *goqu.TxDatabase) error { return errors.New("transaction error") },
+			errStr: "goqu: transaction error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectRollback().WillReturnError(errors.New("transaction rollback error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return errors.New("something wrong") },
-			wantErr: true,
-			errStr:  "goqu: transaction rollback error",
+			f:      func(_ *goqu.TxDatabase) error { return errors.New("something wrong") },
+			errStr: "goqu: transaction rollback error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectCommit().WillReturnError(errors.New("commit error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: true,
-			errStr:  "goqu: commit error",
+			f:      func(_ *goqu.TxDatabase) error { return nil },
+			errStr: "goqu: commit error",
 		},
 	}
 	for _, c := range cases {
 		c.expectf(mock)
-		err := db.WithTx(c.f)
-		if c.wantErr {
+		err := withTx(c.f)
+		if c.errStr != "" {
 			ds.EqualError(err, c.errStr)
 		} else {
 			ds.NoError(err)
 		}
 	}
+	ds.NoError(mock.ExpectationsWereMet())
 }
 
 func (ds *databaseSuite) TestRollbackOnPanic() {
@@ -457,6 +460,7 @@ func (tds *txdatabaseSuite) TestLogger_FromDb() {
 	tds.NoError(err)
 	tds.NoError(tx.Commit())
 	tds.Equal([]string{
+		"[goqu - transaction] BEGIN",
 		"[goqu - transaction] QUERY [query:=`SELECT * FROM \"items\"`] ",
 		"[goqu - transaction] EXEC [query:=`SELECT * FROM \"items\" WHERE \"id\" = ?` args:=[1]] ",
 		"[goqu - transaction] COMMIT",
@@ -714,6 +718,54 @@ func (tds *txdatabaseSuite) TestWrap() {
 	tds.EqualError(tx.Wrap(func() error {
 		return errors.New("tx error")
 	}), "goqu: tx error")
+}
+
+func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+	fnErr := errors.New("fn failed")
+
+	err = tx.Wrap(func() error {
+		tds.NoError(tx.Rollback())
+		return fnErr
+	})
+	tds.ErrorIs(err, fnErr)
+	tds.ErrorIs(err, dbsql.ErrTxDone)
+	tds.NoError(mock.ExpectationsWereMet())
+}
+
+func (tds *txdatabaseSuite) TestWrap_doesNotRepeatErrTxDone() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+
+	err = tx.Wrap(func() error {
+		tds.NoError(tx.Rollback())
+		_, execErr := tx.Exec(`UPDATE "items" SET "a"=1`)
+		return execErr
+	})
+	tds.Equal(dbsql.ErrTxDone, err)
+	tds.NoError(mock.ExpectationsWereMet())
+}
+
+func (tds *txdatabaseSuite) TestWrap_returnsErrTxDoneWhenFnCommitted() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+
+	err = tx.Wrap(tx.Commit)
+	tds.Equal(dbsql.ErrTxDone, err)
+	tds.NoError(mock.ExpectationsWereMet())
 }
 
 func (tds *txdatabaseSuite) TestDataRace() {

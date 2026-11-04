@@ -97,6 +97,26 @@ func ExampleDatabase_WithTx() {
 	// Updated users in transaction [ids:=[1 2 3]]
 }
 
+func ExampleDatabase_WithTxContext() {
+	db := getDB()
+	ctx := context.Background()
+	var ids []int64
+	if err := db.WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		return tx.Update("goqu_user").
+			Where(goqu.Ex{"last_name": "Yukon"}).
+			Returning("id").
+			Set(goqu.Record{"last_name": "Ucon"}).
+			Executor().
+			ScanValsContext(ctx, &ids)
+	}); err != nil {
+		fmt.Println("An error occurred in transaction\n\t", err.Error())
+	} else {
+		fmt.Printf("Updated users in transaction [ids:=%+v]", ids)
+	}
+	// Output:
+	// Updated users in transaction [ids:=[1 2 3]]
+}
+
 func ExampleDatabase_Dialect() {
 	db := getDB()
 
