@@ -335,6 +335,16 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a ex
 	}
 }
 
+func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
+	quote := esg.dialectOptions.QuoteRune
+	b.WriteRunes(quote)
+	if strings.ContainsRune(name, quote) {
+		q := string(quote)
+		name = strings.ReplaceAll(name, q, q+q)
+	}
+	b.WriteStrings(name).WriteRunes(quote)
+}
+
 // Quotes an identifier (e.g. "col", "table"."col"
 func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, ident exp.IdentifierExpression) {
 	if ident.IsEmpty() {
@@ -344,17 +354,13 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 	schema, table, col := ident.GetSchema(), ident.GetTable(), ident.GetCol()
 	b.GrowBuffer(len(schema) + len(table) + identifierOverhead)
 	if schema != esg.dialectOptions.EmptyString {
-		b.WriteRunes(esg.dialectOptions.QuoteRune).
-			WriteStrings(schema).
-			WriteRunes(esg.dialectOptions.QuoteRune)
+		esg.quotedIdentifierSQL(b, schema)
 	}
 	if table != esg.dialectOptions.EmptyString {
 		if schema != esg.dialectOptions.EmptyString {
 			b.WriteRunes(esg.dialectOptions.PeriodRune)
 		}
-		b.WriteRunes(esg.dialectOptions.QuoteRune).
-			WriteStrings(table).
-			WriteRunes(esg.dialectOptions.QuoteRune)
+		esg.quotedIdentifierSQL(b, table)
 	}
 	switch t := col.(type) {
 	case nil:
@@ -363,9 +369,7 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 			if table != esg.dialectOptions.EmptyString || schema != esg.dialectOptions.EmptyString {
 				b.WriteRunes(esg.dialectOptions.PeriodRune)
 			}
-			b.WriteRunes(esg.dialectOptions.QuoteRune).
-				WriteStrings(t).
-				WriteRunes(esg.dialectOptions.QuoteRune)
+			esg.quotedIdentifierSQL(b, t)
 		}
 	case exp.LiteralExpression:
 		if table != esg.dialectOptions.EmptyString || schema != esg.dialectOptions.EmptyString {
