@@ -66,7 +66,6 @@ func (st *duckdbSuite) SetupSuite() {
 	if err != nil {
 		panic(err.Error())
 	}
-	db.SetMaxOpenConns(1)
 	st.db = goqu.New("duckdb", db)
 }
 
