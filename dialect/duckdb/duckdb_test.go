@@ -16,30 +16,28 @@ import (
 )
 
 const (
-	dropTable   = "DROP TABLE IF EXISTS \"entry\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
+	dropTable   = "DROP TABLE IF EXISTS \"entry\"; DROP TABLE IF EXISTS \"entry_unindexed\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
 	createTable = "CREATE SEQUENCE \"entry_id_seq\"; CREATE TABLE \"entry\" (" +
 		"\"id\" INTEGER PRIMARY KEY DEFAULT nextval('entry_id_seq')," +
 		"\"int\" INT NOT NULL ," +
 		"\"float\" DOUBLE NOT NULL ," +
 		"\"string\" VARCHAR(255) NOT NULL ," +
 		"\"time\" DATETIME NOT NULL ," +
-		"\"bool\" TINYINT NOT NULL ," +
+		"\"bool\" BOOLEAN NOT NULL ," +
 		"\"bytes\" BLOB NOT NULL" +
 		");"
 	insertDefaultRecords = "INSERT INTO \"entry\" (\"int\", \"float\", \"string\", \"time\", \"bool\", \"bytes\") VALUES" +
-		"(0, 0.000000, '0.000000', '2015-02-22T18:19:55.000000000-00:00', 1,  '0.000000')," +
-		"(1, 0.100000, '0.100000', '2015-02-22T19:19:55.000000000-00:00', 0, '0.100000')," +
-		"(2, 0.200000, '0.200000', '2015-02-22T20:19:55.000000000-00:00', 1,  '0.200000')," +
-		"(3, 0.300000, '0.300000', '2015-02-22T21:19:55.000000000-00:00', 0, '0.300000')," +
-		"(4, 0.400000, '0.400000', '2015-02-22T22:19:55.000000000-00:00', 1,  '0.400000')," +
-		"(5, 0.500000, '0.500000', '2015-02-22T23:19:55.000000000-00:00', 0, '0.500000')," +
-		"(6, 0.600000, '0.600000', '2015-02-23T00:19:55.000000000-00:00', 1,  '0.600000')," +
-		"(7, 0.700000, '0.700000', '2015-02-23T01:19:55.000000000-00:00', 0, '0.700000')," +
-		"(8, 0.800000, '0.800000', '2015-02-23T02:19:55.000000000-00:00', 1,  '0.800000')," +
-		"(9, 0.900000, '0.900000', '2015-02-23T03:19:55.000000000-00:00', 0, '0.900000');"
+		"(0, 0.000000, '0.000000', '2015-02-22T18:19:55.000000000-00:00', TRUE, '0.000000')," +
+		"(1, 0.100000, '0.100000', '2015-02-22T19:19:55.000000000-00:00', FALSE, '0.100000')," +
+		"(2, 0.200000, '0.200000', '2015-02-22T20:19:55.000000000-00:00', TRUE, '0.200000')," +
+		"(3, 0.300000, '0.300000', '2015-02-22T21:19:55.000000000-00:00', FALSE, '0.300000')," +
+		"(4, 0.400000, '0.400000', '2015-02-22T22:19:55.000000000-00:00', TRUE, '0.400000')," +
+		"(5, 0.500000, '0.500000', '2015-02-22T23:19:55.000000000-00:00', FALSE, '0.500000')," +
+		"(6, 0.600000, '0.600000', '2015-02-23T00:19:55.000000000-00:00', TRUE, '0.600000')," +
+		"(7, 0.700000, '0.700000', '2015-02-23T01:19:55.000000000-00:00', FALSE, '0.700000')," +
+		"(8, 0.800000, '0.800000', '2015-02-23T02:19:55.000000000-00:00', TRUE, '0.800000')," +
+		"(9, 0.900000, '0.900000', '2015-02-23T03:19:55.000000000-00:00', FALSE, '0.900000');"
 )
-
-var dbURI = ""
 
 type (
 	duckdbSuite struct {
@@ -64,7 +62,7 @@ type (
 )
 
 func (st *duckdbSuite) SetupSuite() {
-	db, err := sql.Open("duckdb", dbURI)
+	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -316,7 +314,7 @@ func (st *duckdbSuite) TestInsert() {
 	found, err := ds.Where(goqu.C("int").Eq(10)).ScanStruct(&insertedEntry)
 	st.NoError(err)
 	st.True(found)
-	st.True(insertedEntry.ID > 0)
+	st.Equal(uint32(11), insertedEntry.ID)
 
 	entries := []entry{
 		{Int: 11, Float: 1.100000, String: "1.100000", Time: now, Bool: false, Bytes: []byte("1.100000")},
@@ -329,7 +327,8 @@ func (st *duckdbSuite) TestInsert() {
 	st.NoError(err)
 
 	var newEntries []entry
-	st.NoError(ds.Where(goqu.C("int").In([]uint32{11, 12, 13, 14})).ScanStructs(&newEntries))
+	st.NoError(ds.Where(goqu.C("int").In([]uint32{11, 12, 13, 14})).Order(goqu.C("id").Asc()).ScanStructs(&newEntries))
+	st.Len(newEntries, len(entries))
 	for i, e := range newEntries {
 		st.Equal(entries[i].Int, e.Int)
 		st.Equal(entries[i].Float, e.Float)
@@ -357,9 +356,10 @@ func (st *duckdbSuite) TestInsert_returning() {
 	ds := st.db.From("entry")
 	now := time.Now()
 	e := entry{Int: 10, Float: 1.000000, String: "1.000000", Time: now, Bool: true, Bytes: []byte("1.000000")}
-	_, err := ds.Insert().Rows(e).Returning(goqu.Star()).Executor().ScanStruct(&e)
+	found, err := ds.Insert().Rows(e).Returning(goqu.Star()).Executor().ScanStruct(&e)
 	st.NoError(err)
-	st.GreaterOrEqual(e.ID, uint32(0))
+	st.True(found)
+	st.Equal(uint32(11), e.ID)
 }
 
 func (st *duckdbSuite) TestUpdate() {
@@ -383,14 +383,21 @@ func (st *duckdbSuite) TestUpdateReturning() {
 	st.Require().NoError(err)
 	ds := st.db.From("entry_unindexed")
 	var id uint32
-	_, err = ds.
+	found, err := ds.
 		Where(goqu.C("id").Eq(1)).
 		Update().
 		Set(goqu.Record{"int": 11}).
 		Returning("id").
 		Executor().ScanVal(&id)
 	st.NoError(err)
-	st.GreaterOrEqual(id, uint32(0))
+	st.True(found)
+	st.Equal(uint32(1), id)
+
+	var updated int
+	found, err = ds.Select("int").Where(goqu.C("id").Eq(1)).ScanVal(&updated)
+	st.NoError(err)
+	st.True(found)
+	st.Equal(11, updated)
 }
 
 func (st *duckdbSuite) TestDelete() {
@@ -415,12 +422,49 @@ func (st *duckdbSuite) TestDelete() {
 	found, err = ds.Where(goqu.C("int").Eq(8)).Select("id").ScanStruct(&e)
 	st.NoError(err)
 	st.True(found)
-	st.NotEqual(int64(0), e.ID)
+	st.NotZero(e.ID)
 
 	id = 0
-	_, err = ds.Where(goqu.C("id").Eq(e.ID)).Delete().Returning("id").Executor().ScanVal(&id)
+	found, err = ds.Where(goqu.C("id").Eq(e.ID)).Delete().Returning("id").Executor().ScanVal(&id)
 	st.NoError(err)
-	st.GreaterOrEqual(id, uint32(0))
+	st.True(found)
+	st.Equal(e.ID, id)
+
+	count, err = ds.Count()
+	st.NoError(err)
+	st.Equal(int64(8), count)
+}
+
+func (st *duckdbSuite) TestDeleteWithLimitIsRejected() {
+	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Limit(1).Delete().Executor().Exec()
+	st.ErrorContains(err, `syntax error at or near "LIMIT"`)
+	count, err := st.db.From("entry").Count()
+	st.NoError(err)
+	st.Equal(int64(10), count)
+}
+
+func (st *duckdbSuite) TestDeleteWithOrderIsRejected() {
+	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Order(goqu.C("id").Asc()).Delete().Executor().Exec()
+	st.ErrorContains(err, `syntax error at or near "ORDER"`)
+	count, err := st.db.From("entry").Count()
+	st.NoError(err)
+	st.Equal(int64(10), count)
+}
+
+func (st *duckdbSuite) TestUpdateWithLimitIsRejected() {
+	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Limit(1).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
+	st.ErrorContains(err, `syntax error at or near "LIMIT"`)
+	count, err := st.db.From("entry").Where(goqu.C("int").Eq(99)).Count()
+	st.NoError(err)
+	st.Zero(count)
+}
+
+func (st *duckdbSuite) TestUpdateWithOrderIsRejected() {
+	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Order(goqu.C("id").Asc()).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
+	st.ErrorContains(err, `syntax error at or near "ORDER"`)
+	count, err := st.db.From("entry").Where(goqu.C("int").Eq(99)).Count()
+	st.NoError(err)
+	st.Zero(count)
 }
 
 func (st *duckdbSuite) TestInsert_OnConflict() {

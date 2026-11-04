@@ -136,6 +136,20 @@ func (sds *duckdbDialectSuite) TestLiteralBytes() {
 	)
 }
 
+func (sds *duckdbDialectSuite) TestInsertWithoutValues() {
+	sds.assertSQL(
+		sqlTestCase{ds: goqu.Dialect("duckdb").Insert("test"), sql: `INSERT INTO "test" DEFAULT VALUES`},
+	)
+}
+
+func (sds *duckdbDialectSuite) TestUpdateAndDeleteWithOrderAndLimit() {
+	ds := sds.GetDs("test").Where(goqu.C("a").Gt(1)).Order(goqu.C("a").Asc()).Limit(1)
+	sds.assertSQL(
+		sqlTestCase{ds: ds.Update().Set(goqu.Record{"a": 2}), sql: `UPDATE "test" SET "a"=2 WHERE ("a" > 1) ORDER BY "a" ASC LIMIT 1`},
+		sqlTestCase{ds: ds.Delete(), sql: `DELETE FROM "test" WHERE ("a" > 1) ORDER BY "a" ASC LIMIT 1`},
+	)
+}
+
 func (sds *duckdbDialectSuite) TestBooleanOperations() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(
@@ -143,6 +157,8 @@ func (sds *duckdbDialectSuite) TestBooleanOperations() {
 		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(false)), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS FALSE)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").Is(true)), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS TRUE)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").Is(false)), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS FALSE)"},
+		sqlTestCase{ds: ds.Prepared(true).Where(goqu.C("a").IsTrue()), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS TRUE)", isPrepared: true},
+		sqlTestCase{ds: ds.Prepared(true).Where(goqu.C("a").IsFalse()), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS FALSE)", isPrepared: true},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsTrue()), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS TRUE)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsFalse()), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS FALSE)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").Neq(true)), sql: "SELECT * FROM \"test\" WHERE (\"a\" IS NOT TRUE)"},
