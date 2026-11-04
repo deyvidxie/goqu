@@ -73,5 +73,7 @@ To enable trace logging of SQL statements use the [`Database.Logger`](http://god
 
 **NOTE** The logger must implement the [`Logger`](http://godoc.org/github.com/doug-martin/goqu/#Logger) interface
 
+**NOTE** If the logger also implements [`ContextLogger`](http://godoc.org/github.com/doug-martin/goqu/#ContextLogger), goqu calls `PrintfContext` with the query's context
+
 **NOTE** If you start a transaction using a database your set a logger on the transaction will inherit that logger automatically
 

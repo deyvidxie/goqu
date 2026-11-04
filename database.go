@@ -3,6 +3,7 @@ package goqu
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sync"
 
 	"github.com/doug-martin/goqu/v9/exec"
@@ -194,7 +195,7 @@ func (d *Database) TraceContext(ctx context.Context, op, sqlString string, args 
 
 func (d *Database) traceBegin(ctx context.Context) {
 	if d.logger != nil {
-		logf(ctx, d.logger, "[goqu - transaction] %s", "BEGIN")
+		logf(ctx, d.logger, "[goqu - transaction] BEGIN")
 	}
 }
 
@@ -716,7 +717,7 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 			panic(p)
 		}
 		if err != nil {
-			if rollbackErr := td.Rollback(); rollbackErr != nil {
+			if rollbackErr := td.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
 				err = rollbackErr
 			}
 		} else {
