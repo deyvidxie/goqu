@@ -236,13 +236,10 @@ func (dd *DeleteDataset) ReturnsColumns() bool {
 	return dd.clauses.HasReturning()
 }
 
-// Creates an QueryExecutor to execute the query.
-//
-//	db.Delete("test").Exec()
-//
-// See Dataset#ToUpdateSQL for arguments
 func (dd *DeleteDataset) Executor() exec.QueryExecutor {
-	return dd.queryFactory.FromSQLBuilder(dd.deleteSQLBuilder())
+	builder := dd.deleteSQLBuilder()
+	defer sb.ReleaseSQLBuilder(builder)
+	return dd.queryFactory.FromSQLBuilder(builder)
 }
 
 func (dd *DeleteDataset) deleteSQLBuilder() sb.SQLBuilder {
