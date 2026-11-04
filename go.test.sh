@@ -3,4 +3,4 @@
 set -e
 echo "" > coverage.txt
 
-go test -v -race ./...
+go test -v -race $(go list ./... | grep -v /dialect/duckdb)

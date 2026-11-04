@@ -92,7 +92,6 @@ func (esg *expressionSQLGenerator) Dialect() string {
 
 var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 
-// nolint:gocyclo // processing all possible types
 func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	if b.Error() != nil {
 		return
@@ -551,7 +550,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	}
 
 	if operatorOp == exp.LikeOp || operatorOp == exp.NotLikeOp {
-		if len(esg.dialectOptions.LikeEscapeKey) > 0 {
+		if esg.dialectOptions.LikeEscapeKey != "" {
 			b.WriteRunes(esg.dialectOptions.SpaceRune)
 			b.WriteStrings(esg.dialectOptions.LikeEscapeKey)
 			b.WriteRunes(esg.dialectOptions.SpaceRune)

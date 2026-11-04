@@ -55,6 +55,9 @@ linters:
         - whyNoLint
         - wrapperFunc
         - sqlQuery
+      settings:
+        hugeParam:
+          sizeThreshold: 96
       enabled-tags:
         - diagnostic
         - experimental

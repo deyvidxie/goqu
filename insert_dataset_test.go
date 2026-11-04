@@ -359,8 +359,10 @@ func (ids *insertDatasetSuite) TestOnConflict() {
 			clauses: exp.NewInsertClauses().SetInto(goqu.C("items")).SetOnConflict(goqu.DoNothing()),
 		},
 		insertTestCase{
-			ds:      bd.OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "items"))),
-			clauses: exp.NewInsertClauses().SetInto(goqu.C("items")).SetOnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "items"))),
+			ds: bd.OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "items"))),
+			clauses: exp.NewInsertClauses().
+				SetInto(goqu.C("items")).
+				SetOnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "items"))),
 		},
 		insertTestCase{
 			ds:      bd.OnConflict(du),

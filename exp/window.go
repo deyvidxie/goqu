@@ -8,7 +8,11 @@ type sqlWindowExpression struct {
 	tagName       string
 }
 
-func NewWindowExpression(tagName string, window, parent IdentifierExpression, partitionCols, orderCols ColumnListExpression) WindowExpression {
+func NewWindowExpression(
+	tagName string,
+	window, parent IdentifierExpression,
+	partitionCols, orderCols ColumnListExpression,
+) WindowExpression {
 	if partitionCols == nil {
 		partitionCols = NewColumnListExpression(nil, tagName)
 	}

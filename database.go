@@ -73,7 +73,7 @@ type (
 //	}
 //
 // fmt.Printf("%+v", ids)
-func newDatabase(dialect string, tagName string, db SQLDatabase) *Database {
+func newDatabase(dialect, tagName string, db SQLDatabase) *Database {
 	return &Database{
 		logger:  nil,
 		dialect: dialect,
@@ -485,7 +485,7 @@ func NewTx(dialect string, tx SQLTx) *TxDatabase {
 	return &TxDatabase{dialect: dialect, tagName: "db", Tx: tx}
 }
 
-func NewTxWithTagName(dialect string, tagName string, tx SQLTx) *TxDatabase {
+func NewTxWithTagName(dialect, tagName string, tx SQLTx) *TxDatabase {
 	return &TxDatabase{dialect: dialect, tagName: tagName, Tx: tx}
 }
 
