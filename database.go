@@ -482,7 +482,7 @@ type (
 
 // Creates a new TxDatabase
 func NewTx(dialect string, tx SQLTx) *TxDatabase {
-	return &TxDatabase{dialect: dialect, tagName: "db", Tx: tx}
+	return &TxDatabase{dialect: dialect, tagName: registeredTagName(dialect), Tx: tx}
 }
 
 func NewTxWithTagName(dialect, tagName string, tx SQLTx) *TxDatabase {

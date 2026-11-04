@@ -25,7 +25,7 @@ type DialectWrapper struct {
 
 // Creates a new DialectWrapper to create goqu.Datasets or goqu.Databases with the specified dialect.
 func Dialect(dialect string) DialectWrapper {
-	return DialectWithTagName(dialect, "db")
+	return DialectWithTagName(dialect, registeredTagName(dialect))
 }
 
 func DialectWithTagName(dialect, tagName string) DialectWrapper {
@@ -67,7 +67,7 @@ func (dw DialectWrapper) DB(db SQLDatabase) *Database {
 }
 
 func New(dialect string, db SQLDatabase) *Database {
-	return newDatabase(dialect, "db", db)
+	return newDatabase(dialect, registeredTagName(dialect), db)
 }
 
 func NewWithTagName(dialect, tagName string, db SQLDatabase) *Database {

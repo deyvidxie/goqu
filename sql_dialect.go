@@ -77,7 +77,16 @@ func dropTaggedDialects(name string) {
 }
 
 func GetDialect(name string) SQLDialect {
-	return GetDialectWithTag(name, "db")
+	return GetDialectWithTag(name, registeredTagName(name))
+}
+
+func registeredTagName(name string) string {
+	dialectsMu.RLock()
+	defer dialectsMu.RUnlock()
+	if d, ok := dialects[strings.ToLower(name)]; ok {
+		return d.tagName
+	}
+	return "db"
 }
 
 func GetDialectWithTag(name, tagName string) SQLDialect {
@@ -99,8 +108,11 @@ func GetDialectWithTag(name, tagName string) SQLDialect {
 	dialectsMu.Lock()
 	defer dialectsMu.Unlock()
 	d, registered = dialects[name]
-	if !registered {
+	switch {
+	case !registered:
 		return newDialect("default", tagName, DefaultDialectOptions())
+	case d.tagName == tagName:
+		return d
 	}
 	if tagged, cached = taggedDialects[key]; !cached {
 		tagged = newDialect(name, tagName, d.dialectOptions)

@@ -80,8 +80,13 @@ func IsEmptyValue(v reflect.Value) bool {
 	return !v.IsValid() || v.IsZero()
 }
 
+type columnMapKey struct {
+	t       reflect.Type
+	tagName string
+}
+
 var (
-	structMapCache     = make(map[interface{}]ColumnMap)
+	structMapCache     = make(map[columnMapKey]ColumnMap)
 	structMapCacheLock = sync.Mutex{}
 )
 
@@ -99,7 +104,7 @@ func SetIgnoreUntaggedFields(ignore bool) {
 		structMapCacheLock.Lock()
 		defer structMapCacheLock.Unlock()
 
-		structMapCache = make(map[interface{}]ColumnMap)
+		structMapCache = make(map[columnMapKey]ColumnMap)
 	}
 }
 
@@ -210,11 +215,6 @@ func IsScannerInterface(t reflect.Type) bool {
 }
 
 type rowData = map[string]interface{}
-
-type columnMapKey struct {
-	t       reflect.Type
-	tagName string
-}
 
 // AssignStructVals will assign the data from rd to i.
 func AssignStructVals(i interface{}, rd rowData, cm ColumnMap) {
