@@ -211,6 +211,11 @@ func IsScannerInterface(t reflect.Type) bool {
 
 type rowData = map[string]interface{}
 
+type columnMapKey struct {
+	t       reflect.Type
+	tagName string
+}
+
 // AssignStructVals will assign the data from rd to i.
 func AssignStructVals(i interface{}, rd rowData, cm ColumnMap) {
 	val := reflect.Indirect(reflect.ValueOf(i))
@@ -232,8 +237,9 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 
 	structMapCacheLock.Lock()
 	defer structMapCacheLock.Unlock()
-	if _, ok := structMapCache[t]; !ok {
-		structMapCache[t] = newColumnMap(t, []int{}, []string{}, tagName)
+	key := columnMapKey{t: t, tagName: tagName}
+	if _, ok := structMapCache[key]; !ok {
+		structMapCache[key] = newColumnMap(t, []int{}, []string{}, tagName)
 	}
-	return structMapCache[t], nil
+	return structMapCache[key], nil
 }

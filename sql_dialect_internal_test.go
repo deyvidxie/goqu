@@ -1,6 +1,7 @@
 package goqu
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
@@ -84,6 +85,39 @@ func (dts *dialectTestSuite) TestToTruncateSQL() {
 
 	d.ToTruncateSQL(b, tc)
 	tm.AssertExpectations(dts.T())
+}
+
+func (dts *dialectTestSuite) TestGetDialectWithTag() {
+	RegisterDialect("tag-test", "db", DefaultDialectOptions())
+	defer DeregisterDialect("tag-test")
+
+	dbTagged := GetDialectWithTag("tag-test", "db")
+	dts.Same(GetDialect("tag-test"), dbTagged)
+
+	jsonTagged := GetDialectWithTag("tag-test", "json")
+	dts.NotSame(dbTagged, jsonTagged)
+	dts.Same(jsonTagged, GetDialectWithTag("tag-test", "json"))
+	dts.Equal("tag-test", jsonTagged.Dialect())
+
+	RegisterDialect("tag-test", "db", DefaultDialectOptions())
+	dts.NotSame(jsonTagged, GetDialectWithTag("tag-test", "json"))
+}
+
+func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
+	defer DeregisterDialect("race-test")
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			RegisterDialect("race-test", "db", DefaultDialectOptions())
+		}()
+		go func() {
+			defer wg.Done()
+			GetDialectWithTag("race-test", "json")
+		}()
+	}
+	wg.Wait()
 }
 
 func TestSQLDialect(t *testing.T) {

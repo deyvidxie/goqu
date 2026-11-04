@@ -26,6 +26,7 @@ type (
 	// See (github.com/doug-martin/goqu/dialect/postgres)
 	sqlDialect struct {
 		dialect        string
+		tagName        string
 		dialectOptions *SQLDialectOptions
 		selectGen      sqlgen.SelectSQLGenerator
 		updateGen      sqlgen.UpdateSQLGenerator
@@ -35,8 +36,14 @@ type (
 	}
 )
 
+type taggedDialectKey struct {
+	name    string
+	tagName string
+}
+
 var (
-	dialects              = make(map[string]SQLDialect)
+	dialects              = make(map[string]*sqlDialect)
+	taggedDialects        = make(map[taggedDialectKey]*sqlDialect)
 	DefaultDialectOptions = sqlgen.DefaultDialectOptions
 	dialectsMu            sync.RWMutex
 )
@@ -50,33 +57,62 @@ func RegisterDialect(name, tagName string, do *SQLDialectOptions) {
 	defer dialectsMu.Unlock()
 	lowerName := strings.ToLower(name)
 	dialects[lowerName] = newDialect(lowerName, tagName, do)
+	dropTaggedDialects(lowerName)
 }
 
 func DeregisterDialect(name string) {
 	dialectsMu.Lock()
 	defer dialectsMu.Unlock()
-	delete(dialects, strings.ToLower(name))
+	lowerName := strings.ToLower(name)
+	delete(dialects, lowerName)
+	dropTaggedDialects(lowerName)
+}
+
+func dropTaggedDialects(name string) {
+	for key := range taggedDialects {
+		if key.name == name {
+			delete(taggedDialects, key)
+		}
+	}
 }
 
 func GetDialect(name string) SQLDialect {
-	name = strings.ToLower(name)
-	if d, ok := dialects[name]; ok {
-		return d
-	}
-	return newDialect("default", "db", DefaultDialectOptions())
+	return GetDialectWithTag(name, "db")
 }
 
 func GetDialectWithTag(name, tagName string) SQLDialect {
 	name = strings.ToLower(name)
-	if d, ok := dialects[name]; ok {
+	key := taggedDialectKey{name: name, tagName: tagName}
+	dialectsMu.RLock()
+	d, registered := dialects[name]
+	tagged, cached := taggedDialects[key]
+	dialectsMu.RUnlock()
+	switch {
+	case !registered:
+		return newDialect("default", tagName, DefaultDialectOptions())
+	case d.tagName == tagName:
 		return d
+	case cached:
+		return tagged
 	}
-	return newDialect("default", tagName, DefaultDialectOptions())
+
+	dialectsMu.Lock()
+	defer dialectsMu.Unlock()
+	d, registered = dialects[name]
+	if !registered {
+		return newDialect("default", tagName, DefaultDialectOptions())
+	}
+	if tagged, cached = taggedDialects[key]; !cached {
+		tagged = newDialect(name, tagName, d.dialectOptions)
+		taggedDialects[key] = tagged
+	}
+	return tagged
 }
 
-func newDialect(dialect, tagName string, do *SQLDialectOptions) SQLDialect {
+func newDialect(dialect, tagName string, do *SQLDialectOptions) *sqlDialect {
 	return &sqlDialect{
 		dialect:        dialect,
+		tagName:        tagName,
 		dialectOptions: do,
 		selectGen:      sqlgen.NewSelectSQLGenerator(dialect, tagName, do),
 		updateGen:      sqlgen.NewUpdateSQLGenerator(dialect, tagName, do),

@@ -34,7 +34,7 @@ func DialectWithTagName(dialect string, tagName string) DialectWrapper {
 
 // Create a new dataset for creating SELECT sql statements
 func (dw DialectWrapper) From(table ...interface{}) *SelectDataset {
-	return From(table...).WithDialect(dw.dialect)
+	return newDataset(dw.dialect, dw.tagName, nil).From(table...)
 }
 
 // Create a new dataset for creating SELECT sql statements
@@ -44,22 +44,22 @@ func (dw DialectWrapper) Select(cols ...interface{}) *SelectDataset {
 
 // Create a new dataset for creating UPDATE sql statements
 func (dw DialectWrapper) Update(table interface{}) *UpdateDataset {
-	return Update(table).WithDialect(dw.dialect)
+	return newUpdateDataset(dw.dialect, dw.tagName, nil).Table(table)
 }
 
 // Create a new dataset for creating INSERT sql statements
 func (dw DialectWrapper) Insert(table interface{}) *InsertDataset {
-	return Insert(table).WithDialect(dw.dialect)
+	return newInsertDataset(dw.dialect, dw.tagName, nil).Into(table)
 }
 
 // Create a new dataset for creating DELETE sql statements
 func (dw DialectWrapper) Delete(table interface{}) *DeleteDataset {
-	return Delete(table).WithDialect(dw.dialect)
+	return newDeleteDataset(dw.dialect, dw.tagName, nil).From(table)
 }
 
 // Create a new dataset for creating TRUNCATE sql statements
 func (dw DialectWrapper) Truncate(table ...interface{}) *TruncateDataset {
-	return Truncate(table...).WithDialect(dw.dialect)
+	return newTruncateDataset(dw.dialect, dw.tagName, nil).Table(table...)
 }
 
 func (dw DialectWrapper) DB(db SQLDatabase) *Database {
