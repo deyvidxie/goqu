@@ -268,7 +268,7 @@ func (sst *sqlserverTest) TestCollate() {
 	sst.Equal("0.900000", last)
 }
 
-func (sst *sqlserverTest) TestQuoteCharacterInStringLiteral() {
+func (sst *sqlserverTest) TestInterpolatedStringLiteral() {
 	ds := sst.db.From("entry")
 
 	value := "it's a \\ path\nwith \"quotes\"\r\x00\x1a"

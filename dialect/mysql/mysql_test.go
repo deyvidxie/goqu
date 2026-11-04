@@ -272,7 +272,7 @@ func (mt *mysqlTest) TestCollate() {
 	mt.Equal(int64(10), count)
 }
 
-func (mt *mysqlTest) TestQuoteCharacterInStringLiteral() {
+func (mt *mysqlTest) TestInterpolatedStringLiteral() {
 	ds := mt.db.From("entry")
 	value := "it's a \\ path with \"quotes\"\n\r\x00\x1a"
 	var v string

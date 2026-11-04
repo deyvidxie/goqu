@@ -45,24 +45,32 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 
 func (sds *sqlserverDialectSuite) TestLiteralString() {
 	ds := sds.GetDs("test")
+	col := goqu.C("a")
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test'test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test''test')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("') OR 1=1 --")), sql: `SELECT * FROM "test" WHERE ("a" = ''') OR 1=1 --')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(`test"test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test"test')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(`test\test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test\test')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test\ntest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\ntest')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test\rtest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\rtest')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test\x00test")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x00test')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test\x1atest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x1atest')"},
+		sqlTestCase{ds: ds.Where(col.Eq("test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test')`},
+		sqlTestCase{ds: ds.Where(col.Eq("test'test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test''test')`},
+		sqlTestCase{ds: ds.Where(col.Eq("') OR 1=1 --")), sql: `SELECT * FROM "test" WHERE ("a" = ''') OR 1=1 --')`},
+		sqlTestCase{ds: ds.Where(col.Eq(`test"test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test"test')`},
+		sqlTestCase{ds: ds.Where(col.Eq(`test\test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test\test')`},
+		sqlTestCase{ds: ds.Where(col.Eq("test\ntest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\ntest')"},
+		sqlTestCase{ds: ds.Where(col.Eq("test\rtest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\rtest')"},
+		sqlTestCase{ds: ds.Where(col.Eq("test\x00test")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x00test')"},
+		sqlTestCase{ds: ds.Where(col.Eq("test\x1atest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x1atest')"},
 	)
 }
 
 func (sds *sqlserverDialectSuite) TestLiteralBytes() {
 	ds := sds.GetDs("test")
+	col := goqu.C("a")
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq([]byte("test'test"))), sql: `SELECT * FROM "test" WHERE ("a" = 'test''test')`},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq([]byte(`test\test`))), sql: `SELECT * FROM "test" WHERE ("a" = 'test\test')`},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test"))), sql: `SELECT * FROM "test" WHERE ("a" = 'test')`},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test'test"))), sql: `SELECT * FROM "test" WHERE ("a" = 'test''test')`},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte(`test"test`))), sql: `SELECT * FROM "test" WHERE ("a" = 'test"test')`},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte(`test\test`))), sql: `SELECT * FROM "test" WHERE ("a" = 'test\test')`},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test\ntest"))), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\ntest')"},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test\rtest"))), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\rtest')"},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test\x00test"))), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x00test')"},
+		sqlTestCase{ds: ds.Where(col.Eq([]byte("test\x1atest"))), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\x1atest')"},
 	)
 }
 
