@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	dropTable   = "DROP TABLE IF EXISTS \"entry\"; DROP TABLE IF EXISTS \"entry_unindexed\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
+	dropTable = "DROP TABLE IF EXISTS \"entry\"; DROP TABLE IF EXISTS \"entry_unindexed\"; " +
+		"DROP TABLE IF EXISTS \"defaults\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
 	createTable = "CREATE SEQUENCE \"entry_id_seq\"; CREATE TABLE \"entry\" (" +
 		"\"id\" INTEGER PRIMARY KEY DEFAULT nextval('entry_id_seq')," +
 		"\"int\" INT NOT NULL ," +
@@ -142,6 +143,50 @@ func (st *duckdbSuite) TestQuoteCharacterInIdentifier() {
 
 	_, err = ds.Where(goqu.C("int\" > -1 OR \"int").Eq(-5)).Count()
 	st.Error(err)
+}
+
+func (st *duckdbSuite) TestGreatestAndLeast() {
+	ds := st.db.From("entry").Order(goqu.C("id").Asc())
+	var greatest []int
+	st.NoError(ds.Select(goqu.GREATEST(goqu.C("int"), 5)).ScanVals(&greatest))
+	st.Equal([]int{5, 5, 5, 5, 5, 5, 6, 7, 8, 9}, greatest)
+
+	var least []int
+	st.NoError(ds.Select(goqu.LEAST(goqu.C("int"), 5)).ScanVals(&least))
+	st.Equal([]int{0, 1, 2, 3, 4, 5, 5, 5, 5, 5}, least)
+}
+
+func (st *duckdbSuite) TestILike() {
+	ds := st.db.From("entry")
+	mixed := entry{Int: 10, Float: 1.0, String: "Mixed Case", Time: time.Now(), Bool: true, Bytes: []byte("x")}
+	_, err := ds.Insert().Rows(mixed).Executor().Exec()
+	st.Require().NoError(err)
+
+	count, err := ds.Where(goqu.C("string").ILike("mixed%")).Count()
+	st.NoError(err)
+	st.Equal(int64(1), count)
+
+	count, err = ds.Where(goqu.C("string").Like("mixed%")).Count()
+	st.NoError(err)
+	st.Zero(count)
+
+	count, err = ds.Where(goqu.C("string").NotILike("mixed%")).Count()
+	st.NoError(err)
+	st.Equal(int64(10), count)
+}
+
+func (st *duckdbSuite) TestInsertDefaultValues() {
+	_, err := st.db.Exec(`CREATE TABLE "defaults" ("id" INTEGER DEFAULT 1, "name" VARCHAR DEFAULT 'x')`)
+	st.Require().NoError(err)
+
+	_, err = st.db.Insert("defaults").Executor().Exec()
+	st.NoError(err)
+
+	var name string
+	found, err := st.db.From("defaults").Select("name").Where(goqu.C("id").Eq(1)).ScanVal(&name)
+	st.NoError(err)
+	st.True(found)
+	st.Equal("x", name)
 }
 
 func (st *duckdbSuite) TestCompoundQueries() {
@@ -445,7 +490,7 @@ func (st *duckdbSuite) TestDeleteWithLimitIsRejected() {
 
 func (st *duckdbSuite) TestDeleteWithOrderIsRejected() {
 	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Order(goqu.C("id").Asc()).Delete().Executor().Exec()
-	st.ErrorContains(err, `syntax error at or near "ORDER"`)
+	st.EqualError(err, "goqu: dialect does not support ORDER BY on DELETE [dialect=duckdb]")
 	count, err := st.db.From("entry").Count()
 	st.NoError(err)
 	st.Equal(int64(10), count)

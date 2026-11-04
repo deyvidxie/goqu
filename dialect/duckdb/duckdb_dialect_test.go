@@ -146,7 +146,8 @@ func (sds *duckdbDialectSuite) TestUpdateAndDeleteWithOrderAndLimit() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Gt(1)).Order(goqu.C("a").Asc()).Limit(1)
 	sds.assertSQL(
 		sqlTestCase{ds: ds.Update().Set(goqu.Record{"a": 2}), sql: `UPDATE "test" SET "a"=2 WHERE ("a" > 1) ORDER BY "a" ASC LIMIT 1`},
-		sqlTestCase{ds: ds.Delete(), sql: `DELETE FROM "test" WHERE ("a" > 1) ORDER BY "a" ASC LIMIT 1`},
+		sqlTestCase{ds: ds.Delete(), err: "goqu: dialect does not support ORDER BY on DELETE [dialect=duckdb]"},
+		sqlTestCase{ds: sds.GetDs("test").Where(goqu.C("a").Gt(1)).Limit(1).Delete(), sql: `DELETE FROM "test" WHERE ("a" > 1) LIMIT 1`},
 	)
 }
 

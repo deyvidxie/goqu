@@ -13,7 +13,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsReturn = true
 	opts.SupportsOrderByOnUpdate = true
 	opts.SupportsLimitOnUpdate = true
-	opts.SupportsOrderByOnDelete = true
+	opts.ErrorOnUnsupportedOrderByOnDelete = true
 	opts.SupportsLimitOnDelete = true
 	opts.SupportsConflictUpdateWhere = false
 	opts.SupportsInsertIgnoreSyntax = false
