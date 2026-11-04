@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	dropTable = "DROP TABLE IF EXISTS \"entry\"; DROP TABLE IF EXISTS \"entry_unindexed\"; " +
-		"DROP TABLE IF EXISTS \"defaults\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
+	dropTable   = "DROP TABLE IF EXISTS \"entry\"; DROP TABLE IF EXISTS \"entry_unindexed\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
 	createTable = "CREATE SEQUENCE \"entry_id_seq\"; CREATE TABLE \"entry\" (" +
 		"\"id\" INTEGER PRIMARY KEY DEFAULT nextval('entry_id_seq')," +
 		"\"int\" INT NOT NULL ," +
@@ -178,6 +177,10 @@ func (st *duckdbSuite) TestILike() {
 func (st *duckdbSuite) TestInsertDefaultValues() {
 	_, err := st.db.Exec(`CREATE TABLE "defaults" ("id" INTEGER DEFAULT 1, "name" VARCHAR DEFAULT 'x')`)
 	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec(`DROP TABLE "defaults"`)
+		st.NoError(err)
+	}()
 
 	_, err = st.db.Insert("defaults").Executor().Exec()
 	st.NoError(err)
