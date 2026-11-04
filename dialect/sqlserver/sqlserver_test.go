@@ -272,7 +272,7 @@ func (sst *sqlserverTest) TestQuoteCharacterInIdentifier() {
 	ds := sst.db.From("entry")
 
 	var v string
-	found, err := ds.Select(goqu.L("'x'").As("a\"b")).Limit(1).ScanVal(&v)
+	found, err := ds.Select(goqu.L("'x'").As("a\"b")).ScanVal(&v)
 	sst.NoError(err)
 	sst.True(found)
 	sst.Equal("x", v)

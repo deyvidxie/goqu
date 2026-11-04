@@ -276,7 +276,7 @@ func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
 	ds := mt.db.From("entry")
 
 	var v string
-	found, err := ds.Select(goqu.L("'x'").As("a`b")).Limit(1).ScanVal(&v)
+	found, err := ds.Select(goqu.L("'x'").As("a`b")).ScanVal(&v)
 	mt.NoError(err)
 	mt.True(found)
 	mt.Equal("x", v)

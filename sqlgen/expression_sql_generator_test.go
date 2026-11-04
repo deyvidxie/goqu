@@ -1253,16 +1253,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CompoundExpression() {
 	)
 }
 
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpressionWithBacktickQuote() {
-	opts := sqlgen.DefaultDialectOptions()
-	opts.QuoteRune = '`'
-	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: exp.NewIdentifierExpression("", "t`", "a` OR 1=1 -- "), sql: "`t```.`a`` OR 1=1 -- `"},
-		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a"b`), sql: "`a\"b`"},
-	)
-}
-
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 	col := exp.NewIdentifierExpression("", "", "col")
 	colStar := exp.NewIdentifierExpression("", "", "*")
@@ -1294,8 +1284,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 		expressionTestCase{val: col, sql: `"col"`, isPrepared: true},
 
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a" OR 1=1 --`), sql: `"a"" OR 1=1 --"`},
+		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a" OR 1=1 --`), sql: `"a"" OR 1=1 --"`, isPrepared: true},
 		expressionTestCase{val: exp.NewIdentifierExpression(`s"`, `t"`, `c"`), sql: `"s"""."t"""."c"""`},
+		expressionTestCase{val: exp.NewIdentifierExpression(`s"`, `t"`, `c"`), sql: `"s"""."t"""."c"""`, isPrepared: true},
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", "a`b"), sql: "\"a`b\""},
+		expressionTestCase{val: exp.NewIdentifierExpression("", "", "a`b"), sql: "\"a`b\"", isPrepared: true},
+		expressionTestCase{
+			val: exp.NewIdentifierExpression("", "", "a\x81\" OR 1=1 --"),
+			err: `goqu: identifier is not valid UTF-8: "a\x81\" OR 1=1 --"`,
+		},
 
 		expressionTestCase{val: col.Table("table"), sql: `"table"."col"`},
 		expressionTestCase{val: col.Table("table"), sql: `"table"."col"`, isPrepared: true},
@@ -1356,6 +1353,20 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 
 		expressionTestCase{val: parsedSchemaTableCol, sql: `"schema"."table"."col"`},
 		expressionTestCase{val: parsedSchemaTableCol, sql: `"schema"."table"."col"`, isPrepared: true},
+	)
+
+	backtickOpts := sqlgen.DefaultDialectOptions()
+	backtickOpts.QuoteRune = '`'
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", backtickOpts),
+		expressionTestCase{val: exp.NewIdentifierExpression("", "t`", "a` OR 1=1 -- "), sql: "`t```.`a`` OR 1=1 -- `"},
+		expressionTestCase{val: exp.NewIdentifierExpression("", "t`", "a` OR 1=1 -- "), sql: "`t```.`a`` OR 1=1 -- `", isPrepared: true},
+		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a"b`), sql: "`a\"b`"},
+		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a"b`), sql: "`a\"b`", isPrepared: true},
+		expressionTestCase{
+			val: exp.NewIdentifierExpression("", "", "\x81` OR 1=1 -- "),
+			err: `goqu: identifier is not valid UTF-8: "\x81` + "`" + ` OR 1=1 -- "`,
+		},
 	)
 }
 
