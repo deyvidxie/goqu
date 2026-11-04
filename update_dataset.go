@@ -8,28 +8,31 @@ import (
 )
 
 type UpdateDataset struct {
-	dialect      SQLDialect
-	clauses      exp.UpdateClauses
-	isPrepared   prepared
-	queryFactory exec.QueryFactory
-	tagName      string
-	err          error
+	dialect         SQLDialect
+	clauses         exp.UpdateClauses
+	isPrepared      prepared
+	queryFactory    exec.QueryFactory
+	tagName         string
+	tagFromRegistry bool
+	err             error
 }
 
 var ErrUnsupportedUpdateTableType = errors.New("unsupported table type, a string or identifier expression is required")
 
 // used internally by database to create a database with a specific adapter
 func newUpdateDataset(d, tagName string, queryFactory exec.QueryFactory) *UpdateDataset {
+	tagName, tagFromRegistry := resolveTagName(d, tagName)
 	return &UpdateDataset{
-		clauses:      exp.NewUpdateClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
-		queryFactory: queryFactory,
-		tagName:      tagName,
+		clauses:         exp.NewUpdateClauses(),
+		dialect:         GetDialectWithTag(d, tagName),
+		queryFactory:    queryFactory,
+		tagName:         tagName,
+		tagFromRegistry: tagFromRegistry,
 	}
 }
 
 func Update(table interface{}) *UpdateDataset {
-	return newUpdateDataset("default", "db", nil).Table(table)
+	return newUpdateDataset("default", "", nil).Table(table)
 }
 
 // Set the parameter interpolation behavior. See examples
@@ -48,7 +51,10 @@ func (ud *UpdateDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (ud *UpdateDataset) WithDialect(dl string) *UpdateDataset {
 	ds := ud.copy(ud.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, ud.tagName)
+	if ds.tagFromRegistry {
+		ds.tagName = registeredTagName(dl)
+	}
+	ds.dialect = GetDialectWithTag(dl, ds.tagName)
 	return ds
 }
 
@@ -81,12 +87,13 @@ func (ud *UpdateDataset) GetClauses() exp.UpdateClauses {
 // used internally to copy the dataset
 func (ud *UpdateDataset) copy(clauses exp.UpdateClauses) *UpdateDataset {
 	return &UpdateDataset{
-		dialect:      ud.dialect,
-		clauses:      clauses,
-		isPrepared:   ud.isPrepared,
-		queryFactory: ud.queryFactory,
-		tagName:      ud.tagName,
-		err:          ud.err,
+		dialect:         ud.dialect,
+		clauses:         clauses,
+		isPrepared:      ud.isPrepared,
+		queryFactory:    ud.queryFactory,
+		tagName:         ud.tagName,
+		tagFromRegistry: ud.tagFromRegistry,
+		err:             ud.err,
 	}
 }
 

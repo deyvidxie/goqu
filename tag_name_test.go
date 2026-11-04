@@ -70,12 +70,53 @@ func TestRegisteredDialectTagNameAndOptions(t *testing.T) {
 			ds:  goqu.NewTx("json-registered", nil).Insert("items").Rows(row),
 			sql: "INSERT INTO `items` (`json_id`, `json_name`) VALUES (1, 'a')",
 		},
-		sqlCase{ds: goqu.From("items").WithDialect("json-registered").Select("a"), sql: "SELECT `a` FROM `items`"},
+		sqlCase{
+			ds:  goqu.Insert("items").WithDialect("json-registered").Rows(row),
+			sql: "INSERT INTO `items` (`json_id`, `json_name`) VALUES (1, 'a')",
+		},
+		sqlCase{ds: goqu.Update("items").WithDialect("json-registered").Set(row), sql: "UPDATE `items` SET `json_id`=1,`json_name`='a'"},
+		sqlCase{
+			ds:  goqu.From("items").WithDialect("json-registered").Select(&taggedItem{}),
+			sql: "SELECT `json_id`, `json_name` FROM `items`",
+		},
+		sqlCase{
+			ds:  goqu.From("items").WithDialect("json-registered").Insert().Rows(row),
+			sql: "INSERT INTO `items` (`json_id`, `json_name`) VALUES (1, 'a')",
+		},
+		sqlCase{
+			ds:  goqu.Delete("items").WithDialect("json-registered").Returning(&taggedItem{}),
+			sql: "DELETE FROM `items` RETURNING `json_id`, `json_name`",
+		},
+		sqlCase{
+			ds:  goqu.From("items").Insert().WithDialect("json-registered").Rows(row),
+			sql: "INSERT INTO `items` (`json_id`, `json_name`) VALUES (1, 'a')",
+		},
+		sqlCase{
+			ds:  goqu.DialectWithTagName("default", "db").Insert("items").WithDialect("json-registered").Rows(row),
+			sql: "INSERT INTO `items` (`db_id`, `db_name`) VALUES (1, 'a')",
+		},
 		sqlCase{
 			ds:  goqu.DialectWithTagName("json-registered", "db").Insert("items").Rows(row),
 			sql: "INSERT INTO `items` (`db_id`, `db_name`) VALUES (1, 'a')",
 		},
 	)
+}
+
+func TestNew_registeredTagNameScansStructs(t *testing.T) {
+	goqu.RegisterDialect("json-scan", "json", goqu.DefaultDialectOptions())
+	defer goqu.DeregisterDialect("json-scan")
+
+	mDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT "json_id", "json_name" FROM "items" LIMIT 1`)).
+		WillReturnRows(sqlmock.NewRows([]string{"json_id", "json_name"}).AddRow(1, "a"))
+
+	var got taggedItem
+	found, err := goqu.New("json-scan", mDB).From("items").ScanStruct(&got)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, taggedItem{ID: 1, Name: "a"}, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFromQueryAcrossTagNamesOfOneDialect(t *testing.T) {

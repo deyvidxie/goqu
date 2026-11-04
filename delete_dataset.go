@@ -10,28 +10,31 @@ import (
 var ErrBadFromArgument = errors.New("unsupported DeleteDataset#From argument, a string or identifier expression is required")
 
 type DeleteDataset struct {
-	dialect      SQLDialect
-	clauses      exp.DeleteClauses
-	isPrepared   prepared
-	queryFactory exec.QueryFactory
-	tagName      string
-	err          error
+	dialect         SQLDialect
+	clauses         exp.DeleteClauses
+	isPrepared      prepared
+	queryFactory    exec.QueryFactory
+	tagName         string
+	tagFromRegistry bool
+	err             error
 }
 
 // used internally by database to create a database with a specific adapter
 func newDeleteDataset(d, tagName string, queryFactory exec.QueryFactory) *DeleteDataset {
+	tagName, tagFromRegistry := resolveTagName(d, tagName)
 	return &DeleteDataset{
-		clauses:      exp.NewDeleteClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
-		queryFactory: queryFactory,
-		isPrepared:   preparedNoPreference,
-		tagName:      tagName,
-		err:          nil,
+		clauses:         exp.NewDeleteClauses(),
+		dialect:         GetDialectWithTag(d, tagName),
+		queryFactory:    queryFactory,
+		isPrepared:      preparedNoPreference,
+		tagName:         tagName,
+		tagFromRegistry: tagFromRegistry,
+		err:             nil,
 	}
 }
 
 func Delete(table interface{}) *DeleteDataset {
-	return newDeleteDataset("default", "db", nil).From(table)
+	return newDeleteDataset("default", "", nil).From(table)
 }
 
 func (dd *DeleteDataset) Expression() exp.Expression {
@@ -60,7 +63,10 @@ func (dd *DeleteDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (dd *DeleteDataset) WithDialect(dl string) *DeleteDataset {
 	ds := dd.copy(dd.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, dd.tagName)
+	if ds.tagFromRegistry {
+		ds.tagName = registeredTagName(dl)
+	}
+	ds.dialect = GetDialectWithTag(dl, ds.tagName)
 	return ds
 }
 
@@ -84,12 +90,13 @@ func (dd *DeleteDataset) GetClauses() exp.DeleteClauses {
 // used interally to copy the dataset
 func (dd *DeleteDataset) copy(clauses exp.DeleteClauses) *DeleteDataset {
 	return &DeleteDataset{
-		dialect:      dd.dialect,
-		clauses:      clauses,
-		isPrepared:   dd.isPrepared,
-		queryFactory: dd.queryFactory,
-		tagName:      dd.tagName,
-		err:          dd.err,
+		dialect:         dd.dialect,
+		clauses:         clauses,
+		isPrepared:      dd.isPrepared,
+		queryFactory:    dd.queryFactory,
+		tagName:         dd.tagName,
+		tagFromRegistry: dd.tagFromRegistry,
+		err:             dd.err,
 	}
 }
 

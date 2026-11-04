@@ -74,6 +74,7 @@ type (
 //
 // fmt.Printf("%+v", ids)
 func newDatabase(dialect, tagName string, db SQLDatabase) *Database {
+	tagName, _ = resolveTagName(dialect, tagName)
 	return &Database{
 		logger:  nil,
 		dialect: dialect,

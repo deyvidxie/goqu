@@ -7,32 +7,38 @@ import (
 )
 
 type TruncateDataset struct {
-	dialect      SQLDialect
-	clauses      exp.TruncateClauses
-	isPrepared   prepared
-	queryFactory exec.QueryFactory
-	tagName      string
-	err          error
+	dialect         SQLDialect
+	clauses         exp.TruncateClauses
+	isPrepared      prepared
+	queryFactory    exec.QueryFactory
+	tagName         string
+	tagFromRegistry bool
+	err             error
 }
 
 // used internally by database to create a database with a specific adapter
 func newTruncateDataset(d, tagName string, queryFactory exec.QueryFactory) *TruncateDataset {
+	tagName, tagFromRegistry := resolveTagName(d, tagName)
 	return &TruncateDataset{
-		clauses:      exp.NewTruncateClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
-		tagName:      tagName,
-		queryFactory: queryFactory,
+		clauses:         exp.NewTruncateClauses(),
+		dialect:         GetDialectWithTag(d, tagName),
+		tagName:         tagName,
+		tagFromRegistry: tagFromRegistry,
+		queryFactory:    queryFactory,
 	}
 }
 
 func Truncate(table ...interface{}) *TruncateDataset {
-	return newTruncateDataset("default", "db", nil).Table(table...)
+	return newTruncateDataset("default", "", nil).Table(table...)
 }
 
 // Sets the adapter used to serialize values and create the SQL statement
 func (td *TruncateDataset) WithDialect(dl string) *TruncateDataset {
 	ds := td.copy(td.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, td.tagName)
+	if ds.tagFromRegistry {
+		ds.tagName = registeredTagName(dl)
+	}
+	ds.dialect = GetDialectWithTag(dl, ds.tagName)
 	return ds
 }
 
@@ -78,12 +84,13 @@ func (td *TruncateDataset) GetClauses() exp.TruncateClauses {
 // used interally to copy the dataset
 func (td *TruncateDataset) copy(clauses exp.TruncateClauses) *TruncateDataset {
 	return &TruncateDataset{
-		dialect:      td.dialect,
-		clauses:      clauses,
-		isPrepared:   td.isPrepared,
-		queryFactory: td.queryFactory,
-		tagName:      td.tagName,
-		err:          td.err,
+		dialect:         td.dialect,
+		clauses:         clauses,
+		isPrepared:      td.isPrepared,
+		queryFactory:    td.queryFactory,
+		tagName:         td.tagName,
+		tagFromRegistry: td.tagFromRegistry,
+		err:             td.err,
 	}
 }
 
