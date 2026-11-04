@@ -66,7 +66,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		exp.FunctionNameLower:    []byte("LCASE"),
 	}
 	opts.EscapedRunes = map[rune][]byte{
-		'\'': []byte("\\'"),
+		'\'': []byte("''"),
 		'"':  []byte("\\\""),
 		'\\': []byte("\\\\"),
 		'\n': []byte("\\n"),
