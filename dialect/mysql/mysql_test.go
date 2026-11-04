@@ -1,7 +1,6 @@
 package mysql_test
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -275,7 +274,7 @@ func (mt *mysqlTest) TestCollate() {
 
 func (mt *mysqlTest) TestQuoteCharacterInStringLiteral() {
 	ds := mt.db.From("entry")
-	value := `it's a \ path with "quotes"`
+	value := "it's a \\ path with \"quotes\"\n\r\x00\x1a"
 	var v string
 	found, err := ds.Select(goqu.V(value).As("v")).ScanVal(&v)
 	mt.NoError(err)
@@ -287,19 +286,19 @@ func (mt *mysqlTest) TestQuoteCharacterInStringLiteral() {
 	mt.NoError(err)
 	mt.Equal(int64(0), count)
 
-	tx, err := mt.db.Db.(*sql.DB).BeginTx(context.Background(), nil)
+	tx, err := mt.db.Begin()
 	mt.Require().NoError(err)
 	defer func() { mt.NoError(tx.Rollback()) }()
 	var sqlMode string
-	mt.Require().NoError(tx.QueryRowContext(context.Background(), "SELECT @@SESSION.sql_mode").Scan(&sqlMode))
-	_, err = tx.ExecContext(context.Background(), "SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',NO_BACKSLASH_ESCAPES')")
+	mt.Require().NoError(tx.QueryRow("SELECT @@SESSION.sql_mode").Scan(&sqlMode))
+	_, err = tx.Exec("SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES'")
 	mt.Require().NoError(err)
 	defer func() {
-		_, err := tx.ExecContext(context.Background(), "SET SESSION sql_mode = ?", sqlMode)
+		_, err := tx.Exec("SET SESSION sql_mode = ?", sqlMode)
 		mt.NoError(err)
 	}()
 
-	count, err = goqu.NewTx("mysql", tx).From("entry").Where(goqu.C("string").Eq(injection)).Count()
+	count, err = tx.From("entry").Where(goqu.C("string").Eq(injection)).Count()
 	mt.NoError(err)
 	mt.Equal(int64(0), count)
 }

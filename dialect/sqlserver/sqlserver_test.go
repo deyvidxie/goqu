@@ -271,7 +271,7 @@ func (sst *sqlserverTest) TestCollate() {
 func (sst *sqlserverTest) TestQuoteCharacterInStringLiteral() {
 	ds := sst.db.From("entry")
 
-	value := "it's a \\ path\nwith \"quotes\""
+	value := "it's a \\ path\nwith \"quotes\"\r\x00\x1a"
 	var v string
 	found, err := ds.Select(goqu.V(value).As("v")).ScanVal(&v)
 	sst.NoError(err)
