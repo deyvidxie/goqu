@@ -10,26 +10,26 @@ import (
 )
 
 type InsertDataset struct {
-	dialect         SQLDialect
-	clauses         exp.InsertClauses
-	isPrepared      prepared
-	queryFactory    exec.QueryFactory
-	tagName         string
-	tagFromRegistry bool
-	err             error
+	dialect      SQLDialect
+	clauses      exp.InsertClauses
+	isPrepared   prepared
+	queryFactory exec.QueryFactory
+	tagName      string
+	requestedTag string
+	err          error
 }
 
 var ErrUnsupportedIntoType = errors.New("unsupported table type, a string or identifier expression is required")
 
 // used internally by database to create a database with a specific adapter
-func newInsertDataset(d, tagName string, queryFactory exec.QueryFactory) *InsertDataset {
-	tagName, tagFromRegistry := resolveTagName(d, tagName)
+func newInsertDataset(d, requestedTag string, queryFactory exec.QueryFactory) *InsertDataset {
+	tagName := resolveTagName(d, requestedTag)
 	return &InsertDataset{
-		clauses:         exp.NewInsertClauses(),
-		dialect:         GetDialectWithTag(d, tagName),
-		queryFactory:    queryFactory,
-		tagName:         tagName,
-		tagFromRegistry: tagFromRegistry,
+		clauses:      exp.NewInsertClauses(),
+		dialect:      GetDialectWithTag(d, tagName),
+		queryFactory: queryFactory,
+		tagName:      tagName,
+		requestedTag: requestedTag,
 	}
 }
 
@@ -55,9 +55,7 @@ func (id *InsertDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (id *InsertDataset) WithDialect(dl string) *InsertDataset {
 	ds := id.copy(id.GetClauses())
-	if ds.tagFromRegistry {
-		ds.tagName = registeredTagName(dl)
-	}
+	ds.tagName = resolveTagName(dl, ds.requestedTag)
 	ds.dialect = GetDialectWithTag(dl, ds.tagName)
 	return ds
 }
@@ -91,13 +89,13 @@ func (id *InsertDataset) GetClauses() exp.InsertClauses {
 // used interally to copy the dataset
 func (id *InsertDataset) copy(clauses exp.InsertClauses) *InsertDataset {
 	return &InsertDataset{
-		dialect:         id.dialect,
-		clauses:         clauses,
-		isPrepared:      id.isPrepared,
-		queryFactory:    id.queryFactory,
-		tagName:         id.tagName,
-		tagFromRegistry: id.tagFromRegistry,
-		err:             id.err,
+		dialect:      id.dialect,
+		clauses:      clauses,
+		isPrepared:   id.isPrepared,
+		queryFactory: id.queryFactory,
+		tagName:      id.tagName,
+		requestedTag: id.requestedTag,
+		err:          id.err,
 	}
 }
 

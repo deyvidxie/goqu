@@ -74,7 +74,7 @@ type (
 //
 // fmt.Printf("%+v", ids)
 func newDatabase(dialect, tagName string, db SQLDatabase) *Database {
-	tagName, _ = resolveTagName(dialect, tagName)
+	tagName = resolveTagName(dialect, tagName)
 	return &Database{
 		logger:  nil,
 		dialect: dialect,
@@ -483,11 +483,11 @@ type (
 
 // Creates a new TxDatabase
 func NewTx(dialect string, tx SQLTx) *TxDatabase {
-	return &TxDatabase{dialect: dialect, tagName: registeredTagName(dialect), Tx: tx}
+	return NewTxWithTagName(dialect, "", tx)
 }
 
 func NewTxWithTagName(dialect, tagName string, tx SQLTx) *TxDatabase {
-	return &TxDatabase{dialect: dialect, tagName: tagName, Tx: tx}
+	return &TxDatabase{dialect: dialect, tagName: resolveTagName(dialect, tagName), Tx: tx}
 }
 
 // returns this databases dialect

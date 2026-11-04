@@ -7,24 +7,24 @@ import (
 )
 
 type TruncateDataset struct {
-	dialect         SQLDialect
-	clauses         exp.TruncateClauses
-	isPrepared      prepared
-	queryFactory    exec.QueryFactory
-	tagName         string
-	tagFromRegistry bool
-	err             error
+	dialect      SQLDialect
+	clauses      exp.TruncateClauses
+	isPrepared   prepared
+	queryFactory exec.QueryFactory
+	tagName      string
+	requestedTag string
+	err          error
 }
 
 // used internally by database to create a database with a specific adapter
-func newTruncateDataset(d, tagName string, queryFactory exec.QueryFactory) *TruncateDataset {
-	tagName, tagFromRegistry := resolveTagName(d, tagName)
+func newTruncateDataset(d, requestedTag string, queryFactory exec.QueryFactory) *TruncateDataset {
+	tagName := resolveTagName(d, requestedTag)
 	return &TruncateDataset{
-		clauses:         exp.NewTruncateClauses(),
-		dialect:         GetDialectWithTag(d, tagName),
-		tagName:         tagName,
-		tagFromRegistry: tagFromRegistry,
-		queryFactory:    queryFactory,
+		clauses:      exp.NewTruncateClauses(),
+		dialect:      GetDialectWithTag(d, tagName),
+		tagName:      tagName,
+		requestedTag: requestedTag,
+		queryFactory: queryFactory,
 	}
 }
 
@@ -35,9 +35,7 @@ func Truncate(table ...interface{}) *TruncateDataset {
 // Sets the adapter used to serialize values and create the SQL statement
 func (td *TruncateDataset) WithDialect(dl string) *TruncateDataset {
 	ds := td.copy(td.GetClauses())
-	if ds.tagFromRegistry {
-		ds.tagName = registeredTagName(dl)
-	}
+	ds.tagName = resolveTagName(dl, ds.requestedTag)
 	ds.dialect = GetDialectWithTag(dl, ds.tagName)
 	return ds
 }
@@ -84,13 +82,13 @@ func (td *TruncateDataset) GetClauses() exp.TruncateClauses {
 // used interally to copy the dataset
 func (td *TruncateDataset) copy(clauses exp.TruncateClauses) *TruncateDataset {
 	return &TruncateDataset{
-		dialect:         td.dialect,
-		clauses:         clauses,
-		isPrepared:      td.isPrepared,
-		queryFactory:    td.queryFactory,
-		tagName:         td.tagName,
-		tagFromRegistry: td.tagFromRegistry,
-		err:             td.err,
+		dialect:      td.dialect,
+		clauses:      clauses,
+		isPrepared:   td.isPrepared,
+		queryFactory: td.queryFactory,
+		tagName:      td.tagName,
+		requestedTag: td.requestedTag,
+		err:          td.err,
 	}
 }
 

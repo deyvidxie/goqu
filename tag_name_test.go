@@ -1,6 +1,7 @@
 package goqu_test
 
 import (
+	"context"
 	"regexp"
 	"testing"
 
@@ -92,6 +93,10 @@ func TestRegisteredDialectTagNameAndOptions(t *testing.T) {
 			sql: "INSERT INTO `items` (`json_id`, `json_name`) VALUES (1, 'a')",
 		},
 		sqlCase{
+			ds:  goqu.New("default", nil).From("items").WithDialect("json-registered").Select(&taggedItem{}),
+			sql: "SELECT `db_id`, `db_name` FROM `items`",
+		},
+		sqlCase{
 			ds:  goqu.DialectWithTagName("default", "db").Insert("items").WithDialect("json-registered").Rows(row),
 			sql: "INSERT INTO `items` (`db_id`, `db_name`) VALUES (1, 'a')",
 		},
@@ -113,6 +118,26 @@ func TestNew_registeredTagNameScansStructs(t *testing.T) {
 
 	var got taggedItem
 	found, err := goqu.New("json-scan", mDB).From("items").ScanStruct(&got)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, taggedItem{ID: 1, Name: "a"}, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewTxWithTagName_emptyTagScansWithRegisteredTag(t *testing.T) {
+	goqu.RegisterDialect("json-tx-scan", "json", goqu.DefaultDialectOptions())
+	defer goqu.DeregisterDialect("json-tx-scan")
+
+	mDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT "json_id", "json_name" FROM "items" LIMIT 1`)).
+		WillReturnRows(sqlmock.NewRows([]string{"json_id", "json_name"}).AddRow(1, "a"))
+	tx, err := mDB.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+
+	var got taggedItem
+	found, err := goqu.NewTxWithTagName("json-tx-scan", "", tx).From("items").ScanStruct(&got)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, taggedItem{ID: 1, Name: "a"}, got)

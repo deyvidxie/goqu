@@ -85,11 +85,11 @@ func GetDialect(name string) SQLDialect {
 	return newDialect("default", "db", DefaultDialectOptions())
 }
 
-func resolveTagName(dialect, tagName string) (resolved string, fromRegistry bool) {
-	if tagName == "" {
-		return registeredTagName(dialect), true
+func resolveTagName(dialect, requestedTag string) string {
+	if requestedTag == "" {
+		return registeredTagName(dialect)
 	}
-	return tagName, false
+	return requestedTag
 }
 
 func registeredTagName(name string) string {
@@ -102,6 +102,7 @@ func registeredTagName(name string) string {
 }
 
 func GetDialectWithTag(name, tagName string) SQLDialect {
+	tagName = resolveTagName(name, tagName)
 	name = strings.ToLower(name)
 	key := taggedDialectKey{name: name, tagName: tagName}
 	dialectsMu.RLock()

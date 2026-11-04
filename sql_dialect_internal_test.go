@@ -93,6 +93,8 @@ func (dts *dialectTestSuite) TestGetDialectWithTag() {
 
 	dbTagged := GetDialectWithTag("tag-test", "db")
 	dts.Same(GetDialect("tag-test"), dbTagged)
+	dts.Same(dbTagged, GetDialectWithTag("tag-test", ""))
+	dts.Equal("default", GetDialectWithTag("not-registered", "json").Dialect())
 
 	jsonTagged := GetDialectWithTag("tag-test", "json")
 	dts.NotSame(dbTagged, jsonTagged)
@@ -115,6 +117,8 @@ func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
 		go func() {
 			defer wg.Done()
 			GetDialectWithTag("race-test", "json")
+			GetDialect("race-test")
+			registeredTagName("race-test")
 		}()
 	}
 	wg.Wait()
