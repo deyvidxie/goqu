@@ -9,7 +9,7 @@ import (
 func ExampleRegisterDialect() {
 	opts := goqu.DefaultDialectOptions()
 	opts.QuoteRune = '`'
-	goqu.RegisterDialect("custom-dialect", "db ", opts)
+	goqu.RegisterDialect("custom-dialect", "db", opts)
 
 	dialect := goqu.Dialect("custom-dialect")
 

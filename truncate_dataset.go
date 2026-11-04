@@ -12,27 +12,30 @@ type TruncateDataset struct {
 	isPrepared   prepared
 	queryFactory exec.QueryFactory
 	tagName      string
+	requestedTag tagRequest
 	err          error
 }
 
-// used internally by database to create a database with a specific adapter
-func newTruncateDataset(d, tagName string, queryFactory exec.QueryFactory) *TruncateDataset {
+func newTruncateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *TruncateDataset {
+	tagName := requestedTag.resolve(d)
 	return &TruncateDataset{
 		clauses:      exp.NewTruncateClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		tagName:      tagName,
+		requestedTag: requestedTag,
 		queryFactory: queryFactory,
 	}
 }
 
 func Truncate(table ...interface{}) *TruncateDataset {
-	return newTruncateDataset("default", "db", nil).Table(table...)
+	return newTruncateDataset("default", tagRequest{}, nil).Table(table...)
 }
 
 // Sets the adapter used to serialize values and create the SQL statement
 func (td *TruncateDataset) WithDialect(dl string) *TruncateDataset {
 	ds := td.copy(td.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, td.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 
@@ -83,6 +86,7 @@ func (td *TruncateDataset) copy(clauses exp.TruncateClauses) *TruncateDataset {
 		isPrepared:   td.isPrepared,
 		queryFactory: td.queryFactory,
 		tagName:      td.tagName,
+		requestedTag: td.requestedTag,
 		err:          td.err,
 	}
 }

@@ -80,8 +80,13 @@ func IsEmptyValue(v reflect.Value) bool {
 	return !v.IsValid() || v.IsZero()
 }
 
+type columnMapKey struct {
+	t       reflect.Type
+	tagName string
+}
+
 var (
-	structMapCache     = make(map[interface{}]ColumnMap)
+	structMapCache     = make(map[columnMapKey]ColumnMap)
 	structMapCacheLock = sync.Mutex{}
 )
 
@@ -99,7 +104,7 @@ func SetIgnoreUntaggedFields(ignore bool) {
 		structMapCacheLock.Lock()
 		defer structMapCacheLock.Unlock()
 
-		structMapCache = make(map[interface{}]ColumnMap)
+		structMapCache = make(map[columnMapKey]ColumnMap)
 	}
 }
 
@@ -232,8 +237,9 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 
 	structMapCacheLock.Lock()
 	defer structMapCacheLock.Unlock()
-	if _, ok := structMapCache[t]; !ok {
-		structMapCache[t] = newColumnMap(t, []int{}, []string{}, tagName)
+	key := columnMapKey{t: t, tagName: tagName}
+	if _, ok := structMapCache[key]; !ok {
+		structMapCache[key] = newColumnMap(t, []int{}, []string{}, tagName)
 	}
-	return structMapCache[t], nil
+	return structMapCache[key], nil
 }

@@ -15,23 +15,25 @@ type DeleteDataset struct {
 	isPrepared   prepared
 	queryFactory exec.QueryFactory
 	tagName      string
+	requestedTag tagRequest
 	err          error
 }
 
-// used internally by database to create a database with a specific adapter
-func newDeleteDataset(d, tagName string, queryFactory exec.QueryFactory) *DeleteDataset {
+func newDeleteDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *DeleteDataset {
+	tagName := requestedTag.resolve(d)
 	return &DeleteDataset{
 		clauses:      exp.NewDeleteClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		isPrepared:   preparedNoPreference,
 		tagName:      tagName,
+		requestedTag: requestedTag,
 		err:          nil,
 	}
 }
 
 func Delete(table interface{}) *DeleteDataset {
-	return newDeleteDataset("default", "db", nil).From(table)
+	return newDeleteDataset("default", tagRequest{}, nil).From(table)
 }
 
 func (dd *DeleteDataset) Expression() exp.Expression {
@@ -60,7 +62,8 @@ func (dd *DeleteDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (dd *DeleteDataset) WithDialect(dl string) *DeleteDataset {
 	ds := dd.copy(dd.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, dd.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 
@@ -89,6 +92,7 @@ func (dd *DeleteDataset) copy(clauses exp.DeleteClauses) *DeleteDataset {
 		isPrepared:   dd.isPrepared,
 		queryFactory: dd.queryFactory,
 		tagName:      dd.tagName,
+		requestedTag: dd.requestedTag,
 		err:          dd.err,
 	}
 }

@@ -20,58 +20,58 @@ import (
 
 type DialectWrapper struct {
 	dialect string
-	tagName string
+	tag     tagRequest
 }
 
 // Creates a new DialectWrapper to create goqu.Datasets or goqu.Databases with the specified dialect.
 func Dialect(dialect string) DialectWrapper {
-	return DialectWithTagName(dialect, "db")
+	return DialectWithTagName(dialect, "")
 }
 
-func DialectWithTagName(dialect, tagName string) DialectWrapper {
-	return DialectWrapper{dialect: dialect, tagName: tagName}
+func DialectWithTagName(dialect, requestedTag string) DialectWrapper {
+	return DialectWrapper{dialect: dialect, tag: requestTag(requestedTag)}
 }
 
 // Create a new dataset for creating SELECT sql statements
 func (dw DialectWrapper) From(table ...interface{}) *SelectDataset {
-	return From(table...).WithDialect(dw.dialect)
+	return newDataset(dw.dialect, dw.tag, nil).From(table...)
 }
 
 // Create a new dataset for creating SELECT sql statements
 func (dw DialectWrapper) Select(cols ...interface{}) *SelectDataset {
-	return newDataset(dw.dialect, dw.tagName, nil).Select(cols...)
+	return newDataset(dw.dialect, dw.tag, nil).Select(cols...)
 }
 
 // Create a new dataset for creating UPDATE sql statements
 func (dw DialectWrapper) Update(table interface{}) *UpdateDataset {
-	return Update(table).WithDialect(dw.dialect)
+	return newUpdateDataset(dw.dialect, dw.tag, nil).Table(table)
 }
 
 // Create a new dataset for creating INSERT sql statements
 func (dw DialectWrapper) Insert(table interface{}) *InsertDataset {
-	return Insert(table).WithDialect(dw.dialect)
+	return newInsertDataset(dw.dialect, dw.tag, nil).Into(table)
 }
 
 // Create a new dataset for creating DELETE sql statements
 func (dw DialectWrapper) Delete(table interface{}) *DeleteDataset {
-	return Delete(table).WithDialect(dw.dialect)
+	return newDeleteDataset(dw.dialect, dw.tag, nil).From(table)
 }
 
 // Create a new dataset for creating TRUNCATE sql statements
 func (dw DialectWrapper) Truncate(table ...interface{}) *TruncateDataset {
-	return Truncate(table...).WithDialect(dw.dialect)
+	return newTruncateDataset(dw.dialect, dw.tag, nil).Table(table...)
 }
 
 func (dw DialectWrapper) DB(db SQLDatabase) *Database {
-	return newDatabase(dw.dialect, dw.tagName, db)
+	return newDatabase(dw.dialect, dw.tag, db)
 }
 
 func New(dialect string, db SQLDatabase) *Database {
-	return newDatabase(dialect, "db", db)
+	return newDatabase(dialect, tagRequest{}, db)
 }
 
-func NewWithTagName(dialect, tagName string, db SQLDatabase) *Database {
-	return newDatabase(dialect, tagName, db)
+func NewWithTagName(dialect, requestedTag string, db SQLDatabase) *Database {
+	return newDatabase(dialect, requestTag(requestedTag), db)
 }
 
 // Set the behavior when encountering struct fields that do not have a db tag.

@@ -18,6 +18,7 @@ type SelectDataset struct {
 	queryFactory exec.QueryFactory
 	subqueries   map[string]exp.Aliaseable
 	tagName      string
+	requestedTag tagRequest
 	err          error
 }
 
@@ -25,28 +26,30 @@ var ErrQueryFactoryNotFoundError = errors.New(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 
-// used internally by database to create a database with a specific adapter
-func newDataset(d, tagName string, queryFactory exec.QueryFactory) *SelectDataset {
+func newDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *SelectDataset {
+	tagName := requestedTag.resolve(d)
 	return &SelectDataset{
 		clauses:      exp.NewSelectClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		tagName:      tagName,
+		requestedTag: requestedTag,
 	}
 }
 
 func From(table ...interface{}) *SelectDataset {
-	return newDataset("default", "db", nil).From(table...)
+	return newDataset("default", tagRequest{}, nil).From(table...)
 }
 
 func Select(cols ...interface{}) *SelectDataset {
-	return newDataset("default", "db", nil).Select(cols...)
+	return newDataset("default", tagRequest{}, nil).Select(cols...)
 }
 
 // Sets the adapter used to serialize values and create the SQL statement
 func (sd *SelectDataset) WithDialect(dl string) *SelectDataset {
 	ds := sd.copy(sd.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, sd.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 
@@ -98,6 +101,7 @@ func (sd *SelectDataset) copy(clauses exp.SelectClauses) *SelectDataset {
 		queryFactory: sd.queryFactory,
 		subqueries:   sd.subqueries,
 		tagName:      sd.tagName,
+		requestedTag: sd.requestedTag,
 		err:          sd.err,
 	}
 
@@ -113,7 +117,7 @@ func (sd *SelectDataset) copy(clauses exp.SelectClauses) *SelectDataset {
 // Creates a new UpdateDataset using the FROM of this dataset. This method will also copy over the `WITH`, `WHERE`,
 // `ORDER , and `LIMIT`
 func (sd *SelectDataset) Update() *UpdateDataset {
-	u := newUpdateDataset(sd.dialect.Dialect(), sd.tagName, sd.queryFactory).
+	u := newUpdateDataset(sd.dialect.Dialect(), sd.requestedTag, sd.queryFactory).
 		Prepared(sd.isPrepared.Bool())
 	if sd.clauses.HasSources() {
 		u = u.Table(sd.GetClauses().From().Columns()[0])
@@ -140,7 +144,7 @@ func (sd *SelectDataset) Update() *UpdateDataset {
 // Creates a new InsertDataset using the FROM of this dataset. This method will also copy over the `WITH` clause to the
 // insert.
 func (sd *SelectDataset) Insert() *InsertDataset {
-	i := newInsertDataset(sd.dialect.Dialect(), sd.tagName, sd.queryFactory).
+	i := newInsertDataset(sd.dialect.Dialect(), sd.requestedTag, sd.queryFactory).
 		Prepared(sd.isPrepared.Bool())
 	if sd.clauses.HasSources() {
 		i = i.Into(sd.GetClauses().From().Columns()[0])
@@ -156,7 +160,7 @@ func (sd *SelectDataset) Insert() *InsertDataset {
 // Creates a new DeleteDataset using the FROM of this dataset. This method will also copy over the `WITH`, `WHERE`,
 // `ORDER , and `LIMIT`
 func (sd *SelectDataset) Delete() *DeleteDataset {
-	d := newDeleteDataset(sd.dialect.Dialect(), sd.tagName, sd.queryFactory).
+	d := newDeleteDataset(sd.dialect.Dialect(), sd.requestedTag, sd.queryFactory).
 		Prepared(sd.isPrepared.Bool())
 	if sd.clauses.HasSources() {
 		d = d.From(sd.clauses.From().Columns()[0])
@@ -182,7 +186,7 @@ func (sd *SelectDataset) Delete() *DeleteDataset {
 
 // Creates a new TruncateDataset using the FROM of this dataset.
 func (sd *SelectDataset) Truncate() *TruncateDataset {
-	td := newTruncateDataset(sd.dialect.Dialect(), sd.tagName, sd.queryFactory)
+	td := newTruncateDataset(sd.dialect.Dialect(), sd.requestedTag, sd.queryFactory)
 	if sd.clauses.HasSources() {
 		td = td.Table(sd.clauses.From())
 	}
@@ -743,7 +747,7 @@ func (sd *SelectDataset) Exists() (bool, error) {
 func (sd *SelectDataset) ExistsContext(ctx context.Context) (bool, error) {
 	var exists bool
 	existsExpr := L("CASE WHEN ? THEN 1 ELSE 0 END", Exists(sd))
-	_, err := newDataset(sd.dialect.Dialect(), sd.tagName, sd.queryFactory).
+	_, err := newDataset(sd.dialect.Dialect(), sd.requestedTag, sd.queryFactory).
 		Select(existsExpr).
 		Prepared(sd.IsPrepared()).
 		ScanValContext(ctx, &exists)

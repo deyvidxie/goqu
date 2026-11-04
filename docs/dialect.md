@@ -168,10 +168,11 @@ Take a look at [`postgres`](./dialect/postgres/postgres.go), [`mysql`](./dialect
 
 ### Creating a custom dialect
 
-When creating a new dialect you must register it using [`RegisterDialect`](http://godoc.org/github.com/doug-martin/goqu/#RegisterDialect). This method requires 2 arguments.
+When creating a new dialect you must register it using [`RegisterDialect`](http://godoc.org/github.com/doug-martin/goqu/#RegisterDialect). This method requires 3 arguments.
 
 1. `dialect string` - The name of your dialect
-2. `opts SQLDialectOptions` - The custom options for your dialect
+2. `tagName string` - The struct tag used for column names by `goqu.Dialect`, `goqu.New` and `goqu.NewTx` with this dialect (usually `"db"`)
+3. `opts SQLDialectOptions` - The custom options for your dialect
 
 For example you could create a custom dialect that replaced the default quote `'"'` with a backtick <code>`</code>
 ```go

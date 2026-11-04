@@ -13,23 +13,25 @@ type UpdateDataset struct {
 	isPrepared   prepared
 	queryFactory exec.QueryFactory
 	tagName      string
+	requestedTag tagRequest
 	err          error
 }
 
 var ErrUnsupportedUpdateTableType = errors.New("unsupported table type, a string or identifier expression is required")
 
-// used internally by database to create a database with a specific adapter
-func newUpdateDataset(d, tagName string, queryFactory exec.QueryFactory) *UpdateDataset {
+func newUpdateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *UpdateDataset {
+	tagName := requestedTag.resolve(d)
 	return &UpdateDataset{
 		clauses:      exp.NewUpdateClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		tagName:      tagName,
+		requestedTag: requestedTag,
 	}
 }
 
 func Update(table interface{}) *UpdateDataset {
-	return newUpdateDataset("default", "db", nil).Table(table)
+	return newUpdateDataset("default", tagRequest{}, nil).Table(table)
 }
 
 // Set the parameter interpolation behavior. See examples
@@ -48,7 +50,8 @@ func (ud *UpdateDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (ud *UpdateDataset) WithDialect(dl string) *UpdateDataset {
 	ds := ud.copy(ud.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, ud.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 
@@ -86,6 +89,7 @@ func (ud *UpdateDataset) copy(clauses exp.UpdateClauses) *UpdateDataset {
 		isPrepared:   ud.isPrepared,
 		queryFactory: ud.queryFactory,
 		tagName:      ud.tagName,
+		requestedTag: ud.requestedTag,
 		err:          ud.err,
 	}
 }

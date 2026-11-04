@@ -15,25 +15,27 @@ type InsertDataset struct {
 	isPrepared   prepared
 	queryFactory exec.QueryFactory
 	tagName      string
+	requestedTag tagRequest
 	err          error
 }
 
 var ErrUnsupportedIntoType = errors.New("unsupported table type, a string or identifier expression is required")
 
-// used internally by database to create a database with a specific adapter
-func newInsertDataset(d, tagName string, queryFactory exec.QueryFactory) *InsertDataset {
+func newInsertDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *InsertDataset {
+	tagName := requestedTag.resolve(d)
 	return &InsertDataset{
 		clauses:      exp.NewInsertClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		tagName:      tagName,
+		requestedTag: requestedTag,
 	}
 }
 
 // Creates a new InsertDataset for the provided table. Using this method will only allow you
 // to create SQL user Database#From to create an InsertDataset with query capabilities
 func Insert(table interface{}) *InsertDataset {
-	return newInsertDataset("default", "db", nil).Into(table)
+	return newInsertDataset("default", tagRequest{}, nil).Into(table)
 }
 
 // Set the parameter interpolation behavior. See examples
@@ -52,7 +54,8 @@ func (id *InsertDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (id *InsertDataset) WithDialect(dl string) *InsertDataset {
 	ds := id.copy(id.GetClauses())
-	ds.dialect = GetDialectWithTag(dl, id.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 
@@ -90,6 +93,7 @@ func (id *InsertDataset) copy(clauses exp.InsertClauses) *InsertDataset {
 		isPrepared:   id.isPrepared,
 		queryFactory: id.queryFactory,
 		tagName:      id.tagName,
+		requestedTag: id.requestedTag,
 		err:          id.err,
 	}
 }
@@ -150,7 +154,7 @@ func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
 // Adds a subquery to the insert. See examples.
 func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset {
 	if sds, ok := from.(*SelectDataset); ok {
-		if sds.dialect != GetDialect("default") && id.Dialect() != sds.dialect {
+		if sds.dialect.Dialect() != "default" && id.dialect.Dialect() != sds.dialect.Dialect() {
 			panic(
 				fmt.Errorf(
 					"incompatible dialects for INSERT (%q) and SELECT (%q)",

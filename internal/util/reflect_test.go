@@ -799,6 +799,21 @@ func (rt *reflectTest) TestGetColumnMap_withStructWithTag() {
 	}, cm)
 }
 
+func (rt *reflectTest) TestGetColumnMap_sameStructWithDifferentTags() {
+	type TestStruct struct {
+		Str string `db:"db_s" json:"json_s"`
+	}
+	var ts TestStruct
+	dbCols, err := util.GetColumnMap(&ts, "db")
+	rt.NoError(err)
+	jsonCols, err := util.GetColumnMap(&ts, "json")
+	rt.NoError(err)
+	rt.Contains(dbCols, "db_s")
+	rt.NotContains(dbCols, "json_s")
+	rt.Contains(jsonCols, "json_s")
+	rt.NotContains(jsonCols, "db_s")
+}
+
 func (rt *reflectTest) TestGetColumnMap_withStructWithTagAndGoquTag() {
 	type TestStruct struct {
 		Str    string          `db:"s" goqu:"skipinsert,skipupdate"`
