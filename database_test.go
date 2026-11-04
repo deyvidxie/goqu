@@ -2,6 +2,7 @@ package goqu_test
 
 import (
 	"context"
+	dbsql "database/sql"
 	"fmt"
 	"sync"
 	"testing"
@@ -715,6 +716,32 @@ func (tds *txdatabaseSuite) TestWrap() {
 	tds.EqualError(tx.Wrap(func() error {
 		return errors.New("tx error")
 	}), "goqu: tx error")
+}
+
+type txAlreadyDone struct {
+	goqu.SQLTx
+}
+
+func (txAlreadyDone) Rollback() error { return dbsql.ErrTxDone }
+
+func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
+	fnErr := errors.New("fn failed")
+	err := goqu.NewTx("mock", txAlreadyDone{}).Wrap(func() error { return fnErr })
+	tds.ErrorIs(err, fnErr)
+	tds.ErrorIs(err, dbsql.ErrTxDone)
+}
+
+func (tds *txdatabaseSuite) TestWrap_returnsErrTxDoneWhenFnCommitted() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+
+	err = tx.Wrap(tx.Commit)
+	tds.Equal(dbsql.ErrTxDone, err)
+	tds.NoError(mock.ExpectationsWereMet())
 }
 
 func (tds *txdatabaseSuite) TestDataRace() {

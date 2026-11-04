@@ -723,8 +723,9 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 				err = rollbackErr
 			}
 		} else {
-			if commitErr := td.Commit(); errors.Is(commitErr, sql.ErrTxDone) {
-				err = errors.Join(commitErr, td.beginContext().Err())
+			commitErr := td.Commit()
+			if ctxErr := td.beginContext().Err(); ctxErr != nil && errors.Is(commitErr, sql.ErrTxDone) {
+				err = errors.Join(commitErr, ctxErr)
 			} else if commitErr != nil {
 				err = commitErr
 			}

@@ -3,13 +3,13 @@ package goqu_test
 import (
 	"context"
 	"database/sql"
-	stderrors "errors"
 	"fmt"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/internal/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 type ctxKey struct{}
@@ -134,19 +134,6 @@ func (ds *databaseSuite) TestWithTxContext_rollbackOnPanic() {
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
-type txAlreadyDone struct {
-	goqu.SQLTx
-}
-
-func (txAlreadyDone) Rollback() error { return sql.ErrTxDone }
-
-func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
-	fnErr := errors.New("fn failed")
-	err := goqu.NewTx("mock", txAlreadyDone{}).Wrap(func() error { return fnErr })
-	tds.ErrorIs(err, fnErr)
-	tds.ErrorIs(err, sql.ErrTxDone)
-}
-
 func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
@@ -155,14 +142,15 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel()
-		ds.Eventually(func() bool {
+		ds.EventuallyWithT(func(c *assert.CollectT) {
 			_, execErr := tx.Tx.ExecContext(context.Background(), "SELECT 1")
-			return stderrors.Is(execErr, sql.ErrTxDone)
+			assert.ErrorIs(c, execErr, sql.ErrTxDone)
 		}, time.Second, time.Millisecond)
 		return nil
 	})
 	ds.ErrorIs(err, sql.ErrTxDone)
 	ds.ErrorIs(err, context.Canceled)
+	ds.NoError(mock.ExpectationsWereMet())
 }
 
 func (ds *databaseSuite) TestContextLogger_transactionBoundaries() {
