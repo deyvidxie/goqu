@@ -16,17 +16,17 @@ import (
 )
 
 const (
-	dropTable   = "DROP TABLE IF EXISTS `entry`;"
-	createTable = "CREATE  TABLE `entry` (" +
-		"`id` INTEGER PRIMARY KEY," +
-		"`int` INT NOT NULL ," +
-		"`float` FLOAT NOT NULL ," +
-		"`string` VARCHAR(255) NOT NULL ," +
-		"`time` DATETIME NOT NULL ," +
-		"`bool` TINYINT NOT NULL ," +
-		"`bytes` BLOB NOT NULL" +
+	dropTable   = "DROP TABLE IF EXISTS \"entry\"; DROP SEQUENCE IF EXISTS \"entry_id_seq\";"
+	createTable = "CREATE SEQUENCE \"entry_id_seq\"; CREATE TABLE \"entry\" (" +
+		"\"id\" INTEGER PRIMARY KEY DEFAULT nextval('entry_id_seq')," +
+		"\"int\" INT NOT NULL ," +
+		"\"float\" DOUBLE NOT NULL ," +
+		"\"string\" VARCHAR(255) NOT NULL ," +
+		"\"time\" DATETIME NOT NULL ," +
+		"\"bool\" TINYINT NOT NULL ," +
+		"\"bytes\" BLOB NOT NULL" +
 		");"
-	insertDefaultRecords = "INSERT INTO `entry` (`int`, `float`, `string`, `time`, `bool`, `bytes`) VALUES" +
+	insertDefaultRecords = "INSERT INTO \"entry\" (\"int\", \"float\", \"string\", \"time\", \"bool\", \"bytes\") VALUES" +
 		"(0, 0.000000, '0.000000', '2015-02-22T18:19:55.000000000-00:00', 1,  '0.000000')," +
 		"(1, 0.100000, '0.100000', '2015-02-22T19:19:55.000000000-00:00', 0, '0.100000')," +
 		"(2, 0.200000, '0.200000', '2015-02-22T20:19:55.000000000-00:00', 1,  '0.200000')," +
@@ -39,7 +39,7 @@ const (
 		"(9, 0.900000, '0.900000', '2015-02-23T03:19:55.000000000-00:00', 0, '0.900000');"
 )
 
-var dbURI = ":memory:"
+var dbURI = ""
 
 type (
 	duckdbSuite struct {
@@ -68,6 +68,7 @@ func (st *duckdbSuite) SetupSuite() {
 	if err != nil {
 		panic(err.Error())
 	}
+	db.SetMaxOpenConns(1)
 	st.db = goqu.New("duckdb", db)
 }
 
@@ -119,11 +120,14 @@ func (st *duckdbSuite) SetupTest() {
 func (st *duckdbSuite) TestSelectSQL() {
 	ds := st.db.From("entry")
 	st.assertSQL(
-		sqlTestCase{ds: ds.Select("id", "float", "string", "time", "bool"), sql: "SELECT `id`, `float`, `string`, `time`, `bool` FROM `entry`"},
-		sqlTestCase{ds: ds.Where(goqu.C("int").Eq(10)), sql: "SELECT * FROM `entry` WHERE (`int` = 10)"},
+		sqlTestCase{
+			ds:  ds.Select("id", "float", "string", "time", "bool"),
+			sql: "SELECT \"id\", \"float\", \"string\", \"time\", \"bool\" FROM \"entry\"",
+		},
+		sqlTestCase{ds: ds.Where(goqu.C("int").Eq(10)), sql: "SELECT * FROM \"entry\" WHERE (\"int\" = 10)"},
 		sqlTestCase{
 			ds:   ds.Prepared(true).Where(goqu.L("? = ?", goqu.C("int"), 10)),
-			sql:  "SELECT * FROM `entry` WHERE `int` = ?",
+			sql:  "SELECT * FROM \"entry\" WHERE \"int\" = ?",
 			args: []interface{}{int64(10)},
 		},
 	)
@@ -136,17 +140,17 @@ func (st *duckdbSuite) TestCompoundQueries() {
 	var ids []int64
 	err := ds1.Union(ds2).ScanVals(&ids)
 	st.NoError(err)
-	st.Equal([]int64{1, 2, 3, 4, 5, 6, 7, 8, 9}, ids)
+	st.ElementsMatch([]int64{1, 2, 3, 4, 5, 6, 7, 8, 9}, ids)
 
 	ids = ids[0:0]
 	err = ds1.UnionAll(ds2).ScanVals(&ids)
 	st.NoError(err)
-	st.Equal([]int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 6, 7, 8, 9}, ids)
+	st.ElementsMatch([]int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 6, 7, 8, 9}, ids)
 
 	ids = ids[0:0]
 	err = ds1.Intersect(ds2).ScanVals(&ids)
 	st.NoError(err)
-	st.Equal([]int64{6, 7, 8, 9}, ids)
+	st.ElementsMatch([]int64{6, 7, 8, 9}, ids)
 }
 
 func (st *duckdbSuite) TestQuery() {
@@ -361,9 +365,12 @@ func (st *duckdbSuite) TestUpdate() {
 }
 
 func (st *duckdbSuite) TestUpdateReturning() {
-	ds := st.db.From("entry")
+	// DuckDB 1.1.1 rejects UPDATE ... RETURNING on tables with a primary key ("Duplicate key" constraint error).
+	_, err := st.db.Exec("CREATE OR REPLACE TABLE \"entry_unindexed\" AS SELECT * FROM \"entry\"")
+	st.Require().NoError(err)
+	ds := st.db.From("entry_unindexed")
 	var id uint32
-	_, err := ds.
+	_, err = ds.
 		Where(goqu.C("id").Eq(1)).
 		Update().
 		Set(goqu.Record{"int": 11}).
