@@ -49,15 +49,6 @@ var (
 	pointers = []interface{}{
 		&sql.NullString{},
 	}
-
-	nilSlice   []int
-	nilPointer *string
-
-	nilorEmpties = []interface{}{
-		nil,
-		nilSlice,
-		nilPointer,
-	}
 )
 
 type (
