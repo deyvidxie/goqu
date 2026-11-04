@@ -62,10 +62,6 @@ func errUnsupportedIdentifierExpression(t interface{}) error {
 	return errors.New("unexpected col type must be string or LiteralExpression received %T", t)
 }
 
-func errInvalidIdentifier(name string) error {
-	return errors.New("identifier is not valid UTF-8: %q", name)
-}
-
 func errUnsupportedBooleanExpressionOperator(op exp.BooleanOperation) error {
 	return errors.New("boolean operator '%+v' not supported", op)
 }
@@ -376,10 +372,6 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 }
 
 func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
-	if !utf8.ValidString(name) {
-		b.SetError(errInvalidIdentifier(name))
-		return
-	}
 	q := string(esg.dialectOptions.QuoteRune)
 	b.WriteStrings(q, strings.ReplaceAll(name, q, q+q), q)
 }

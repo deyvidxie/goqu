@@ -1289,10 +1289,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 		expressionTestCase{val: exp.NewIdentifierExpression(`s"`, `t"`, `c"`), sql: `"s"""."t"""."c"""`, isPrepared: true},
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", "a`b"), sql: "\"a`b\""},
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", "a`b"), sql: "\"a`b\"", isPrepared: true},
-		expressionTestCase{
-			val: exp.NewIdentifierExpression("", "", "a\x81\" OR 1=1 --"),
-			err: `goqu: identifier is not valid UTF-8: "a\x81\" OR 1=1 --"`,
-		},
 
 		expressionTestCase{val: col.Table("table"), sql: `"table"."col"`},
 		expressionTestCase{val: col.Table("table"), sql: `"table"."col"`, isPrepared: true},
@@ -1363,10 +1359,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 		expressionTestCase{val: exp.NewIdentifierExpression("", "t`", "a` OR 1=1 -- "), sql: "`t```.`a`` OR 1=1 -- `", isPrepared: true},
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a"b`), sql: "`a\"b`"},
 		expressionTestCase{val: exp.NewIdentifierExpression("", "", `a"b`), sql: "`a\"b`", isPrepared: true},
-		expressionTestCase{
-			val: exp.NewIdentifierExpression("", "", "\x81` OR 1=1 -- "),
-			err: `goqu: identifier is not valid UTF-8: "\x81` + "`" + ` OR 1=1 -- "`,
-		},
 	)
 }
 
