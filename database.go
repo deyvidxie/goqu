@@ -73,13 +73,12 @@ type (
 //	}
 //
 // fmt.Printf("%+v", ids)
-func newDatabase(dialect, tagName string, db SQLDatabase) *Database {
-	tagName = resolveTagName(dialect, tagName)
+func newDatabase(dialect string, requestedTag tagRequest, db SQLDatabase) *Database {
 	return &Database{
 		logger:  nil,
 		dialect: dialect,
 		Db:      db,
-		tagName: tagName,
+		tagName: requestedTag.resolve(dialect),
 		qf:      nil,
 		qfOnce:  sync.Once{},
 	}
@@ -96,7 +95,7 @@ func (d *Database) Begin() (*TxDatabase, error) {
 	if err != nil {
 		return nil, err
 	}
-	tx := NewTxWithTagName(d.dialect, d.tagName, sqlTx)
+	tx := newTxDatabase(d.dialect, d.tagName, sqlTx)
 	tx.Logger(d.logger)
 	return tx, nil
 }
@@ -107,7 +106,7 @@ func (d *Database) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TxDatabas
 	if err != nil {
 		return nil, err
 	}
-	tx := NewTxWithTagName(d.dialect, d.tagName, sqlTx)
+	tx := newTxDatabase(d.dialect, d.tagName, sqlTx)
 	tx.Logger(d.logger)
 	return tx, nil
 }
@@ -131,27 +130,27 @@ func (d *Database) WithTx(fn func(*TxDatabase) error) error {
 //
 // from...: Sources for you dataset, could be table names (strings), a goqu.Literal or another goqu.Dataset
 func (d *Database) From(from ...interface{}) *SelectDataset {
-	return newDataset(d.dialect, d.tagName, d.queryFactory()).From(from...)
+	return newDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).From(from...)
 }
 
 func (d *Database) Select(cols ...interface{}) *SelectDataset {
-	return newDataset(d.dialect, d.tagName, d.queryFactory()).Select(cols...)
+	return newDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).Select(cols...)
 }
 
 func (d *Database) Update(table interface{}) *UpdateDataset {
-	return newUpdateDataset(d.dialect, d.tagName, d.queryFactory()).Table(table)
+	return newUpdateDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).Table(table)
 }
 
 func (d *Database) Insert(table interface{}) *InsertDataset {
-	return newInsertDataset(d.dialect, d.tagName, d.queryFactory()).Into(table)
+	return newInsertDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).Into(table)
 }
 
 func (d *Database) Delete(table interface{}) *DeleteDataset {
-	return newDeleteDataset(d.dialect, d.tagName, d.queryFactory()).From(table)
+	return newDeleteDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).From(table)
 }
 
 func (d *Database) Truncate(table ...interface{}) *TruncateDataset {
-	return newTruncateDataset(d.dialect, d.tagName, d.queryFactory()).Table(table...)
+	return newTruncateDataset(d.dialect, explicitTag(d.tagName), d.queryFactory()).Table(table...)
 }
 
 // Sets the logger for to use when logging queries
@@ -486,8 +485,12 @@ func NewTx(dialect string, tx SQLTx) *TxDatabase {
 	return NewTxWithTagName(dialect, "", tx)
 }
 
-func NewTxWithTagName(dialect, tagName string, tx SQLTx) *TxDatabase {
-	return &TxDatabase{dialect: dialect, tagName: resolveTagName(dialect, tagName), Tx: tx}
+func NewTxWithTagName(dialect, requestedTag string, tx SQLTx) *TxDatabase {
+	return newTxDatabase(dialect, requestTag(requestedTag).resolve(dialect), tx)
+}
+
+func newTxDatabase(dialect, tagName string, tx SQLTx) *TxDatabase {
+	return &TxDatabase{dialect: dialect, tagName: tagName, Tx: tx}
 }
 
 // returns this databases dialect
@@ -497,27 +500,27 @@ func (td *TxDatabase) Dialect() string {
 
 // Creates a new Dataset for querying a Database.
 func (td *TxDatabase) From(cols ...interface{}) *SelectDataset {
-	return newDataset(td.dialect, td.tagName, td.queryFactory()).From(cols...)
+	return newDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).From(cols...)
 }
 
 func (td *TxDatabase) Select(cols ...interface{}) *SelectDataset {
-	return newDataset(td.dialect, td.tagName, td.queryFactory()).Select(cols...)
+	return newDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).Select(cols...)
 }
 
 func (td *TxDatabase) Update(table interface{}) *UpdateDataset {
-	return newUpdateDataset(td.dialect, td.tagName, td.queryFactory()).Table(table)
+	return newUpdateDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).Table(table)
 }
 
 func (td *TxDatabase) Insert(table interface{}) *InsertDataset {
-	return newInsertDataset(td.dialect, td.tagName, td.queryFactory()).Into(table)
+	return newInsertDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).Into(table)
 }
 
 func (td *TxDatabase) Delete(table interface{}) *DeleteDataset {
-	return newDeleteDataset(td.dialect, td.tagName, td.queryFactory()).From(table)
+	return newDeleteDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).From(table)
 }
 
 func (td *TxDatabase) Truncate(table ...interface{}) *TruncateDataset {
-	return newTruncateDataset(td.dialect, td.tagName, td.queryFactory()).Table(table...)
+	return newTruncateDataset(td.dialect, explicitTag(td.tagName), td.queryFactory()).Table(table...)
 }
 
 // Sets the logger

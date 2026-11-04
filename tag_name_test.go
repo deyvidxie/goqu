@@ -97,6 +97,22 @@ func TestRegisteredDialectTagNameAndOptions(t *testing.T) {
 			sql: "SELECT `db_id`, `db_name` FROM `items`",
 		},
 		sqlCase{
+			ds:  goqu.New("default", nil).Update("items").WithDialect("json-registered").Set(row),
+			sql: "UPDATE `items` SET `db_id`=1,`db_name`='a'",
+		},
+		sqlCase{
+			ds:  goqu.New("default", nil).Delete("items").WithDialect("json-registered").Returning(&taggedItem{}),
+			sql: "DELETE FROM `items` RETURNING `db_id`, `db_name`",
+		},
+		sqlCase{
+			ds:  goqu.From("items").Update().WithDialect("json-registered").Set(row),
+			sql: "UPDATE `items` SET `json_id`=1,`json_name`='a'",
+		},
+		sqlCase{
+			ds:  goqu.From("items").Delete().WithDialect("json-registered").Returning(&taggedItem{}),
+			sql: "DELETE FROM `items` RETURNING `json_id`, `json_name`",
+		},
+		sqlCase{
 			ds:  goqu.DialectWithTagName("default", "db").Insert("items").WithDialect("json-registered").Rows(row),
 			sql: "INSERT INTO `items` (`db_id`, `db_name`) VALUES (1, 'a')",
 		},
@@ -144,6 +160,29 @@ func TestNewTxWithTagName_emptyTagScansWithRegisteredTag(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestDatabaseKeepsRegisteredEmptyTagAcrossWithDialect(t *testing.T) {
+	goqu.RegisterDialect("empty-tag", "", goqu.DefaultDialectOptions())
+	defer goqu.DeregisterDialect("empty-tag")
+
+	assertSQLCases(t,
+		sqlCase{
+			ds:  goqu.New("empty-tag", nil).From("items").WithDialect("default").Select(&taggedItem{}),
+			sql: `SELECT "id", "name" FROM "items"`,
+		},
+	)
+}
+
+func TestUnregisteredDialectUsesDefaultRegisteredTag(t *testing.T) {
+	goqu.RegisterDialect("default", "json", goqu.DefaultDialectOptions())
+	defer goqu.RegisterDialect("default", "db", goqu.DefaultDialectOptions())
+
+	ds := goqu.Dialect("not-registered").From("items")
+	assertSQLCases(t,
+		sqlCase{ds: ds.Select(&taggedItem{}), sql: `SELECT "json_id", "json_name" FROM "items"`},
+		sqlCase{ds: ds.Insert().Rows(taggedItem{ID: 1, Name: "a"}), sql: `INSERT INTO "items" ("json_id", "json_name") VALUES (1, 'a')`},
+	)
+}
+
 func TestFromQueryAcrossTagNamesOfOneDialect(t *testing.T) {
 	goqu.RegisterDialect("from-query-test", "db", goqu.DefaultDialectOptions())
 	defer goqu.DeregisterDialect("from-query-test")
@@ -154,7 +193,10 @@ func TestFromQueryAcrossTagNamesOfOneDialect(t *testing.T) {
 	assert.NotPanics(t, func() { dbTagged.Insert("items").FromQuery(jsonTagged.From("other")) })
 }
 
-func TestNewWithTagName_ScanStruct(t *testing.T) {
+func TestScanStruct_structAlreadyMappedUnderAnotherTag(t *testing.T) {
+	_, _, err := goqu.From("items").Select(&taggedItem{}).ToSQL()
+	require.NoError(t, err)
+
 	mDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT "json_id", "json_name" FROM "items" LIMIT 1`)).

@@ -15,18 +15,17 @@ type InsertDataset struct {
 	isPrepared   prepared
 	queryFactory exec.QueryFactory
 	tagName      string
-	requestedTag string
+	requestedTag tagRequest
 	err          error
 }
 
 var ErrUnsupportedIntoType = errors.New("unsupported table type, a string or identifier expression is required")
 
-// used internally by database to create a database with a specific adapter
-func newInsertDataset(d, requestedTag string, queryFactory exec.QueryFactory) *InsertDataset {
-	tagName := resolveTagName(d, requestedTag)
+func newInsertDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *InsertDataset {
+	tagName := requestedTag.resolve(d)
 	return &InsertDataset{
 		clauses:      exp.NewInsertClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		tagName:      tagName,
 		requestedTag: requestedTag,
@@ -36,7 +35,7 @@ func newInsertDataset(d, requestedTag string, queryFactory exec.QueryFactory) *I
 // Creates a new InsertDataset for the provided table. Using this method will only allow you
 // to create SQL user Database#From to create an InsertDataset with query capabilities
 func Insert(table interface{}) *InsertDataset {
-	return newInsertDataset("default", "", nil).Into(table)
+	return newInsertDataset("default", tagRequest{}, nil).Into(table)
 }
 
 // Set the parameter interpolation behavior. See examples
@@ -55,8 +54,8 @@ func (id *InsertDataset) IsPrepared() bool {
 // Sets the adapter used to serialize values and create the SQL statement
 func (id *InsertDataset) WithDialect(dl string) *InsertDataset {
 	ds := id.copy(id.GetClauses())
-	ds.tagName = resolveTagName(dl, ds.requestedTag)
-	ds.dialect = GetDialectWithTag(dl, ds.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 

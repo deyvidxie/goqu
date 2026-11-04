@@ -18,7 +18,7 @@ type SelectDataset struct {
 	queryFactory exec.QueryFactory
 	subqueries   map[string]exp.Aliaseable
 	tagName      string
-	requestedTag string
+	requestedTag tagRequest
 	err          error
 }
 
@@ -26,12 +26,11 @@ var ErrQueryFactoryNotFoundError = errors.New(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 
-// used internally by database to create a database with a specific adapter
-func newDataset(d, requestedTag string, queryFactory exec.QueryFactory) *SelectDataset {
-	tagName := resolveTagName(d, requestedTag)
+func newDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *SelectDataset {
+	tagName := requestedTag.resolve(d)
 	return &SelectDataset{
 		clauses:      exp.NewSelectClauses(),
-		dialect:      GetDialectWithTag(d, tagName),
+		dialect:      dialectFor(d, tagName),
 		queryFactory: queryFactory,
 		tagName:      tagName,
 		requestedTag: requestedTag,
@@ -39,18 +38,18 @@ func newDataset(d, requestedTag string, queryFactory exec.QueryFactory) *SelectD
 }
 
 func From(table ...interface{}) *SelectDataset {
-	return newDataset("default", "", nil).From(table...)
+	return newDataset("default", tagRequest{}, nil).From(table...)
 }
 
 func Select(cols ...interface{}) *SelectDataset {
-	return newDataset("default", "", nil).Select(cols...)
+	return newDataset("default", tagRequest{}, nil).Select(cols...)
 }
 
 // Sets the adapter used to serialize values and create the SQL statement
 func (sd *SelectDataset) WithDialect(dl string) *SelectDataset {
 	ds := sd.copy(sd.GetClauses())
-	ds.tagName = resolveTagName(dl, ds.requestedTag)
-	ds.dialect = GetDialectWithTag(dl, ds.tagName)
+	ds.tagName = ds.requestedTag.resolve(dl)
+	ds.dialect = dialectFor(dl, ds.tagName)
 	return ds
 }
 

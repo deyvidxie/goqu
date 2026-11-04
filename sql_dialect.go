@@ -85,11 +85,24 @@ func GetDialect(name string) SQLDialect {
 	return newDialect("default", "db", DefaultDialectOptions())
 }
 
-func resolveTagName(dialect, requestedTag string) string {
-	if requestedTag == "" {
-		return registeredTagName(dialect)
+type tagRequest struct {
+	name     string
+	explicit bool
+}
+
+func requestTag(tagName string) tagRequest {
+	return tagRequest{name: tagName, explicit: tagName != ""}
+}
+
+func explicitTag(tagName string) tagRequest {
+	return tagRequest{name: tagName, explicit: true}
+}
+
+func (r tagRequest) resolve(dialect string) string {
+	if r.explicit {
+		return r.name
 	}
-	return requestedTag
+	return registeredTagName(dialect)
 }
 
 func registeredTagName(name string) string {
@@ -98,11 +111,17 @@ func registeredTagName(name string) string {
 	if d, ok := dialects[strings.ToLower(name)]; ok {
 		return d.tagName
 	}
+	if d, ok := dialects["default"]; ok {
+		return d.tagName
+	}
 	return "db"
 }
 
-func GetDialectWithTag(name, tagName string) SQLDialect {
-	tagName = resolveTagName(name, tagName)
+func GetDialectWithTag(name, requestedTag string) SQLDialect {
+	return dialectFor(name, requestTag(requestedTag).resolve(name))
+}
+
+func dialectFor(name, tagName string) *sqlDialect {
 	name = strings.ToLower(name)
 	key := taggedDialectKey{name: name, tagName: tagName}
 	dialectsMu.RLock()
