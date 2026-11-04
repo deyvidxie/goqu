@@ -27,7 +27,7 @@ func (l *dbTestMockContextLogger) Printf(format string, v ...interface{}) {
 	l.entries = append(l.entries, ctxLogEntry{ctxValue: "printf", message: fmt.Sprintf(format, v...)})
 }
 
-//nolint:goprintffuncname // implements goqu.ContextLogger
+//nolint:goprintffuncname
 func (l *dbTestMockContextLogger) PrintfContext(ctx context.Context, format string, v ...interface{}) {
 	l.entries = append(l.entries, ctxLogEntry{ctxValue: ctx.Value(ctxKey{}), message: fmt.Sprintf(format, v...)})
 }
@@ -47,62 +47,9 @@ func (ds *databaseSuite) TestWithTxContext() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
 	db := goqu.New("mock", mDB)
-	ctx := context.WithValue(context.Background(), ctxKey{}, "request-1")
-
-	cases := []struct {
-		expectf func(sqlmock.Sqlmock)
-		f       func(*goqu.TxDatabase) error
-		errStr  string
-	}{
-		{
-			expectf: func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin()
-				mock.ExpectCommit()
-			},
-			f: func(_ *goqu.TxDatabase) error { return nil },
-		},
-		{
-			expectf: func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin().WillReturnError(errors.New("transaction begin error"))
-			},
-			f:      func(_ *goqu.TxDatabase) error { return nil },
-			errStr: "goqu: transaction begin error",
-		},
-		{
-			expectf: func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin()
-				mock.ExpectRollback()
-			},
-			f:      func(_ *goqu.TxDatabase) error { return errors.New("transaction error") },
-			errStr: "goqu: transaction error",
-		},
-		{
-			expectf: func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin()
-				mock.ExpectRollback().WillReturnError(errors.New("transaction rollback error"))
-			},
-			f:      func(_ *goqu.TxDatabase) error { return errors.New("something wrong") },
-			errStr: "goqu: transaction rollback error",
-		},
-		{
-			expectf: func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin()
-				mock.ExpectCommit().WillReturnError(errors.New("commit error"))
-			},
-			f:      func(_ *goqu.TxDatabase) error { return nil },
-			errStr: "goqu: commit error",
-		},
-	}
-	for _, c := range cases {
-		c.expectf(mock)
-		err := db.WithTxContext(ctx, nil, c.f)
-		if c.errStr != "" {
-			ds.EqualError(err, c.errStr)
-		} else {
-			ds.NoError(err)
-		}
-	}
-	ds.NoError(mock.ExpectationsWereMet())
+	ds.assertWithTxCases(mock, func(f func(*goqu.TxDatabase) error) error {
+		return db.WithTxContext(context.Background(), nil, f)
+	})
 }
 
 func (ds *databaseSuite) TestWithTxContext_beginsWithContextAndOptions() {
@@ -138,10 +85,11 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
 	mock.ExpectBegin()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := errors.New("request aborted")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
-		cancel()
+		cancel(cause)
 		ds.EventuallyWithT(func(c *assert.CollectT) {
 			_, execErr := tx.Tx.ExecContext(context.Background(), "SELECT 1")
 			assert.ErrorIs(c, execErr, sql.ErrTxDone)
@@ -149,7 +97,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 		return nil
 	})
 	ds.ErrorIs(err, sql.ErrTxDone)
-	ds.ErrorIs(err, context.Canceled)
+	ds.ErrorIs(err, cause)
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
@@ -197,11 +145,17 @@ func (ds *databaseSuite) TestContextLogger_withoutContext() {
 	mock.ExpectCommit()
 	_, err = db.Exec(`UPDATE "items" SET "a"=2`)
 	ds.NoError(err)
-	ds.NoError(db.WithTx(func(_ *goqu.TxDatabase) error { return nil }))
+	db.Trace("TEST", "")
+	ds.NoError(db.WithTx(func(tx *goqu.TxDatabase) error {
+		tx.Trace("TEST", "")
+		return nil
+	}))
 
 	ds.Equal([]ctxLogEntry{
 		{ctxValue: nil, message: "[goqu] EXEC [query:=`UPDATE \"items\" SET \"a\"=2`]"},
+		{ctxValue: nil, message: "[goqu] TEST"},
 		{ctxValue: nil, message: "[goqu - transaction] BEGIN"},
+		{ctxValue: nil, message: "[goqu - transaction] TEST"},
 		{ctxValue: nil, message: "[goqu - transaction] COMMIT"},
 	}, logger.entries)
 	ds.NoError(mock.ExpectationsWereMet())

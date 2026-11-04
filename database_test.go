@@ -274,13 +274,13 @@ func (ds *databaseSuite) TestBeginTx() {
 func (ds *databaseSuite) TestWithTx() {
 	mDB, mock, err := sqlmock.New()
 	ds.NoError(err)
+	ds.assertWithTxCases(mock, goqu.New("mock", mDB).WithTx)
+}
 
-	db := goqu.New("mock", mDB)
-
+func (ds *databaseSuite) assertWithTxCases(mock sqlmock.Sqlmock, withTx func(func(*goqu.TxDatabase) error) error) {
 	cases := []struct {
 		expectf func(sqlmock.Sqlmock)
 		f       func(*goqu.TxDatabase) error
-		wantErr bool
 		errStr  string
 	}{
 		{
@@ -288,54 +288,50 @@ func (ds *databaseSuite) TestWithTx() {
 				mock.ExpectBegin()
 				mock.ExpectCommit()
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: false,
+			f: func(_ *goqu.TxDatabase) error { return nil },
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin().WillReturnError(errors.New("transaction begin error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: true,
-			errStr:  "goqu: transaction begin error",
+			f:      func(_ *goqu.TxDatabase) error { return nil },
+			errStr: "goqu: transaction begin error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
 			},
-			f:       func(_ *goqu.TxDatabase) error { return errors.New("transaction error") },
-			wantErr: true,
-			errStr:  "goqu: transaction error",
+			f:      func(_ *goqu.TxDatabase) error { return errors.New("transaction error") },
+			errStr: "goqu: transaction error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectRollback().WillReturnError(errors.New("transaction rollback error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return errors.New("something wrong") },
-			wantErr: true,
-			errStr:  "goqu: transaction rollback error",
+			f:      func(_ *goqu.TxDatabase) error { return errors.New("something wrong") },
+			errStr: "goqu: transaction rollback error",
 		},
 		{
 			expectf: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectCommit().WillReturnError(errors.New("commit error"))
 			},
-			f:       func(_ *goqu.TxDatabase) error { return nil },
-			wantErr: true,
-			errStr:  "goqu: commit error",
+			f:      func(_ *goqu.TxDatabase) error { return nil },
+			errStr: "goqu: commit error",
 		},
 	}
 	for _, c := range cases {
 		c.expectf(mock)
-		err := db.WithTx(c.f)
-		if c.wantErr {
+		err := withTx(c.f)
+		if c.errStr != "" {
 			ds.EqualError(err, c.errStr)
 		} else {
 			ds.NoError(err)
 		}
 	}
+	ds.NoError(mock.ExpectationsWereMet())
 }
 
 func (ds *databaseSuite) TestRollbackOnPanic() {
