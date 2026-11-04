@@ -607,11 +607,6 @@ func (sd *SelectDataset) ToSQL() (sql string, params []interface{}, err error) {
 	return builder.ToSQL()
 }
 
-// Generates the SELECT sql, and returns an Exec struct with the sql set to the SELECT statement
-//
-//	db.From("test").Select("col").Executor()
-//
-// See Dataset#ToUpdateSQL for arguments
 func (sd *SelectDataset) Executor() exec.QueryExecutor {
 	builder := sd.selectSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)

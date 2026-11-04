@@ -65,7 +65,6 @@ func NewSQLBuilder(isPrepared bool) SQLBuilder {
 	return b
 }
 
-// A fresh and a reset builder must look identical (e.g. nil args) so that they compare equal in tests.
 func newSQLBuilder(isPrepared bool) *sqlBuilder {
 	return &sqlBuilder{
 		buf:                &bytes.Buffer{},
