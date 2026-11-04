@@ -717,11 +717,15 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 			panic(p)
 		}
 		if err != nil {
-			if rollbackErr := td.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			if rollbackErr := td.Rollback(); errors.Is(rollbackErr, sql.ErrTxDone) {
+				err = errors.Join(err, rollbackErr)
+			} else if rollbackErr != nil {
 				err = rollbackErr
 			}
 		} else {
-			if commitErr := td.Commit(); commitErr != nil {
+			if commitErr := td.Commit(); errors.Is(commitErr, sql.ErrTxDone) {
+				err = errors.Join(commitErr, td.beginContext().Err())
+			} else if commitErr != nil {
 				err = commitErr
 			}
 		}

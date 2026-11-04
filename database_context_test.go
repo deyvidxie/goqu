@@ -3,7 +3,9 @@ package goqu_test
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
@@ -132,17 +134,34 @@ func (ds *databaseSuite) TestWithTxContext_rollbackOnPanic() {
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
-type txEndedByContext struct {
+type txAlreadyDone struct {
 	goqu.SQLTx
 }
 
-func (txEndedByContext) Rollback() error { return sql.ErrTxDone }
+func (txAlreadyDone) Rollback() error { return sql.ErrTxDone }
 
-func (ds *databaseSuite) TestWrap_keepsErrorWhenTxAlreadyEnded() {
+func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
+	fnErr := errors.New("fn failed")
+	err := goqu.NewTx("mock", txAlreadyDone{}).Wrap(func() error { return fnErr })
+	tds.ErrorIs(err, fnErr)
+	tds.ErrorIs(err, sql.ErrTxDone)
+}
+
+func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	tx := goqu.NewTx("mock", txEndedByContext{})
-	err := tx.Wrap(func() error { return ctx.Err() })
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		cancel()
+		ds.Eventually(func() bool {
+			_, execErr := tx.Tx.ExecContext(context.Background(), "SELECT 1")
+			return stderrors.Is(execErr, sql.ErrTxDone)
+		}, time.Second, time.Millisecond)
+		return nil
+	})
+	ds.ErrorIs(err, sql.ErrTxDone)
 	ds.ErrorIs(err, context.Canceled)
 }
 
@@ -210,17 +229,18 @@ func (ds *databaseSuite) TestContextLogger_queryTraces() {
 	query := `SELECT "a" FROM "items"`
 	rows := func() *sqlmock.Rows { return sqlmock.NewRows([]string{"a"}).AddRow(1) }
 
-	mock.ExpectExec(`UPDATE "items" SET "a"=1`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "items" SET "a"=\?`).WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectPrepare(`SELECT "a" FROM "items"`)
 	mock.ExpectQuery(`SELECT "a" FROM "items"`).WillReturnRows(rows())
 	mock.ExpectQuery(`SELECT "a" FROM "items"`).WillReturnRows(rows())
 	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "items" SET "a"=\?`).WithArgs(2).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectPrepare(`SELECT "a" FROM "items"`)
 	mock.ExpectQuery(`SELECT "a" FROM "items"`).WillReturnRows(rows())
 	mock.ExpectQuery(`SELECT "a" FROM "items"`).WillReturnRows(rows())
 	mock.ExpectCommit()
 
-	_, err = db.ExecContext(ctx, `UPDATE "items" SET "a"=1`)
+	_, err = db.ExecContext(ctx, `UPDATE "items" SET "a"=?`, 1)
 	ds.NoError(err)
 	_, err = db.PrepareContext(ctx, query)
 	ds.NoError(err)
@@ -230,7 +250,11 @@ func (ds *databaseSuite) TestContextLogger_queryTraces() {
 	ds.NoError(r.Close())
 	var a int
 	ds.NoError(db.QueryRowContext(ctx, query).Scan(&a))
+	db.TraceContext(ctx, "TEST", "")
 	ds.NoError(db.WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE "items" SET "a"=?`, 2); err != nil {
+			return err
+		}
 		if _, err := tx.PrepareContext(ctx, query); err != nil {
 			return err
 		}
@@ -253,11 +277,13 @@ func (ds *databaseSuite) TestContextLogger_queryTraces() {
 		ops = append(ops, e.message)
 	}
 	ds.Equal([]string{
-		"[goqu] EXEC [query:=`UPDATE \"items\" SET \"a\"=1`]",
+		"[goqu] EXEC [query:=`UPDATE \"items\" SET \"a\"=?` args:=[1]]",
 		"[goqu] PREPARE [query:=`SELECT \"a\" FROM \"items\"`]",
 		"[goqu] QUERY [query:=`SELECT \"a\" FROM \"items\"`]",
 		"[goqu] QUERY ROW [query:=`SELECT \"a\" FROM \"items\"`]",
+		"[goqu] TEST",
 		"[goqu - transaction] BEGIN",
+		"[goqu - transaction] EXEC [query:=`UPDATE \"items\" SET \"a\"=?` args:=[2]] ",
 		"[goqu - transaction] PREPARE [query:=`SELECT \"a\" FROM \"items\"`] ",
 		"[goqu - transaction] QUERY [query:=`SELECT \"a\" FROM \"items\"`] ",
 		"[goqu - transaction] QUERY ROW [query:=`SELECT \"a\" FROM \"items\"`] ",

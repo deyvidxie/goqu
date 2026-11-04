@@ -60,7 +60,7 @@ err = tx.Wrap(func() error{
       Update(goqu.Record{"status": "inactive"})
   return update.Exec()
 })
-//err will be the original error from the update statement, unless there was an error executing ROLLBACK
+//err will be the original error from the update statement, unless ROLLBACK failed: then it is the ROLLBACK error, or both joined if the transaction had already ended
 if err != nil{
     return err
 }
@@ -73,7 +73,7 @@ To enable trace logging of SQL statements use the [`Database.Logger`](http://god
 
 **NOTE** The logger must implement the [`Logger`](http://godoc.org/github.com/doug-martin/goqu/#Logger) interface
 
-**NOTE** If the logger also implements [`ContextLogger`](http://godoc.org/github.com/doug-martin/goqu/#ContextLogger), goqu calls `PrintfContext` with the query's context
+**NOTE** If the logger implements [`ContextLogger`](http://godoc.org/github.com/doug-martin/goqu/#ContextLogger), goqu calls `PrintfContext` instead of `Printf`, passing the ctx given to the `*Context` method, or to `BeginTx`/`WithTxContext` for that transaction's BEGIN/COMMIT/ROLLBACK
 
 **NOTE** If you start a transaction using a database your set a logger on the transaction will inherit that logger automatically
 
