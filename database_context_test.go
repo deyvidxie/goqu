@@ -122,7 +122,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel(
 	cause := errors.New("request aborted")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
-		tx.Tx = commitErrTx{err: context.Canceled}
+		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: context.Canceled}
 		cancel(cause)
 		return nil
 	})
@@ -140,7 +140,7 @@ func (ds *databaseSuite) TestWithTxContext_doesNotJoinCauseIntoUnrelatedError() 
 	constraintErr := errors.New("unique constraint violated")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
-		tx.Tx = commitErrTx{err: constraintErr}
+		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: constraintErr}
 		cancel(errors.New("request aborted"))
 		return nil
 	})
@@ -179,6 +179,24 @@ func (ds *databaseSuite) TestWithTxContext_plainCancelIsNotJoinedTwice() {
 		return ctx.Err()
 	})
 	ds.ErrorIs(err, sql.ErrTxDone)
+	ds.Equal(1, strings.Count(err.Error(), context.Canceled.Error()))
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
+func (ds *databaseSuite) TestWithTxContext_causeWrappingCanceledIsNotJoinedTwice() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := fmt.Errorf("shutdown: %w", context.Canceled)
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		cancel(cause)
+		ds.awaitRollbackByDatabaseSQL(tx)
+		return nil
+	})
+	ds.ErrorIs(err, sql.ErrTxDone)
+	ds.ErrorIs(err, cause)
 	ds.Equal(1, strings.Count(err.Error(), context.Canceled.Error()))
 	ds.NoError(mock.ExpectationsWereMet())
 }

@@ -248,12 +248,15 @@ func (ds *databaseSuite) TestBegin() {
 	mock.ExpectBegin()
 	mock.ExpectBegin().WillReturnError(errors.New("transaction error"))
 	db := goqu.New("mock", mDB)
+	logger := new(dbTestMockLogger)
+	db.Logger(logger)
 	tx, err := db.Begin()
 	ds.NoError(err)
 	ds.Equal("mock", tx.Dialect())
 
 	_, err = db.Begin()
 	ds.EqualError(err, "goqu: transaction error")
+	ds.Equal([]string{"[goqu - transaction] BEGIN", "[goqu - transaction] BEGIN"}, logger.Messages)
 }
 
 func (ds *databaseSuite) TestBeginTx() {
@@ -732,6 +735,23 @@ func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
 	})
 	tds.ErrorIs(err, fnErr)
 	tds.ErrorIs(err, dbsql.ErrTxDone)
+	tds.NoError(mock.ExpectationsWereMet())
+}
+
+func (tds *txdatabaseSuite) TestWrap_doesNotRepeatErrTxDone() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+
+	err = tx.Wrap(func() error {
+		tds.NoError(tx.Rollback())
+		_, execErr := tx.Exec(`UPDATE "items" SET "a"=1`)
+		return execErr
+	})
+	tds.Equal(dbsql.ErrTxDone, err)
 	tds.NoError(mock.ExpectationsWereMet())
 }
 

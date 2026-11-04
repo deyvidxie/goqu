@@ -718,7 +718,9 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 		}
 		if err != nil {
 			if rollbackErr := td.Rollback(); errors.Is(rollbackErr, sql.ErrTxDone) {
-				err = errors.Join(err, rollbackErr)
+				if !errors.Is(err, sql.ErrTxDone) {
+					err = errors.Join(err, rollbackErr)
+				}
 			} else if rollbackErr != nil {
 				err = rollbackErr
 			}
@@ -726,7 +728,7 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 			err = td.Commit()
 		}
 		if ctx := td.beginContext(); ctx.Err() != nil && (errors.Is(err, sql.ErrTxDone) || errors.Is(err, ctx.Err())) {
-			for _, ctxErr := range []error{ctx.Err(), context.Cause(ctx)} {
+			for _, ctxErr := range []error{context.Cause(ctx), ctx.Err()} {
 				if !errors.Is(err, ctxErr) {
 					err = errors.Join(err, ctxErr)
 				}
