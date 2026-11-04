@@ -11,10 +11,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
 
 	opts.SupportsReturn = true
-	opts.SupportsOrderByOnUpdate = true
-	opts.SupportsLimitOnUpdate = true
-	opts.SupportsOrderByOnDelete = true
-	opts.SupportsLimitOnDelete = true
 	opts.SupportsConflictUpdateWhere = false
 	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = true
@@ -26,32 +22,23 @@ func DialectOptions() *goqu.SQLDialectOptions {
 
 	opts.PlaceHolderFragment = []byte("?")
 	opts.IncludePlaceholderNum = false
-	opts.QuoteRune = '`'
-	opts.DefaultValuesFragment = []byte("")
-	opts.True = []byte("1")
-	opts.False = []byte("0")
 	opts.TimeFormat = time.RFC3339Nano
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{
-		exp.EqOp:             []byte("="),
-		exp.NeqOp:            []byte("!="),
-		exp.GtOp:             []byte(">"),
-		exp.GteOp:            []byte(">="),
-		exp.LtOp:             []byte("<"),
-		exp.LteOp:            []byte("<="),
-		exp.InOp:             []byte("IN"),
-		exp.NotInOp:          []byte("NOT IN"),
-		exp.IsOp:             []byte("IS"),
-		exp.IsNotOp:          []byte("IS NOT"),
-		exp.LikeOp:           []byte("LIKE"),
-		exp.NotLikeOp:        []byte("NOT LIKE"),
-		exp.ILikeOp:          []byte("LIKE"),
-		exp.NotILikeOp:       []byte("NOT LIKE"),
-		exp.RegexpLikeOp:     []byte("REGEXP"),
-		exp.RegexpNotLikeOp:  []byte("NOT REGEXP"),
-		exp.RegexpILikeOp:    []byte("REGEXP"),
-		exp.RegexpNotILikeOp: []byte("NOT REGEXP"),
+		exp.EqOp:       []byte("="),
+		exp.NeqOp:      []byte("!="),
+		exp.GtOp:       []byte(">"),
+		exp.GteOp:      []byte(">="),
+		exp.LtOp:       []byte("<"),
+		exp.LteOp:      []byte("<="),
+		exp.InOp:       []byte("IN"),
+		exp.NotInOp:    []byte("NOT IN"),
+		exp.IsOp:       []byte("IS"),
+		exp.IsNotOp:    []byte("IS NOT"),
+		exp.LikeOp:     []byte("LIKE"),
+		exp.NotLikeOp:  []byte("NOT LIKE"),
+		exp.ILikeOp:    []byte("ILIKE"),
+		exp.NotILikeOp: []byte("NOT ILIKE"),
 	}
-	opts.UseLiteralIsBools = false
 	opts.BitwiseOperatorLookup = map[exp.BitwiseOperation][]byte{
 		exp.BitwiseOrOp:         []byte("|"),
 		exp.BitwiseAndOp:        []byte("&"),
@@ -59,8 +46,8 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		exp.BitwiseRightShiftOp: []byte(">>"),
 	}
 	opts.FunctionNameLookup = map[string][]byte{
-		exp.FunctionNameGreatest: []byte("MAX"),
-		exp.FunctionNameLeast:    []byte("MIN"),
+		exp.FunctionNameGreatest: []byte("GREATEST"),
+		exp.FunctionNameLeast:    []byte("LEAST"),
 		exp.FunctionNameUpper:    []byte("UPPER"),
 		exp.FunctionNameLower:    []byte("LOWER"),
 	}
