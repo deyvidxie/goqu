@@ -263,12 +263,15 @@ func (ds *databaseSuite) TestBeginTx() {
 	mock.ExpectBegin()
 	mock.ExpectBegin().WillReturnError(errors.New("transaction error"))
 	db := goqu.New("mock", mDB)
+	logger := new(dbTestMockLogger)
+	db.Logger(logger)
 	tx, err := db.BeginTx(ctx, nil)
 	ds.NoError(err)
 	ds.Equal("mock", tx.Dialect())
 
 	_, err = db.BeginTx(ctx, nil)
 	ds.EqualError(err, "goqu: transaction error")
+	ds.Equal([]string{"[goqu - transaction] BEGIN", "[goqu - transaction] BEGIN"}, logger.Messages)
 }
 
 func (ds *databaseSuite) TestWithTx() {
@@ -714,17 +717,22 @@ func (tds *txdatabaseSuite) TestWrap() {
 	}), "goqu: tx error")
 }
 
-type txAlreadyDone struct {
-	goqu.SQLTx
-}
-
-func (txAlreadyDone) Rollback() error { return dbsql.ErrTxDone }
-
 func (tds *txdatabaseSuite) TestWrap_joinsErrorWhenTxAlreadyDone() {
+	mDB, mock, err := sqlmock.New()
+	tds.Require().NoError(err)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
 	fnErr := errors.New("fn failed")
-	err := goqu.NewTx("mock", txAlreadyDone{}).Wrap(func() error { return fnErr })
+
+	err = tx.Wrap(func() error {
+		tds.NoError(tx.Rollback())
+		return fnErr
+	})
 	tds.ErrorIs(err, fnErr)
 	tds.ErrorIs(err, dbsql.ErrTxDone)
+	tds.NoError(mock.ExpectationsWereMet())
 }
 
 func (tds *txdatabaseSuite) TestWrap_returnsErrTxDoneWhenFnCommitted() {

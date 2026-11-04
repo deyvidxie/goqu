@@ -101,6 +101,21 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
+func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := errors.New("request aborted")
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(_ *goqu.TxDatabase) error {
+		cancel(cause)
+		return nil
+	})
+	ds.ErrorIs(err, cause)
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
 func (ds *databaseSuite) TestContextLogger_transactionBoundaries() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
