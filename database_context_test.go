@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -23,8 +24,8 @@ type dbTestMockContextLogger struct {
 	entries []ctxLogEntry
 }
 
-func (l *dbTestMockContextLogger) Printf(format string, v ...interface{}) {
-	l.entries = append(l.entries, ctxLogEntry{ctxValue: "printf", message: fmt.Sprintf(format, v...)})
+func (l *dbTestMockContextLogger) Printf(format string, _ ...interface{}) {
+	panic("Printf called on a ContextLogger: " + format)
 }
 
 //nolint:goprintffuncname
@@ -113,6 +114,37 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel(
 		return nil
 	})
 	ds.ErrorIs(err, cause)
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
+func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnRollback() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := errors.New("request aborted")
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+		cancel(cause)
+		_, execErr := tx.ExecContext(ctx, `UPDATE "items" SET "a"=1`)
+		return execErr
+	})
+	ds.ErrorIs(err, cause)
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
+func (ds *databaseSuite) TestWithTxContext_plainCancelIsNotJoinedTwice() {
+	mDB, mock, err := sqlmock.New()
+	ds.Require().NoError(err)
+	mock.ExpectBegin()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(_ *goqu.TxDatabase) error {
+		cancel()
+		return nil
+	})
+	ds.ErrorIs(err, context.Canceled)
+	ds.Equal(1, strings.Count(err.Error(), context.Canceled.Error()))
 	ds.NoError(mock.ExpectationsWereMet())
 }
 

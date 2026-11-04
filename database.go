@@ -723,12 +723,10 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 				err = rollbackErr
 			}
 		} else {
-			commitErr := td.Commit()
-			if ctx := td.beginContext(); commitErr != nil && ctx.Err() != nil && !errors.Is(commitErr, context.Cause(ctx)) {
-				err = errors.Join(commitErr, context.Cause(ctx))
-			} else if commitErr != nil {
-				err = commitErr
-			}
+			err = td.Commit()
+		}
+		if ctx := td.beginContext(); err != nil && ctx.Err() != nil && !errors.Is(err, context.Cause(ctx)) {
+			err = errors.Join(err, context.Cause(ctx))
 		}
 	}()
 	return fn()
