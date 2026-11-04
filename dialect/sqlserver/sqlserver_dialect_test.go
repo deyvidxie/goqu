@@ -43,6 +43,18 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlserverDialectSuite) TestLiteralString() {
+	ds := sds.GetDs("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test')`},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test'test")), sql: `SELECT * FROM "test" WHERE ("a" = 'test''test')`},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("') OR 1=1 --")), sql: `SELECT * FROM "test" WHERE ("a" = ''') OR 1=1 --')`},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(`test"test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test"test')`},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(`test\test`)), sql: `SELECT * FROM "test" WHERE ("a" = 'test\test')`},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Eq("test\ntest")), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 'test\ntest')"},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestBitwiseOperations() {
 	col := goqu.C("a")
 	ds := sds.GetDs("test")

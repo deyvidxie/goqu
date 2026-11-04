@@ -268,6 +268,21 @@ func (sst *sqlserverTest) TestCollate() {
 	sst.Equal("0.900000", last)
 }
 
+func (sst *sqlserverTest) TestQuoteCharacterInStringLiteral() {
+	ds := sst.db.From("entry")
+
+	value := "it's a \\ path\nwith \"quotes\""
+	var v string
+	found, err := ds.Select(goqu.V(value).As("v")).ScanVal(&v)
+	sst.NoError(err)
+	sst.True(found)
+	sst.Equal(value, v)
+
+	count, err := ds.Where(goqu.C("string").Eq("') OR 1=1 --")).Count()
+	sst.NoError(err)
+	sst.Equal(int64(0), count)
+}
+
 func (sst *sqlserverTest) TestQuoteCharacterInIdentifier() {
 	ds := sst.db.From("entry")
 
