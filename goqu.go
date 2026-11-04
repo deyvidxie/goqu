@@ -28,7 +28,7 @@ func Dialect(dialect string) DialectWrapper {
 	return DialectWithTagName(dialect, "db")
 }
 
-func DialectWithTagName(dialect string, tagName string) DialectWrapper {
+func DialectWithTagName(dialect, tagName string) DialectWrapper {
 	return DialectWrapper{dialect: dialect, tagName: tagName}
 }
 
@@ -70,7 +70,7 @@ func New(dialect string, db SQLDatabase) *Database {
 	return newDatabase(dialect, "db", db)
 }
 
-func NewWithTagName(dialect string, tagName string, db SQLDatabase) *Database {
+func NewWithTagName(dialect, tagName string, db SQLDatabase) *Database {
 	return newDatabase(dialect, tagName, db)
 }
 
