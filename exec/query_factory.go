@@ -31,6 +31,7 @@ func (qs *querySupport) FromSQL(query string, args ...interface{}) QueryExecutor
 }
 
 func (qs *querySupport) FromSQLBuilder(b sb.SQLBuilder) QueryExecutor {
+	defer sb.ReleaseSQLBuilder(b)
 	query, args, err := b.ToSQL()
 	return newQueryExecutor(qs.tagName, qs.de, err, query, args...)
 }
