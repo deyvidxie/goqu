@@ -272,6 +272,19 @@ func (mt *mysqlTest) TestCollate() {
 	mt.Equal(int64(10), count)
 }
 
+func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
+	ds := mt.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a`b")).Limit(1).ScanVal(&v)
+	mt.NoError(err)
+	mt.True(found)
+	mt.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int` > -1 OR `int").Eq(-5)).Count()
+	mt.Error(err)
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()

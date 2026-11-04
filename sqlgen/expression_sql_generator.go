@@ -335,16 +335,6 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a ex
 	}
 }
 
-func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
-	quote := esg.dialectOptions.QuoteRune
-	b.WriteRunes(quote)
-	if strings.ContainsRune(name, quote) {
-		q := string(quote)
-		name = strings.ReplaceAll(name, q, q+q)
-	}
-	b.WriteStrings(name).WriteRunes(quote)
-}
-
 // Quotes an identifier (e.g. "col", "table"."col"
 func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, ident exp.IdentifierExpression) {
 	if ident.IsEmpty() {
@@ -379,6 +369,11 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 	default:
 		b.SetError(errUnsupportedIdentifierExpression(col))
 	}
+}
+
+func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
+	q := string(esg.dialectOptions.QuoteRune)
+	b.WriteStrings(q, strings.ReplaceAll(name, q, q+q), q)
 }
 
 func (esg *expressionSQLGenerator) lateralExpressionSQL(b sb.SQLBuilder, le exp.LateralExpression) {
@@ -839,8 +834,7 @@ func (esg *expressionSQLGenerator) collateExpressionSQL(b sb.SQLBuilder, collate
 			b.WriteRunes(opts.PeriodRune)
 		}
 		if opts.QuoteCollation {
-			quote := string(opts.QuoteRune)
-			b.WriteStrings(quote, strings.ReplaceAll(part, quote, quote+quote), quote)
+			esg.quotedIdentifierSQL(b, part)
 		} else {
 			b.WriteStrings(part)
 		}

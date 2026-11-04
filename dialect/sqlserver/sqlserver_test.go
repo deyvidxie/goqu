@@ -268,6 +268,19 @@ func (sst *sqlserverTest) TestCollate() {
 	sst.Equal("0.900000", last)
 }
 
+func (sst *sqlserverTest) TestQuoteCharacterInIdentifier() {
+	ds := sst.db.From("entry")
+
+	var v string
+	found, err := ds.Select(goqu.L("'x'").As("a\"b")).Limit(1).ScanVal(&v)
+	sst.NoError(err)
+	sst.True(found)
+	sst.Equal("x", v)
+
+	_, err = ds.Where(goqu.C("int\" > -1 OR \"int").Eq(-5)).Count()
+	sst.Error(err)
+}
+
 func (sst *sqlserverTest) TestCount() {
 	ds := sst.db.From("entry")
 	count, err := ds.Count()
