@@ -725,7 +725,9 @@ func (td *TxDatabase) Wrap(fn func() error) (err error) {
 		} else {
 			err = td.Commit()
 		}
-		if ctx := td.beginContext(); err != nil && ctx.Err() != nil && !errors.Is(err, context.Cause(ctx)) {
+		if ctx := td.beginContext(); ctx.Err() != nil &&
+			(errors.Is(err, sql.ErrTxDone) || errors.Is(err, ctx.Err())) &&
+			!errors.Is(err, context.Cause(ctx)) {
 			err = errors.Join(err, context.Cause(ctx))
 		}
 	}()

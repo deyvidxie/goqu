@@ -82,6 +82,13 @@ func (ds *databaseSuite) TestWithTxContext_rollbackOnPanic() {
 	ds.NoError(mock.ExpectationsWereMet())
 }
 
+func (ds *databaseSuite) awaitRollbackByDatabaseSQL(tx *goqu.TxDatabase) {
+	ds.EventuallyWithT(func(c *assert.CollectT) {
+		_, err := tx.Tx.ExecContext(context.Background(), "SELECT 1")
+		assert.ErrorIs(c, err, sql.ErrTxDone)
+	}, time.Second, time.Millisecond)
+}
+
 func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
@@ -91,10 +98,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
-		ds.EventuallyWithT(func(c *assert.CollectT) {
-			_, execErr := tx.Tx.ExecContext(context.Background(), "SELECT 1")
-			assert.ErrorIs(c, execErr, sql.ErrTxDone)
-		}, time.Second, time.Millisecond)
+		ds.awaitRollbackByDatabaseSQL(tx)
 		return nil
 	})
 	ds.ErrorIs(err, sql.ErrTxDone)
@@ -126,9 +130,12 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnRollback() {
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
+		ds.awaitRollbackByDatabaseSQL(tx)
 		_, execErr := tx.ExecContext(ctx, `UPDATE "items" SET "a"=1`)
 		return execErr
 	})
+	ds.ErrorIs(err, context.Canceled)
+	ds.ErrorIs(err, sql.ErrTxDone)
 	ds.ErrorIs(err, cause)
 	ds.NoError(mock.ExpectationsWereMet())
 }
@@ -139,11 +146,12 @@ func (ds *databaseSuite) TestWithTxContext_plainCancelIsNotJoinedTwice() {
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(_ *goqu.TxDatabase) error {
+	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel()
-		return nil
+		ds.awaitRollbackByDatabaseSQL(tx)
+		return ctx.Err()
 	})
-	ds.ErrorIs(err, context.Canceled)
+	ds.ErrorIs(err, sql.ErrTxDone)
 	ds.Equal(1, strings.Count(err.Error(), context.Canceled.Error()))
 	ds.NoError(mock.ExpectationsWereMet())
 }
