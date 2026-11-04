@@ -167,7 +167,9 @@ func (td *TruncateDataset) ToSQL() (sql string, params []interface{}, err error)
 //
 //	db.From("test").Truncate().Executor().Exec()
 func (td *TruncateDataset) Executor() exec.QueryExecutor {
-	return td.queryFactory.FromSQLBuilder(td.truncateSQLBuilder())
+	builder := td.truncateSQLBuilder()
+	defer sb.ReleaseSQLBuilder(builder)
+	return td.queryFactory.FromSQLBuilder(builder)
 }
 
 func (td *TruncateDataset) truncateSQLBuilder() sb.SQLBuilder {

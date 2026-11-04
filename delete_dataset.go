@@ -242,7 +242,9 @@ func (dd *DeleteDataset) ReturnsColumns() bool {
 //
 // See Dataset#ToUpdateSQL for arguments
 func (dd *DeleteDataset) Executor() exec.QueryExecutor {
-	return dd.queryFactory.FromSQLBuilder(dd.deleteSQLBuilder())
+	builder := dd.deleteSQLBuilder()
+	defer sb.ReleaseSQLBuilder(builder)
+	return dd.queryFactory.FromSQLBuilder(builder)
 }
 
 func (dd *DeleteDataset) deleteSQLBuilder() sb.SQLBuilder {
