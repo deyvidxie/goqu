@@ -195,10 +195,21 @@ func (sds *sqlite3DialectSuite) TestFuns() {
 }
 
 func (sds *sqlite3DialectSuite) TestForUpdate() {
+	ds := sds.GetDs("test").Where(goqu.C("a").Eq(1))
+	sds.assertSQL(
+		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked, goqu.T("test")), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+	)
+}
+
+func (sds *sqlite3DialectSuite) TestUnsupportedLockStrengthsAreErrors() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(1)).ForUpdate(goqu.Wait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Eq(1)).ForUpdate(goqu.NoWait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+		sqlTestCase{ds: ds.ForNoKeyUpdate(goqu.Wait), err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForShare(goqu.Wait), err: "goqu: dialect does not support FOR SHARE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForKeyShare(goqu.SkipLocked), err: "goqu: dialect does not support FOR KEY SHARE [dialect=sqlite3]"},
 	)
 }
 

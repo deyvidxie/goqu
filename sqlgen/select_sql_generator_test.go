@@ -656,6 +656,26 @@ func (ssgs *selectSQLGeneratorSuite) TestToSelectSQL_withFor() {
 	)
 }
 
+func (ssgs *selectSQLGeneratorSuite) TestToSelectSQL_withUnsupportedLockStrength() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForShare}
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", opts),
+		selectTestCase{
+			clause: sc.SetLock(exp.NewLock(exp.ForShare, exp.Wait)),
+			err:    "goqu: dialect does not support FOR SHARE [dialect=test]",
+		},
+		selectTestCase{
+			clause:     sc.SetLock(exp.NewLock(exp.ForShare, exp.Wait)),
+			err:        "goqu: dialect does not support FOR SHARE [dialect=test]",
+			isPrepared: true,
+		},
+		selectTestCase{clause: sc.SetLock(exp.NewLock(exp.ForUpdate, exp.Wait)), sql: `SELECT * FROM "test" FOR UPDATE `},
+	)
+}
+
 func TestSelectSQLGenerator(t *testing.T) {
 	suite.Run(t, new(selectSQLGeneratorSuite))
 }
