@@ -52,6 +52,12 @@ var (
 	)
 	ErrUnexpectedNamedWindow = errors.New(`unexpected named window function`)
 	ErrEmptyCaseWhens        = errors.New(`when conditions not found for case statement`)
+
+	excludedTableFragment = []byte("EXCLUDED.")
+	valuesFuncFragment    = []byte("VALUES(")
+
+	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
+	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
@@ -318,7 +324,7 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 }
 
 func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
-	ub, ok := b.(*upsertBuilder)
+	ub, ok := b.(*conflictUpdateBuilder)
 	if !ok {
 		b.SetError(errExcludedOutsideConflictUpdate)
 		return

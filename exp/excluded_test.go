@@ -31,3 +31,25 @@ func TestNewExcludedExpression(t *testing.T) {
 		})
 	}
 }
+
+func TestExcludedExpressionOperators(t *testing.T) {
+	e := exp.NewExcludedExpression("a")
+	assert.Equal(t, exp.NewBooleanExpression(exp.EqOp, e, 1), e.Eq(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.NeqOp, e, 1), e.Neq(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.GtOp, e, 1), e.Gt(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.GteOp, e, 1), e.Gte(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.LtOp, e, 1), e.Lt(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.LteOp, e, 1), e.Lte(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticAddOp, e, 1), e.Add(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticSubOp, e, 1), e.Sub(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticMulOp, e, 1), e.Mul(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticDivOp, e, 1), e.Div(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, nil), e.Is(nil))
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, nil), e.IsNot(nil))
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, nil), e.IsNull())
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, nil), e.IsNotNull())
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, true), e.IsTrue())
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, true), e.IsNotTrue())
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, false), e.IsFalse())
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, false), e.IsNotFalse())
+}

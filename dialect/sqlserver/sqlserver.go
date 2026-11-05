@@ -22,9 +22,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	// WHERE id IN (SELECT TOP (n) id ... ORDER BY ...) to delete an ordered subset.
 	opts.SupportsOrderByOnDelete = false
 	opts.ErrorOnUnsupportedOrderByOnDelete = true
-	opts.SupportsConflictUpdateWhere = false
 	opts.SupportsInsertIgnoreSyntax = false
-	opts.SupportsConflictTarget = false
 	opts.SupportsOnConflict = false
 	opts.SupportsWithCTE = false
 	opts.SupportsWithCTERecursive = false
@@ -112,9 +110,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	}
 
 	opts.OfFragment = []byte("")
-	opts.ConflictFragment = []byte("")
-	opts.ConflictDoUpdateFragment = []byte("")
-	opts.ConflictDoNothingFragment = []byte("")
 
 	return opts
 }

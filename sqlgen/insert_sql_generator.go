@@ -98,7 +98,7 @@ func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExp
 
 // Adds the columns list to an insert statement
 func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
-	rowAlias := isg.excludedRowAlias(ic)
+	rowAlias := isg.excludedRowAlias(b.IsPrepared(), ic)
 	switch {
 	case ic.HasRows():
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
@@ -141,7 +141,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	isg.onConflictSQL(b, ic.OnConflict(), rowAlias)
 }
 
-func (isg *insertSQLGenerator) excludedRowAlias(ic exp.InsertClauses) exp.IdentifierExpression {
+func (isg *insertSQLGenerator) excludedRowAlias(isPrepared bool, ic exp.InsertClauses) exp.IdentifierExpression {
 	if isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle {
 		return nil
 	}
@@ -153,7 +153,7 @@ func (isg *insertSQLGenerator) excludedRowAlias(ic exp.InsertClauses) exp.Identi
 	if ic.HasAlias() {
 		alias = ic.Alias()
 	}
-	probe := &upsertBuilder{SQLBuilder: sb.NewSQLBuilder(false), rowAlias: alias}
+	probe := &conflictUpdateBuilder{SQLBuilder: sb.NewSQLBuilder(isPrepared), rowAlias: alias}
 	defer sb.ReleaseSQLBuilder(probe.SQLBuilder)
 	isg.conflictUpdateSQL(probe, cu)
 	if !probe.usesExcluded {
@@ -265,10 +265,10 @@ func (isg *insertSQLGenerator) onConflictDoUpdateSQL(
 	rowAlias exp.IdentifierExpression,
 ) {
 	b.Write(isg.DialectOptions().ConflictDoUpdateFragment)
-	isg.conflictUpdateSQL(&upsertBuilder{SQLBuilder: b, rowAlias: rowAlias}, o)
+	isg.conflictUpdateSQL(&conflictUpdateBuilder{SQLBuilder: b, rowAlias: rowAlias}, o)
 }
 
-func (isg *insertSQLGenerator) conflictUpdateSQL(b *upsertBuilder, o exp.ConflictUpdateExpression) {
+func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp.ConflictUpdateExpression) {
 	update := o.Update()
 	if update == nil {
 		b.SetError(ErrConflictUpdateValuesRequired)
@@ -278,6 +278,12 @@ func (isg *insertSQLGenerator) conflictUpdateSQL(b *upsertBuilder, o exp.Conflic
 	if err != nil {
 		b.SetError(err)
 		return
+	}
+	for _, u := range ue {
+		if e, ok := u.Val().(exp.ExcludedExpression); ok && e.Col() == "" {
+			b.SetError(errExcludedWithoutColumn)
+			return
+		}
 	}
 	isg.UpdateExpressionSQL(b, ue...)
 	if b.Error() == nil && o.WhereClause() != nil {

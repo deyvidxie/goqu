@@ -41,7 +41,8 @@ type (
 		SupportsConflictTarget bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
 		SupportsConflictUpdateWhere bool
-		// Set to false if the dialect has no upsert syntax; OnConflict then returns an error (DEFAULT=true)
+		// Set to true if the dialect supports upsert (ON CONFLICT / ON DUPLICATE KEY); when false, OnConflict returns an
+		// error (DEFAULT=true)
 		SupportsOnConflict bool
 		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
 		SupportsInsertIgnoreSyntax bool

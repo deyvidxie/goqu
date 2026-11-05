@@ -306,10 +306,6 @@ type (
 	}
 	// An Expression that the ON CONFLICT/ON DUPLICATE KEY portion of an INSERT statement
 	ConflictAction     int
-	ExcludedExpression interface {
-		Expression
-		Col() string
-	}
 	ConflictExpression interface {
 		Expression
 		Action() ConflictAction
@@ -325,6 +321,13 @@ type (
 		Where(expressions ...Expression) ConflictUpdateExpression
 		WhereClause() ExpressionList
 		Update() interface{}
+	}
+	ExcludedExpression interface {
+		Expression
+		Comparable
+		Arithmeticable
+		Isable
+		Col() string
 	}
 	CommonTableExpression interface {
 		Expression

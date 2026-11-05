@@ -5,6 +5,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,4 +64,11 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 	assert.Equal(t, `INSERT INTO "test" ("a", "b") VALUES ($1, $2) ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b" `+
 		`WHERE ("b" < EXCLUDED."b")`, sql)
 	assert.Equal(t, []any{"a", int64(1)}, args)
+
+	_, _, err = goqu.Dialect("postgres").Insert("test").
+		Rows(goqu.Record{"a": "a"}).
+		OnConflict(goqu.DoUpdateExcluded("a", 1)).
+		ToSQL()
+	assert.EqualError(t, err, "goqu: Excluded requires a column name")
+	assert.True(t, sqlgen.IsInvalidExpression(err))
 }
