@@ -506,6 +506,12 @@ func (dds *deleteDatasetSuite) TestSetError() {
 	dds.Equal(err1, err)
 }
 
+func (dds *deleteDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
+	sql, _, err := goqu.Delete("test").Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+	dds.NoError(err)
+	dds.Equal(`DELETE FROM "test"`, sql)
+}
+
 func TestDeleteDataset(t *testing.T) {
 	suite.Run(t, new(deleteDatasetSuite))
 }

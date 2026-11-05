@@ -154,9 +154,17 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	}
 }
 
-func isUnsupportedLimitAll(opts *SQLDialectOptions, limit interface{}) bool {
+func isLimitAll(limit interface{}) bool {
 	l, ok := limit.(exp.LiteralExpression)
-	return ok && !opts.SupportsLimitAll && l.Literal() == "ALL"
+	return ok && l.Literal() == "ALL"
+}
+
+func isUnsupportedLimitAll(opts *SQLDialectOptions, limit interface{}) bool {
+	return !opts.SupportsLimitAll && isLimitAll(limit)
+}
+
+func hasRealLimit(limit interface{}) bool {
+	return limit != nil && !isLimitAll(limit)
 }
 
 // Generates the LIMIT clause for an SQL statement

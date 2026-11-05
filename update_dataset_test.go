@@ -522,6 +522,12 @@ func (uds *updateDatasetSuite) TestSetError() {
 	uds.Equal(err1, err)
 }
 
+func (uds *updateDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
+	sql, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+	uds.NoError(err)
+	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
+}
+
 func TestUpdateDataset(t *testing.T) {
 	suite.Run(t, new(updateDatasetSuite))
 }
