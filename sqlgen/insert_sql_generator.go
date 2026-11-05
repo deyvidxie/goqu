@@ -33,7 +33,7 @@ func errMisMatchedRowLength(expectedL, actualL int) error {
 }
 
 func errUpsertWithWhereNotSupported(dialect string) error {
-	return errors.New("dialect does not support upsert with where clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
 }
 
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
