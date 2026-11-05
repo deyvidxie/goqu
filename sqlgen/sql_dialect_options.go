@@ -419,12 +419,6 @@ const (
 	QualifySQLFragment
 )
 
-const (
-	ExcludedTableStyle ExcludedStyle = iota
-	ExcludedValuesFuncStyle
-	ExcludedRowAliasStyle
-)
-
 //nolint:gocyclo // simple type to string conversion
 func (sf SQLFragmentType) String() string {
 	switch sf {
@@ -477,6 +471,12 @@ func (sf SQLFragmentType) String() string {
 	}
 	return fmt.Sprintf("%d", sf)
 }
+
+const (
+	ExcludedTableStyle ExcludedStyle = iota
+	ExcludedValuesFuncStyle
+	ExcludedRowAliasStyle
+)
 
 //nolint:funlen
 func DefaultDialectOptions() *SQLDialectOptions {

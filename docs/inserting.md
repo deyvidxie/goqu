@@ -427,15 +427,19 @@ INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT ("a", "b") DO NOTHIN
 ```
 
 ```go
-ds := goqu.Insert("item").
-	Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
-	OnConflict(goqu.DoUpdate("id", goqu.Record{
-		"price": goqu.Excluded("price"),
-		"qty":   goqu.T("item").Col("qty").Add(goqu.Excluded("qty")),
-	}))
+for _, d := range []string{"postgres", "mysql", "mysql8"} {
+	sql, _, _ := goqu.Dialect(d).Insert("item").
+		Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
+		OnConflict(goqu.DoUpdate("id", goqu.Record{
+			"price": goqu.Excluded("price"),
+			"qty":   goqu.T("item").Col("qty").Add(goqu.Excluded("qty")),
+		})).
+		ToSQL()
+	fmt.Println(sql)
+}
 ```
 
-Output (postgres; mysql; mysql8):
+Output:
 
 ```
 INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=("item"."qty" + EXCLUDED."qty")
@@ -444,12 +448,14 @@ INSERT INTO `item` (`id`, `price`, `qty`) VALUES (1, 10, 2) AS `excluded` ON DUP
 ```
 
 ```go
-ds := goqu.Insert("item").
+sql, _, _ := goqu.Insert("item").
 	Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
-	OnConflict(goqu.DoUpdateExcluded("id", "price", "qty"))
+	OnConflict(goqu.DoUpdateExcluded("id", "price", "qty")).
+	ToSQL()
+fmt.Println(sql)
 ```
 
-Output (postgres):
+Output:
 
 ```
 INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=EXCLUDED."qty"

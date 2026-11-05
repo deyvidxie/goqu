@@ -549,6 +549,11 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 			args:       []interface{}{"a1", "b1"},
 		},
 		insertTestCase{
+			clause: fromColsIc.SetAlias(exp.NewIdentifierExpression("", "new", nil)).SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "new" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="new"."b"`,
+		},
+		insertTestCase{
 			clause: ic.SetAlias(exp.NewIdentifierExpression("", "new", nil)).SetOnConflict(excludedB),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "new" ` +
 				`ON CONFLICT (a) DO UPDATE SET "b"="new"."b"`,

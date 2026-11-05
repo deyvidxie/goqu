@@ -65,7 +65,6 @@ func Excluded(col interface{}) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
 }
 
-// DoUpdateExcluded("id", "price", "qty") -> ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=EXCLUDED."qty"
 func DoUpdateExcluded(target string, cols ...interface{}) exp.ConflictUpdateExpression {
 	updates := make([]exp.UpdateExpression, 0, len(cols))
 	for _, col := range cols {
