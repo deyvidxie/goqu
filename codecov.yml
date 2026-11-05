@@ -1,3 +1,22 @@
+codecov:
+  notify:
+    # must equal the number of matrix jobs in .github/workflows/go.yml
+    after_n_builds: 8
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+
+comment:
+  after_n_builds: 8
+  hide_project_coverage: false
+
 ignore:
-  - "**/mocks/**"         # glob accepted
-  - "mocks/**"         # glob accepted
+  - "**/mocks/**"
+  - "mocks/**"
