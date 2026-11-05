@@ -327,36 +327,6 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 	}
 }
 
-func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
-	ub, ok := b.(*conflictUpdateBuilder)
-	if !ok {
-		b.SetError(errExcludedOutsideConflictUpdate)
-		return
-	}
-	if e.GetCol() == "" {
-		b.SetError(errExcludedWithoutColumn)
-		return
-	}
-	ub.usesExcluded = true
-	switch esg.dialectOptions.ExcludedStyle {
-	case ExcludedValuesFuncStyle:
-		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
-		esg.quotedIdentifierSQL(b, e.GetCol())
-		b.WriteRunes(esg.dialectOptions.RightParenRune)
-	case ExcludedRowAliasStyle:
-		if ub.rowAlias == nil {
-			b.SetError(errExcludedRowAliasUnresolved)
-			return
-		}
-		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
-	case ExcludedTableStyle:
-		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
-		esg.quotedIdentifierSQL(b, e.GetCol())
-	default:
-		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
-	}
-}
-
 // Generates a placeholder (e.g. ?, $1)
 func (esg *expressionSQLGenerator) placeHolderSQL(b sb.SQLBuilder, i interface{}) {
 	b.Write(esg.dialectOptions.PlaceHolderFragment)
@@ -944,6 +914,36 @@ func describeCollation(collation any) string {
 		return strings.Join(parts, ".")
 	}
 	return fmt.Sprintf("%v", collation)
+}
+
+func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
+	ub, ok := b.(*conflictUpdateBuilder)
+	if !ok {
+		b.SetError(errExcludedOutsideConflictUpdate)
+		return
+	}
+	if e.GetCol() == "" {
+		b.SetError(errExcludedWithoutColumn)
+		return
+	}
+	ub.usesExcluded = true
+	switch esg.dialectOptions.ExcludedStyle {
+	case ExcludedValuesFuncStyle:
+		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
+		esg.quotedIdentifierSQL(b, e.GetCol())
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	case ExcludedRowAliasStyle:
+		if ub.rowAlias == nil {
+			b.SetError(errExcludedRowAliasUnresolved)
+			return
+		}
+		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
+	case ExcludedTableStyle:
+		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
+		esg.quotedIdentifierSQL(b, e.GetCol())
+	default:
+		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
+	}
 }
 
 // unquoted collation name parts are restricted to simple identifiers

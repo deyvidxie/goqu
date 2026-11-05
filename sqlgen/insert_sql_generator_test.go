@@ -4,9 +4,11 @@ import (
 	"database/sql/driver"
 	"testing"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -530,17 +532,17 @@ func (e valuerError) Error() string { return e.msg }
 var errValuerFailed = valuerError{"valuer failed"}
 
 type secondCallValuer struct {
-	first  error
-	second driver.Value
-	called bool
+	firstErr    error
+	secondValue driver.Value
+	called      bool
 }
 
 func (v *secondCallValuer) Value() (driver.Value, error) {
 	if v.called {
-		return v.second, nil
+		return v.secondValue, nil
 	}
 	v.called = true
-	return "first", v.first
+	return "first", v.firstErr
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
@@ -660,20 +662,20 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
-				"a": &secondCallValuer{first: errValuerFailed},
+				"a": &secondCallValuer{firstErr: errValuerFailed},
 				"b": exp.NewExcludedExpression("b"),
 			})),
 			err: "valuer failed",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
-				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+				"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")},
 			})),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "a"='first'`,
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
-				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+				"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")},
 			})),
 			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?) ON CONFLICT (a) DO UPDATE SET "a"=?`,
 			isPrepared: true,
@@ -800,25 +802,121 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasError
 		},
 	)
 
-	conflictValuer := &secondCallValuer{first: errValuerFailed}
+	conflictValuer := &secondCallValuer{firstErr: errValuerFailed}
 	b := sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, ic.
-		SetVals([][]interface{}{{&secondCallValuer{first: valuerError{"row valuer failed"}}, "b1"}}).
+		SetVals([][]interface{}{{&secondCallValuer{firstErr: valuerError{"row valuer failed"}}, "b1"}}).
 		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
 	_, _, err := b.ToSQL()
 	igs.EqualError(err, "row valuer failed")
 	igs.False(conflictValuer.called)
 
-	conflictValuer = &secondCallValuer{first: errValuerFailed}
+	numberedOpts := sqlgen.DefaultDialectOptions()
+	numberedOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	numberedOpts.IncludePlaceholderNum = true
+	numberedOpts.PlaceHolderFragment = []byte("$")
+	for _, tc := range []struct {
+		opts           *sqlgen.SQLDialectOptions
+		isPrepared     bool
+		err            string
+		conflictCalled bool
+	}{
+		{opts: opts, err: "select failed"},
+		{opts: opts, isPrepared: true, err: "select failed"},
+		{opts: numberedOpts, err: "select failed"},
+		{opts: numberedOpts, isPrepared: true, err: "valuer failed", conflictCalled: true},
+	} {
+		conflictValuer = &secondCallValuer{firstErr: errValuerFailed}
+		b = sb.NewSQLBuilder(tc.isPrepared)
+		sqlgen.NewInsertSQLGenerator("test", "db", tc.opts).Generate(b, exp.NewInsertClauses().
+			SetInto(exp.NewIdentifierExpression("", "test", "")).
+			SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+			SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, valuerError{"select failed"}, nil)).
+			SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
+		_, _, err = b.ToSQL()
+		igs.EqualError(err, tc.err)
+		igs.Equal(tc.conflictCalled, conflictValuer.called)
+	}
+
+	conflictValuer = &secondCallValuer{firstErr: errValuerFailed}
 	b = sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
-		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
-		SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, valuerError{"select failed"}, nil)).
+		SetCols(exp.NewColumnListExpression(nil, "db", exp.NewIdentifierExpression("", "", ""))).
+		SetFrom(newTestAppendableExpression(`select c from test2`, nil, nil, nil)).
 		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
 	_, _, err = b.ToSQL()
-	igs.EqualError(err, "select failed")
+	igs.ErrorIs(err, sqlgen.ErrEmptyIdentifier)
 	igs.False(conflictValuer.called)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasReusesProbe() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+		SetVals([][]interface{}{{"a1", "b1"}})
+	fromColsIc := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+		SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, nil, nil))
+	withExcluded := func() exp.ConflictUpdateExpression {
+		return exp.NewDoUpdateConflictExpression("a", exp.Record{
+			"a": &secondCallValuer{secondValue: "second"},
+			"b": exp.NewExcludedExpression("b"),
+		})
+	}
+	withoutExcluded := func() exp.ConflictUpdateExpression {
+		return exp.NewDoUpdateConflictExpression("a", exp.Record{
+			"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")},
+		})
+	}
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{
+			clause: ic.SetOnConflict(withExcluded()),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "excluded" ` +
+				`ON CONFLICT (a) DO UPDATE SET "a"='first',"b"="excluded"."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(withExcluded()),
+			sql: `INSERT INTO "test" ("a", "b") VALUES (?, ?) AS "excluded" ` +
+				`ON CONFLICT (a) DO UPDATE SET "a"=?,"b"="excluded"."b"`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1", "first"},
+		},
+		insertTestCase{
+			clause: fromColsIc.SetOnConflict(withoutExcluded()),
+			sql:    `INSERT INTO "test" ("a", "b") select c, d from test2 ON CONFLICT (a) DO UPDATE SET "a"='first'`,
+		},
+		insertTestCase{
+			clause: fromColsIc.SetOnConflict(withExcluded()),
+			sql: `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "excluded" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "a"='first',"b"="excluded"."b"`,
+		},
+	)
+}
+
+func TestNumberedRowAliasInsertSelectPlaceholders(t *testing.T) {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	opts.IncludePlaceholderNum = true
+	opts.PlaceHolderFragment = []byte("$")
+	goqu.RegisterDialect("numbered-row-alias", "db", opts)
+	d := goqu.Dialect("numbered-row-alias")
+	sql, args, err := d.Insert("t").
+		With("w", d.From("x").Where(goqu.C("k").Eq(1))).
+		Cols("a", "b").
+		FromQuery(d.From("s").Where(goqu.C("c").Gt(2))).
+		OnConflict(goqu.DoUpdate("a", goqu.Record{"b": goqu.Excluded("b").Add(3)})).
+		Prepared(true).
+		ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `WITH w AS (SELECT * FROM "x" WHERE ("k" = $1)) INSERT INTO "t" ("a", "b") `+
+		`SELECT * FROM (SELECT * FROM "s" WHERE ("c" > $2)) AS "excluded" ("a", "b") `+
+		`ON CONFLICT (a) DO UPDATE SET "b"=("excluded"."b" + $3)`, sql)
+	assert.Equal(t, []interface{}{int64(1), int64(2), int64(3)}, args)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptions() {
@@ -834,7 +932,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	numberedOpts.PlaceHolderFragment = []byte("$")
 	b := sb.NewSQLBuilder(true)
 	sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts).Generate(b, ic.SetOnConflict(
-		exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{second: exp.NewExcludedExpression("a")}}),
+		exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")}}),
 	))
 	_, _, err := b.ToSQL()
 	igs.EqualError(err, "goqu: Excluded rendered differently on a second pass; "+
@@ -854,7 +952,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
-				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+				"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")},
 			})),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "a"='first'`,
 		},
@@ -900,7 +998,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		},
 		insertTestCase{
 			clause: ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
-				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+				"a": &secondCallValuer{secondValue: exp.NewExcludedExpression("a")},
 			})),
 			sql:        `INSERT INTO "test" ("a", "b") VALUES ($1, $2) AS "new" ON CONFLICT (a) DO UPDATE SET "a"="new"."a"`,
 			isPrepared: true,

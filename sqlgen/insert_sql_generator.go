@@ -28,7 +28,7 @@ type (
 	}
 	renderedConflictUpdate struct {
 		sql  string
-		args []interface{}
+		args []any
 	}
 )
 
@@ -151,6 +151,9 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 
 func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
 	isg.insertColumnsSQL(b, ic.Cols())
+	if b.Error() != nil {
+		return
+	}
 	if !isg.probesConflictUpdate(ic) {
 		isg.insertFromSQL(b, ic.From())
 		isg.insertAliasAndConflictSQL(b, ic, nil, nil)
@@ -238,7 +241,7 @@ func (isg *insertSQLGenerator) insertFromRowAliasSQL(
 }
 
 func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression {
-	names := make([]interface{}, 0, len(cols.Columns()))
+	names := make([]any, 0, len(cols.Columns()))
 	for _, col := range cols.Columns() {
 		if ident, ok := col.(exp.IdentifierExpression); ok {
 			col = exp.NewIdentifierExpression("", "", ident.GetCol())

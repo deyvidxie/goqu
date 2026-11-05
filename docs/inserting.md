@@ -405,8 +405,10 @@ Output:
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT DO NOTHING
 ```
 
+**NOTE** `OnConflict` returns an error on SQL Server.
+
 To specify the conflict target columns, use `SetCols`. This is supported by dialects that support a conflict target
-(Postgres, SQLite3). Using it with a dialect that does not (MySQL) returns an error instead of silently
+(Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error instead of silently
 ignoring the target.
 
 `SetCols` only supports a list of columns. To target a named constraint (`ON CONSTRAINT name`), use
@@ -468,10 +470,7 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 `Excluded`; qualify it with the table name.
 
 **NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`. An `INSERT ... SELECT` that
-uses `Excluded` reads from `(SELECT ...) AS excluded`, so the update can reference `excluded` but not the tables of the
-`SELECT`.
-
-**NOTE** `OnConflict` returns an error on SQL Server.
+uses `Excluded` cannot reference the tables of the `SELECT` in the update.
 
 <a name="returning"></a>
 **Returning Clause**

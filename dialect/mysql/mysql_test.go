@@ -120,6 +120,10 @@ func (mt *mysqlTest) SetupTest() {
 	}
 }
 
+func (mt *mysqlTest) SetupSubTest() {
+	mt.SetupTest()
+}
+
 func (mt *mysqlTest) serverVersion() [3]int {
 	var version string
 	ok, err := mt.db.Select(goqu.Func("version")).ScanVal(&version)
@@ -554,7 +558,6 @@ func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
 			if dialect == "mysql8" && !versionAtLeast(version, [3]int{8, 0, 19}) {
 				mt.T().Skipf("row alias needs MySQL 8.0.19+, server is %v", version)
 			}
-			mt.SetupTest()
 			db := goqu.New(dialect, mt.db.Db)
 			ds := db.From("entry")
 			incoming := entry{Int: 1, Float: 10, String: "incoming", Time: time.Now(), Bytes: []byte("incoming")}
