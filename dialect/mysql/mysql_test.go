@@ -390,6 +390,23 @@ func (mt *mysqlTest) TestInsertReturning() {
 	mt.Error(err)
 }
 
+func (mt *mysqlTest) TestMysql8NanoEqMatchesPreparedFractionalTime() {
+	_, err := mt.db.Exec("CREATE TABLE `precise` (`t` DATETIME(6) NOT NULL)")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := mt.db.Exec("DROP TABLE `precise`")
+		mt.NoError(err)
+	}()
+	db := goqu.New("mysql8nano", mt.db.Db)
+	t := time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC)
+	_, err = db.Insert("precise").Prepared(true).Rows(goqu.Record{"t": t}).Executor().Exec()
+	mt.Require().NoError(err)
+
+	count, err := db.From("precise").Where(goqu.C("t").Eq(t)).Count()
+	mt.NoError(err)
+	mt.Equal(int64(1), count)
+}
+
 func (mt *mysqlTest) TestUpdate() {
 	ds := mt.db.From("entry")
 	var e entry

@@ -60,3 +60,16 @@ INSERT INTO "test" ("address", "created", "name") VALUES ('111 Address', '2019-1
 
 
 
+
+## Fractional seconds
+
+When a `time.Time` is interpolated (non-prepared mode, `goqu`'s default) it is formatted with the dialect's `TimeFormat`, so the fraction that reaches the database depends on the dialect:
+
+| dialect | interpolated fraction |
+|---|---|
+| `mysql`, `mysql8` | none: the fraction is dropped, even for `DATETIME(6)`/`TIMESTAMP(6)` columns, and `Eq` misses rows stored with a fraction |
+| `mysql8nano` | nanoseconds; MySQL rounds them to the column's precision, as it does for prepared values |
+| `sqlserver` | 100 nanoseconds |
+| `postgres`, `sqlite3`, `duckdb`, default | nanoseconds (`time.RFC3339Nano`) |
+
+To keep fractional seconds on MySQL, use the `mysql8nano` dialect or prepared mode, where the driver sends the full value.

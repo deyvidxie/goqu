@@ -3,6 +3,7 @@ package mysql_test
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -235,4 +236,17 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		OnConflict(goqu.DoNothing()).
 		ToSQL()
 	assert.NoError(t, err)
+}
+
+func TestTimeLiteralPrecision(t *testing.T) {
+	tm := time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC)
+	for dialect, want := range map[string]string{
+		"mysql":      "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		"mysql8":     "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		"mysql8nano": "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456789')",
+	} {
+		sql, _, err := goqu.Dialect(dialect).From("test").Where(goqu.C("t").Eq(tm)).ToSQL()
+		assert.NoError(t, err, dialect)
+		assert.Equal(t, want, sql, dialect)
+	}
 }
