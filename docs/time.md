@@ -58,9 +58,6 @@ Output:
 INSERT INTO "test" ("address", "created", "name") VALUES ('111 Address', '2019-10-01T23:01:00+08:00', 'Bob Yukon')
 ```
 
-
-
-
 ## Fractional seconds
 
 When a `time.Time` is interpolated (non-prepared mode, `goqu`'s default) it is formatted with the dialect's `TimeFormat`, so the fraction that reaches the database depends on the dialect:

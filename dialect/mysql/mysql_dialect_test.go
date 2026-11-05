@@ -219,6 +219,24 @@ func (mds *mysqlDialectSuite) TestWithCTE() {
 	)
 }
 
+func (mds *mysqlDialectSuite) TestTimeLiteralPrecision() {
+	where := goqu.C("t").Eq(time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC))
+	mds.assertSQL(
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql8").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql8nano").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456789')",
+		},
+	)
+}
+
 func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(mysqlDialectSuite))
 }
@@ -236,17 +254,4 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		OnConflict(goqu.DoNothing()).
 		ToSQL()
 	assert.NoError(t, err)
-}
-
-func TestTimeLiteralPrecision(t *testing.T) {
-	tm := time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC)
-	for dialect, want := range map[string]string{
-		"mysql":      "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
-		"mysql8":     "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
-		"mysql8nano": "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456789')",
-	} {
-		sql, _, err := goqu.Dialect(dialect).From("test").Where(goqu.C("t").Eq(tm)).ToSQL()
-		assert.NoError(t, err, dialect)
-		assert.Equal(t, want, sql, dialect)
-	}
 }
