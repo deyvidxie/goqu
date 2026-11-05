@@ -691,6 +691,23 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionLikeEscape() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	re := regexp.MustCompile("[ab]")
+	opts := sqlgen.DefaultDialectOptions()
+	opts.LikeEscapeKey = "ESCAPE"
+	opts.LikeEscapeValue = "\\"
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts),
+		expressionTestCase{val: ident.Like("a%"), sql: `("a" LIKE 'a%' ESCAPE '\')`},
+		expressionTestCase{val: ident.NotLike("a%"), sql: `("a" NOT LIKE 'a%' ESCAPE '\')`},
+		expressionTestCase{val: ident.ILike("a%"), sql: `("a" ILIKE 'a%' ESCAPE '\')`},
+		expressionTestCase{val: ident.NotILike("a%"), sql: `("a" NOT ILIKE 'a%' ESCAPE '\')`},
+		expressionTestCase{val: ident.ILike(re), sql: `("a" ~* '[ab]')`},
+		expressionTestCase{val: ident.Eq("a%"), sql: `("a" = 'a%')`},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BitwiseExpression() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	esgs.assertCases(

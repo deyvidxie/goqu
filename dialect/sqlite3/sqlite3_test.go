@@ -323,6 +323,23 @@ func (st *sqlite3Suite) TestCount() {
 	st.Equal(int64(0), count)
 }
 
+func (st *sqlite3Suite) TestILikeEscapesLiteralPercent() {
+	ds := st.db.From("entry")
+	_, err := ds.Insert().Rows(
+		entry{Int: 10, String: "50% off", Time: time.Now(), Bytes: []byte("x")},
+		entry{Int: 11, String: "500 off", Time: time.Now(), Bytes: []byte("x")},
+	).Executor().Exec()
+	st.Require().NoError(err)
+
+	count, err := ds.Where(goqu.C("string").ILike("50\\%%")).Count()
+	st.NoError(err)
+	st.Equal(int64(1), count)
+
+	count, err = ds.Where(goqu.C("string").NotILike("50\\%%")).Count()
+	st.NoError(err)
+	st.Equal(int64(11), count)
+}
+
 func (st *sqlite3Suite) TestInsert() {
 	ds := st.db.From("entry")
 	now := time.Now()
