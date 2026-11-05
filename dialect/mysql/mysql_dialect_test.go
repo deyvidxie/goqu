@@ -3,6 +3,7 @@ package mysql_test
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -214,6 +215,24 @@ func (mds *mysqlDialectSuite) TestWithCTE() {
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql").From("c").With("c", cte("mysql")),
 			err: "goqu: dialect does not support CTE WITH clause [dialect=mysql]",
+		},
+	)
+}
+
+func (mds *mysqlDialectSuite) TestTimeLiteralPrecision() {
+	where := goqu.C("t").Eq(time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC))
+	mds.assertSQL(
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql8").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql8nano").From("test").Where(where),
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456789')",
 		},
 	)
 }
