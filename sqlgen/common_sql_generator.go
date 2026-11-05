@@ -13,19 +13,19 @@ func ErrInvalidCollation(collation string) error {
 }
 
 func ErrCTENotSupported(dialect string) error {
-	return errors.New("dialect does not support CTE WITH clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support CTE WITH clause [dialect=%s]", dialect)
 }
 
 func ErrRecursiveCTENotSupported(dialect string) error {
-	return errors.New("dialect does not support CTE WITH RECURSIVE clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support CTE WITH RECURSIVE clause [dialect=%s]", dialect)
 }
 
 func ErrReturnNotSupported(dialect string) error {
-	return errors.New("dialect does not support RETURNING clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support RETURNING clause [dialect=%s]", dialect)
 }
 
 func ErrConflictTargetNotSupported(dialect string) error {
-	return errors.New("dialect does not support Conflict Target clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support Conflict Target clause [dialect=%s]", dialect)
 }
 
 func ErrNotSupportedFragment(sqlType string, f SQLFragmentType) error {

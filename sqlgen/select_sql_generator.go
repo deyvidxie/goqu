@@ -24,7 +24,7 @@ type (
 )
 
 func ErrNotSupportedJoinType(j exp.JoinExpression) error {
-	return errors.New("dialect does not support %v", j.JoinType())
+	return NewUnsupportedError("dialect does not support %v", j.JoinType())
 }
 
 func ErrJoinConditionRequired(j exp.JoinExpression) error {
@@ -32,15 +32,15 @@ func ErrJoinConditionRequired(j exp.JoinExpression) error {
 }
 
 func ErrJoinUsingNotSupported(j exp.JoinExpression) error {
-	return errors.New("USING is not supported for %v, use an ON condition", j.JoinType())
+	return NewUnsupportedError("USING is not supported for %v, use an ON condition", j.JoinType())
 }
 
 func ErrDistinctOnNotSupported(dialect string) error {
-	return errors.New("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
 }
 
 func ErrWindowNotSupported(dialect string) error {
-	return errors.New("dialect does not support WINDOW clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support WINDOW clause [dialect=%s]", dialect)
 }
 
 var lockStrengthSQL = map[exp.LockStrength]string{
@@ -51,11 +51,11 @@ var lockStrengthSQL = map[exp.LockStrength]string{
 }
 
 func ErrLockStrengthNotSupported(dialect string, strength exp.LockStrength) error {
-	return errors.New("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
+	return NewUnsupportedError("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
 }
 
 func ErrQualifyNotSupported(dialect string) error {
-	return errors.New("dialect does not support QUALIFY clause [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
 }
 
 var ErrNoWindowName = errors.New("window expresion has no valid name")

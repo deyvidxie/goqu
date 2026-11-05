@@ -63,23 +63,23 @@ func errUnsupportedIdentifierExpression(t interface{}) error {
 }
 
 func errUnsupportedBooleanExpressionOperator(op exp.BooleanOperation) error {
-	return errors.New("boolean operator '%+v' not supported", op)
+	return NewUnsupportedError("boolean operator '%+v' not supported", op)
 }
 
 func errUnsupportedBitwiseExpressionOperator(op exp.BitwiseOperation) error {
-	return errors.New("bitwise operator '%+v' not supported", op)
+	return NewUnsupportedError("bitwise operator '%+v' not supported", op)
 }
 
 func errUnsupportedArithmeticExpressionOperator(op exp.ArithmeticOperation) error {
-	return errors.New("arithmetic operator '%+v' not supported", op)
+	return NewUnsupportedError("arithmetic operator '%+v' not supported", op)
 }
 
 func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
-	return errors.New("range operator %+v not supported", op)
+	return NewUnsupportedError("range operator %+v not supported", op)
 }
 
 func errLateralNotSupported(dialect string) error {
-	return errors.New("dialect does not support lateral expressions [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
 }
 
 func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) ExpressionSQLGenerator {
@@ -521,7 +521,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	rhs := operator.RHS()
 
 	if (operatorOp == exp.IsOp || operatorOp == exp.IsNotOp) && rhs != nil && !esg.dialectOptions.BooleanDataTypeSupported {
-		b.SetError(errors.New("boolean data type is not supported by dialect %q", esg.dialect))
+		b.SetError(NewUnsupportedError("boolean data type is not supported by dialect %q", esg.dialect))
 		return
 	}
 

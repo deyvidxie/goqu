@@ -27,11 +27,11 @@ var (
 )
 
 func ErrOrderByOnUpdateNotSupported(dialect string) error {
-	return errors.New("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
 }
 
 func ErrLimitOnUpdateNotSupported(dialect string) error {
-	return errors.New("dialect does not support LIMIT on UPDATE [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support LIMIT on UPDATE [dialect=%s]", dialect)
 }
 
 func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) UpdateSQLGenerator {
@@ -48,7 +48,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		return
 	}
 	if !usg.DialectOptions().SupportsMultipleUpdateTables && clauses.HasFrom() {
-		b.SetError(errors.New("%s dialect does not support multiple tables in UPDATE", usg.Dialect()))
+		b.SetError(NewUnsupportedError("%s dialect does not support multiple tables in UPDATE", usg.Dialect()))
 	}
 	updates, err := exp.NewUpdateExpressions(usg.TagName(), clauses.SetValues())
 	if err != nil {

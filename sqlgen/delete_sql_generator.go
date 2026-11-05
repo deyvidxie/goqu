@@ -24,11 +24,11 @@ type (
 var ErrNoSourceForDelete = errors.New("no source found when generating delete sql")
 
 func ErrOrderByOnDeleteNotSupported(dialect string) error {
-	return errors.New("dialect does not support ORDER BY on DELETE [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support ORDER BY on DELETE [dialect=%s]", dialect)
 }
 
 func ErrLimitOnDeleteNotSupported(dialect string) error {
-	return errors.New("dialect does not support LIMIT on DELETE [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support LIMIT on DELETE [dialect=%s]", dialect)
 }
 
 func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) DeleteSQLGenerator {
