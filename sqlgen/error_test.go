@@ -34,10 +34,10 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		ToSQL() (string, []interface{}, error)
 	}
 	for _, c := range []struct {
-		name    string
-		want    string
-		disable func(*sqlgen.SQLDialectOptions)
-		build   func(goqu.DialectWrapper) sqlBuilder
+		name      string
+		want      string
+		configure func(*sqlgen.SQLDialectOptions)
+		build     func(goqu.DialectWrapper) sqlBuilder
 	}{
 		{"CTE", "CTE WITH clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWithCTE = false
@@ -173,7 +173,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}},
 	} {
 		opts := sqlgen.DefaultDialectOptions()
-		c.disable(opts)
+		c.configure(opts)
 		dialect := "unsupported-" + c.name
 		goqu.RegisterDialect(dialect, "db", opts)
 		_, _, err := c.build(goqu.Dialect(dialect)).ToSQL()

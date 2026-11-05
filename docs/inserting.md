@@ -426,6 +426,9 @@ Output:
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT ("a", "b") DO NOTHING
 ```
 
+To update the existing row from the row proposed for insertion, use `goqu.Excluded(col)` or
+`goqu.DoUpdateExcluded(target, cols...)`.
+
 ```go
 for _, d := range []string{"postgres", "mysql", "mysql8"} {
 	sql, _, _ := goqu.Dialect(d).Insert("item").

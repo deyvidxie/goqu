@@ -14,6 +14,7 @@
 * [`Or`](#or) - OR multiple expressions together.
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
+* [`Excluded`](./inserting.md#onconflict) - The row proposed for insertion, inside an upsert.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
 
 The entry points for expressions are:

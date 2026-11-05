@@ -59,6 +59,7 @@ var (
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 	errExcludedRowAliasUnresolved    = NewInvalidExpressionError("Excluded appeared after the row alias was chosen")
+	errExcludedRowAliasEmpty         = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
