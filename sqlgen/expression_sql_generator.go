@@ -261,13 +261,15 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	}
 }
 
-//nolint:gocyclo // not complex just long
+//nolint:gocyclo,funlen // not complex just long
 func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp.Expression) {
 	switch e := expression.(type) {
 	case exp.ColumnListExpression:
 		esg.columnListSQL(b, e)
 	case exp.ExpressionList:
 		esg.expressionListSQL(b, e)
+	case exp.ExcludedExpression:
+		esg.excludedSQL(b, e)
 	case exp.LiteralExpression:
 		esg.literalExpressionSQL(b, e)
 	case exp.IdentifierExpression:
@@ -312,6 +314,30 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.expressionOrMapSQL(b, e)
 	default:
 		b.SetError(errUnsupportedExpressionType(e))
+	}
+}
+
+func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
+	ub, ok := b.(*upsertBuilder)
+	if !ok {
+		b.SetError(errExcludedOutsideConflictUpdate)
+		return
+	}
+	if e.Col() == "" {
+		b.SetError(errExcludedWithoutColumn)
+		return
+	}
+	ub.usesExcluded = true
+	switch esg.dialectOptions.ExcludedStyle {
+	case ExcludedValuesFuncStyle:
+		b.Write(valuesFuncFragment)
+		esg.quotedIdentifierSQL(b, e.Col())
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	case ExcludedRowAliasStyle:
+		esg.Generate(b, ub.rowAlias.Col(e.Col()))
+	default:
+		b.Write(excludedTableFragment)
+		esg.quotedIdentifierSQL(b, e.Col())
 	}
 }
 

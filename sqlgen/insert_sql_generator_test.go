@@ -446,6 +446,133 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+		SetVals([][]interface{}{{"a1", "b1"}})
+	fromIc := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, nil, nil))
+	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
+	sumB := exp.NewDoUpdateConflictExpression("a", exp.Record{
+		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "", "b"), exp.NewExcludedExpression("b")),
+	})
+	excludedWhere := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"}).
+		Where(exp.NewIdentifierExpression("", "", "b").Lt(exp.NewExcludedExpression("b")))
+
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(sumB),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"="b" + EXCLUDED."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedWhere),
+			sql: `INSERT INTO "test" ("a", "b") VALUES (?, ?) ON CONFLICT (a) DO UPDATE SET "b"=? ` +
+				`WHERE ("b" < EXCLUDED."b")`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1", "x"},
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression(1)})),
+			err:    "goqu: Excluded requires a column name",
+		},
+	)
+
+	valuesOpts := sqlgen.DefaultDialectOptions()
+	valuesOpts.ExcludedStyle = sqlgen.ExcludedValuesFuncStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", valuesOpts),
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"=VALUES("b")`,
+		},
+	)
+
+	aliasOpts := sqlgen.DefaultDialectOptions()
+	aliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	aliasOpts.ExcludedRowAlias = "incoming"
+	fromColsIc := fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", aliasOpts),
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "incoming" ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="incoming"."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("a", "b") VALUES (?, ?) AS "incoming" ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="incoming"."b"`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1"},
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.NewIdentifierExpression("", "new", nil)).SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "new" ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="new"."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"='x'`,
+		},
+		insertTestCase{
+			clause: exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", "")).SetOnConflict(excludedB),
+			sql:    `INSERT INTO "test" DEFAULT VALUES AS "incoming" ON CONFLICT (a) DO UPDATE SET "b"="incoming"."b"`,
+		},
+		insertTestCase{
+			clause: fromColsIc.SetOnConflict(sumB),
+			sql: `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "incoming" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="b" + "incoming"."b"`,
+		},
+		insertTestCase{
+			clause: fromColsIc.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
+			sql:    `INSERT INTO "test" ("a", "b") select c, d from test2 ON CONFLICT (a) DO UPDATE SET "b"='x'`,
+		},
+		insertTestCase{
+			clause: fromIc.SetOnConflict(excludedB),
+			err:    "goqu: dialect requires Cols to use Excluded with INSERT ... SELECT [dialect=test]",
+		},
+		insertTestCase{
+			clause: exp.NewInsertClauses().
+				SetInto(exp.NewIdentifierExpression("", "test", "")).
+				SetRows([]interface{}{newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)}).
+				SetOnConflict(excludedB),
+			err: "goqu: dialect requires Cols to use Excluded with INSERT ... SELECT [dialect=test]",
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression(1)})),
+			err:    "goqu: Excluded requires a column name",
+		},
+	)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictNotSupported() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsOnConflict = false
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetVals([][]interface{}{{"a1"}})
+	isg := sqlgen.NewInsertSQLGenerator("test", "db", opts)
+	for _, conflict := range []exp.ConflictExpression{
+		exp.NewDoNothingConflictExpression(),
+		exp.NewDoUpdateConflictExpression("", exp.Record{"a": "b"}),
+	} {
+		b := sb.NewSQLBuilder(false)
+		isg.Generate(b, ic.SetOnConflict(conflict))
+		_, _, err := b.ToSQL()
+		igs.EqualError(err, "goqu: dialect does not support upsert [dialect=test]")
+		igs.True(sqlgen.IsUnsupported(err))
+	}
+	igs.assertCases(isg, insertTestCase{clause: ic, sql: `INSERT INTO "test" ("a") VALUES ('a1')`})
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_withCommonTables() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.WithFragment = []byte("with ")

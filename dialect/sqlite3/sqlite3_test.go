@@ -553,6 +553,29 @@ func (st *sqlite3Suite) TestInsert_OnConflictDoNothingTarget() {
 	st.Equal(int64(1), count)
 }
 
+func (st *sqlite3Suite) TestInsert_OnConflictExcluded() {
+	ds := st.db.From("entry")
+	existing := goqu.T("entry")
+	upsert := func(float float64, s string) {
+		_, err := ds.Insert().
+			Rows(goqu.Record{"id": 2, "int": 1, "float": float, "string": s, "time": time.Now(), "bool": false, "bytes": []byte(s)}).
+			OnConflict(goqu.DoUpdate("id", goqu.Record{
+				"string": goqu.Excluded("string"),
+				"float":  existing.Col("float").Add(goqu.Excluded("float")),
+			}).Where(existing.Col("float").Lt(goqu.Excluded("float")))).
+			Executor().Exec()
+		st.Require().NoError(err)
+	}
+	upsert(10, "incoming")
+	upsert(0.05, "skipped")
+
+	var actual entry
+	_, err := ds.Where(goqu.C("id").Eq(2)).ScanStruct(&actual)
+	st.Require().NoError(err)
+	st.Equal("incoming", actual.String)
+	st.InDelta(10.1, actual.Float, 0.001)
+}
+
 func (st *sqlite3Suite) TestInsert_OnConflict() {
 	ds := st.db.From("entry")
 	now := time.Now()

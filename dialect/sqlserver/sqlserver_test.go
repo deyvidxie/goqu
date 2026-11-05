@@ -559,12 +559,11 @@ func (sst *sqlserverTest) TestInsertIgnoreNotSupported() {
 		},
 	}
 	_, err := ds.Insert().Rows(entries).OnConflict(goqu.DoNothing()).Executor().Exec()
-	sst.Error(err)
-	sst.Contains(err.Error(), "Cannot insert duplicate key in object 'dbo.entry'. The duplicate key value is (8)")
+	sst.EqualError(err, "goqu: dialect does not support upsert [dialect=sqlserver]")
 
 	count, err := ds.Count()
 	sst.NoError(err)
-	sst.Equal(count, int64(10))
+	sst.Equal(int64(10), count)
 }
 
 func TestSqlServerSuite(t *testing.T) {

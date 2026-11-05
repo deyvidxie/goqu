@@ -30,6 +30,20 @@ func (ges *goquExpressionsSuite) TestDoUpdate() {
 	ges.Equal(exp.NewDoUpdateConflictExpression("test", goqu.Record{"a": "b"}), goqu.DoUpdate("test", goqu.Record{"a": "b"}))
 }
 
+func (ges *goquExpressionsSuite) TestExcluded() {
+	ges.Equal(exp.NewExcludedExpression("t.a"), goqu.Excluded("t.a"))
+}
+
+func (ges *goquExpressionsSuite) TestDoUpdateExcluded() {
+	ges.Equal(
+		exp.NewDoUpdateConflictExpression("id", []exp.UpdateExpression{
+			goqu.C("b").Set(exp.NewExcludedExpression("b")),
+			goqu.C("a").Set(exp.NewExcludedExpression("a")),
+		}),
+		goqu.DoUpdateExcluded("id", "b", goqu.I("t.a")),
+	)
+}
+
 func (ges *goquExpressionsSuite) TestOr() {
 	e1 := goqu.C("a").Eq("b")
 	e2 := goqu.C("b").Eq(2)

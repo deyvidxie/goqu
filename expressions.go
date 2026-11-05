@@ -59,6 +59,25 @@ func DoUpdate(target string, update interface{}) exp.ConflictUpdateExpression {
 	return exp.NewDoUpdateConflictExpression(target, update)
 }
 
+// Excluded references col of the row proposed for insertion, inside an OnConflict DoUpdate:
+// EXCLUDED."col" on postgres/sqlite3/duckdb, VALUES(`col`) on mysql, a row alias on mysql8 (MySQL 8.0.19+).
+// Only the column part of a qualified identifier is used.
+func Excluded(col interface{}) exp.ExcludedExpression {
+	return exp.NewExcludedExpression(col)
+}
+
+// DoUpdateExcluded sets each of cols to its Excluded value on conflict.
+//
+//	DoUpdateExcluded("id", "price", "qty") -> ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=EXCLUDED."qty"
+func DoUpdateExcluded(target string, cols ...interface{}) exp.ConflictUpdateExpression {
+	updates := make([]exp.UpdateExpression, 0, len(cols))
+	for _, col := range cols {
+		e := exp.NewExcludedExpression(col)
+		updates = append(updates, C(e.Col()).Set(e))
+	}
+	return DoUpdate(target, updates)
+}
+
 // A list of expressions that should be ORed together
 //
 //	Or(I("a").Eq(10), I("b").Eq(11)) //(("a" = 10) OR ("b" = 11))

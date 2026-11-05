@@ -9,6 +9,7 @@ import (
 
 type (
 	SQLFragmentType   int
+	ExcludedStyle     int
 	SQLDialectOptions struct {
 		// Set to true if the dialect supports ORDER BY expressions in DELETE statements (DEFAULT=false)
 		SupportsOrderByOnDelete bool
@@ -40,6 +41,8 @@ type (
 		SupportsConflictTarget bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
 		SupportsConflictUpdateWhere bool
+		// Set to false if the dialect has no upsert syntax; OnConflict then returns an error (DEFAULT=true)
+		SupportsOnConflict bool
 		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
 		SupportsInsertIgnoreSyntax bool
 		// Set to true if the dialect supports Common Table Expressions (DEFAULT=true)
@@ -318,6 +321,10 @@ type (
 		ConflictDoNothingFragment []byte
 		// The SQL fragment to use for CONFLICT DO UPDATE (Default=[]byte(" DO UPDATE SET"))
 		ConflictDoUpdateFragment []byte
+		// How goqu.Excluded references the row proposed for insertion (DEFAULT=ExcludedTableStyle)
+		ExcludedStyle ExcludedStyle
+		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (DEFAULT="excluded")
+		ExcludedRowAlias string
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -379,6 +386,12 @@ type (
 		// 	})
 		TruncateSQLOrder []SQLFragmentType
 	}
+)
+
+const (
+	ExcludedTableStyle ExcludedStyle = iota
+	ExcludedValuesFuncStyle
+	ExcludedRowAliasStyle
 )
 
 const (
@@ -476,6 +489,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsReturn:              true,
 		SupportsConflictUpdateWhere: true,
 		SupportsInsertIgnoreSyntax:  false,
+		SupportsOnConflict:          true,
 		SupportsConflictTarget:      true,
 		SupportsWithCTE:             true,
 		SupportsWithCTERecursive:    true,
@@ -542,6 +556,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		ConflictFragment:          []byte(" ON CONFLICT"),
 		ConflictDoUpdateFragment:  []byte(" DO UPDATE SET "),
 		ConflictDoNothingFragment: []byte(" DO NOTHING"),
+		ExcludedRowAlias:          "excluded",
 		CastFragment:              []byte("CAST"),
 		CollateFragment:           []byte(" COLLATE "),
 		CaseFragment:              []byte("CASE "),

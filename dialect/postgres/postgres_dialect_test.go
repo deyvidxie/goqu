@@ -53,3 +53,14 @@ func TestUpdateAndDeleteLimitAllIsDropped(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `DELETE FROM "test"`, sql)
 }
+
+func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
+	ds := goqu.Dialect("postgres").Insert("test").
+		Rows(goqu.Record{"a": "a", "b": 1}).
+		OnConflict(goqu.DoUpdateExcluded("a", "b").Where(goqu.C("b").Lt(goqu.Excluded("b"))))
+	sql, args, err := ds.Prepared(true).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "test" ("a", "b") VALUES ($1, $2) ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b" `+
+		`WHERE ("b" < EXCLUDED."b")`, sql)
+	assert.Equal(t, []any{"a", int64(1)}, args)
+}

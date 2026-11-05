@@ -426,6 +426,33 @@ Output:
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT ("a", "b") DO NOTHING
 ```
 
+`goqu.Excluded(col)` references the value proposed for insertion; `goqu.DoUpdateExcluded(target, cols...)` sets each
+column to it.
+
+```go
+ds := goqu.Insert("item").
+	Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
+	OnConflict(goqu.DoUpdate("id", goqu.Record{
+		"price": goqu.Excluded("price"),
+		"qty":   goqu.T("item").Col("qty").Add(goqu.Excluded("qty")),
+	}))
+```
+
+Output (postgres, sqlite3, duckdb; mysql; mysql8):
+
+```
+INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=("item"."qty" + EXCLUDED."qty")
+INSERT INTO `item` (`id`, `price`, `qty`) VALUES (1, 10, 2) ON DUPLICATE KEY UPDATE `price`=VALUES(`price`),`qty`=(`item`.`qty` + VALUES(`qty`))
+INSERT INTO `item` (`id`, `price`, `qty`) VALUES (1, 10, 2) AS `excluded` ON DUPLICATE KEY UPDATE `price`=`excluded`.`price`,`qty`=(`item`.`qty` + `excluded`.`qty`)
+```
+
+**NOTE**
+* Postgres and MySQL 8 reject an unqualified reference to the existing row's column next to `Excluded`
+  (`column reference is ambiguous`); qualify it with the table name.
+* `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`, and an `INSERT ... SELECT` using
+  `Excluded` needs `Cols`.
+* SQL Server has no upsert syntax: `OnConflict` returns an error.
+
 <a name="returning"></a>
 **Returning Clause**
 
