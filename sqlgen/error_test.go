@@ -65,16 +65,16 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoNothing())
 		}},
-		{"Excluded with INSERT SELECT without Cols", "requires Cols(...).FromQuery(...) to use Excluded", func(o *sqlgen.SQLDialectOptions) {
-			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
-		}},
 		{"upsert WHERE", "upsert with where clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictUpdateWhere = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.C("a").Eq(1)))
+		}},
+		{"Excluded with INSERT SELECT without Cols", "requires Cols(...).FromQuery(...) to use Excluded", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
 		{"UPDATE multiple tables", "multiple tables in UPDATE", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMultipleUpdateTables = false

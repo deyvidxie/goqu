@@ -467,7 +467,9 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 **NOTE** Postgres and MySQL 8 reject an unqualified reference to the existing row's column next to `Excluded`; qualify
 it with the table name.
 
-**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`.
+**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`. An `INSERT ... SELECT` that
+uses `Excluded` reads from `(SELECT ...) AS excluded`, so the update can reference `excluded` but not the tables of the
+`SELECT`.
 
 **NOTE** SQL Server has no upsert syntax; `OnConflict` returns an error.
 

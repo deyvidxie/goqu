@@ -1015,16 +1015,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CastExpression() {
 	)
 }
 
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
-	b := sb.NewSQLBuilder(false)
-	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
-		Generate(b, exp.NewIdentifierExpression("", "", "a").Eq(exp.NewExcludedExpression("a")))
-	_, _, err := b.ToSQL()
-	esgs.EqualError(err, "goqu: Excluded is only valid in an OnConflict DoUpdate")
-	esgs.True(sqlgen.IsInvalidExpression(err))
-	esgs.False(sqlgen.IsUnsupported(err))
-}
-
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	collate := ident.Collate("en_US")
@@ -1111,6 +1101,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 			val: ident.Collate(exp.NewIdentifierExpression("", "", "a\x00b")), err: "goqu: invalid collation name \"a\\x00b\"",
 		},
 	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
+		Generate(b, exp.NewIdentifierExpression("", "", "a").Eq(exp.NewExcludedExpression("a")))
+	_, _, err := b.ToSQL()
+	esgs.EqualError(err, "goqu: Excluded is only valid in an OnConflict DoUpdate")
+	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.False(sqlgen.IsUnsupported(err))
 }
 
 // Generates the sql for the WITH clauses for common table expressions (CTE)

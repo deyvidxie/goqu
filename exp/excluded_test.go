@@ -64,4 +64,10 @@ func TestExcludedExpressionOperators(t *testing.T) {
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpNotLikeOp, e, "x"), e.RegexpNotLike("x"))
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpILikeOp, e, "x"), e.RegexpILike("x"))
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpNotILikeOp, e, "x"), e.RegexpNotILike("x"))
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseInversionOp, nil, e), e.BitwiseInversion())
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseOrOp, e, 1), e.BitwiseOr(1))
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseAndOp, e, 1), e.BitwiseAnd(1))
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseXorOp, e, 1), e.BitwiseXor(1))
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseLeftShiftOp, e, 1), e.BitwiseLeftShift(1))
+	assert.Equal(t, exp.NewBitwiseExpression(exp.BitwiseRightShiftOp, e, 1), e.BitwiseRightShift(1))
 }

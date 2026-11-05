@@ -198,8 +198,8 @@ func (isg *insertSQLGenerator) insertFromRowAliasSQL(
 	b.WriteRunes(opts.SpaceRune).Write(opts.SelectClause).WriteRunes(opts.SpaceRune, opts.StarRune).
 		Write(opts.FromFragment).WriteRunes(opts.SpaceRune, opts.LeftParenRune)
 	from.AppendSQL(b)
-	b.WriteRunes(isg.DialectOptions().RightParenRune)
-	b.Write(isg.DialectOptions().AsFragment)
+	b.WriteRunes(opts.RightParenRune)
+	b.Write(opts.AsFragment)
 	isg.ExpressionSQLGenerator().Generate(b, rowAlias)
 	isg.insertColumnsSQL(b, unqualifiedColumns(cols))
 }

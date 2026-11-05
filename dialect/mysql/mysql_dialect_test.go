@@ -7,6 +7,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -351,6 +352,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			sql, _, err := tc.ds(goqu.Dialect(tc.dialect)).ToSQL()
 			if tc.err != "" {
 				assert.EqualError(t, err, tc.err)
+				assert.True(t, sqlgen.IsUnsupported(err))
 				return
 			}
 			assert.NoError(t, err)

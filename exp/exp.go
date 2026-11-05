@@ -330,6 +330,7 @@ type (
 		Inable
 		Rangeable
 		Likeable
+		Bitwiseable
 		Col() string
 	}
 	CommonTableExpression interface {

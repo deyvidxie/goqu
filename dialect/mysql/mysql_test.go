@@ -548,12 +548,12 @@ func versionAtLeast(version, minimum [3]int) bool {
 }
 
 func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
-	dialects := []string{"mysql"}
-	if versionAtLeast(mt.serverVersion(), [3]int{8, 0, 19}) {
-		dialects = append(dialects, "mysql8")
-	}
-	for _, dialect := range dialects {
+	version := mt.serverVersion()
+	for _, dialect := range []string{"mysql", "mysql8"} {
 		mt.Run(dialect, func() {
+			if dialect == "mysql8" && !versionAtLeast(version, [3]int{8, 0, 19}) {
+				mt.T().Skipf("row alias needs MySQL 8.0.19+, server is %v", version)
+			}
 			mt.SetupTest()
 			db := goqu.New(dialect, mt.db.Db)
 			ds := db.From("entry")

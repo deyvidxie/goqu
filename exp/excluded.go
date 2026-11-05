@@ -59,3 +59,14 @@ func (e excluded) RegexpLike(val interface{}) BooleanExpression     { return reg
 func (e excluded) RegexpNotLike(val interface{}) BooleanExpression  { return regexpNotLike(e, val) }
 func (e excluded) RegexpILike(val interface{}) BooleanExpression    { return regexpILike(e, val) }
 func (e excluded) RegexpNotILike(val interface{}) BooleanExpression { return regexpNotILike(e, val) }
+
+func (e excluded) BitwiseInversion() BitwiseExpression          { return bitwiseInversion(e) }
+func (e excluded) BitwiseOr(val interface{}) BitwiseExpression  { return bitwiseOr(e, val) }
+func (e excluded) BitwiseAnd(val interface{}) BitwiseExpression { return bitwiseAnd(e, val) }
+func (e excluded) BitwiseXor(val interface{}) BitwiseExpression { return bitwiseXor(e, val) }
+func (e excluded) BitwiseLeftShift(val interface{}) BitwiseExpression {
+	return bitwiseLeftShift(e, val)
+}
+func (e excluded) BitwiseRightShift(val interface{}) BitwiseExpression {
+	return bitwiseRightShift(e, val)
+}
