@@ -5,6 +5,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
 func DialectOptions() *goqu.SQLDialectOptions {
@@ -16,14 +17,26 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsOrderByOnDelete = false
 	opts.ErrorOnUnsupportedOrderByOnDelete = true
 	opts.SupportsLimitOnDelete = true
-	opts.SupportsConflictUpdateWhere = false
 	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = true
-	opts.SupportsMultipleUpdateTables = false
 	opts.WrapCompoundsInParens = false
-	opts.SupportsDistinctOn = false
-	opts.SupportsWindowFunction = false
-	opts.SupportsLateral = false
+	opts.SupportsQualify = true
+	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{
+		sqlgen.CommonTableSQLFragment,
+		sqlgen.SelectSQLFragment,
+		sqlgen.FromSQLFragment,
+		sqlgen.JoinSQLFragment,
+		sqlgen.WhereSQLFragment,
+		sqlgen.GroupBySQLFragment,
+		sqlgen.HavingSQLFragment,
+		sqlgen.WindowSQLFragment,
+		sqlgen.QualifySQLFragment,
+		sqlgen.CompoundsSQLFragment,
+		sqlgen.OrderSQLFragment,
+		sqlgen.LimitSQLFragment,
+		sqlgen.OffsetSQLFragment,
+		sqlgen.ForSQLFragment,
+	}
 
 	opts.PlaceHolderFragment = []byte("?")
 	opts.IncludePlaceholderNum = false
@@ -45,6 +58,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		exp.NotILikeOp: []byte("NOT ILIKE"),
 	}
 	opts.BitwiseOperatorLookup = map[exp.BitwiseOperation][]byte{
+		exp.BitwiseInversionOp:  []byte("~"),
 		exp.BitwiseOrOp:         []byte("|"),
 		exp.BitwiseAndOp:        []byte("&"),
 		exp.BitwiseLeftShiftOp:  []byte("<<"),
