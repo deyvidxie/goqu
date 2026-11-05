@@ -148,6 +148,10 @@ type (
 		SkipLockedFragment []byte
 		// Lock strengths that return an error instead of generating a locking clause (DEFAULT=none)
 		UnsupportedLockStrengths []exp.LockStrength
+		// Wait options (NOWAIT, SKIP LOCKED) that return an error instead of generating a locking clause (DEFAULT=none)
+		UnsupportedLockWaitOptions []exp.WaitOption
+		// Set to true if the dialect supports OF in a locking clause; when false, OF returns an error (DEFAULT=true)
+		SupportsLockOf bool
 		// The SQL AS fragment when aliasing an Expression(DEFAULT=[]byte(" AS "))
 		AsFragment []byte
 		// The SQL LATERAL fragment used for LATERAL joins
@@ -480,6 +484,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsWindowFunction:      true,
 		SupportsLateral:             true,
 		SupportsQualify:             false,
+		SupportsLockOf:              true,
 
 		SupportsMultipleUpdateTables:         true,
 		UseFromClauseForMultipleUpdateTables: true,

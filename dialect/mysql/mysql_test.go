@@ -407,6 +407,12 @@ func (mt *mysqlTest) TestMysql8NanoEqMatchesPreparedFractionalTime() {
 	mt.Equal(int64(1), count)
 }
 
+func (mt *mysqlTest) TestForShareRuns() {
+	var entries []entry
+	mt.NoError(mt.db.From("entry").ForShare(goqu.Wait).ScanStructs(&entries))
+	mt.Len(entries, 10)
+}
+
 func (mt *mysqlTest) TestUpdate() {
 	ds := mt.db.From("entry")
 	var e entry

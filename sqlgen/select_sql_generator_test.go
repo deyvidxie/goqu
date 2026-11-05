@@ -656,6 +656,31 @@ func (ssgs *selectSQLGeneratorSuite) TestToSelectSQL_withFor() {
 	)
 }
 
+func (ssgs *selectSQLGeneratorSuite) TestToSelectSQL_withUnsupportedLockWaitOptionAndOf() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait}
+	opts.SupportsLockOf = false
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", opts),
+		selectTestCase{
+			clause: sc.SetLock(exp.NewLock(exp.ForUpdate, exp.NoWait)),
+			err:    "goqu: dialect does not support NOWAIT [dialect=test]",
+		},
+		selectTestCase{
+			clause:     sc.SetLock(exp.NewLock(exp.ForUpdate, exp.NoWait)),
+			err:        "goqu: dialect does not support NOWAIT [dialect=test]",
+			isPrepared: true,
+		},
+		selectTestCase{
+			clause: sc.SetLock(exp.NewLock(exp.ForUpdate, exp.Wait, goqu.T("test"))),
+			err:    "goqu: dialect does not support OF in a locking clause [dialect=test]",
+		},
+		selectTestCase{clause: sc.SetLock(exp.NewLock(exp.ForUpdate, exp.SkipLocked)), sql: `SELECT * FROM "test" FOR UPDATE SKIP LOCKED`},
+	)
+}
+
 func (ssgs *selectSQLGeneratorSuite) TestToSelectSQL_withUnsupportedLockStrength() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForShare}

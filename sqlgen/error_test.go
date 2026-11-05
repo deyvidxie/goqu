@@ -101,6 +101,16 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").ForShare(goqu.Wait)
 		}},
+		{"lock wait option", "SKIP LOCKED", func(o *sqlgen.SQLDialectOptions) {
+			o.UnsupportedLockWaitOptions = []exp.WaitOption{exp.SkipLocked}
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").ForUpdate(goqu.SkipLocked)
+		}},
+		{"lock OF", "OF in a locking clause", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsLockOf = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").ForUpdate(goqu.Wait, goqu.T("t"))
+		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {

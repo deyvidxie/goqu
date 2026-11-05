@@ -54,6 +54,19 @@ func ErrLockStrengthNotSupported(dialect string, strength exp.LockStrength) erro
 	return NewUnsupportedError("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
 }
 
+var lockWaitOptionSQL = map[exp.WaitOption]string{
+	exp.NoWait:     "NOWAIT",
+	exp.SkipLocked: "SKIP LOCKED",
+}
+
+func ErrLockWaitOptionNotSupported(dialect string, option exp.WaitOption) error {
+	return NewUnsupportedError("dialect does not support %s [dialect=%s]", lockWaitOptionSQL[option], dialect)
+}
+
+func ErrLockOfNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support OF in a locking clause [dialect=%s]", dialect)
+}
+
 func ErrQualifyNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
 }
@@ -241,8 +254,8 @@ func (ssg *selectSQLGenerator) ForSQL(b sb.SQLBuilder, lockingClause exp.Lock) {
 	if lockingClause == nil {
 		return
 	}
-	if slices.Contains(ssg.DialectOptions().UnsupportedLockStrengths, lockingClause.Strength()) {
-		b.SetError(ErrLockStrengthNotSupported(ssg.Dialect(), lockingClause.Strength()))
+	if err := ssg.unsupportedLockError(lockingClause); err != nil {
+		b.SetError(err)
 		return
 	}
 	switch lockingClause.Strength() {
@@ -282,6 +295,19 @@ func (ssg *selectSQLGenerator) ForSQL(b sb.SQLBuilder, lockingClause exp.Lock) {
 	case exp.SkipLocked:
 		b.Write(ssg.DialectOptions().SkipLockedFragment)
 	}
+}
+
+func (ssg *selectSQLGenerator) unsupportedLockError(lock exp.Lock) error {
+	opts := ssg.DialectOptions()
+	switch {
+	case slices.Contains(opts.UnsupportedLockStrengths, lock.Strength()):
+		return ErrLockStrengthNotSupported(ssg.Dialect(), lock.Strength())
+	case slices.Contains(opts.UnsupportedLockWaitOptions, lock.WaitOption()):
+		return ErrLockWaitOptionNotSupported(ssg.Dialect(), lock.WaitOption())
+	case len(lock.Of()) > 0 && !opts.SupportsLockOf:
+		return ErrLockOfNotSupported(ssg.Dialect())
+	}
+	return nil
 }
 
 func (ssg *selectSQLGenerator) WindowSQL(b sb.SQLBuilder, windows []exp.WindowExpression) {

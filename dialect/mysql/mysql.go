@@ -31,7 +31,10 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.True = []byte("1")
 	opts.False = []byte("0")
 	opts.TimeFormat = "2006-01-02 15:04:05"
-	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
+	opts.ForShareFragment = []byte(" LOCK IN SHARE MODE ")
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForKeyShare}
+	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait, exp.SkipLocked}
+	opts.SupportsLockOf = false
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{
 		exp.EqOp:             []byte("="),
 		exp.NeqOp:            []byte("!="),
@@ -86,7 +89,9 @@ func DialectOptionsV8() *goqu.SQLDialectOptions {
 	// MySQL 8.0 supports WITH and WITH RECURSIVE common table expressions.
 	opts.SupportsWithCTE = true
 	opts.SupportsWithCTERecursive = true
-	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForKeyShare}
+	opts.ForShareFragment = []byte(" FOR SHARE ")
+	opts.UnsupportedLockWaitOptions = nil
+	opts.SupportsLockOf = true
 	return opts
 }
 
