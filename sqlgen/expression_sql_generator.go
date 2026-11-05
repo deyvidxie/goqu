@@ -58,6 +58,7 @@ var (
 
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
+	errExcludedRowAliasUnresolved    = NewInvalidExpressionError("Excluded appeared after the row alias was chosen")
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
@@ -341,7 +342,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	case ExcludedRowAliasStyle:
 		if ub.rowAlias == nil {
-			b.SetError(errExcludedOutsideConflictUpdate)
+			b.SetError(errExcludedRowAliasUnresolved)
 			return
 		}
 		esg.Generate(b, ub.rowAlias.Col(e.Col()))

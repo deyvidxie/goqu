@@ -343,7 +343,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
 				return d.Insert("test").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
 			},
-			err: "goqu: dialect requires Cols to use Excluded with INSERT ... SELECT [dialect=mysql8]",
+			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=mysql8]",
 		},
 	}
 	for _, tc := range cases {

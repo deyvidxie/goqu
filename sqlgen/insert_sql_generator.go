@@ -48,7 +48,7 @@ func errOnConflictNotSupported(dialect string) error {
 }
 
 func errExcludedRequiresInsertCols(dialect string) error {
-	return NewUnsupportedError("dialect requires Cols to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
 }
 
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
@@ -103,7 +103,11 @@ func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExp
 
 // Adds the columns list to an insert statement
 func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
-	rowAlias := isg.excludedRowAlias(b.IsPrepared(), ic)
+	rowAlias, err := isg.excludedRowAlias(b.IsPrepared(), ic)
+	if err != nil {
+		b.SetError(err)
+		return
+	}
 	switch {
 	case ic.HasRows():
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
@@ -146,13 +150,16 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	isg.onConflictSQL(b, ic.OnConflict(), rowAlias)
 }
 
-func (isg *insertSQLGenerator) excludedRowAlias(isPrepared bool, ic exp.InsertClauses) exp.IdentifierExpression {
+func (isg *insertSQLGenerator) excludedRowAlias(
+	isPrepared bool,
+	ic exp.InsertClauses,
+) (exp.IdentifierExpression, error) {
 	if isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle {
-		return nil
+		return nil, nil
 	}
 	cu, ok := ic.OnConflict().(exp.ConflictUpdateExpression)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	alias := exp.NewIdentifierExpression("", isg.DialectOptions().ExcludedRowAlias, nil)
 	if ic.HasAlias() {
@@ -161,10 +168,13 @@ func (isg *insertSQLGenerator) excludedRowAlias(isPrepared bool, ic exp.InsertCl
 	probe := &conflictUpdateBuilder{SQLBuilder: sb.NewSQLBuilder(isPrepared), rowAlias: alias}
 	defer sb.ReleaseSQLBuilder(probe.SQLBuilder)
 	isg.conflictUpdateSQL(probe, cu)
-	if !probe.usesExcluded {
-		return nil
+	if err := probe.Error(); err != nil {
+		return nil, err
 	}
-	return alias
+	if !probe.usesExcluded {
+		return nil, nil
+	}
+	return alias, nil
 }
 
 func (isg *insertSQLGenerator) insertFromRowAliasSQL(

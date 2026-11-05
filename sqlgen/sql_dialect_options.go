@@ -390,12 +390,6 @@ type (
 )
 
 const (
-	ExcludedTableStyle ExcludedStyle = iota
-	ExcludedValuesFuncStyle
-	ExcludedRowAliasStyle
-)
-
-const (
 	CommonTableSQLFragment = iota
 	SelectSQLFragment
 	SelectWithLimitSQLFragment
@@ -423,6 +417,12 @@ const (
 	WindowSQLFragment
 	// New fragment types are appended here so the values of the existing ones do not change.
 	QualifySQLFragment
+)
+
+const (
+	ExcludedTableStyle ExcludedStyle = iota
+	ExcludedValuesFuncStyle
+	ExcludedRowAliasStyle
 )
 
 //nolint:gocyclo // simple type to string conversion

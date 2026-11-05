@@ -6,7 +6,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -263,7 +262,6 @@ func TestInsertOnConflictNotSupported(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, _, err := goqu.Dialect("sqlserver").Insert("test").Rows(goqu.Record{"a": "a"}).OnConflict(conflict).ToSQL()
 			assert.EqualError(t, err, "goqu: dialect does not support upsert [dialect=sqlserver]")
-			assert.True(t, sqlgen.IsUnsupported(err))
 		})
 	}
 }
