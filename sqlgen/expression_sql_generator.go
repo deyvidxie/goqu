@@ -548,16 +548,20 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 		esg.Generate(b, rhs)
 	}
 
-	if operatorOp == exp.LikeOp || operatorOp == exp.NotLikeOp {
-		if esg.dialectOptions.LikeEscapeKey != "" {
-			b.WriteRunes(esg.dialectOptions.SpaceRune)
-			b.WriteStrings(esg.dialectOptions.LikeEscapeKey)
-			b.WriteRunes(esg.dialectOptions.SpaceRune)
-			esg.Generate(b, esg.dialectOptions.LikeEscapeValue)
-		}
-	}
-
+	esg.likeEscapeSQL(b, operatorOp)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
+}
+
+func (esg *expressionSQLGenerator) likeEscapeSQL(b sb.SQLBuilder, operatorOp exp.BooleanOperation) {
+	isLike := operatorOp == exp.LikeOp || operatorOp == exp.NotLikeOp ||
+		operatorOp == exp.ILikeOp || operatorOp == exp.NotILikeOp
+	if !isLike || esg.dialectOptions.LikeEscapeKey == "" {
+		return
+	}
+	b.WriteRunes(esg.dialectOptions.SpaceRune)
+	b.WriteStrings(esg.dialectOptions.LikeEscapeKey)
+	b.WriteRunes(esg.dialectOptions.SpaceRune)
+	esg.Generate(b, esg.dialectOptions.LikeEscapeValue)
 }
 
 // Generates SQL for a BitwiseExpresion (e.g. I("a").BitwiseOr(2) - > "a" | 2)

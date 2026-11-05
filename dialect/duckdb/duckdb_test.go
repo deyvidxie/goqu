@@ -173,6 +173,23 @@ func (st *duckdbSuite) TestILike() {
 	st.Equal(int64(10), count)
 }
 
+func (st *duckdbSuite) TestILikeEscapesLiteralPercent() {
+	ds := st.db.From("entry")
+	_, err := ds.Insert().Rows(
+		entry{Int: 10, Float: 1.0, String: "50% off", Time: time.Now(), Bool: true, Bytes: []byte("x")},
+		entry{Int: 11, Float: 1.0, String: "500 off", Time: time.Now(), Bool: true, Bytes: []byte("x")},
+	).Executor().Exec()
+	st.Require().NoError(err)
+
+	count, err := ds.Where(goqu.C("string").ILike("50\\%%")).Count()
+	st.NoError(err)
+	st.Equal(int64(1), count)
+
+	count, err = ds.Where(goqu.C("string").NotILike("50\\%%")).Count()
+	st.NoError(err)
+	st.Equal(int64(11), count)
+}
+
 func (st *duckdbSuite) TestInsertDefaultValues() {
 	_, err := st.db.Exec(`CREATE TABLE "defaults" ("id" INTEGER DEFAULT 1, "name" VARCHAR DEFAULT 'x')`)
 	st.Require().NoError(err)
