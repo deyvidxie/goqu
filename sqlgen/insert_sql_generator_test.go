@@ -693,14 +693,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 		},
 	)
 
-	unknownOpts := sqlgen.DefaultDialectOptions()
-	unknownOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle + 1
-	b := sb.NewSQLBuilder(false)
-	sqlgen.NewInsertSQLGenerator("test", "db", unknownOpts).Generate(b, ic.SetOnConflict(excludedB))
-	_, _, err := b.ToSQL()
-	igs.EqualError(err, "goqu: dialect has unknown ExcludedStyle 3 [dialect=test]")
-	igs.True(sqlgen.IsUnsupported(err))
-
 	aliasOpts := sqlgen.DefaultDialectOptions()
 	aliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 	aliasOpts.SelectClause = []byte("select")
@@ -753,6 +745,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 			isPrepared: true,
 			args:       []interface{}{"a1", "b1", "x"},
 		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+			})),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "a"='first'`,
+		},
 	)
 
 	emptyAliasOpts := sqlgen.DefaultDialectOptions()
@@ -780,13 +778,21 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	_, _, err = b.ToSQL()
 	igs.True(sqlgen.IsInvalidExpression(err))
 
-	b = sb.NewSQLBuilder(false)
-	sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts).Generate(b, ic.
-		SetVals([][]interface{}{{&secondCallValuer{first: valuerError{"row valuer failed"}}, "b1"}}).
-		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{first: errValuerFailed}})))
-	_, _, err = b.ToSQL()
-	igs.EqualError(err, "valuer failed")
-	igs.ErrorAs(err, new(valuerError))
+	rowAliasOpts := sqlgen.DefaultDialectOptions()
+	rowAliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", rowAliasOpts),
+		insertTestCase{
+			clause: ic.
+				SetVals([][]interface{}{{&secondCallValuer{first: valuerError{"row valuer failed"}}, "b1"}}).
+				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{first: errValuerFailed}})),
+			err: "valuer failed",
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.ParseIdentifier("t.new")).SetOnConflict(excludedB),
+			err:    "goqu: Excluded requires an unqualified insert alias",
+		},
+	)
 
 	columnAliasIc := ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(excludedB)
 	igs.assertCases(
@@ -809,15 +815,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 			isPrepared: true,
 			args:       []interface{}{"a1", "b1"},
 		},
-	)
-
-	noUpsertOpts := sqlgen.DefaultDialectOptions()
-	noUpsertOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
-	noUpsertOpts.ExcludedRowAlias = ""
-	noUpsertOpts.SupportsOnConflict = false
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", noUpsertOpts),
-		insertTestCase{clause: ic.SetOnConflict(excludedB), err: "goqu: dialect does not support upsert [dialect=test]"},
 	)
 }
 
@@ -860,6 +857,18 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictNotSupported() {
 		},
 	)
 	igs.assertCases(isg, insertTestCase{clause: ic, sql: `INSERT INTO "test" ("a") VALUES ('a1')`})
+
+	noUpsertOpts := sqlgen.DefaultDialectOptions()
+	noUpsertOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	noUpsertOpts.ExcludedRowAlias = ""
+	noUpsertOpts.SupportsOnConflict = false
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", noUpsertOpts),
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": exp.NewExcludedExpression("a")})),
+			err:    "goqu: dialect does not support upsert [dialect=test]",
+		},
+	)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_withCommonTables() {

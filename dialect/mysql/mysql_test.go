@@ -120,6 +120,28 @@ func (mt *mysqlTest) SetupTest() {
 	}
 }
 
+func (mt *mysqlTest) serverVersion() [3]int {
+	var version string
+	ok, err := mt.db.Select(goqu.Func("version")).ScanVal(&version)
+	mt.Require().NoError(err)
+	mt.Require().True(ok)
+	var parts [3]int
+	for i, field := range strings.SplitN(strings.SplitN(version, "-", 2)[0], ".", 3) {
+		parts[i], err = strconv.Atoi(field)
+		mt.Require().NoError(err)
+	}
+	return parts
+}
+
+func versionAtLeast(version, minimum [3]int) bool {
+	for i := range version {
+		if version[i] != minimum[i] {
+			return version[i] > minimum[i]
+		}
+	}
+	return true
+}
+
 func (mt *mysqlTest) TestToSQL() {
 	ds := mt.db.From("entry")
 	mt.assertSQL(
@@ -525,28 +547,6 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
 }
 
-func (mt *mysqlTest) serverVersion() [3]int {
-	var version string
-	ok, err := mt.db.Select(goqu.Func("version")).ScanVal(&version)
-	mt.Require().NoError(err)
-	mt.Require().True(ok)
-	var parts [3]int
-	for i, field := range strings.SplitN(strings.SplitN(version, "-", 2)[0], ".", 3) {
-		parts[i], err = strconv.Atoi(field)
-		mt.Require().NoError(err)
-	}
-	return parts
-}
-
-func versionAtLeast(version, minimum [3]int) bool {
-	for i := range version {
-		if version[i] != minimum[i] {
-			return version[i] > minimum[i]
-		}
-	}
-	return true
-}
-
 func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
 	version := mt.serverVersion()
 	for _, dialect := range []string{"mysql", "mysql8"} {
@@ -590,11 +590,8 @@ func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
 }
 
 func (mt *mysqlTest) TestWindowFunction() {
-	major := mt.serverVersion()[0]
-	if major < 8 {
-		//nolint:forbidigo
-		fmt.Printf("SKIPPING MYSQL WINDOW FUNCTION TEST BECAUSE VERSION IS < 8 [mysql_version:=%d]\n", major)
-		return
+	if version := mt.serverVersion(); version[0] < 8 {
+		mt.T().Skipf("window functions need MySQL 8, server is %v", version)
 	}
 
 	ds := mt.db.From("entry").

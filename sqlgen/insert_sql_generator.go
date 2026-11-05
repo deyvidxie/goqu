@@ -33,7 +33,8 @@ type (
 )
 
 var (
-	errExcludedRowAliasEmpty = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
+	errExcludedRowAliasEmpty     = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
+	errExcludedRowAliasQualified = NewInvalidExpressionError("Excluded requires an unqualified insert alias")
 
 	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
 	ErrNoSourceForInsert            = errors.New("no source found when generating insert sql")
@@ -153,6 +154,79 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
 }
 
+func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.InsertExpression) {
+	switch {
+	case ie.IsInsertFrom():
+		isg.insertFromSQL(b, ie.From())
+	case ie.IsEmpty():
+		isg.defaultValuesSQL(b)
+	default:
+		isg.insertColumnsSQL(b, ie.Cols())
+		isg.insertValuesSQL(b, ie.Vals())
+	}
+}
+
+// Adds the DefaultValuesFragment to an SQL statement
+func (isg *insertSQLGenerator) defaultValuesSQL(b sb.SQLBuilder) {
+	b.Write(isg.DialectOptions().DefaultValuesFragment)
+}
+
+func (isg *insertSQLGenerator) insertFromSQL(b sb.SQLBuilder, ae exp.AppendableExpression) {
+	b.WriteRunes(isg.DialectOptions().SpaceRune)
+	ae.AppendSQL(b)
+}
+
+func (isg *insertSQLGenerator) insertFromRowAliasSQL(
+	b sb.SQLBuilder,
+	from exp.AppendableExpression,
+	cols exp.ColumnListExpression,
+	rowAlias exp.IdentifierExpression,
+) {
+	opts := isg.DialectOptions()
+	b.WriteRunes(opts.SpaceRune).Write(opts.SelectClause).WriteRunes(opts.SpaceRune, opts.StarRune).
+		Write(opts.FromFragment).WriteRunes(opts.SpaceRune, opts.LeftParenRune)
+	from.AppendSQL(b)
+	b.WriteRunes(opts.RightParenRune)
+	b.Write(opts.AsFragment)
+	isg.ExpressionSQLGenerator().Generate(b, rowAlias)
+	isg.insertColumnsSQL(b, unqualifiedColumns(cols))
+}
+
+func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression {
+	names := make([]interface{}, 0, len(cols.Columns()))
+	for _, col := range cols.Columns() {
+		if ident, ok := col.(exp.IdentifierExpression); ok {
+			col = exp.NewIdentifierExpression("", "", ident.GetCol())
+		}
+		names = append(names, col)
+	}
+	return exp.NewColumnListExpression(nil, "", names...)
+}
+
+// Adds the columns list to an insert statement
+func (isg *insertSQLGenerator) insertColumnsSQL(b sb.SQLBuilder, cols exp.ColumnListExpression) {
+	b.WriteRunes(isg.DialectOptions().SpaceRune, isg.DialectOptions().LeftParenRune)
+	isg.ExpressionSQLGenerator().Generate(b, cols)
+	b.WriteRunes(isg.DialectOptions().RightParenRune)
+}
+
+// Adds the values clause to an SQL statement
+func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]interface{}) {
+	b.Write(isg.DialectOptions().ValuesFragment)
+	rowLen := len(values[0])
+	valueLen := len(values)
+	for i, row := range values {
+		if len(row) != rowLen {
+			b.SetError(errMisMatchedRowLength(rowLen, len(row)))
+			return
+		}
+		isg.ExpressionSQLGenerator().Generate(b, row)
+		if i < valueLen-1 {
+			b.WriteRunes(isg.DialectOptions().CommaRune, isg.DialectOptions().SpaceRune)
+		}
+	}
+}
+
 func (isg *insertSQLGenerator) excludedRowAlias(
 	isPrepared bool,
 	ic exp.InsertClauses,
@@ -185,6 +259,9 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	if alias.IsEmpty() {
 		return nil, nil, errExcludedRowAliasEmpty
 	}
+	if col := alias.GetCol(); alias.GetSchema() != "" || (col != nil && col != "") {
+		return nil, nil, errExcludedRowAliasQualified
+	}
 	return alias, rendered, nil
 }
 
@@ -193,79 +270,6 @@ func rowAliasTable(alias exp.IdentifierExpression) exp.IdentifierExpression {
 		return exp.NewIdentifierExpression("", name, nil)
 	}
 	return alias
-}
-
-func (isg *insertSQLGenerator) insertFromRowAliasSQL(
-	b sb.SQLBuilder,
-	from exp.AppendableExpression,
-	cols exp.ColumnListExpression,
-	rowAlias exp.IdentifierExpression,
-) {
-	opts := isg.DialectOptions()
-	b.WriteRunes(opts.SpaceRune).Write(opts.SelectClause).WriteRunes(opts.SpaceRune, opts.StarRune).
-		Write(opts.FromFragment).WriteRunes(opts.SpaceRune, opts.LeftParenRune)
-	from.AppendSQL(b)
-	b.WriteRunes(opts.RightParenRune)
-	b.Write(opts.AsFragment)
-	isg.ExpressionSQLGenerator().Generate(b, rowAlias)
-	isg.insertColumnsSQL(b, unqualifiedColumns(cols))
-}
-
-func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression {
-	names := make([]interface{}, 0, len(cols.Columns()))
-	for _, col := range cols.Columns() {
-		if ident, ok := col.(exp.IdentifierExpression); ok {
-			col = exp.NewIdentifierExpression("", "", ident.GetCol())
-		}
-		names = append(names, col)
-	}
-	return exp.NewColumnListExpression(nil, "", names...)
-}
-
-func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.InsertExpression) {
-	switch {
-	case ie.IsInsertFrom():
-		isg.insertFromSQL(b, ie.From())
-	case ie.IsEmpty():
-		isg.defaultValuesSQL(b)
-	default:
-		isg.insertColumnsSQL(b, ie.Cols())
-		isg.insertValuesSQL(b, ie.Vals())
-	}
-}
-
-// Adds the DefaultValuesFragment to an SQL statement
-func (isg *insertSQLGenerator) defaultValuesSQL(b sb.SQLBuilder) {
-	b.Write(isg.DialectOptions().DefaultValuesFragment)
-}
-
-func (isg *insertSQLGenerator) insertFromSQL(b sb.SQLBuilder, ae exp.AppendableExpression) {
-	b.WriteRunes(isg.DialectOptions().SpaceRune)
-	ae.AppendSQL(b)
-}
-
-// Adds the columns list to an insert statement
-func (isg *insertSQLGenerator) insertColumnsSQL(b sb.SQLBuilder, cols exp.ColumnListExpression) {
-	b.WriteRunes(isg.DialectOptions().SpaceRune, isg.DialectOptions().LeftParenRune)
-	isg.ExpressionSQLGenerator().Generate(b, cols)
-	b.WriteRunes(isg.DialectOptions().RightParenRune)
-}
-
-// Adds the values clause to an SQL statement
-func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]interface{}) {
-	b.Write(isg.DialectOptions().ValuesFragment)
-	rowLen := len(values[0])
-	valueLen := len(values)
-	for i, row := range values {
-		if len(row) != rowLen {
-			b.SetError(errMisMatchedRowLength(rowLen, len(row)))
-			return
-		}
-		isg.ExpressionSQLGenerator().Generate(b, row)
-		if i < valueLen-1 {
-			b.WriteRunes(isg.DialectOptions().CommaRune, isg.DialectOptions().SpaceRune)
-		}
-	}
 }
 
 func (isg *insertSQLGenerator) onConflictSQL(
