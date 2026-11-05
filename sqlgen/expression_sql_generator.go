@@ -59,7 +59,6 @@ var (
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 	errExcludedRowAliasUnresolved    = NewInvalidExpressionError("Excluded appeared after the row alias was chosen")
-	errExcludedRowAliasEmpty         = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
@@ -269,15 +268,13 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	}
 }
 
-//nolint:gocyclo,funlen // not complex just long
+//nolint:gocyclo,funlen
 func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp.Expression) {
 	switch e := expression.(type) {
 	case exp.ColumnListExpression:
 		esg.columnListSQL(b, e)
 	case exp.ExpressionList:
 		esg.expressionListSQL(b, e)
-	case exp.ExcludedExpression:
-		esg.excludedSQL(b, e)
 	case exp.LiteralExpression:
 		esg.literalExpressionSQL(b, e)
 	case exp.IdentifierExpression:
@@ -308,6 +305,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.castExpressionSQL(b, e)
 	case exp.CollateExpression:
 		esg.collateExpressionSQL(b, e)
+	case exp.ExcludedExpression:
+		esg.excludedSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:

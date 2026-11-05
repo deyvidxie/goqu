@@ -588,34 +588,6 @@ func ExampleDoUpdate() {
 	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" [111 Address]
 }
 
-func ExampleExcluded() {
-	for _, dialect := range []string{"postgres", "mysql", "mysql8"} {
-		sql, _, _ := goqu.Dialect(dialect).Insert("items").
-			Rows(goqu.Record{"name": "bob", "visits": 1}).
-			OnConflict(goqu.DoUpdate("name", goqu.Record{
-				"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
-			})).
-			ToSQL()
-		fmt.Println(sql)
-	}
-
-	// Output:
-	// INSERT INTO "items" ("name", "visits") VALUES ('bob', 1) ON CONFLICT (name) DO UPDATE SET "visits"=("items"."visits" + EXCLUDED."visits")
-	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + VALUES(`visits`))
-	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) AS `excluded` ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + `excluded`.`visits`)
-}
-
-func ExampleDoUpdateExcluded() {
-	sql, _, _ := goqu.Insert("items").
-		Rows(goqu.Record{"address": "111 Address", "name": "bob"}).
-		OnConflict(goqu.DoUpdateExcluded("name", "address")).
-		ToSQL()
-	fmt.Println(sql)
-
-	// Output:
-	// INSERT INTO "items" ("address", "name") VALUES ('111 Address', 'bob') ON CONFLICT (name) DO UPDATE SET "address"=EXCLUDED."address"
-}
-
 func ExampleDoUpdate_where() {
 	ds := goqu.Insert("items")
 
@@ -640,6 +612,34 @@ func ExampleDoUpdate_where() {
 	// Output:
 	// INSERT INTO "items" ("address") VALUES ('111 Address') ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" WHERE ("items"."updated" IS NULL) []
 	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" WHERE ("items"."updated" IS NULL) [111 Address]
+}
+
+func ExampleDoUpdateExcluded() {
+	sql, _, _ := goqu.Insert("items").
+		Rows(goqu.Record{"address": "111 Address", "name": "bob"}).
+		OnConflict(goqu.DoUpdateExcluded("name", "address")).
+		ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// INSERT INTO "items" ("address", "name") VALUES ('111 Address', 'bob') ON CONFLICT (name) DO UPDATE SET "address"=EXCLUDED."address"
+}
+
+func ExampleExcluded() {
+	for _, dialect := range []string{"postgres", "mysql", "mysql8"} {
+		sql, _, _ := goqu.Dialect(dialect).Insert("items").
+			Rows(goqu.Record{"name": "bob", "visits": 1}).
+			OnConflict(goqu.DoUpdate("name", goqu.Record{
+				"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
+			})).
+			ToSQL()
+		fmt.Println(sql)
+	}
+
+	// Output:
+	// INSERT INTO "items" ("name", "visits") VALUES ('bob', 1) ON CONFLICT (name) DO UPDATE SET "visits"=("items"."visits" + EXCLUDED."visits")
+	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + VALUES(`visits`))
+	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) AS `excluded` ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + `excluded`.`visits`)
 }
 
 func ExampleFIRST() {

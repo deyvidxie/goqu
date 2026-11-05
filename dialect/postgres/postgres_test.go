@@ -520,7 +520,7 @@ func (pt *postgresTest) TestInsert_OnConflict() {
 	}
 	_, err = ds.Insert().
 		Rows(entries).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.I("excluded.int").Eq(2))).
+		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.Excluded("int").Eq(2))).
 		Executor().
 		Exec()
 	pt.NoError(err)

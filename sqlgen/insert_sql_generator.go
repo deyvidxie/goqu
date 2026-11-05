@@ -35,6 +35,8 @@ type (
 var (
 	selectAllFromFragment = []byte(" SELECT * FROM (")
 
+	errExcludedRowAliasEmpty = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
+
 	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
 	ErrNoSourceForInsert            = errors.New("no source found when generating insert sql")
 )
@@ -157,7 +159,7 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	isPrepared bool,
 	ic exp.InsertClauses,
 ) (exp.IdentifierExpression, *renderedConflictUpdate, error) {
-	if isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle {
+	if isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle || !isg.DialectOptions().SupportsOnConflict {
 		return nil, nil, nil
 	}
 	cu, ok := ic.OnConflict().(exp.ConflictUpdateExpression)
@@ -167,9 +169,6 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	alias := exp.NewIdentifierExpression("", isg.DialectOptions().ExcludedRowAlias, nil)
 	if ic.HasAlias() {
 		alias = ic.Alias()
-	}
-	if alias.IsEmpty() {
-		return nil, nil, errExcludedRowAliasEmpty
 	}
 	probe := &conflictUpdateBuilder{SQLBuilder: sb.NewSQLBuilder(isPrepared), rowAlias: alias}
 	defer sb.ReleaseSQLBuilder(probe.SQLBuilder)
@@ -184,6 +183,9 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	}
 	if !probe.usesExcluded {
 		return nil, rendered, nil
+	}
+	if alias.IsEmpty() {
+		return nil, nil, errExcludedRowAliasEmpty
 	}
 	return alias, rendered, nil
 }

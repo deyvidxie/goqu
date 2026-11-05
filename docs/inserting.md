@@ -469,6 +469,8 @@ it with the table name.
 
 **NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`.
 
+**NOTE** SQL Server has no upsert syntax; `OnConflict` returns an error.
+
 <a name="returning"></a>
 **Returning Clause**
 

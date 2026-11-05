@@ -50,3 +50,12 @@ func (e excluded) NotIn(vals ...interface{}) BooleanExpression { return notIn(e,
 
 func (e excluded) Between(val RangeVal) RangeExpression    { return between(e, val) }
 func (e excluded) NotBetween(val RangeVal) RangeExpression { return notBetween(e, val) }
+
+func (e excluded) Like(val interface{}) BooleanExpression           { return like(e, val) }
+func (e excluded) NotLike(val interface{}) BooleanExpression        { return notLike(e, val) }
+func (e excluded) ILike(val interface{}) BooleanExpression          { return iLike(e, val) }
+func (e excluded) NotILike(val interface{}) BooleanExpression       { return notILike(e, val) }
+func (e excluded) RegexpLike(val interface{}) BooleanExpression     { return regexpLike(e, val) }
+func (e excluded) RegexpNotLike(val interface{}) BooleanExpression  { return regexpNotLike(e, val) }
+func (e excluded) RegexpILike(val interface{}) BooleanExpression    { return regexpILike(e, val) }
+func (e excluded) RegexpNotILike(val interface{}) BooleanExpression { return regexpNotILike(e, val) }

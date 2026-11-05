@@ -329,6 +329,7 @@ type (
 		Isable
 		Inable
 		Rangeable
+		Likeable
 		Col() string
 	}
 	CommonTableExpression interface {

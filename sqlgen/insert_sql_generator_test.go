@@ -454,7 +454,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
 		SetVals([][]interface{}{{"a1", "b1"}})
 	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
 	sumB := exp.NewDoUpdateConflictExpression("a", exp.Record{
-		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "", "b"), exp.NewExcludedExpression("b")),
+		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "test", "b"), exp.NewExcludedExpression("b")),
 	})
 	excludedWhere := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"}).
 		Where(exp.NewIdentifierExpression("", "", "b").Lt(exp.NewExcludedExpression("b")))
@@ -467,7 +467,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(sumB),
-			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"="b" + EXCLUDED."b"`,
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"="test"."b" + EXCLUDED."b"`,
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(excludedWhere),
@@ -535,7 +535,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 	fromColsIc := fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
 	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
 	sumB := exp.NewDoUpdateConflictExpression("a", exp.Record{
-		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "", "b"), exp.NewExcludedExpression("b")),
+		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "test", "b"), exp.NewExcludedExpression("b")),
 	})
 
 	aliasOpts := sqlgen.DefaultDialectOptions()
@@ -604,7 +604,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 		insertTestCase{
 			clause: fromColsIc.SetOnConflict(sumB),
 			sql: `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "incoming" ("a", "b") ` +
-				`ON CONFLICT (a) DO UPDATE SET "b"="b" + "incoming"."b"`,
+				`ON CONFLICT (a) DO UPDATE SET "b"="test"."b" + "incoming"."b"`,
 		},
 		insertTestCase{
 			clause: fromColsIc.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
@@ -651,6 +651,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 			})),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "a"='first'`,
 		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+			})),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?) ON CONFLICT (a) DO UPDATE SET "a"=?`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1", "first"},
+		},
 	)
 }
 
@@ -672,6 +680,19 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	_, _, err := b.ToSQL()
 	igs.EqualError(err, "goqu: Excluded appeared after the row alias was chosen")
 	igs.True(sqlgen.IsInvalidExpression(err))
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts),
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"a": "x",
+				"b": exp.NewExcludedExpression("b"),
+			})),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ($1, $2) AS "excluded" ` +
+				`ON CONFLICT (a) DO UPDATE SET "a"=$3,"b"="excluded"."b"`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1", "x"},
+		},
+	)
 
 	emptyAliasOpts := sqlgen.DefaultDialectOptions()
 	emptyAliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
@@ -683,10 +704,23 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 			err:    "goqu: Excluded requires ExcludedRowAlias or an insert alias",
 		},
 		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"='x'`,
+		},
+		insertTestCase{
 			clause: ic.SetAlias(exp.NewIdentifierExpression("", "new", nil)).SetOnConflict(excludedB),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "new" ` +
 				`ON CONFLICT (a) DO UPDATE SET "b"="new"."b"`,
 		},
+	)
+
+	noUpsertOpts := sqlgen.DefaultDialectOptions()
+	noUpsertOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	noUpsertOpts.ExcludedRowAlias = ""
+	noUpsertOpts.SupportsOnConflict = false
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", noUpsertOpts),
+		insertTestCase{clause: ic.SetOnConflict(excludedB), err: "goqu: dialect does not support upsert [dialect=test]"},
 	)
 }
 
