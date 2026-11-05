@@ -21,11 +21,16 @@ type (
 	insertSQLGenerator struct {
 		CommonSQLGenerator
 	}
+	conflictUpdateBuilder struct {
+		sb.SQLBuilder
+		rowAlias     exp.IdentifierExpression
+		usesExcluded bool
+	}
 )
 
-var selectAllFromFragment = []byte(" SELECT * FROM (")
-
 var (
+	selectAllFromFragment = []byte(" SELECT * FROM (")
+
 	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
 	ErrNoSourceForInsert            = errors.New("no source found when generating insert sql")
 )
@@ -131,7 +136,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	default:
 		isg.defaultValuesSQL(b)
 	}
-	if rowAlias == nil && ic.HasAlias() {
+	if ic.HasAlias() {
 		rowAlias = ic.Alias()
 	}
 	if rowAlias != nil {
@@ -173,7 +178,18 @@ func (isg *insertSQLGenerator) insertFromRowAliasSQL(
 	b.WriteRunes(isg.DialectOptions().RightParenRune)
 	b.Write(isg.DialectOptions().AsFragment)
 	isg.ExpressionSQLGenerator().Generate(b, rowAlias)
-	isg.insertColumnsSQL(b, cols)
+	isg.insertColumnsSQL(b, unqualifiedColumns(cols))
+}
+
+func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression {
+	names := make([]interface{}, 0, len(cols.Columns()))
+	for _, col := range cols.Columns() {
+		if ident, ok := col.(exp.IdentifierExpression); ok {
+			col = exp.NewIdentifierExpression("", "", ident.GetCol())
+		}
+		names = append(names, col)
+	}
+	return exp.NewColumnListExpression(nil, "", names...)
 }
 
 func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.InsertExpression) {

@@ -322,9 +322,9 @@ type (
 		ConflictDoNothingFragment []byte
 		// The SQL fragment to use for CONFLICT DO UPDATE (Default=[]byte(" DO UPDATE SET"))
 		ConflictDoUpdateFragment []byte
-		// How goqu.Excluded references the row proposed for insertion (DEFAULT=ExcludedTableStyle)
+		// How goqu.Excluded references the row proposed for insertion (Default=ExcludedTableStyle)
 		ExcludedStyle ExcludedStyle
-		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (DEFAULT="excluded")
+		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
 		ExcludedRowAlias string
 
 		// The order of SQL fragments when creating a SELECT statement

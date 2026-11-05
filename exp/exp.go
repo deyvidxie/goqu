@@ -327,6 +327,8 @@ type (
 		Comparable
 		Arithmeticable
 		Isable
+		Inable
+		Rangeable
 		Col() string
 	}
 	CommonTableExpression interface {

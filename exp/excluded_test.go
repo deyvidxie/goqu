@@ -52,4 +52,8 @@ func TestExcludedExpressionOperators(t *testing.T) {
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, true), e.IsNotTrue())
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, false), e.IsFalse())
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, false), e.IsNotFalse())
+	assert.Equal(t, exp.NewBooleanExpression(exp.InOp, e, []interface{}{1, 2}), e.In(1, 2))
+	assert.Equal(t, exp.NewBooleanExpression(exp.NotInOp, e, []interface{}{1, 2}), e.NotIn(1, 2))
+	assert.Equal(t, exp.NewRangeExpression(exp.BetweenOp, e, exp.NewRangeVal(1, 2)), e.Between(exp.NewRangeVal(1, 2)))
+	assert.Equal(t, exp.NewRangeExpression(exp.NotBetweenOp, e, exp.NewRangeVal(1, 2)), e.NotBetween(exp.NewRangeVal(1, 2)))
 }

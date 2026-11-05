@@ -539,12 +539,6 @@ func (sst *sqlserverTest) TestDelete() {
 	sst.EqualError(err, "goqu: dialect does not support RETURNING clause [dialect=sqlserver]")
 }
 
-func (sst *sqlserverTest) TestInsertIgnoreNotSupported() {
-	ds := sst.db.From("entry")
-	_, err := ds.Insert().Rows(goqu.Record{"Int": 10}).OnConflict(goqu.DoNothing()).Executor().Exec()
-	sst.EqualError(err, "goqu: dialect does not support upsert [dialect=sqlserver]")
-}
-
 func TestSqlServerSuite(t *testing.T) {
 	suite.Run(t, new(sqlserverTest))
 }

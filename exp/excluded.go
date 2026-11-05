@@ -44,3 +44,9 @@ func (e excluded) IsTrue() BooleanExpression               { return is(e, true) 
 func (e excluded) IsNotTrue() BooleanExpression            { return isNot(e, true) }
 func (e excluded) IsFalse() BooleanExpression              { return is(e, false) }
 func (e excluded) IsNotFalse() BooleanExpression           { return isNot(e, false) }
+
+func (e excluded) In(vals ...interface{}) BooleanExpression    { return in(e, vals...) }
+func (e excluded) NotIn(vals ...interface{}) BooleanExpression { return notIn(e, vals...) }
+
+func (e excluded) Between(val RangeVal) RangeExpression    { return between(e, val) }
+func (e excluded) NotBetween(val RangeVal) RangeExpression { return notBetween(e, val) }

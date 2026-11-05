@@ -1,6 +1,7 @@
 package sqlgen_test
 
 import (
+	"database/sql/driver"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
@@ -487,6 +488,17 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"b": exp.NewExcludedExpression(1).Add(1),
+			})),
+			err: "goqu: Excluded requires a column name",
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"}).
+				Where(exp.NewExcludedExpression(1).Gt(1))),
+			err: "goqu: Excluded requires a column name",
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
 				"b": exp.NewExcludedExpression("b").Add(1),
 			}).Where(exp.NewExcludedExpression("b").Gt(exp.NewIdentifierExpression("", "test", "b")))),
 			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"=(EXCLUDED."b" + 1) ` +
@@ -513,6 +525,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 	fromIc := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
 		SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, nil, nil))
+	fromColsIc := fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
 	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
 	sumB := exp.NewDoUpdateConflictExpression("a", exp.Record{
 		"b": exp.NewLiteralExpression("? + ?", exp.NewIdentifierExpression("", "", "b"), exp.NewExcludedExpression("b")),
@@ -521,7 +534,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 	aliasOpts := sqlgen.DefaultDialectOptions()
 	aliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 	aliasOpts.ExcludedRowAlias = "incoming"
-	fromColsIc := fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", aliasOpts),
 		insertTestCase{
@@ -598,10 +610,34 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 			err: "goqu: dialect requires Cols to use Excluded with INSERT ... SELECT [dialect=test]",
 		},
 		insertTestCase{
-			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression(1)})),
-			err:    "goqu: Excluded requires a column name",
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"b": exp.NewExcludedExpression(1).Add(1),
+			})),
+			err: "goqu: Excluded requires a column name",
+		},
+		insertTestCase{
+			clause: fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "test.a", "b")).SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("test"."a", "b") SELECT * FROM (select c, d from test2) AS "incoming" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="incoming"."b"`,
+		},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"a": &failOnceValuer{},
+				"b": exp.NewExcludedExpression("b"),
+			})),
+			err: "goqu: Excluded is only valid in an OnConflict DoUpdate",
 		},
 	)
+}
+
+type failOnceValuer struct{ called bool }
+
+func (v *failOnceValuer) Value() (driver.Value, error) {
+	if v.called {
+		return "a", nil
+	}
+	v.called = true
+	return nil, sqlgen.NewUnsupportedError("first call fails")
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictNotSupported() {

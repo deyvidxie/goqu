@@ -340,6 +340,10 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 		esg.quotedIdentifierSQL(b, e.Col())
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	case ExcludedRowAliasStyle:
+		if ub.rowAlias == nil {
+			b.SetError(errExcludedOutsideConflictUpdate)
+			return
+		}
 		esg.Generate(b, ub.rowAlias.Col(e.Col()))
 	default:
 		b.Write(excludedTableFragment)
