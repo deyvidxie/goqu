@@ -425,6 +425,26 @@ Output:
 UPDATE `test` SET `foo`='bar' ORDER BY `a` ASC
 ```
 
+`sqlserver` has no `ORDER BY` on `UPDATE`, so calling `Order` on a `sqlserver` update returns an error instead of generating invalid SQL. This includes an `Order` carried over from a `SelectDataset` by `Update()`. To update an ordered subset, use a subquery:
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+
+oldest := goqu.Dialect("sqlserver").From("test").
+	Select("id").Order(goqu.C("created").Asc()).Limit(10)
+ds := goqu.Dialect("sqlserver").
+	Update("test").
+	Set(goqu.Record{"foo": "bar"}).
+	Where(goqu.C("id").In(oldest))
+sql, _, _ := ds.ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```
+UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" ORDER BY "created" ASC))
+```
+
 <a name="limit"></a>
 **[Order](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
 
@@ -446,7 +466,7 @@ Output:
 UPDATE `test` SET `foo`='bar' LIMIT 10
 ```
 
-`sqlserver` emits `TOP` directly after `UPDATE`, and returns an error for `Order` on an `UPDATE`:
+`sqlserver` emits `TOP` directly after `UPDATE`. `TOP` on its own updates an unspecified set of rows; see [Order](#order) for an ordered subset:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"

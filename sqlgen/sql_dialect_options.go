@@ -58,6 +58,8 @@ type (
 
 		// Surround LIMIT parameter with parentheses, like in MSSQL: SELECT TOP (10) ...
 		SurroundLimitWithParentheses bool
+		// Set to false if the dialect has no LIMIT ALL; LimitAll() then emits no limit (DEFAULT=true)
+		SupportsLimitAll bool
 
 		// The UPDATE fragment to use when generating sql. (DEFAULT=[]byte("UPDATE"))
 		UpdateClause []byte
@@ -457,6 +459,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsOrderByOnUpdate:     false,
 		SupportsLimitOnDelete:       false,
 		SupportsLimitOnUpdate:       false,
+		SupportsLimitAll:            true,
 		SupportsReturn:              true,
 		SupportsConflictUpdateWhere: true,
 		SupportsInsertIgnoreSyntax:  false,

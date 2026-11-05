@@ -30,6 +30,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsDistinctOn = false
 	opts.SupportsWindowFunction = false
 	opts.SurroundLimitWithParentheses = true
+	opts.SupportsLimitAll = false
 
 	opts.PlaceHolderFragment = []byte("@p")
 	opts.LimitFragment = []byte(" TOP ")

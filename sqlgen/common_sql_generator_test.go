@@ -329,6 +329,10 @@ func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
 	opts.LimitFragment = []byte(" limit ")
 	csgCustom := sqlgen.NewCommonSQLGenerator("test", "db", opts)
 
+	noLimitAllOpts := sqlgen.DefaultDialectOptions()
+	noLimitAllOpts.SupportsLimitAll = false
+	csgNoLimitAll := sqlgen.NewCommonSQLGenerator("test", "db", noLimitAllOpts)
+
 	l := int64(10)
 	la := exp.NewLiteralExpression("ALL")
 
@@ -341,6 +345,9 @@ func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
 
 		commonSQLTestCase{gen: limitGen(csg, la), sql: ` LIMIT ALL`},
 		commonSQLTestCase{gen: limitGen(csg, la), sql: ` LIMIT ALL`, isPrepared: true, args: emptyArgs},
+
+		commonSQLTestCase{gen: limitGen(csgNoLimitAll, la), sql: ``},
+		commonSQLTestCase{gen: limitGen(csgNoLimitAll, l), sql: ` LIMIT 10`},
 
 		commonSQLTestCase{gen: limitGen(csgCustom, nil), sql: ``},
 		commonSQLTestCase{gen: limitGen(csgCustom, nil), sql: ``, isPrepared: true, args: emptyArgs},
