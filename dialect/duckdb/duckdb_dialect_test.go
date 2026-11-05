@@ -102,25 +102,28 @@ func (sds *duckdbDialectSuite) TestInsertOnConflict() {
 	)
 }
 
-func (sds *duckdbDialectSuite) TestDistinctOnWindowQualifyLateral() {
-	ds := sds.GetDs("test")
-	sds.assertSQL(
-		sqlTestCase{
-			ds:  ds.Select("a").Distinct("b"),
-			sql: "SELECT DISTINCT ON (\"b\") \"a\" FROM \"test\"",
-		},
-		sqlTestCase{
-			ds: ds.Select("a").
-				Window(goqu.W("w").PartitionBy("b")).
-				Qualify(goqu.ROW_NUMBER().OverName(goqu.I("w")).Eq(1)).
-				Order(goqu.C("a").Asc()),
-			sql: "SELECT \"a\" FROM \"test\" WINDOW \"w\" AS (PARTITION BY \"b\") QUALIFY (ROW_NUMBER() OVER \"w\" = 1) ORDER BY \"a\" ASC",
-		},
-		sqlTestCase{
-			ds:  ds.Join(goqu.Lateral(goqu.From("other").Select("c").As("o")), goqu.On(goqu.V(true))),
-			sql: "SELECT * FROM \"test\" INNER JOIN LATERAL (SELECT \"c\" FROM \"other\") AS \"o\" ON TRUE",
-		},
-	)
+func (sds *duckdbDialectSuite) TestDistinctOn() {
+	sds.assertSQL(sqlTestCase{
+		ds:  sds.GetDs("test").Select("a").Distinct("b"),
+		sql: "SELECT DISTINCT ON (\"b\") \"a\" FROM \"test\"",
+	})
+}
+
+func (sds *duckdbDialectSuite) TestWindowBeforeQualify() {
+	sds.assertSQL(sqlTestCase{
+		ds: sds.GetDs("test").Select("a").
+			Window(goqu.W("w").PartitionBy("b")).
+			Qualify(goqu.ROW_NUMBER().OverName(goqu.I("w")).Eq(1)).
+			Order(goqu.C("a").Asc()),
+		sql: "SELECT \"a\" FROM \"test\" WINDOW \"w\" AS (PARTITION BY \"b\") QUALIFY (ROW_NUMBER() OVER \"w\" = 1) ORDER BY \"a\" ASC",
+	})
+}
+
+func (sds *duckdbDialectSuite) TestLateral() {
+	sds.assertSQL(sqlTestCase{
+		ds:  sds.GetDs("test").Join(goqu.Lateral(goqu.From("other").Select("c").As("o")), goqu.On(goqu.V(true))),
+		sql: "SELECT * FROM \"test\" INNER JOIN LATERAL (SELECT \"c\" FROM \"other\") AS \"o\" ON TRUE",
+	})
 }
 
 func (sds *duckdbDialectSuite) TestCompoundExpressions() {
