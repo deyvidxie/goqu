@@ -196,6 +196,103 @@ func (st *duckdbSuite) TestILikeEscapesLiteralPercent() {
 	st.Equal(int64(11), count)
 }
 
+func (st *duckdbSuite) TestDistinctOn() {
+	var ints []int
+	st.NoError(st.db.From("entry").Select("int").Distinct("bool").Order(goqu.C("bool").Asc(), goqu.C("int").Asc()).ScanVals(&ints))
+	st.Equal([]int{1, 0}, ints)
+}
+
+func (st *duckdbSuite) TestWindowFunctionWithQualify() {
+	var ints []int
+	err := st.db.From("entry").
+		Select("int").
+		Window(goqu.W("w").PartitionBy("bool").OrderBy(goqu.C("int").Desc())).
+		Qualify(goqu.ROW_NUMBER().OverName(goqu.I("w")).Eq(1)).
+		Order(goqu.C("int").Asc()).
+		ScanVals(&ints)
+	st.NoError(err)
+	st.Equal([]int{8, 9}, ints)
+}
+
+func (st *duckdbSuite) TestLateralJoin() {
+	maxInt := goqu.From(goqu.T("entry").As("e2")).
+		Select(goqu.MAX("int").As("max_int")).
+		Where(goqu.I("e2.bool").Eq(goqu.I("e.bool"))).
+		As("m")
+	var rows []struct {
+		Int    int `db:"int"`
+		MaxInt int `db:"max_int"`
+	}
+	err := st.db.From(goqu.T("entry").As("e")).
+		Select("e.int", "m.max_int").
+		Join(goqu.Lateral(maxInt), goqu.On(goqu.V(true))).
+		Where(goqu.I("e.int").In(0, 1)).
+		Order(goqu.I("e.int").Asc()).
+		ScanStructs(&rows)
+	st.NoError(err)
+	st.Len(rows, 2)
+	st.Equal(8, rows[0].MaxInt)
+	st.Equal(9, rows[1].MaxInt)
+}
+
+func (st *duckdbSuite) TestUpdateFrom() {
+	_, err := st.db.Exec(`CREATE TABLE "labels" ("int" INT, "label" VARCHAR)`)
+	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec(`DROP TABLE "labels"`)
+		st.NoError(err)
+	}()
+	_, err = st.db.Exec(`INSERT INTO "labels" VALUES (1, 'one')`)
+	st.Require().NoError(err)
+
+	_, err = st.db.Update("entry").
+		Set(goqu.Record{"string": goqu.I("labels.label")}).
+		From("labels").
+		Where(goqu.I("entry.int").Eq(goqu.I("labels.int"))).
+		Executor().Exec()
+	st.NoError(err)
+
+	var s string
+	found, err := st.db.From("entry").Select("string").Where(goqu.C("int").Eq(1)).ScanVal(&s)
+	st.NoError(err)
+	st.True(found)
+	st.Equal("one", s)
+}
+
+func (st *duckdbSuite) TestInsertOnConflictUpdateWhere() {
+	var id int64
+	found, err := st.db.From("entry").Select("id").Where(goqu.C("int").Eq(1)).ScanVal(&id)
+	st.Require().NoError(err)
+	st.Require().True(found)
+	upsert := func(where goqu.Expression) {
+		_, err := st.db.Insert("entry").
+			Cols("id", "int", "float", "string", "time", "bool", "bytes").
+			Vals(goqu.Vals{id, 1, 0.1, "x", time.Now(), false, []byte("x")}).
+			OnConflict(goqu.DoUpdate("id", goqu.Record{"string": "updated"}).Where(where)).
+			Executor().Exec()
+		st.NoError(err)
+	}
+
+	upsert(goqu.I("entry.int").Eq(-1))
+	var s string
+	_, err = st.db.From("entry").Select("string").Where(goqu.C("id").Eq(id)).ScanVal(&s)
+	st.NoError(err)
+	st.Equal("0.100000", s)
+
+	upsert(goqu.I("entry.int").Eq(1))
+	_, err = st.db.From("entry").Select("string").Where(goqu.C("id").Eq(id)).ScanVal(&s)
+	st.NoError(err)
+	st.Equal("updated", s)
+}
+
+func (st *duckdbSuite) TestBitwiseInversion() {
+	var v int64
+	found, err := st.db.From("entry").Select(goqu.C("int").BitwiseInversion()).Where(goqu.C("int").Eq(5)).ScanVal(&v)
+	st.NoError(err)
+	st.True(found)
+	st.Equal(int64(-6), v)
+}
+
 func (st *duckdbSuite) TestInsertDefaultValues() {
 	_, err := st.db.Exec(`CREATE TABLE "defaults" ("id" INTEGER DEFAULT 1, "name" VARCHAR DEFAULT 'x')`)
 	st.Require().NoError(err)
@@ -541,7 +638,6 @@ func (st *duckdbSuite) TestInsert_OnConflict() {
 	ds := st.db.From("entry")
 	now := time.Now()
 
-	// insert new record with ID = 11
 	e := entry{Int: 11, Float: 1.100000, String: "1.100000", Time: now, Bool: false, Bytes: []byte("1.100000")}
 	_, err := ds.Insert().Rows(e).OnConflict(goqu.DoNothing()).Executor().Exec()
 	st.NoError(err)
@@ -551,7 +647,6 @@ func (st *duckdbSuite) TestInsert_OnConflict() {
 	st.NoError(err)
 	st.Equal("1.100000", entryActual.String)
 
-	// duplicate with ON CONFLICT DO NOTHING should not be actually inserted
 	_, err = ds.Insert().Rows(
 		goqu.Record{
 			"id":     11,
@@ -569,7 +664,6 @@ func (st *duckdbSuite) TestInsert_OnConflict() {
 	st.NoError(err)
 	st.Equal("1.100000", entryActual.String)
 
-	// UPSERT record with ID primary key value conflict
 	_, err = ds.Insert().Rows(
 		goqu.Record{
 			"id":     11,
@@ -586,17 +680,6 @@ func (st *duckdbSuite) TestInsert_OnConflict() {
 	_, err = ds.Where(goqu.C("id").Eq(11)).ScanStruct(&entryActual)
 	st.NoError(err)
 	st.Equal("upsert", entryActual.String)
-
-	// UPDATE ... ON CONFLICT (...) WHERE ... SET ... should result in error for now
-	entries := []entry{
-		{Int: 8, Float: 6.100000, String: "6.100000", Time: now, Bytes: []byte("6.100000")},
-		{Int: 9, Float: 7.200000, String: "7.200000", Time: now, Bytes: []byte("7.200000")},
-	}
-	_, err = ds.Insert().
-		Rows(entries).
-		OnConflict(goqu.DoUpdate("id", goqu.Record{"string": "upsert"}).Where(goqu.C("id").Eq(9))).
-		Executor().Exec()
-	st.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=duckdb]")
 }
 
 func TestDuckdbSuite(t *testing.T) {

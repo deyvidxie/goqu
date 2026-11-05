@@ -63,7 +63,7 @@ func (sds *duckdbDialectSuite) TestUpdateSQL_multipleTables() {
 				Set(goqu.Record{"foo": "bar"}).
 				From("test_2").
 				Where(goqu.I("test.id").Eq(goqu.I("test_2.test_id"))),
-			err: "goqu: duckdb dialect does not support multiple tables in UPDATE",
+			sql: "UPDATE \"test\" SET \"foo\"='bar' FROM \"test_2\" WHERE (\"test\".\"id\" = \"test_2\".\"test_id\")",
 		},
 	)
 }
@@ -90,12 +90,40 @@ func (sds *duckdbDialectSuite) TestInsertOnConflict() {
 		},
 		sqlTestCase{ds: doUpdate, sql: "INSERT INTO \"test\" (\"a\") VALUES ('a') ON CONFLICT  (a) DO UPDATE SET \"a\"='b'"},
 		sqlTestCase{
+			ds:  ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": "b"}).Where(goqu.C("a").Neq("b"))),
+			sql: "INSERT INTO \"test\" (\"a\") VALUES ('a') ON CONFLICT  (a) DO UPDATE SET \"a\"='b' WHERE (\"a\" != 'b')",
+		},
+		sqlTestCase{
 			ds:         doUpdate.Prepared(true),
 			sql:        "INSERT INTO \"test\" (\"a\") VALUES (?) ON CONFLICT  (a) DO UPDATE SET \"a\"=?",
 			isPrepared: true,
 			args:       []interface{}{"a", "b"},
 		},
 	)
+}
+
+func (sds *duckdbDialectSuite) TestDistinctOn() {
+	sds.assertSQL(sqlTestCase{
+		ds:  sds.GetDs("test").Select("a").Distinct("b"),
+		sql: "SELECT DISTINCT ON (\"b\") \"a\" FROM \"test\"",
+	})
+}
+
+func (sds *duckdbDialectSuite) TestWindowBeforeQualify() {
+	sds.assertSQL(sqlTestCase{
+		ds: sds.GetDs("test").Select("a").
+			Window(goqu.W("w").PartitionBy("b")).
+			Qualify(goqu.ROW_NUMBER().OverName(goqu.I("w")).Eq(1)).
+			Order(goqu.C("a").Asc()),
+		sql: "SELECT \"a\" FROM \"test\" WINDOW \"w\" AS (PARTITION BY \"b\") QUALIFY (ROW_NUMBER() OVER \"w\" = 1) ORDER BY \"a\" ASC",
+	})
+}
+
+func (sds *duckdbDialectSuite) TestLateral() {
+	sds.assertSQL(sqlTestCase{
+		ds:  sds.GetDs("test").Join(goqu.Lateral(goqu.From("other").Select("c").As("o")), goqu.On(goqu.V(true))),
+		sql: "SELECT * FROM \"test\" INNER JOIN LATERAL (SELECT \"c\" FROM \"other\") AS \"o\" ON TRUE",
+	})
 }
 
 func (sds *duckdbDialectSuite) TestCompoundExpressions() {
@@ -183,7 +211,7 @@ func (sds *duckdbDialectSuite) TestBitwiseOperations() {
 	col := goqu.C("a")
 	ds := sds.GetDs("test")
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Where(col.BitwiseInversion()), err: "goqu: bitwise operator 'Inversion' not supported"},
+		sqlTestCase{ds: ds.Where(col.BitwiseInversion()), sql: "SELECT * FROM \"test\" WHERE (~ \"a\")"},
 		sqlTestCase{ds: ds.Where(col.BitwiseAnd(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" & 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseOr(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" | 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), err: "goqu: bitwise operator 'XOR' not supported"},

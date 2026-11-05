@@ -183,7 +183,7 @@ SELECT DISTINCT "a", "b" FROM "test"
 
 If you dialect supports `DISTINCT ON` you provide arguments to the `Distinct` method.
 
-**NOTE** currently only the `postgres` and the default dialects support `DISTINCT ON` clauses
+**NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
 
 ```go
 sql, _, _ := goqu.From("test").Distinct("a").ToSQL()
@@ -722,15 +722,12 @@ SELECT * FROM "test" GROUP BY "age" HAVING (SUM("income") > 1000)
 
 `QUALIFY` filters rows on the result of window functions (Teradata, Snowflake, BigQuery and others).
 
-**NOTE** None of the built in dialects support `QUALIFY`; generating SQL with a `Qualify` returns an error. Register a dialect with `SupportsQualify` set to `true` to use it.
+**NOTE** Of the built in dialects only `duckdb` supports `QUALIFY`; the others return an error. Register a dialect with `SupportsQualify` set to `true` to use it elsewhere.
 
 ```go
-opts := goqu.DefaultDialectOptions()
-opts.SupportsQualify = true
-goqu.RegisterDialect("qualify", "db", opts)
+// import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"
 
-dialect := goqu.Dialect("qualify")
-sql, _, _ := dialect.From("test").
+sql, _, _ := goqu.Dialect("duckdb").From("test").
 	Select("a", goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("a").OrderBy(goqu.C("b").Asc())).As("rn")).
 	Qualify(goqu.C("rn").Eq(1)).
 	ToSQL()
@@ -868,7 +865,7 @@ WITH del AS (DELETE FROM "foo" WHERE ("bar" = ?) RETURNING "id") SELECT "bar_nam
 <a name="window"></a>
 **[`Window Function`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Window)**
 
-**NOTE** currently only the `postgres`, `mysql8` (NOT `mysql`) and the default dialect support `Window Function`
+**NOTE** currently only the `postgres`, `mysql8` (NOT `mysql`), `duckdb` and the default dialect support `Window Function`
 
 To use windowing in `SELECT` statements you can use the `Over` method on an `SQLFunction`
 

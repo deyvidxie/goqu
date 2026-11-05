@@ -319,6 +319,7 @@ type (
 		// 		GroupBySQLFragment,
 		// 		HavingSQLFragment,
 		// 		QualifySQLFragment,
+		// 		WindowSQLFragment,
 		// 		CompoundsSQLFragment,
 		// 		OrderSQLFragment,
 		// 		LimitSQLFragment,

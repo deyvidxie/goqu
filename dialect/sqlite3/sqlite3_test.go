@@ -557,7 +557,6 @@ func (st *sqlite3Suite) TestInsert_OnConflict() {
 	ds := st.db.From("entry")
 	now := time.Now()
 
-	// insert new record with ID = 11
 	e := entry{Int: 11, Float: 1.100000, String: "1.100000", Time: now, Bool: false, Bytes: []byte("1.100000")}
 	_, err := ds.Insert().Rows(e).OnConflict(goqu.DoNothing()).Executor().Exec()
 	st.NoError(err)
@@ -567,7 +566,6 @@ func (st *sqlite3Suite) TestInsert_OnConflict() {
 	st.NoError(err)
 	st.Equal("1.100000", entryActual.String)
 
-	// duplicate with ON CONFLICT DO NOTHING should not be actually inserted
 	_, err = ds.Insert().Rows(
 		goqu.Record{
 			"id":     11,
@@ -603,7 +601,6 @@ func (st *sqlite3Suite) TestInsert_OnConflict() {
 	st.NoError(err)
 	st.Equal("1.100000", entryActual.String)
 
-	// UPSERT record with ID primary key value conflict
 	_, err = ds.Insert().Rows(
 		goqu.Record{
 			"id":     11,
