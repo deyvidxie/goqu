@@ -714,6 +714,42 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasErrors() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+		SetVals([][]interface{}{{"a1", "b1"}})
+	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{
+			clause: ic.
+				SetVals([][]interface{}{{&secondCallValuer{first: valuerError{"row valuer failed"}}, "b1"}}).
+				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{first: errValuerFailed}})),
+			err: "row valuer failed",
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.ParseIdentifier("t.new")).SetOnConflict(excludedB),
+			err:    "goqu: Excluded requires an unqualified insert alias",
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.NewIdentifierExpression("s", "new", nil)).SetOnConflict(excludedB),
+			err:    "goqu: Excluded requires an unqualified insert alias",
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.NewIdentifierExpression("s", "", "new")).SetOnConflict(excludedB),
+			err:    "goqu: Excluded requires an unqualified insert alias",
+		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.NewIdentifierExpression("s", "", "new")).
+				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
+			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "s"."new" ON CONFLICT (a) DO UPDATE SET "b"='x'`,
+		},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptions() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
@@ -777,22 +813,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	sqlgen.NewInsertSQLGenerator("test", "db", emptyAliasOpts).Generate(b, ic.SetOnConflict(excludedB))
 	_, _, err = b.ToSQL()
 	igs.True(sqlgen.IsInvalidExpression(err))
-
-	rowAliasOpts := sqlgen.DefaultDialectOptions()
-	rowAliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", rowAliasOpts),
-		insertTestCase{
-			clause: ic.
-				SetVals([][]interface{}{{&secondCallValuer{first: valuerError{"row valuer failed"}}, "b1"}}).
-				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{first: errValuerFailed}})),
-			err: "valuer failed",
-		},
-		insertTestCase{
-			clause: ic.SetAlias(exp.ParseIdentifier("t.new")).SetOnConflict(excludedB),
-			err:    "goqu: Excluded requires an unqualified insert alias",
-		},
-	)
 
 	columnAliasIc := ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(excludedB)
 	igs.assertCases(

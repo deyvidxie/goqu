@@ -258,6 +258,7 @@ func TestInsertOnConflictNotSupported(t *testing.T) {
 		"do nothing with cols": goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")),
 		"do update":            goqu.DoUpdate("", goqu.Record{"a": "b"}),
 		"do update where":      goqu.DoUpdate("", goqu.Record{"a": "b"}).Where(goqu.C("a").Eq(1)),
+		"do update nil":        goqu.DoUpdate("", nil),
 		"do update excluded":   goqu.DoUpdateExcluded("", "a"),
 	} {
 		t.Run(name, func(t *testing.T) {
