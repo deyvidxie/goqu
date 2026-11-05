@@ -146,7 +146,7 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 		csg.esg.Generate(b, offset)
 		b.Write([]byte(" ROWS"))
 
-		if limit != nil {
+		if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 			b.Write(csg.dialectOptions.FetchFragment)
 			csg.esg.Generate(b, limit)
 			b.Write([]byte(" ROWS ONLY"))
@@ -154,9 +154,14 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	}
 }
 
+func isUnsupportedLimitAll(opts *SQLDialectOptions, limit interface{}) bool {
+	l, ok := limit.(exp.LiteralExpression)
+	return ok && !opts.SupportsLimitAll && l.Literal() == "ALL"
+}
+
 // Generates the LIMIT clause for an SQL statement
 func (csg *commonSQLGenerator) LimitSQL(b sb.SQLBuilder, limit interface{}) {
-	if limit != nil {
+	if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 		b.Write(csg.dialectOptions.LimitFragment)
 		if csg.dialectOptions.SurroundLimitWithParentheses {
 			b.WriteRunes(csg.dialectOptions.LeftParenRune)

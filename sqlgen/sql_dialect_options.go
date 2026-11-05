@@ -19,10 +19,15 @@ type (
 		SupportsDeleteTableHint bool
 		// Set to true if the dialect supports ORDER BY expressions in UPDATE statements (DEFAULT=false)
 		SupportsOrderByOnUpdate bool
+		// Set to true to return an error, instead of silently dropping the clause, when ORDER BY is used on an
+		// UPDATE and SupportsOrderByOnUpdate is false (DEFAULT=false)
+		ErrorOnUnsupportedOrderByOnUpdate bool
 		// Set to true if the dialect supports LIMIT expressions in DELETE statements (DEFAULT=false)
 		SupportsLimitOnDelete bool
 		// Set to true if the dialect supports LIMIT expressions in UPDATE statements (DEFAULT=false)
 		SupportsLimitOnUpdate bool
+		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
+		SupportsLimitAll bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
@@ -454,6 +459,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsOrderByOnUpdate:     false,
 		SupportsLimitOnDelete:       false,
 		SupportsLimitOnUpdate:       false,
+		SupportsLimitAll:            true,
 		SupportsReturn:              true,
 		SupportsConflictUpdateWhere: true,
 		SupportsInsertIgnoreSyntax:  false,

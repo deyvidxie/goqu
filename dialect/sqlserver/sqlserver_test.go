@@ -460,6 +460,16 @@ func (sst *sqlserverTest) TestUpdate() {
 	sst.Equal(int64(1), count)
 }
 
+func (sst *sqlserverTest) TestUpdateWithLimit() {
+	ds := sst.db.From("entry")
+	_, err := ds.Where(goqu.C("int").Gte(0)).Limit(1).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
+	sst.NoError(err)
+
+	count, err := ds.Where(goqu.C("int").Eq(99)).Count()
+	sst.NoError(err)
+	sst.Equal(int64(1), count)
+}
+
 func (sst *sqlserverTest) TestUpdateReturning() {
 	ds := sst.db.From("entry")
 	var id uint32

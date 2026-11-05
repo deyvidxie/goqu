@@ -126,6 +126,17 @@ func (sds *sqlserverDialectSuite) TestSelectDistinctWithLimit() {
 	)
 }
 
+func (sds *sqlserverDialectSuite) TestSelectLimitAll() {
+	ds := goqu.Dialect("sqlserver").From("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.LimitAll(), sql: `SELECT * FROM "test"`},
+		sqlTestCase{
+			ds:  ds.Order(goqu.C("a").Asc()).Offset(2).LimitAll(),
+			sql: `SELECT * FROM "test" ORDER BY "a" ASC OFFSET 2 ROWS`,
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestDeleteWithLimit() {
 	ds := goqu.Dialect("sqlserver").Delete("test")
 	sds.assertSQL(
@@ -136,6 +147,10 @@ func (sds *sqlserverDialectSuite) TestDeleteWithLimit() {
 		sqlTestCase{
 			ds:  ds.Limit(10),
 			sql: `DELETE TOP (10) FROM "test"`,
+		},
+		sqlTestCase{
+			ds:  ds.LimitAll(),
+			sql: `DELETE FROM "test"`,
 		},
 		// Without a limit the statement is unchanged.
 		sqlTestCase{
@@ -161,6 +176,48 @@ func (sds *sqlserverDialectSuite) TestDeleteWithOrderIsAnError() {
 		sqlTestCase{
 			ds:  ds.Order(goqu.C("a").Asc()).Limit(10),
 			err: "goqu: dialect does not support ORDER BY on DELETE [dialect=sqlserver]",
+		},
+	)
+}
+
+func (sds *sqlserverDialectSuite) TestUpdateWithLimit() {
+	ds := goqu.Dialect("sqlserver").Update("test").Set(goqu.Record{"a": 2})
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Gt(1)).Limit(1),
+			sql: `UPDATE TOP (1) "test" SET "a"=2 WHERE ("a" > 1)`,
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Gt(1)),
+			sql: `UPDATE "test" SET "a"=2 WHERE ("a" > 1)`,
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Gt(1)).LimitAll(),
+			sql: `UPDATE "test" SET "a"=2 WHERE ("a" > 1)`,
+		},
+		sqlTestCase{
+			ds:  ds.From("other").Where(goqu.C("a").Gt(1)).Limit(1),
+			sql: `UPDATE TOP (1) "test" SET "a"=2 FROM "other" WHERE ("a" > 1)`,
+		},
+		sqlTestCase{
+			ds:         ds.Where(goqu.C("a").Gt(1)).Limit(1).Prepared(true),
+			sql:        `UPDATE TOP (@p1) "test" SET "a"=@p2 WHERE ("a" > @p3)`,
+			isPrepared: true,
+			args:       []interface{}{int64(1), int64(2), int64(1)},
+		},
+	)
+}
+
+func (sds *sqlserverDialectSuite) TestUpdateWithOrderIsAnError() {
+	ds := goqu.Dialect("sqlserver").Update("test").Set(goqu.Record{"a": 2})
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Order(goqu.C("a").Asc()),
+			err: "goqu: dialect does not support ORDER BY on UPDATE [dialect=sqlserver]",
+		},
+		sqlTestCase{
+			ds:  ds.Order(goqu.C("a").Asc()).Limit(1),
+			err: "goqu: dialect does not support ORDER BY on UPDATE [dialect=sqlserver]",
 		},
 	)
 }

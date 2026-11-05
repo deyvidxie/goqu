@@ -146,7 +146,7 @@ func (ssg *selectSQLGenerator) SelectWithLimitSQL(b sb.SQLBuilder, clauses exp.S
 	if b.Error() != nil {
 		return
 	}
-	if clauses.Offset() == 0 && clauses.Limit() != nil {
+	if clauses.Offset() == 0 && clauses.Limit() != nil && !isUnsupportedLimitAll(ssg.DialectOptions(), clauses.Limit()) {
 		ssg.LimitSQL(b, clauses.Limit())
 		b.WriteRunes(ssg.DialectOptions().SpaceRune)
 	}
