@@ -471,7 +471,7 @@ it with the table name.
 uses `Excluded` reads from `(SELECT ...) AS excluded`, so the update can reference `excluded` but not the tables of the
 `SELECT`.
 
-**NOTE** SQL Server has no upsert syntax; `OnConflict` returns an error.
+**NOTE** `OnConflict` returns an error on SQL Server.
 
 <a name="returning"></a>
 **Returning Clause**

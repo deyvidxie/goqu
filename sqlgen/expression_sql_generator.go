@@ -55,7 +55,9 @@ var (
 
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
-	errExcludedRowAliasUnresolved    = NewInvalidExpressionError("Excluded appeared after the row alias was chosen")
+	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
+		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
+	)
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
@@ -80,6 +82,10 @@ func errUnsupportedArithmeticExpressionOperator(op exp.ArithmeticOperation) erro
 
 func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
 	return NewUnsupportedError("range operator %+v not supported", op)
+}
+
+func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
+	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
 func errLateralNotSupported(dialect string) error {
@@ -343,9 +349,11 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 			return
 		}
 		esg.Generate(b, ub.rowAlias.Col(e.Col()))
-	default:
+	case ExcludedTableStyle:
 		b.Write(esg.dialectOptions.ExcludedFragment).WriteRunes(esg.dialectOptions.PeriodRune)
 		esg.quotedIdentifierSQL(b, e.Col())
+	default:
+		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
 	}
 }
 

@@ -143,7 +143,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	default:
 		isg.defaultValuesSQL(b)
 	}
-	if ic.HasAlias() {
+	if rowAlias == nil && ic.HasAlias() {
 		rowAlias = ic.Alias()
 	}
 	if rowAlias != nil {
@@ -166,7 +166,7 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	}
 	alias := exp.NewIdentifierExpression("", isg.DialectOptions().ExcludedRowAlias, nil)
 	if ic.HasAlias() {
-		alias = ic.Alias()
+		alias = rowAliasTable(ic.Alias())
 	}
 	probe := &conflictUpdateBuilder{SQLBuilder: sb.NewSQLBuilder(isPrepared), rowAlias: alias}
 	defer sb.ReleaseSQLBuilder(probe.SQLBuilder)
@@ -186,6 +186,13 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 		return nil, nil, errExcludedRowAliasEmpty
 	}
 	return alias, rendered, nil
+}
+
+func rowAliasTable(alias exp.IdentifierExpression) exp.IdentifierExpression {
+	if name, ok := alias.GetCol().(string); ok && name != "" && alias.GetTable() == "" {
+		return exp.NewIdentifierExpression("", name, nil)
+	}
+	return alias
 }
 
 func (isg *insertSQLGenerator) insertFromRowAliasSQL(
