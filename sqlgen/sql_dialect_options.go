@@ -19,6 +19,9 @@ type (
 		SupportsDeleteTableHint bool
 		// Set to true if the dialect supports ORDER BY expressions in UPDATE statements (DEFAULT=false)
 		SupportsOrderByOnUpdate bool
+		// Set to true to return an error, instead of silently dropping the clause, when ORDER BY is used on an
+		// UPDATE and SupportsOrderByOnUpdate is false (DEFAULT=false)
+		ErrorOnUnsupportedOrderByOnUpdate bool
 		// Set to true if the dialect supports LIMIT expressions in DELETE statements (DEFAULT=false)
 		SupportsLimitOnDelete bool
 		// Set to true if the dialect supports LIMIT expressions in UPDATE statements (DEFAULT=false)

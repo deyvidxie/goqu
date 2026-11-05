@@ -14,7 +14,8 @@ func DialectOptions() *goqu.SQLDialectOptions {
 
 	opts.SupportsReturn = false
 	opts.SupportsOrderByOnUpdate = false
-	opts.SupportsLimitOnUpdate = false
+	opts.ErrorOnUnsupportedOrderByOnUpdate = true
+	opts.SupportsLimitOnUpdate = true
 	opts.SupportsLimitOnDelete = true
 	// T-SQL has no ORDER BY on DELETE. Fail loudly instead of generating invalid SQL (or silently
 	// deleting arbitrary rows if the clause were dropped); use a subquery such as
@@ -75,6 +76,18 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		sqlgen.DeleteBeginSQLFragment,
 		sqlgen.LimitSQLFragment,
 		sqlgen.FromSQLFragment,
+		sqlgen.WhereSQLFragment,
+		sqlgen.OrderSQLFragment,
+		sqlgen.ReturningSQLFragment,
+	}
+
+	opts.UpdateSQLOrder = []sqlgen.SQLFragmentType{
+		sqlgen.CommonTableSQLFragment,
+		sqlgen.UpdateBeginSQLFragment,
+		sqlgen.LimitSQLFragment,
+		sqlgen.SourcesSQLFragment,
+		sqlgen.UpdateSQLFragment,
+		sqlgen.UpdateFromSQLFragment,
 		sqlgen.WhereSQLFragment,
 		sqlgen.OrderSQLFragment,
 		sqlgen.ReturningSQLFragment,

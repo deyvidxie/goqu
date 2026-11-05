@@ -196,6 +196,29 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrder() {
 	)
 }
 
+func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderErrorOnUnsupported() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsOrderByOnUpdate = false
+	opts.ErrorOnUnsupportedOrderByOnUpdate = true
+	uc := exp.NewUpdateClauses().
+		SetTable(exp.NewIdentifierExpression("", "test", "")).
+		SetSetValues(exp.Record{"a": "b"})
+
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
+		updateTestCase{
+			clause: uc.SetOrder(exp.NewIdentifierExpression("", "", "a").Asc()),
+			err:    "goqu: dialect does not support ORDER BY on UPDATE [dialect=test]",
+		},
+		updateTestCase{
+			clause:     uc.SetOrder(exp.NewIdentifierExpression("", "", "a").Asc()),
+			err:        "goqu: dialect does not support ORDER BY on UPDATE [dialect=test]",
+			isPrepared: true,
+		},
+		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b'`},
+	)
+}
+
 func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimit() {
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).

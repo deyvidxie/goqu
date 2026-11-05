@@ -26,6 +26,10 @@ var (
 	ErrNoSetValuesForUpdate = errors.New("no set values found when generating UPDATE sql")
 )
 
+func ErrOrderByOnUpdateNotSupported(dialect string) error {
+	return errors.New("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
+}
+
 func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) UpdateSQLGenerator {
 	return &updateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
@@ -65,9 +69,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case WhereSQLFragment:
 			usg.WhereSQL(b, clauses.Where())
 		case OrderSQLFragment:
-			if usg.DialectOptions().SupportsOrderByOnUpdate {
-				usg.OrderSQL(b, clauses.Order())
-			}
+			usg.updateOrderSQL(b, clauses)
 		case LimitSQLFragment:
 			if usg.DialectOptions().SupportsLimitOnUpdate {
 				usg.LimitSQL(b, clauses.Limit())
@@ -77,6 +79,15 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		default:
 			b.SetError(ErrNotSupportedFragment("UPDATE", f))
 		}
+	}
+}
+
+func (usg *updateSQLGenerator) updateOrderSQL(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+	switch {
+	case usg.DialectOptions().SupportsOrderByOnUpdate:
+		usg.OrderSQL(b, clauses.Order())
+	case clauses.HasOrder() && usg.DialectOptions().ErrorOnUnsupportedOrderByOnUpdate:
+		b.SetError(ErrOrderByOnUpdateNotSupported(usg.Dialect()))
 	}
 }
 
