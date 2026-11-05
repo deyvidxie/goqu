@@ -31,6 +31,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.True = []byte("1")
 	opts.False = []byte("0")
 	opts.TimeFormat = "2006-01-02 15:04:05"
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForKeyShare}
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{
 		exp.EqOp:             []byte("="),
 		exp.NeqOp:            []byte("!="),

@@ -237,6 +237,25 @@ func (mds *mysqlDialectSuite) TestTimeLiteralPrecision() {
 	)
 }
 
+func (mds *mysqlDialectSuite) TestLockClauses() {
+	for _, dialect := range []string{"mysql", "mysql8"} {
+		ds := goqu.Dialect(dialect).From("test")
+		mds.assertSQL(
+			sqlTestCase{ds: ds.ForUpdate(goqu.Wait), sql: "SELECT * FROM `test` FOR UPDATE "},
+			sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), sql: "SELECT * FROM `test` FOR UPDATE SKIP LOCKED"},
+			sqlTestCase{ds: ds.ForShare(goqu.NoWait), sql: "SELECT * FROM `test` FOR SHARE NOWAIT"},
+			sqlTestCase{
+				ds:  ds.ForNoKeyUpdate(goqu.Wait),
+				err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=" + dialect + "]",
+			},
+			sqlTestCase{
+				ds:  ds.ForKeyShare(goqu.Wait),
+				err: "goqu: dialect does not support FOR KEY SHARE [dialect=" + dialect + "]",
+			},
+		)
+	}
+}
+
 func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(mysqlDialectSuite))
 }

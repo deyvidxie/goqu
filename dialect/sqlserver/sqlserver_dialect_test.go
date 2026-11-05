@@ -237,6 +237,17 @@ func (sds *sqlserverDialectSuite) TestUpdateWithOrderIsAnError() {
 	)
 }
 
+func (sds *sqlserverDialectSuite) TestLockClausesAreErrors() {
+	ds := goqu.Dialect("sqlserver").From("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), err: "goqu: dialect does not support FOR UPDATE [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), err: "goqu: dialect does not support FOR UPDATE [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.ForNoKeyUpdate(goqu.Wait), err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.ForShare(goqu.NoWait), err: "goqu: dialect does not support FOR SHARE [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.ForKeyShare(goqu.Wait), err: "goqu: dialect does not support FOR KEY SHARE [dialect=sqlserver]"},
+	)
+}
+
 func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(sqlserverDialectSuite))
 }
