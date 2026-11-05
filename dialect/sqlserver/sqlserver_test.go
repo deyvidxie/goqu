@@ -79,6 +79,14 @@ func (sst *sqlserverTest) assertEntries(cases ...entryTestCase) {
 	}
 }
 
+func (sst *sqlserverTest) insertEntryAt(ds *goqu.SelectDataset, t time.Time) {
+	_, err := ds.Insert().Rows(goqu.Record{
+		"int": 10, "float": 1.0, "string": "x", "time": t, "bool": true,
+		"bytes": goqu.Cast(goqu.V([]byte("x")), "BINARY(8)"),
+	}).Executor().Exec()
+	sst.Require().NoError(err)
+}
+
 func (sst *sqlserverTest) SetupSuite() {
 	dbURI := os.Getenv("SQLSERVER_URI")
 	if dbURI == "" {
@@ -443,14 +451,6 @@ func (sst *sqlserverTest) TestInsertReturningProducesError() {
 	e := entry{Int: 10, Float: 1.000000, String: "1.000000", Time: now, Bool: true, Bytes: []byte("1.000000")}
 	_, err := ds.Insert().Rows(e).Returning(goqu.Star()).Executor().ScanStruct(&e)
 	sst.Error(err)
-}
-
-func (sst *sqlserverTest) insertEntryAt(ds *goqu.SelectDataset, t time.Time) {
-	_, err := ds.Insert().Rows(goqu.Record{
-		"int": 10, "float": 1.0, "string": "x", "time": t, "bool": true,
-		"bytes": goqu.Cast(goqu.V([]byte("x")), "BINARY(8)"),
-	}).Executor().Exec()
-	sst.Require().NoError(err)
 }
 
 func (sst *sqlserverTest) TestInterpolatedInsertKeepsTimeFraction() {
