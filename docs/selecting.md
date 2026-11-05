@@ -963,6 +963,8 @@ Output:
 SELECT * FROM "test" FOR UPDATE OF "test"
 ```
 
+**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql8` returns an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also for `ForShare`, and does not support `NOWAIT`, `SKIP LOCKED` or `OF`, which it still emits. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths.
+
 ## Executing Queries
 
 To execute your query use [`goqu.Database#From`](https://godoc.org/github.com/doug-martin/goqu/#Database.From) to create your dataset
