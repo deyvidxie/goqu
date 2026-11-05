@@ -801,6 +801,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 			isPrepared: true,
 			args:       []interface{}{"a1", "b1"},
 		},
+		insertTestCase{
+			clause: ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
+				"a": &secondCallValuer{second: exp.NewExcludedExpression("a")},
+			})),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES ($1, $2) AS "new" ON CONFLICT (a) DO UPDATE SET "a"="new"."a"`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1"},
+		},
 	)
 
 	noUpsertOpts := sqlgen.DefaultDialectOptions()

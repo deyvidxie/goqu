@@ -60,7 +60,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 		}},
-		{"upsert", "dialect does not support upsert", func(o *sqlgen.SQLDialectOptions) {
+		{"upsert", "does not support upsert [dialect=", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsOnConflict = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoNothing())
@@ -70,6 +70,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.C("a").Eq(1)))
+		}},
+		{"unknown ExcludedStyle", "unknown ExcludedStyle", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle + 1
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
 		{"Excluded with INSERT SELECT without Cols", "requires Cols(...).FromQuery(...) to use Excluded", func(o *sqlgen.SQLDialectOptions) {
 			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle

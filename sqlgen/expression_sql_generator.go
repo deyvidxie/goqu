@@ -333,7 +333,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 		b.SetError(errExcludedOutsideConflictUpdate)
 		return
 	}
-	if e.Col() == "" {
+	if e.GetCol() == "" {
 		b.SetError(errExcludedWithoutColumn)
 		return
 	}
@@ -341,17 +341,17 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 	switch esg.dialectOptions.ExcludedStyle {
 	case ExcludedValuesFuncStyle:
 		b.Write(esg.dialectOptions.ValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
-		esg.quotedIdentifierSQL(b, e.Col())
+		esg.quotedIdentifierSQL(b, e.GetCol())
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	case ExcludedRowAliasStyle:
 		if ub.rowAlias == nil {
 			b.SetError(errExcludedRowAliasUnresolved)
 			return
 		}
-		esg.Generate(b, ub.rowAlias.Col(e.Col()))
+		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
 	case ExcludedTableStyle:
 		b.Write(esg.dialectOptions.ExcludedFragment).WriteRunes(esg.dialectOptions.PeriodRune)
-		esg.quotedIdentifierSQL(b, e.Col())
+		esg.quotedIdentifierSQL(b, e.GetCol())
 	default:
 		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
 	}

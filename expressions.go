@@ -63,7 +63,7 @@ func DoUpdateExcluded(target string, cols ...interface{}) exp.ConflictUpdateExpr
 	updates := make([]exp.UpdateExpression, 0, len(cols))
 	for _, col := range cols {
 		e := exp.NewExcludedExpression(col)
-		updates = append(updates, C(e.Col()).Set(e))
+		updates = append(updates, C(e.GetCol()).Set(e))
 	}
 	return DoUpdate(target, updates)
 }

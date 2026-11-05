@@ -22,7 +22,7 @@ func (e excluded) Expression() Expression { return e }
 
 func (e excluded) Clone() Expression { return e }
 
-func (e excluded) Col() string { return e.col }
+func (e excluded) GetCol() string { return e.col }
 
 func (e excluded) Eq(val interface{}) BooleanExpression  { return eq(e, val) }
 func (e excluded) Neq(val interface{}) BooleanExpression { return neq(e, val) }

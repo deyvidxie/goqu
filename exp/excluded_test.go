@@ -25,7 +25,7 @@ func TestNewExcludedExpression(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			e := exp.NewExcludedExpression(tc.col)
-			assert.Equal(t, tc.want, e.Col())
+			assert.Equal(t, tc.want, e.GetCol())
 			assert.Equal(t, e, e.Expression())
 			assert.Equal(t, e, e.Clone())
 		})

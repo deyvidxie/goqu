@@ -331,7 +331,7 @@ type (
 		Rangeable
 		Likeable
 		Bitwiseable
-		Col() string
+		GetCol() string
 	}
 	CommonTableExpression interface {
 		Expression

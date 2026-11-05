@@ -144,7 +144,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 		isg.defaultValuesSQL(b)
 	}
 	if rowAlias == nil && ic.HasAlias() {
-		rowAlias = ic.Alias()
+		rowAlias = rowAliasTable(ic.Alias())
 	}
 	if rowAlias != nil {
 		b.Write(isg.DialectOptions().AsFragment)
@@ -335,7 +335,7 @@ func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp
 		return
 	}
 	for _, u := range ue {
-		if e, ok := u.Val().(exp.ExcludedExpression); ok && e.Col() == "" {
+		if e, ok := u.Val().(exp.ExcludedExpression); ok && e.GetCol() == "" {
 			b.SetError(errExcludedWithoutColumn)
 			return
 		}
