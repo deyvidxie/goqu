@@ -154,12 +154,12 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	}
 }
 
-// Generates the LIMIT clause for an SQL statement
 func isUnsupportedLimitAll(opts *SQLDialectOptions, limit interface{}) bool {
 	l, ok := limit.(exp.LiteralExpression)
-	return ok && !opts.SupportsLimitAll && l.Literal() == "ALL" && len(l.Args()) == 0
+	return ok && !opts.SupportsLimitAll && l.Literal() == "ALL"
 }
 
+// Generates the LIMIT clause for an SQL statement
 func (csg *commonSQLGenerator) LimitSQL(b sb.SQLBuilder, limit interface{}) {
 	if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 		b.Write(csg.dialectOptions.LimitFragment)

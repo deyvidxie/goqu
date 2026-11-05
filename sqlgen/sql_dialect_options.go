@@ -26,6 +26,8 @@ type (
 		SupportsLimitOnDelete bool
 		// Set to true if the dialect supports LIMIT expressions in UPDATE statements (DEFAULT=false)
 		SupportsLimitOnUpdate bool
+		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
+		SupportsLimitAll bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
@@ -58,8 +60,6 @@ type (
 
 		// Surround LIMIT parameter with parentheses, like in MSSQL: SELECT TOP (10) ...
 		SurroundLimitWithParentheses bool
-		// Set to false if the dialect has no LIMIT ALL; LimitAll() then emits no limit (DEFAULT=true)
-		SupportsLimitAll bool
 
 		// The UPDATE fragment to use when generating sql. (DEFAULT=[]byte("UPDATE"))
 		UpdateClause []byte

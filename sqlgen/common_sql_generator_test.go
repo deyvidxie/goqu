@@ -348,6 +348,7 @@ func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
 
 		commonSQLTestCase{gen: limitGen(csgNoLimitAll, la), sql: ``},
 		commonSQLTestCase{gen: limitGen(csgNoLimitAll, l), sql: ` LIMIT 10`},
+		commonSQLTestCase{gen: limitGen(csgNoLimitAll, exp.NewLiteralExpression("1")), sql: ` LIMIT 1`},
 
 		commonSQLTestCase{gen: limitGen(csgCustom, nil), sql: ``},
 		commonSQLTestCase{gen: limitGen(csgCustom, nil), sql: ``, isPrepared: true, args: emptyArgs},
