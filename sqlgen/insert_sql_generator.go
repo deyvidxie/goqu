@@ -33,8 +33,6 @@ type (
 )
 
 var (
-	selectAllFromFragment = []byte(" SELECT * FROM (")
-
 	errExcludedRowAliasEmpty = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
 
 	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
@@ -196,7 +194,9 @@ func (isg *insertSQLGenerator) insertFromRowAliasSQL(
 	cols exp.ColumnListExpression,
 	rowAlias exp.IdentifierExpression,
 ) {
-	b.Write(selectAllFromFragment)
+	opts := isg.DialectOptions()
+	b.WriteRunes(opts.SpaceRune).Write(opts.SelectClause).WriteRunes(opts.SpaceRune, opts.StarRune).
+		Write(opts.FromFragment).WriteRunes(opts.SpaceRune, opts.LeftParenRune)
 	from.AppendSQL(b)
 	b.WriteRunes(isg.DialectOptions().RightParenRune)
 	b.Write(isg.DialectOptions().AsFragment)

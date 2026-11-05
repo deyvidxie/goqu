@@ -53,9 +53,6 @@ var (
 	ErrUnexpectedNamedWindow = errors.New(`unexpected named window function`)
 	ErrEmptyCaseWhens        = errors.New(`when conditions not found for case statement`)
 
-	excludedTableFragment = []byte("EXCLUDED.")
-	valuesFuncFragment    = []byte("VALUES(")
-
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 	errExcludedRowAliasUnresolved    = NewInvalidExpressionError("Excluded appeared after the row alias was chosen")
@@ -337,7 +334,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 	ub.usesExcluded = true
 	switch esg.dialectOptions.ExcludedStyle {
 	case ExcludedValuesFuncStyle:
-		b.Write(valuesFuncFragment)
+		b.Write(esg.dialectOptions.ValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
 		esg.quotedIdentifierSQL(b, e.Col())
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	case ExcludedRowAliasStyle:
@@ -347,7 +344,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 		}
 		esg.Generate(b, ub.rowAlias.Col(e.Col()))
 	default:
-		b.Write(excludedTableFragment)
+		b.Write(esg.dialectOptions.ExcludedFragment).WriteRunes(esg.dialectOptions.PeriodRune)
 		esg.quotedIdentifierSQL(b, e.Col())
 	}
 }

@@ -326,6 +326,10 @@ type (
 		ExcludedStyle ExcludedStyle
 		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
 		ExcludedRowAlias string
+		// The table ExcludedTableStyle qualifies the column with (Default=[]byte("EXCLUDED"))
+		ExcludedFragment []byte
+		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
+		ValuesFuncFragment []byte
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -558,6 +562,8 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		ConflictDoUpdateFragment:  []byte(" DO UPDATE SET "),
 		ConflictDoNothingFragment: []byte(" DO NOTHING"),
 		ExcludedRowAlias:          "excluded",
+		ExcludedFragment:          []byte("EXCLUDED"),
+		ValuesFuncFragment:        []byte("VALUES"),
 		CastFragment:              []byte("CAST"),
 		CollateFragment:           []byte(" COLLATE "),
 		CaseFragment:              []byte("CASE "),

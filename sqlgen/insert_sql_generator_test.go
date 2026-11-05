@@ -662,6 +662,56 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+		SetVals([][]interface{}{{"a1", "b1"}})
+	excludedB := exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})
+
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ExcludedFragment = []byte("excluded")
+	opts.PeriodRune = ':'
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"=excluded:"b"`,
+		},
+	)
+
+	valuesOpts := sqlgen.DefaultDialectOptions()
+	valuesOpts.ExcludedStyle = sqlgen.ExcludedValuesFuncStyle
+	valuesOpts.ValuesFuncFragment = []byte("values")
+	valuesOpts.LeftParenRune = '['
+	valuesOpts.RightParenRune = ']'
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", valuesOpts),
+		insertTestCase{
+			clause: ic.SetOnConflict(excludedB),
+			sql:    `INSERT INTO "test" ["a", "b"] VALUES ['a1', 'b1'] ON CONFLICT [a] DO UPDATE SET "b"=values["b"]`,
+		},
+	)
+
+	aliasOpts := sqlgen.DefaultDialectOptions()
+	aliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	aliasOpts.SelectClause = []byte("select")
+	aliasOpts.FromFragment = []byte(" from")
+	aliasOpts.StarRune = '%'
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", aliasOpts),
+		insertTestCase{
+			clause: exp.NewInsertClauses().
+				SetInto(exp.NewIdentifierExpression("", "test", "")).
+				SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
+				SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)).
+				SetOnConflict(excludedB),
+			sql: `INSERT INTO "test" ("a", "b") select % from (select c, d from test2) AS "excluded" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="excluded"."b"`,
+		},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptions() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
