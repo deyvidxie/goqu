@@ -963,7 +963,7 @@ Output:
 SELECT * FROM "test" FOR UPDATE OF "test"
 ```
 
-**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths.
+**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql8` returns an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also for `ForShare`, and does not support `NOWAIT`, `SKIP LOCKED` or `OF`, which it still emits. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths.
 
 ## Executing Queries
 
