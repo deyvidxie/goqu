@@ -461,10 +461,10 @@ Output:
 INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=EXCLUDED."qty"
 ```
 
-**NOTE**
-* Postgres and MySQL 8 reject an unqualified reference to the existing row's column next to `Excluded`; qualify it
-  with the table name.
-* `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`.
+**NOTE** Postgres and MySQL 8 reject an unqualified reference to the existing row's column next to `Excluded`; qualify
+it with the table name.
+
+**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`.
 
 <a name="returning"></a>
 **Returning Clause**

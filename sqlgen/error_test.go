@@ -28,7 +28,7 @@ func TestIsInvalidExpression(t *testing.T) {
 	assert.False(t, sqlgen.IsInvalidExpression(nil))
 }
 
-//nolint:funlen // one case per unsupported feature
+//nolint:funlen
 func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 	type sqlBuilder interface {
 		ToSQL() (string, []interface{}, error)

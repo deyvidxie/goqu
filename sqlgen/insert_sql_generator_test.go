@@ -514,6 +514,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
 			clause: ic.SetOnConflict(excludedB),
 			sql:    `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') ON CONFLICT (a) DO UPDATE SET "b"=VALUES("b")`,
 		},
+		insertTestCase{
+			clause:     ic.SetOnConflict(excludedB),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?) ON CONFLICT (a) DO UPDATE SET "b"=VALUES("b")`,
+			isPrepared: true,
+			args:       []interface{}{"a1", "b1"},
+		},
 	)
 }
 
@@ -645,6 +651,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 			err: "goqu: Excluded appeared after the row alias was chosen",
 		},
 	)
+
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewInsertSQLGenerator("test", "db", aliasOpts).Generate(b, ic.SetOnConflict(
+		exp.NewDoUpdateConflictExpression("a", exp.Record{"a": &secondCallValuer{second: exp.NewExcludedExpression("a")}}),
+	))
+	_, _, err := b.ToSQL()
+	igs.True(sqlgen.IsInvalidExpression(err))
 }
 
 type secondCallValuer struct {
