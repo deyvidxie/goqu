@@ -309,7 +309,7 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 	case exp.CollateExpression:
 		esg.collateExpressionSQL(b, e)
 	case exp.ExcludedExpression:
-		esg.excludedSQL(b, e)
+		esg.excludedExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -327,7 +327,7 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 	}
 }
 
-func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
+func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
 	ub, ok := b.(*conflictUpdateBuilder)
 	if !ok {
 		b.SetError(errExcludedOutsideConflictUpdate)
@@ -340,7 +340,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 	ub.usesExcluded = true
 	switch esg.dialectOptions.ExcludedStyle {
 	case ExcludedValuesFuncStyle:
-		b.Write(esg.dialectOptions.ValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
+		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
 		esg.quotedIdentifierSQL(b, e.GetCol())
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	case ExcludedRowAliasStyle:
@@ -350,7 +350,7 @@ func (esg *expressionSQLGenerator) excludedSQL(b sb.SQLBuilder, e exp.ExcludedEx
 		}
 		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
 	case ExcludedTableStyle:
-		b.Write(esg.dialectOptions.ExcludedFragment).WriteRunes(esg.dialectOptions.PeriodRune)
+		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
 		esg.quotedIdentifierSQL(b, e.GetCol())
 	default:
 		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
