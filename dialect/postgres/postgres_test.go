@@ -373,10 +373,10 @@ func (pt *postgresTest) TestInsertReturning() {
 
 func (pt *postgresTest) TestUpdateWithLimitIsRejectedWithoutWriting() {
 	ds := pt.db.From("entry")
-	_, err := ds.Where(goqu.C("int").Gte(0)).Limit(1).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
+	_, err := ds.Where(goqu.C("int").Gte(0)).Limit(1).Update().Set(goqu.Record{"string": "limited"}).Executor().Exec()
 	pt.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]")
 
-	count, err := ds.Where(goqu.C("int").Eq(99)).Count()
+	count, err := ds.Where(goqu.C("string").Eq("limited")).Count()
 	pt.NoError(err)
 	pt.Zero(count)
 }
