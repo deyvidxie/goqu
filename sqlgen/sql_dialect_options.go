@@ -140,6 +140,8 @@ type (
 		NowaitFragment []byte
 		// The SQL SKIP LOCKED fragment(DEFAULT=[]byte("SKIP LOCKED"))
 		SkipLockedFragment []byte
+		// Lock strengths that return an error instead of generating a locking clause (DEFAULT=none)
+		UnsupportedLockStrengths []exp.LockStrength
 		// The SQL AS fragment when aliasing an Expression(DEFAULT=[]byte(" AS "))
 		AsFragment []byte
 		// The SQL LATERAL fragment used for LATERAL joins

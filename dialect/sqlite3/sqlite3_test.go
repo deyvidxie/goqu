@@ -340,6 +340,12 @@ func (st *sqlite3Suite) TestILikeEscapesLiteralPercent() {
 	st.Equal(int64(11), count)
 }
 
+func (st *sqlite3Suite) TestForUpdateSkipLockedRuns() {
+	var entries []entry
+	st.NoError(st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries))
+	st.Len(entries, 10)
+}
+
 func (st *sqlite3Suite) TestInsert() {
 	ds := st.db.From("entry")
 	now := time.Now()

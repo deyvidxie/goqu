@@ -80,6 +80,8 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.ForUpdateFragment = []byte("")
 	opts.OfFragment = []byte("")
 	opts.NowaitFragment = []byte("")
+	opts.SkipLockedFragment = []byte("")
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 
 	opts.LikeEscapeKey = "ESCAPE"
 	opts.LikeEscapeValue = "\\"

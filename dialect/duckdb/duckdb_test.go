@@ -154,6 +154,12 @@ func (st *duckdbSuite) TestGreatestAndLeast() {
 	st.Equal([]int{0, 1, 2, 3, 4, 5, 5, 5, 5, 5}, least)
 }
 
+func (st *duckdbSuite) TestForUpdateSkipLockedRuns() {
+	var entries []entry
+	st.NoError(st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries))
+	st.Len(entries, 10)
+}
+
 func (st *duckdbSuite) TestILike() {
 	ds := st.db.From("entry")
 	mixed := entry{Int: 10, Float: 1.0, String: "Mixed Case", Time: time.Now(), Bool: true, Bytes: []byte("x")}

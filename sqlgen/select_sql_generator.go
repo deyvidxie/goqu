@@ -1,6 +1,8 @@
 package sqlgen
 
 import (
+	"slices"
+
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -39,6 +41,17 @@ func ErrDistinctOnNotSupported(dialect string) error {
 
 func ErrWindowNotSupported(dialect string) error {
 	return errors.New("dialect does not support WINDOW clause [dialect=%s]", dialect)
+}
+
+var lockStrengthSQL = map[exp.LockStrength]string{
+	exp.ForUpdate:      "FOR UPDATE",
+	exp.ForNoKeyUpdate: "FOR NO KEY UPDATE",
+	exp.ForShare:       "FOR SHARE",
+	exp.ForKeyShare:    "FOR KEY SHARE",
+}
+
+func ErrLockStrengthNotSupported(dialect string, strength exp.LockStrength) error {
+	return errors.New("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
 }
 
 func ErrQualifyNotSupported(dialect string) error {
@@ -226,6 +239,10 @@ func (ssg *selectSQLGenerator) CompoundsSQL(b sb.SQLBuilder, compounds []exp.Com
 // Generates the FOR (aka "locking") clause for an SQL statement
 func (ssg *selectSQLGenerator) ForSQL(b sb.SQLBuilder, lockingClause exp.Lock) {
 	if lockingClause == nil {
+		return
+	}
+	if slices.Contains(ssg.DialectOptions().UnsupportedLockStrengths, lockingClause.Strength()) {
+		b.SetError(ErrLockStrengthNotSupported(ssg.Dialect(), lockingClause.Strength()))
 		return
 	}
 	switch lockingClause.Strength() {
