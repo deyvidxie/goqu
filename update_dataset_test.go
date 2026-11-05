@@ -525,3 +525,20 @@ func (uds *updateDatasetSuite) TestSetError() {
 func TestUpdateDataset(t *testing.T) {
 	suite.Run(t, new(updateDatasetSuite))
 }
+
+func TestDefaultDialectDropsUpdateAndDeleteLimitAndOrder(t *testing.T) {
+	for _, c := range []struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		sql string
+	}{
+		{goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(1).Order(goqu.C("a").Asc()), `UPDATE "test" SET "a"=1`},
+		{goqu.Delete("test").Limit(1).Order(goqu.C("a").Asc()), `DELETE FROM "test"`},
+	} {
+		sql, _, err := c.ds.ToSQL()
+		if err != nil || sql != c.sql {
+			t.Errorf("got %q, %v; want %q", sql, err, c.sql)
+		}
+	}
+}

@@ -27,6 +27,10 @@ func ErrOrderByOnDeleteNotSupported(dialect string) error {
 	return errors.New("dialect does not support ORDER BY on DELETE [dialect=%s]", dialect)
 }
 
+func ErrLimitOnDeleteNotSupported(dialect string) error {
+	return errors.New("dialect does not support LIMIT on DELETE [dialect=%s]", dialect)
+}
+
 func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) DeleteSQLGenerator {
 	return &deleteSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
@@ -60,8 +64,12 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 				return
 			}
 		case LimitSQLFragment:
-			if dsg.DialectOptions().SupportsLimitOnDelete {
+			switch {
+			case dsg.DialectOptions().SupportsLimitOnDelete:
 				dsg.LimitSQL(b, clauses.Limit())
+			case hasRealLimit(clauses.Limit()) && dsg.DialectOptions().ErrorOnUnsupportedLimitOnDelete:
+				b.SetError(ErrLimitOnDeleteNotSupported(dsg.Dialect()))
+				return
 			}
 		case ReturningSQLFragment:
 			dsg.ReturningSQL(b, clauses.Returning())

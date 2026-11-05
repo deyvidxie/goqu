@@ -30,6 +30,10 @@ func ErrOrderByOnUpdateNotSupported(dialect string) error {
 	return errors.New("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
 }
 
+func ErrLimitOnUpdateNotSupported(dialect string) error {
+	return errors.New("dialect does not support LIMIT on UPDATE [dialect=%s]", dialect)
+}
+
 func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) UpdateSQLGenerator {
 	return &updateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
@@ -71,14 +75,21 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case OrderSQLFragment:
 			usg.updateOrderSQL(b, clauses)
 		case LimitSQLFragment:
-			if usg.DialectOptions().SupportsLimitOnUpdate {
-				usg.LimitSQL(b, clauses.Limit())
-			}
+			usg.updateLimitSQL(b, clauses)
 		case ReturningSQLFragment:
 			usg.ReturningSQL(b, clauses.Returning())
 		default:
 			b.SetError(ErrNotSupportedFragment("UPDATE", f))
 		}
+	}
+}
+
+func (usg *updateSQLGenerator) updateLimitSQL(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+	switch {
+	case usg.DialectOptions().SupportsLimitOnUpdate:
+		usg.LimitSQL(b, clauses.Limit())
+	case hasRealLimit(clauses.Limit()) && usg.DialectOptions().ErrorOnUnsupportedLimitOnUpdate:
+		b.SetError(ErrLimitOnUpdateNotSupported(usg.Dialect()))
 	}
 }
 

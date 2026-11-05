@@ -22,3 +22,34 @@ func TestInsertOnConflictDoNothingTarget(t *testing.T) {
 	assert.Equal(t, `INSERT INTO "test" ("a") VALUES ($1) ON CONFLICT ("a") DO NOTHING`, sql)
 	assert.Equal(t, []any{"a"}, args)
 }
+
+func TestUpdateAndDeleteLimitAndOrderAreErrors(t *testing.T) {
+	update := goqu.Dialect("postgres").Update("test").Set(goqu.Record{"a": 1}).Where(goqu.C("a").Gt(1))
+	del := goqu.Dialect("postgres").Delete("test").Where(goqu.C("a").Gt(1))
+	selectToUpdate := goqu.Dialect("postgres").From("test").Order(goqu.C("a").Asc()).Update().Set(goqu.Record{"a": 1})
+	for _, c := range []struct {
+		sql interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
+	}{
+		{update.Limit(1), "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]"},
+		{update.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
+		{del.Limit(1), "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]"},
+		{del.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on DELETE [dialect=postgres]"},
+		{selectToUpdate, "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
+	} {
+		_, _, err := c.sql.ToSQL()
+		assert.EqualError(t, err, c.err)
+	}
+}
+
+func TestUpdateAndDeleteLimitAllIsDropped(t *testing.T) {
+	sql, _, err := goqu.Dialect("postgres").Update("test").Set(goqu.Record{"a": 1}).LimitAll().ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `UPDATE "test" SET "a"=1`, sql)
+
+	sql, _, err = goqu.Dialect("postgres").Delete("test").LimitAll().ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `DELETE FROM "test"`, sql)
+}
