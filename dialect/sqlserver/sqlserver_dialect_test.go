@@ -2,6 +2,7 @@ package sqlserver_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -97,6 +98,20 @@ func (sds *sqlserverDialectSuite) TestFuns() {
 		sqlTestCase{ds: ds.Select(goqu.UPPER("Val")), sql: "SELECT UPPER('Val') FROM \"test\""},
 		sqlTestCase{ds: ds.Select(goqu.LOWER(col)), sql: "SELECT LOWER(\"a\") FROM \"test\""},
 		sqlTestCase{ds: ds.Select(goqu.LOWER("Val")), sql: "SELECT LOWER('Val') FROM \"test\""},
+	)
+}
+
+func (sds *sqlserverDialectSuite) TestTimeLiteral() {
+	ds := goqu.Dialect("sqlserver").From("test")
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("t").Eq(time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.UTC))),
+			sql: `SELECT * FROM "test" WHERE ("t" = '2024-01-02 03:04:05.1234567')`,
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("t").Eq(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))),
+			sql: `SELECT * FROM "test" WHERE ("t" = '2024-01-02 03:04:05')`,
+		},
 	)
 }
 
