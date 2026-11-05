@@ -22,7 +22,7 @@ const (
 		"\"int\" INT NOT NULL UNIQUE," +
 		"\"float\" FLOAT NOT NULL ," +
 		"\"string\" VARCHAR(255) NOT NULL ," +
-		"\"time\" DATETIME NOT NULL ," +
+		"\"time\" DATETIME2 NOT NULL ," +
 		"\"bool\" BIT NOT NULL ," +
 		"\"bytes\" VARBINARY(100) NOT NULL ," +
 		"PRIMARY KEY (\"id\") );"
@@ -77,6 +77,14 @@ func (sst *sqlserverTest) assertEntries(cases ...entryTestCase) {
 			c.check(entry, index)
 		}
 	}
+}
+
+func (sst *sqlserverTest) insertEntryAt(ds *goqu.SelectDataset, t time.Time) {
+	_, err := ds.Insert().Rows(goqu.Record{
+		"int": 10, "float": 1.0, "string": "x", "time": t, "bool": true,
+		"bytes": goqu.Cast(goqu.V([]byte("x")), "BINARY(8)"),
+	}).Executor().Exec()
+	sst.Require().NoError(err)
 }
 
 func (sst *sqlserverTest) SetupSuite() {
@@ -443,6 +451,26 @@ func (sst *sqlserverTest) TestInsertReturningProducesError() {
 	e := entry{Int: 10, Float: 1.000000, String: "1.000000", Time: now, Bool: true, Bytes: []byte("1.000000")}
 	_, err := ds.Insert().Rows(e).Returning(goqu.Star()).Executor().ScanStruct(&e)
 	sst.Error(err)
+}
+
+func (sst *sqlserverTest) TestInterpolatedInsertKeepsTimeFraction() {
+	t := time.Date(2024, 1, 2, 3, 4, 5, 123456700, time.UTC)
+	sst.insertEntryAt(sst.db.From("entry"), t)
+
+	var got time.Time
+	found, err := sst.db.From("entry").Select("time").Where(goqu.C("int").Eq(10)).ScanVal(&got)
+	sst.NoError(err)
+	sst.True(found)
+	sst.True(t.Equal(got), "got %s", got)
+}
+
+func (sst *sqlserverTest) TestInterpolatedEqMatchesTimeFraction() {
+	t := time.Date(2024, 1, 2, 3, 4, 5, 123456700, time.UTC)
+	sst.insertEntryAt(sst.db.From("entry").Prepared(true), t)
+
+	count, err := sst.db.From("entry").Where(goqu.C("time").Eq(t)).Count()
+	sst.NoError(err)
+	sst.Equal(int64(1), count)
 }
 
 func (sst *sqlserverTest) TestUpdate() {
