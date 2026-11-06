@@ -708,7 +708,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	for _, c := range []struct {
 		val          exp.Expression
 		sql          string
-		err          string
 		preparedSQL  string
 		preparedArgs []interface{}
 	}{
@@ -726,6 +725,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: exp.Ex{"a": exp.Op{"in": []string{}}}, sql: `(1=0)`},
 		{val: exp.Ex{"a": exp.Op{"in": nil}}, sql: `(1=0)`},
 		{val: exp.Ex{"a": exp.Op{"eq": []int{}}}, sql: `(1=0)`},
+		{val: ident.Is([]int{}), sql: `(1=0)`},
+		{val: exp.Ex{"a": exp.Op{"is": []int{}}}, sql: `(1=0)`},
 		{val: exp.NewLiteralExpression("? + 1", 5).In([]int{}), sql: `(1=0)`},
 		{val: ident.NotIn([]int{}), sql: `(1=1)`},
 		{val: ident.NotIn(nil), sql: `(1=1)`},
@@ -735,6 +736,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: exp.Ex{"a": exp.Op{"notIn": []string{}}}, sql: `(1=1)`},
 		{val: exp.Ex{"a": exp.Op{"notIn": nil}}, sql: `(1=1)`},
 		{val: exp.Ex{"a": exp.Op{"neq": []int{}}}, sql: `(1=1)`},
+		{val: ident.IsNot([]int{}), sql: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"isNot": []int{}}}, sql: `(1=1)`},
 		{val: exp.ExOr{"a": []int{}, "b": exp.Op{"notIn": []int{}}}, sql: `((1=0) OR (1=1))`},
 		{
 			val:          exp.NewExpressionList(exp.AndType, ident.In([]int{}), ident.Eq(1)),
@@ -748,7 +751,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		}
 		esgs.assertCases(
 			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-			expressionTestCase{val: c.val, sql: c.sql, err: c.err},
+			expressionTestCase{val: c.val, sql: c.sql},
 			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
 		)
 	}
@@ -860,8 +863,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	ident := exp.NewIdentifierExpression("", "", "a")
 	withoutIn := sqlgen.DefaultDialectOptions()
 	delete(withoutIn.BooleanOperatorLookup, exp.InOp)
+	withoutIn.EmptyInFragment = nil
 	withoutNotIn := sqlgen.DefaultDialectOptions()
 	delete(withoutNotIn.BooleanOperatorLookup, exp.NotInOp)
+	withoutNotIn.EmptyNotInFragment = nil
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutIn),
 		expressionTestCase{val: ident.In([]int{}), err: "goqu: boolean operator 'in' not supported"})
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutNotIn),
