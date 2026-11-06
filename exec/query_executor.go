@@ -270,7 +270,7 @@ func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found b
 		return row, false, typeErr
 	}
 	t := reflect.TypeFor[T]()
-	if t.Kind() != reflect.Ptr {
+	if !util.IsPointer(t.Kind()) {
 		found, err = q.ScanStructContext(ctx, &row)
 		return row, found, err
 	}
@@ -282,7 +282,7 @@ func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found b
 }
 
 func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
-	if err := scantype.AllVals[T](); err != nil {
+	if err := scantype.AllVals[T](q.tagName); err != nil {
 		return nil, err
 	}
 	var vals []T

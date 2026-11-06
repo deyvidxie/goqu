@@ -753,6 +753,7 @@ func (rt *reflectTest) TestCheckColumnMap() {
 			ID int `db:"id"`
 		}
 		Wrapper  struct{ *item }
+		Seg      struct{ P Point }
 		Shadowed struct {
 			ID   int `db:"id"`
 			Name string
@@ -774,6 +775,8 @@ func (rt *reflectTest) TestCheckColumnMap() {
 		{reflect.TypeFor[struct{ *item }](), "db", util.ColumnMapProblem{unexportedPtr, "item", reflect.TypeFor[item]()}},
 		{reflect.TypeFor[struct{ *meta }](), "json", util.ColumnMapProblem{unexportedPtr, "meta", reflect.TypeFor[meta]()}},
 		{reflect.TypeFor[Shadowed](), "db", ok},
+		{reflect.TypeFor[struct{ *Seg }](), "db", ok},
+		{reflect.TypeFor[struct{ *Wrapper }](), "db", util.ColumnMapProblem{unexportedPtr, "Wrapper.item", reflect.TypeFor[item]()}},
 		{reflect.TypeFor[struct{ Wrapper }](), "db", util.ColumnMapProblem{unexportedPtr, "Wrapper.item", reflect.TypeFor[item]()}},
 		{reflect.TypeFor[struct{ *loop }](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "loop.Next", reflect.TypeFor[loop]()}},
 		{reflect.TypeFor[SelfRef](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "SelfRef", reflect.TypeFor[SelfRef]()}},
@@ -1478,6 +1481,13 @@ func (rt *reflectTest) TestInterfaceScanTarget() {
 	target, ok = util.InterfaceScanTarget(&outer{inner: &inner{V: ns}}, []int{0, 0})
 	rt.True(ok)
 	rt.Same(ns, target)
+}
+
+func (rt *reflectTest) TestIsScanner() {
+	rt.True(util.IsScanner(reflect.TypeFor[sql.NullString]()))
+	rt.False(util.IsScanner(reflect.TypeFor[*sql.NullString]()))
+	rt.False(util.IsScanner(reflect.TypeFor[time.Time]()))
+	rt.False(util.IsScanner(reflect.TypeFor[int]()))
 }
 
 func (rt *reflectTest) TestIsScannerInterface() {

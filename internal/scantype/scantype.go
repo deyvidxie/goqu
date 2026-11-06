@@ -16,31 +16,28 @@ var (
 
 func Struct[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
-	elem := t
-	if elem.Kind() == reflect.Ptr {
-		elem = elem.Elem()
-	}
-	if elem.Kind() != reflect.Struct {
+	elem := util.Deref(t)
+	if !util.IsStruct(elem.Kind()) {
 		return NewUnsupportedScanTypeError("cannot scan rows into %s: requires a struct or a pointer to a struct", t)
 	}
 	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
 	case util.ColumnMapNonStructEmbed:
 		return NewUnsupportedScanTypeError(
 			"cannot scan rows into %s: embedded field %s is a pointer to non-struct %s; tag it `%s:\"-\"`",
-			t, problem.Field, problem.Type, tagName,
+			t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapUnexportedPointerEmbed:
 		return NewUnsupportedScanTypeError(
 			"cannot scan rows into %s: embedded field %s is a pointer to unexported %s; embed it by value or tag it `%s:\"-\"`",
-			t, problem.Field, problem.Type, tagName,
+			t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapCycle:
 		return NewUnsupportedScanTypeError(
-			"cannot scan rows into %s: field %s leads back to %s; tag it `%s:\"-\"`", t, problem.Field, problem.Type, tagName,
+			"cannot scan rows into %s: field %s leads back to %s; tag it `%s:\"-\"`", t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapOK:
 	}
-	oneColumn := elem == timeType || util.IsScanner(elem)
+	oneColumn := isTime(elem) || util.IsScanner(elem)
 	sqlValue := oneColumn && elem.PkgPath() == "database/sql"
 	columns := util.StructColumnMap(elem, tagName)
 	switch {
@@ -55,12 +52,12 @@ func Struct[T any](tagName string) error {
 	}
 }
 
-func AllVals[T any]() error {
+func AllVals[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
 	if err := rejectRawBytes("ScanAllVals", t); err != nil {
 		return err
 	}
-	if t.Kind() != reflect.Ptr {
+	if !util.IsPointer(t.Kind()) {
 		return nil
 	}
 	switch {
@@ -72,7 +69,7 @@ func AllVals[T any]() error {
 		return NewUnsupportedScanTypeError(
 			"ScanAllVals cannot scan into %s, whose element %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
 		)
-	case util.IsStruct(t.Elem().Kind()):
+	case isRowStruct(t.Elem(), tagName):
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which is a row struct; use ScanAllStructs[%s]", t, t)
 	default:
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
@@ -96,26 +93,35 @@ func OneVal[T any]() error {
 }
 
 func acceptsNull(t reflect.Type) bool {
-	return t.Kind() == reflect.Ptr || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
+	return util.IsPointer(t.Kind()) || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
 		util.IsScanner(t)
 }
 
 func isPlainValue(t reflect.Type) bool {
 	k := t.Kind()
 	return util.IsBool(k) || util.IsInt(k) || util.IsUint(k) || util.IsFloat(k) || util.IsString(k) ||
-		(util.IsStruct(k) && t.ConvertibleTo(timeType)) || isByteSlice(t)
+		isTime(t) || isByteSlice(t)
+}
+
+func isTime(t reflect.Type) bool {
+	return util.IsStruct(t.Kind()) && t.ConvertibleTo(timeType)
+}
+
+func isRowStruct(t reflect.Type, tagName string) bool {
+	return util.IsStruct(t.Kind()) && util.CheckColumnMap(t, tagName).Issue == util.ColumnMapOK &&
+		len(util.StructColumnMap(t, tagName)) > 0
 }
 
 func isUnscannableSlice(t reflect.Type) bool {
-	return t.Kind() == reflect.Slice && !isByteSlice(t) && !util.IsScanner(t)
+	return util.IsSlice(t.Kind()) && !isByteSlice(t) && !util.IsScanner(t)
 }
 
 func isByteSlice(t reflect.Type) bool {
-	return t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8
+	return util.IsSlice(t.Kind()) && t.Elem().Kind() == reflect.Uint8
 }
 
 func derefAll(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
+	for util.IsPointer(t.Kind()) {
 		t = t.Elem()
 	}
 	return t

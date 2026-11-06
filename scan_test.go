@@ -107,6 +107,13 @@ type (
 		*scanTestMeta
 		ID int64 `db:"id"`
 	}
+	scanTestAuditID struct {
+		ID int64 `db:"id"`
+	}
+	scanTestShadowedAudit struct {
+		ID int64 `db:"id"`
+		*scanTestAuditID
+	}
 )
 
 func (t *scanTestTags) Scan(src interface{}) error {
@@ -356,6 +363,10 @@ func (ss *scanSuite) TestScanRejectsSingleColumnStructs() {
 	_, err = ss.db.From("items").ScanAllStructs[scanTestOpaqueScanner](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestOpaqueScanner, which scans as one column; "+
 		"use ScanAllVals[goqu_test.scanTestOpaqueScanner] or ScanOneVal[goqu_test.scanTestOpaqueScanner]")
+
+	_, err = ss.db.From("items").ScanAllStructs[ScanTestTime](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.ScanTestTime, which scans as one column; "+
+		"use ScanAllVals[goqu_test.ScanTestTime] or ScanOneVal[goqu_test.ScanTestTime]")
 }
 
 func (ss *scanSuite) TestScanRejectsStructsWithoutRowFields() {
@@ -413,6 +424,10 @@ func (ss *scanSuite) TestScanStructsUseDatasetTagName() {
 	ss.True(found)
 	ss.Equal(scanTestTagged{ID: 8}, row)
 	ss.NoError(mock.ExpectationsWereMet())
+
+	_, err = db.From("items").ScanAllVals[*scanTestTagged](context.Background())
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *goqu_test.scanTestTagged, which is a row struct; "+
+		"use ScanAllStructs[*goqu_test.scanTestTagged]")
 
 	_, err = db.From("items").ScanAllStructs[scanTestDBSkip](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip: embedded field ScanTestID is a pointer to "+
@@ -615,6 +630,7 @@ func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 		"string":                 allValsErr[*string](ss),
 		"bool":                   allValsErr[*bool](ss),
 		"float64":                allValsErr[*float64](ss),
+		"uint64":                 allValsErr[*uint64](ss),
 		"time.Time":              allValsErr[*time.Time](ss),
 		"goqu_test.ScanTestTime": allValsErr[*ScanTestTime](ss),
 		"goqu_test.scanTestBlob": allValsErr[*scanTestBlob](ss),
@@ -623,9 +639,11 @@ func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 	}
 
 	for msg, err := range map[string]error{
-		"*fmt.Stringer; use a sql.Scanner": allValsErr[*fmt.Stringer](ss),
-		"*uintptr; use a sql.Scanner":      allValsErr[*uintptr](ss),
-		"*complex128; use a sql.Scanner":   allValsErr[*complex128](ss),
+		"*fmt.Stringer; use a sql.Scanner":           allValsErr[*fmt.Stringer](ss),
+		"*uintptr; use a sql.Scanner":                allValsErr[*uintptr](ss),
+		"*complex128; use a sql.Scanner":             allValsErr[*complex128](ss),
+		"*netip.Addr; use a sql.Scanner":             allValsErr[*netip.Addr](ss),
+		"*goqu_test.ScanTestNode; use a sql.Scanner": allValsErr[*ScanTestNode](ss),
 		"*goqu_test.ScanTestItem, which is a row struct; use ScanAllStructs[*goqu_test.ScanTestItem]": allValsErr[*ScanTestItem](ss),
 		"*[]int64; use []byte or a sql.Scanner":                                                       allValsErr[*[]int64](ss),
 		"**[]int64; use []byte or a sql.Scanner":                                                      allValsErr[**[]int64](ss),
@@ -681,6 +699,11 @@ func (ss *scanSuite) TestScanStructsRejectUnscannableFields() {
 	ss.EqualError(err, "goqu: cannot scan rows into *goqu_test.ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; "+
 		"tag it `db:\"-\"`")
 
+	ss.EqualError(allStructsErr[*scanTestEmbeddedID](ss), "goqu: cannot scan rows into *goqu_test.scanTestEmbeddedID: "+
+		"embedded field ScanTestID is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`")
+	ss.EqualError(allStructsErr[*scanTestUnexportedPtr](ss), "goqu: cannot scan rows into *goqu_test.scanTestUnexportedPtr: "+
+		"embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`")
+
 	nonStruct := "is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`"
 	for msg, err := range map[string]error{
 		"scanTestEmbeddedID: embedded field ScanTestID " + nonStruct:                  allStructsErr[scanTestEmbeddedID](ss),
@@ -708,10 +731,15 @@ func (ss *scanSuite) TestScanAllStructsAcceptsSkippedSelfReferences() {
 
 func (ss *scanSuite) TestScanAllStructsAcceptsUnexportedPointerEmbedsWithoutColumns() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(2)))
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)))
 
 	rows, err := ss.db.From("items").ScanAllStructs[scanTestHiddenMeta](context.Background())
 	ss.NoError(err)
 	ss.Equal([]scanTestHiddenMeta{{ID: 2}}, rows)
+
+	shadowed, err := ss.db.From("items").ScanAllStructs[scanTestShadowedAudit](context.Background())
+	ss.NoError(err)
+	ss.Equal([]scanTestShadowedAudit{{ID: 3}}, shadowed)
 }
 
 func (ss *scanSuite) TestScanOneValAcceptsBytes() {
