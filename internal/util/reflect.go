@@ -2,6 +2,7 @@ package util
 
 import (
 	"database/sql"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"sync"
@@ -18,6 +19,16 @@ const (
 )
 
 var scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+
+// IsBytesValue returns true for values that are a single binary/JSON value rather than a list of values.
+func IsBytesValue(v any) bool {
+	switch v.(type) {
+	case []byte, *[]byte, json.RawMessage, *json.RawMessage:
+		return true
+	default:
+		return false
+	}
+}
 
 func IsUint(k reflect.Kind) bool {
 	return (k == reflect.Uint) ||

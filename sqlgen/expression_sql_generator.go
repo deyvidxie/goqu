@@ -88,8 +88,11 @@ func errExcludedFragmentEmpty(option string) error {
 	return NewInvalidExpressionError("Excluded requires %s", option)
 }
 
-func errEmptyListFragmentEmpty(keyword, option string) error {
-	return NewInvalidExpressionError("an empty %s list requires %s", keyword, option)
+func errEmptyListFragment(op exp.BooleanOperation) error {
+	if op == exp.NotInOp {
+		return NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
+	}
+	return NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
 }
 
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
@@ -527,19 +530,19 @@ func (esg *expressionSQLGenerator) aliasedExpressionSQL(b sb.SQLBuilder, aliased
 
 func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
 	operatorOp := operator.Op()
-	opSQL, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]
-	if !ok {
-		b.SetError(errUnsupportedBooleanExpressionOperator(operatorOp))
-		return
-	}
 	if (operatorOp == exp.InOp || operatorOp == exp.NotInOp) && isEmptyList(operator.RHS()) {
-		esg.emptyListSQL(b, operatorOp)
+		esg.emptyListSQL(b, operator)
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, operator.LHS())
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
-	b.Write(opSQL)
+	if val, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]; ok {
+		b.Write(val)
+	} else {
+		b.SetError(errUnsupportedBooleanExpressionOperator(operatorOp))
+		return
+	}
 	rhs := operator.RHS()
 
 	if (operatorOp == exp.IsOp || operatorOp == exp.IsNotOp) && rhs != nil && !esg.dialectOptions.BooleanDataTypeSupported {
@@ -575,31 +578,42 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if _, ok := rhs.(driver.Valuer); ok {
+	if _, ok := rhs.(driver.Valuer); ok || util.IsBytesValue(rhs) {
 		return false
 	}
 	v := reflect.Indirect(reflect.ValueOf(rhs))
-	if v.Kind() != reflect.Slice || v.Len() != 0 {
-		return false
-	}
-	switch v.Interface().(type) {
-	case []byte, json.RawMessage:
-		return false
-	default:
-		return true
-	}
+	return v.Kind() == reflect.Slice && v.Len() == 0
 }
 
-func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, op exp.BooleanOperation) {
-	keyword, option, fragment := "IN", "EmptyInFragment", esg.dialectOptions.EmptyInFragment
+func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
+	op := operator.Op()
+	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
+		b.SetError(errUnsupportedBooleanExpressionOperator(op))
+		return
+	}
+	fragment := esg.dialectOptions.EmptyInFragment
 	if op == exp.NotInOp {
-		keyword, option, fragment = "NOT IN", "EmptyNotInFragment", esg.dialectOptions.EmptyNotInFragment
+		fragment = esg.dialectOptions.EmptyNotInFragment
 	}
 	if len(fragment) == 0 {
-		b.SetError(errEmptyListFragmentEmpty(keyword, option))
+		b.SetError(errEmptyListFragment(op))
+		return
+	}
+	lhs := scratchBuilder(b)
+	esg.Generate(lhs, operator.LHS())
+	if err := lhs.Error(); err != nil {
+		b.SetError(err)
 		return
 	}
 	b.Write(fragment)
+}
+
+func scratchBuilder(b sb.SQLBuilder) sb.SQLBuilder {
+	scratch := sb.NewSQLBuilder(b.IsPrepared())
+	if ub, ok := b.(*conflictUpdateBuilder); ok {
+		return &conflictUpdateBuilder{SQLBuilder: scratch, rowAlias: ub.rowAlias}
+	}
+	return scratch
 }
 
 func (esg *expressionSQLGenerator) likeEscapeSQL(b sb.SQLBuilder, operatorOp exp.BooleanOperation) {

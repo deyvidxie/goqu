@@ -168,9 +168,9 @@ type (
 		True []byte
 		// The FALSE literal to use when interpolating bool false values (DEFAULT=[]byte("FALSE"))
 		False []byte
-		// Written in place of a whole IN comparison whose list is empty (Default=[]byte("(1=0)"))
+		// Written in place of a whole IN comparison whose list is empty (DEFAULT=[]byte("(1=0)"))
 		EmptyInFragment []byte
-		// Written in place of a whole NOT IN comparison whose list is empty (Default=[]byte("(1=1)"))
+		// Written in place of a whole NOT IN comparison whose list is empty (DEFAULT=[]byte("(1=1)"))
 		EmptyNotInFragment []byte
 		// The ASC fragment when specifying column order (DEFAULT=[]byte(" ASC"))
 		AscFragment []byte

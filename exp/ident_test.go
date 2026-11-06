@@ -2,6 +2,8 @@ package exp_test
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"regexp"
 	"testing"
 
@@ -47,6 +49,34 @@ func (ies *identifierExpressionSuite) TestEqWithTypedNulls() {
 	valid := sql.NullInt32{Int32: 1, Valid: true}
 	ies.Equal(exp.NewBooleanExpression(exp.EqOp, ident, valid), ident.Eq(valid))
 	ies.Equal(exp.NewBooleanExpression(exp.NeqOp, ident, valid), ident.Neq(valid))
+}
+
+type intArray []int
+
+func (a intArray) Value() (driver.Value, error) {
+	return []int(a), nil
+}
+
+func (ies *identifierExpressionSuite) TestInWithNilValues() {
+	ident := exp.ParseIdentifier("a")
+	emptyList := []interface{}{}
+	var nilIntsPtr *[]int
+	var nilInt *int
+	var nilBytesPtr *[]byte
+	var nilJSONPtr *json.RawMessage
+	var nilArrayPtr *intArray
+	ints := []int{1}
+
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, emptyList), ident.In(nil))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, emptyList), ident.NotIn(nil))
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, emptyList), ident.In(nilIntsPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, emptyList), ident.NotIn(nilIntsPtr))
+
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, &ints), ident.In(&ints))
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilInt}), ident.In(nilInt))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilBytesPtr}), ident.NotIn(nilBytesPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilJSONPtr}), ident.NotIn(nilJSONPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilArrayPtr}), ident.NotIn(nilArrayPtr))
 }
 
 func TestIdentifierExpressionSuite(t *testing.T) {
