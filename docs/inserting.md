@@ -639,6 +639,8 @@ if _, err := insert.ScanVal(&id); err != nil {
 }
 ```
 
+With [`goqu.ScanOneVal`](./selecting.md#generic-scan): `id, found, err := goqu.ScanOneVal[int64](ctx, insert)`.
+
 Output:
 
 ```

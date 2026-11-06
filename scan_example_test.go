@@ -46,8 +46,8 @@ func ExampleScanOne() {
 	// No user found for first_name Zeb
 }
 
-func ExampleScanVals() {
-	ids, err := goqu.ScanVals[int64](context.Background(), getDB().From("goqu_user").Select("id").Order(goqu.C("id").Asc()))
+func ExampleScanAllVals() {
+	ids, err := goqu.ScanAllVals[int64](context.Background(), getDB().From("goqu_user").Select("id").Order(goqu.C("id").Asc()))
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -58,9 +58,9 @@ func ExampleScanVals() {
 	// UserIds = [1 2 3 4]
 }
 
-func ExampleScanVal() {
+func ExampleScanOneVal() {
 	ds := getDB().From("goqu_user").Select("id").Where(goqu.C("first_name").Eq("Sally"))
-	id, found, err := goqu.ScanVal[int64](context.Background(), ds)
+	id, found, err := goqu.ScanOneVal[int64](context.Background(), ds)
 	fmt.Println(id, found, err)
 
 	// Output:

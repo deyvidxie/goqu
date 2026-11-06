@@ -627,6 +627,8 @@ if err := update.ScanVals(&ids); err != nil {
 
 ```
 
+With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](ctx, update)`.
+
 Output:
 ```
 Updated users with ids [1 2 3]

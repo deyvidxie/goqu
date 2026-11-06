@@ -20,7 +20,7 @@
   * [`ScanStruct`](#scan-struct) - Scans a row into a slice a struct, returns false if a row wasnt found
   * [`ScanVals`](#scan-vals)- Scans a rows of 1 column into a slice of primitive values
   * [`ScanVal`](#scan-val) - Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
-  * [`ScanAll`, `ScanOne`, `ScanVals`, `ScanVal`](#generic-scan) - Generic versions that return the scanned values
+  * [`goqu.ScanAll`, `goqu.ScanOne`, `goqu.ScanAllVals`, `goqu.ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
   * [`Scanner`](#scanner) - Allows you to interatively scan rows into structs or values.
   * [`Count`](#count) - Returns the count for the current query
   * [`Exists`](#exists) - Reports whether the current query returns at least one row
@@ -1261,18 +1261,18 @@ if !found{
 ```
 
 <a name="generic-scan"></a>
-**[`ScanAll`, `ScanOne`, `ScanVals`, `ScanVal`](http://godoc.org/github.com/doug-martin/goqu#ScanAll)**
+**`goqu.ScanAll`, `goqu.ScanOne`, `goqu.ScanAllVals`, `goqu.ScanOneVal`**
 
-Each takes a `*SelectDataset` or an `exec.QueryExecutor` (e.g. `Insert(...).Returning(...).Executor()`). An empty result is a `nil` slice.
+Each takes a `*SelectDataset` or an `exec.QueryExecutor` (e.g. `Insert(...).Returning(...).Executor()`). `ScanAll`/`ScanOne` take a struct or a pointer to a struct. An empty result is a `nil` slice.
 
 ```go
 users, err := goqu.ScanAll[User](ctx, db.From("user"))
 
 user, found, err := goqu.ScanOne[User](ctx, db.From("user").Where(goqu.C("id").Eq(1)))
 
-ids, err := goqu.ScanVals[int64](ctx, db.Insert("user").Rows(rows).Returning("id").Executor())
+ids, err := goqu.ScanAllVals[int64](ctx, db.Insert("user").Rows(rows).Returning("id").Executor())
 
-id, found, err := goqu.ScanVal[int64](ctx, db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")))
+id, found, err := goqu.ScanOneVal[int64](ctx, db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")))
 ```
 
 <a name="scanner"></a>

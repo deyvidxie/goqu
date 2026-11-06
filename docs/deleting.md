@@ -339,6 +339,8 @@ if err := de.ScanVals(&ids); err != nil {
 }
 ```
 
+With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](ctx, de)`.
+
 Output:
 
 ```
