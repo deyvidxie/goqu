@@ -10,6 +10,7 @@ import (
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.DuckDBTimeStyle
 
 	opts.SupportsReturn = true
 	opts.SupportsOrderByOnUpdate = true

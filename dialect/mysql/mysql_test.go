@@ -146,6 +146,23 @@ func versionAtLeast(version, minimum [3]int) bool {
 	return true
 }
 
+func (mt *mysqlTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := mt.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(6).Sub(goqu.Interval(1, "year")))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp(3).Lt(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		var times []time.Time
+		mt.Require().NoError(ds.Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&times))
+		mt.Len(times, 1)
+	}
+}
+
 func (mt *mysqlTest) TestToSQL() {
 	ds := mt.db.From("entry")
 	mt.assertSQL(

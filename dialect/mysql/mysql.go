@@ -8,6 +8,7 @@ import (
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.MySQLTimeStyle
 
 	opts.SupportsReturn = false
 	opts.SupportsMySQLJSONFunctions = true

@@ -6,6 +6,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -267,4 +268,20 @@ func (sds *duckdbDialectSuite) TestEmptyInList() {
 
 func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(duckdbDialectSuite))
+}
+
+func TestTimeFunctionsSQL(t *testing.T) {
+	ds := goqu.Dialect("duckdb").From("t").Select(goqu.NOW(3), goqu.UTCTimestamp()).
+		Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day"))))
+	sql, args, err := ds.ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS), make_timestamp(epoch_us(now())) FROM "t" `+
+		`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (1 * INTERVAL '1 DAY')))`, sql)
+	assert.Empty(t, args)
+
+	sql, args, err = ds.Prepared(true).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS), make_timestamp(epoch_us(now())) FROM "t" `+
+		`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (? * INTERVAL '1 DAY')))`, sql)
+	assert.Equal(t, []any{int64(1)}, args)
 }

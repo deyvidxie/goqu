@@ -95,6 +95,22 @@ func (pt *postgresTest) SetupTest() {
 	}
 }
 
+func (pt *postgresTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := pt.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(6).Sub(goqu.Interval(1, "year")))).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp(3).Lt(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")))).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		var times []time.Time
+		pt.Require().NoError(ds.Select(goqu.NOW()).Limit(1).ScanVals(&times))
+	}
+}
+
 func (pt *postgresTest) TestToSQL() {
 	ds := pt.db.From("entry")
 	s, _, err := ds.Select("id", "float", "string", "time", "bool").ToSQL()

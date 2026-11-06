@@ -333,6 +333,24 @@ type (
 		Bitwiseable
 		GetCol() string
 	}
+	TimeFunction           int
+	TimeFunctionExpression interface {
+		Expression
+		Aliaseable
+		Comparable
+		Arithmeticable
+		Rangeable
+		Inable
+		Isable
+		Orderable
+		Function() TimeFunction
+		FSP() []int
+	}
+	IntervalExpression interface {
+		Expression
+		Count() any
+		Unit() string
+	}
 	JSONFunction   int
 	JSONExpression interface {
 		Expression
@@ -699,6 +717,9 @@ const (
 	JSONExtractFunction JSONFunction = iota
 	JSONValueFunction
 	JSONContainsFunction
+
+	NowFunction TimeFunction = iota
+	UTCTimestampFunction
 )
 
 // StraightJoinType is the STRAIGHT_JOIN join type (MySQL only).

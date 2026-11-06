@@ -257,3 +257,13 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]")
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
+
+func TestTimeFunctionsSQL(t *testing.T) {
+	sql, _, err := goqu.Dialect("sqlite3").From("t").Select(goqu.NOW(3), goqu.UTCTimestamp()).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `t`", sql)
+
+	_, _, err = goqu.Dialect("sqlite3").From("t").Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day")))).ToSQL()
+	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlite3]`)
+	assert.True(t, sqlgen.IsUnsupported(err))
+}

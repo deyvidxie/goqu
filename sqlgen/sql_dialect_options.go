@@ -10,6 +10,7 @@ import (
 type (
 	SQLFragmentType   int
 	ExcludedStyle     int
+	TimeStyle         int
 	SQLDialectOptions struct {
 		// Set to true if the dialect supports ORDER BY expressions in DELETE statements (DEFAULT=false)
 		SupportsOrderByOnDelete bool
@@ -332,6 +333,8 @@ type (
 		ConflictDoUpdateFragment []byte
 		// How goqu.Excluded references the row proposed for insertion (Default=ExcludedTableStyle)
 		ExcludedStyle ExcludedStyle
+		// How NOW, UTCTimestamp and Interval render (Default=StandardTimeStyle)
+		TimeStyle TimeStyle
 		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
 		ExcludedRowAlias string
 		// The table ExcludedTableStyle qualifies the column with (Default=[]byte("EXCLUDED"))
@@ -488,6 +491,14 @@ const (
 	ExcludedTableStyle ExcludedStyle = iota
 	ExcludedValuesFuncStyle
 	ExcludedRowAliasStyle
+)
+
+const (
+	StandardTimeStyle TimeStyle = iota
+	MySQLTimeStyle
+	SQLiteTimeStyle
+	SQLServerTimeStyle
+	DuckDBTimeStyle
 )
 
 //nolint:funlen

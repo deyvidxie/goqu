@@ -98,3 +98,17 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]")
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
+
+func TestTimeFunctionsSQL(t *testing.T) {
+	ds := goqu.Dialect("postgres").From("t").Select(goqu.NOW(6), goqu.UTCTimestamp()).
+		Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day"))))
+	sql, args, err := ds.ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CURRENT_TIMESTAMP(6), (NOW() AT TIME ZONE 'UTC') FROM "t" WHERE ("at" < (NOW() - (1 * INTERVAL '1 DAY')))`, sql)
+	assert.Empty(t, args)
+
+	sql, args, err = ds.Prepared(true).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CURRENT_TIMESTAMP(6), (NOW() AT TIME ZONE 'UTC') FROM "t" WHERE ("at" < (NOW() - ($1 * INTERVAL '1 DAY')))`, sql)
+	assert.Equal(t, []any{int64(1)}, args)
+}

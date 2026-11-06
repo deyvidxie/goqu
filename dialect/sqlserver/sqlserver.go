@@ -8,6 +8,7 @@ import (
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.SQLServerTimeStyle
 
 	opts.BooleanDataTypeSupported = false
 	opts.UseLiteralIsBools = false

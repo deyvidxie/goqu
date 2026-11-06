@@ -111,6 +111,22 @@ func (sst *sqlserverTest) SetupTest() {
 	}
 }
 
+func (sst *sqlserverTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := sst.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(3))).Count()
+		sst.Require().NoError(err)
+		sst.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp().Gt(goqu.C("time"))).Count()
+		sst.Require().NoError(err)
+		sst.Equal(int64(10), count)
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.NOW().Sub(goqu.Interval(1, "day")))).Count()
+		sst.EqualError(err, "goqu: dialect does not support Interval [dialect=sqlserver]")
+	}
+}
+
 func (sst *sqlserverTest) TestToSQL() {
 	ds := sst.db.From("entry")
 	s, _, err := ds.Select("id", "float", "string", "time", "bool").ToSQL()

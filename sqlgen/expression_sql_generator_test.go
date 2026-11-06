@@ -1309,6 +1309,135 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
+	opts := func(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
+		do := sqlgen.DefaultDialectOptions()
+		do.TimeStyle = style
+		return do
+	}
+	now, now3, utc, utc0 := exp.NewNowExpression(), exp.NewNowExpression(3), exp.NewUTCTimestampExpression(), exp.NewUTCTimestampExpression(0)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.StandardTimeStyle)),
+		expressionTestCase{val: now, sql: "NOW()"},
+		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)"},
+		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)", isPrepared: true},
+		expressionTestCase{val: utc, sql: "(NOW() AT TIME ZONE 'UTC')"},
+		expressionTestCase{val: utc0, sql: "(CURRENT_TIMESTAMP(0) AT TIME ZONE 'UTC')"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.MySQLTimeStyle)),
+		expressionTestCase{val: now, sql: "NOW()"},
+		expressionTestCase{val: now3, sql: "NOW(3)"},
+		expressionTestCase{val: utc, sql: "UTC_TIMESTAMP()"},
+		expressionTestCase{val: utc0, sql: "UTC_TIMESTAMP(0)", isPrepared: true},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.SQLiteTimeStyle)),
+		expressionTestCase{val: now, sql: "datetime('now', 'localtime')"},
+		expressionTestCase{val: now3, sql: "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"},
+		expressionTestCase{val: utc, sql: "datetime('now')"},
+		expressionTestCase{val: utc0, sql: "datetime('now')"},
+		expressionTestCase{
+			val: exp.NewNowExpression(6), err: "goqu: dialect does not support fractional seconds precision 6 [dialect=test]",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.SQLServerTimeStyle)),
+		expressionTestCase{val: now, sql: "SYSDATETIME()"},
+		expressionTestCase{val: now3, sql: "CAST(SYSDATETIME() AS DATETIME2(3))"},
+		expressionTestCase{val: utc, sql: "SYSUTCDATETIME()"},
+		expressionTestCase{val: utc0, sql: "CAST(SYSUTCDATETIME() AS DATETIME2(0))"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.DuckDBTimeStyle)),
+		expressionTestCase{val: now, sql: "CAST(now() AS TIMESTAMP)"},
+		expressionTestCase{val: exp.NewNowExpression(6), sql: "CAST(now() AS TIMESTAMP)"},
+		expressionTestCase{val: now3, sql: "CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)"},
+		expressionTestCase{val: utc, sql: "make_timestamp(epoch_us(now()))"},
+		expressionTestCase{val: utc0, sql: "CAST(make_timestamp(epoch_us(now())) AS TIMESTAMP_S)"},
+		expressionTestCase{
+			val: exp.NewNowExpression(2), err: "goqu: dialect does not support fractional seconds precision 2 [dialect=test]",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.MySQLTimeStyle)),
+		expressionTestCase{val: exp.NewNowExpression(7), err: "goqu: fsp must be between 0 and 6, got 7"},
+		expressionTestCase{val: exp.NewNowExpression(-1), err: "goqu: fsp must be between 0 and 6, got -1"},
+		expressionTestCase{val: exp.NewNowExpression(1, 2), err: "goqu: NOW and UTCTimestamp take at most one fsp, got 2"},
+		expressionTestCase{val: unknownTimeFunction{now}, err: "goqu: unknown TimeFunction 99"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(99)),
+		expressionTestCase{val: now, err: "goqu: dialect has unknown TimeStyle 99 [dialect=test]"},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
+	opts := func(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
+		do := sqlgen.DefaultDialectOptions()
+		do.TimeStyle = style
+		return do
+	}
+	mysql := sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.MySQLTimeStyle))
+	standard := sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.StandardTimeStyle))
+	for _, unit := range []string{"MICROSECOND", "SECOND", "MINUTE", "HOUR", "DAY", "WEEK", "MONTH", "YEAR"} {
+		esgs.assertCases(mysql, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + unit})
+		esgs.assertCases(standard, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "(2 * INTERVAL '1 " + unit + "')"})
+	}
+	esgs.assertCases(
+		mysql,
+		expressionTestCase{val: exp.NewIntervalExpression(1, "quarter"), sql: "INTERVAL 1 QUARTER"},
+		expressionTestCase{val: exp.NewIntervalExpression(1, "second"), sql: "INTERVAL ? SECOND", isPrepared: true, args: []any{int64(1)}},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), "day"), sql: `INTERVAL "n" DAY`,
+		},
+		expressionTestCase{val: exp.NewIntervalExpression(1, "fortnight"), err: `goqu: unknown INTERVAL unit "fortnight"`},
+	)
+	esgs.assertCases(
+		standard,
+		expressionTestCase{val: exp.NewIntervalExpression(1, "Quarter"), sql: "(1 * INTERVAL '3 MONTH')"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, "second"), sql: "(? * INTERVAL '1 SECOND')", isPrepared: true, args: []any{int64(1)},
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.DuckDBTimeStyle)),
+		expressionTestCase{val: exp.NewIntervalExpression(1, "second"), sql: "(1 * INTERVAL '1 SECOND')"},
+	)
+	for _, style := range []sqlgen.TimeStyle{sqlgen.SQLiteTimeStyle, sqlgen.SQLServerTimeStyle} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", opts(style)),
+			expressionTestCase{val: exp.NewIntervalExpression(1, "second"), err: "goqu: dialect does not support Interval [dialect=test]"},
+		)
+	}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", opts(99)),
+		expressionTestCase{val: exp.NewIntervalExpression(1, "second"), err: "goqu: dialect has unknown TimeStyle 99 [dialect=test]"},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes() {
+	render := func(style sqlgen.TimeStyle, e exp.Expression) error {
+		do := sqlgen.DefaultDialectOptions()
+		do.TimeStyle = style
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", do).Generate(b, e)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(7))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(1, 2))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, unknownTimeFunction{exp.NewNowExpression()})))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewNowExpression(6))))
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLServerTimeStyle, exp.NewIntervalExpression(1, "second"))))
+	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression())))
+}
+
+type unknownTimeFunction struct{ exp.TimeFunctionExpression }
+
+func (unknownTimeFunction) Function() exp.TimeFunction { return 99 }
+
 type (
 	jsonStringValuer      string
 	jsonBytesValuer       string

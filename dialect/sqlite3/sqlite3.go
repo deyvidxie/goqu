@@ -5,10 +5,12 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.SQLiteTimeStyle
 
 	opts.SupportsReturn = true
 	opts.SupportsOrderByOnUpdate = true

@@ -74,6 +74,18 @@ func Excluded(col any) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
 }
 
+func NOW(fsp ...int) exp.TimeFunctionExpression {
+	return exp.NewNowExpression(fsp...)
+}
+
+func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
+	return exp.NewUTCTimestampExpression(fsp...)
+}
+
+func Interval(count any, unit string) exp.IntervalExpression {
+	return exp.NewIntervalExpression(count, unit)
+}
+
 func JSONExtract(col any, path string) exp.JSONExpression {
 	return exp.NewJSONExtractExpression(col, path)
 }

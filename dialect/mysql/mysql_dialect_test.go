@@ -128,6 +128,28 @@ func (mds *mysqlDialectSuite) TestArithmeticOperations() {
 	)
 }
 
+func (mds *mysqlDialectSuite) TestTimeFunctions() {
+	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(dialect).From("test")
+		mds.assertSQL(
+			sqlTestCase{
+				ds:  ds.Select(goqu.NOW(), goqu.NOW(6), goqu.UTCTimestamp(), goqu.UTCTimestamp(3)),
+				sql: "SELECT NOW(), NOW(6), UTC_TIMESTAMP(), UTC_TIMESTAMP(3) FROM `test`",
+			},
+			sqlTestCase{
+				ds:  ds.Where(goqu.C("at").Lt(goqu.NOW(6).Add(goqu.Interval(1, "second")))),
+				sql: "SELECT * FROM `test` WHERE (`at` < (NOW(6) + INTERVAL 1 SECOND))",
+			},
+			sqlTestCase{
+				ds:         ds.Prepared(true).Where(goqu.C("at").Gt(goqu.UTCTimestamp().Sub(goqu.Interval(2, "quarter")))),
+				sql:        "SELECT * FROM `test` WHERE (`at` > (UTC_TIMESTAMP() - INTERVAL ? QUARTER))",
+				isPrepared: true,
+				args:       []interface{}{int64(2)},
+			},
+		)
+	}
+}
+
 func (mds *mysqlDialectSuite) TestJSONFunctions() {
 	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
 		ds := goqu.Dialect(dialect).From("test")

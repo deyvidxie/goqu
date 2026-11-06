@@ -114,6 +114,30 @@ func (st *duckdbSuite) SetupTest() {
 	}
 }
 
+func (st *duckdbSuite) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := st.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(6).Sub(goqu.Interval(1, "year")))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp(6).Lt(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.C("time").Lt(goqu.NOW(3).Sub(goqu.Interval(1, "day")))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.C("time").Lt(goqu.UTCTimestamp(0))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.NOW(2))).Count()
+		st.EqualError(err, "goqu: dialect does not support fractional seconds precision 2 [dialect=duckdb]")
+	}
+}
+
 func (st *duckdbSuite) TestSelectSQL() {
 	ds := st.db.From("entry")
 	st.assertSQL(

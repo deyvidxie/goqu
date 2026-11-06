@@ -98,6 +98,34 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
+func errTimeFSPCount(n int) error {
+	return NewInvalidExpressionError("NOW and UTCTimestamp take at most one fsp, got %d", n)
+}
+
+func errTimeFSPRange(fsp int) error {
+	return NewInvalidExpressionError("fsp must be between 0 and 6, got %d", fsp)
+}
+
+func errTimeFSPNotSupported(dialect string, fsp int) error {
+	return NewUnsupportedError("dialect does not support fractional seconds precision %d [dialect=%s]", fsp, dialect)
+}
+
+func errUnknownTimeFunction(function exp.TimeFunction) error {
+	return NewInvalidExpressionError("unknown TimeFunction %d", function)
+}
+
+func errUnknownTimeStyle(dialect string, style TimeStyle) error {
+	return NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
+}
+
+func errIntervalUnit(unit string) error {
+	return NewInvalidExpressionError("unknown INTERVAL unit %q", unit)
+}
+
+func errIntervalNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
+}
+
 func errJSONFunctionsNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support JSONExtract, JSONValue or JSONContains [dialect=%s]", dialect)
 }
@@ -338,6 +366,10 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.excludedExpressionSQL(b, e)
 	case exp.JSONExpression:
 		esg.jsonExpressionSQL(b, e)
+	case exp.TimeFunctionExpression:
+		esg.timeFunctionExpressionSQL(b, e)
+	case exp.IntervalExpression:
+		esg.intervalExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -989,6 +1021,166 @@ func describeCollation(collation any) string {
 		return strings.Join(parts, ".")
 	}
 	return fmt.Sprintf("%v", collation)
+}
+
+var intervalUnits = map[string]string{
+	"MICROSECOND": "1 MICROSECOND",
+	"SECOND":      "1 SECOND",
+	"MINUTE":      "1 MINUTE",
+	"HOUR":        "1 HOUR",
+	"DAY":         "1 DAY",
+	"WEEK":        "1 WEEK",
+	"MONTH":       "1 MONTH",
+	"QUARTER":     "3 MONTH",
+	"YEAR":        "1 YEAR",
+}
+
+const (
+	millisecondFSP = 3
+	microsecondFSP = 6
+)
+
+func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e exp.TimeFunctionExpression) {
+	fsp, hasFSP, err := timeFSP(e.FSP())
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	var utc bool
+	switch e.Function() {
+	case exp.NowFunction:
+	case exp.UTCTimestampFunction:
+		utc = true
+	default:
+		b.SetError(errUnknownTimeFunction(e.Function()))
+		return
+	}
+	var sql string
+	switch esg.dialectOptions.TimeStyle {
+	case StandardTimeStyle:
+		sql = standardTimeSQL(utc, fsp, hasFSP)
+	case MySQLTimeStyle:
+		sql = mysqlTimeSQL(utc, fsp, hasFSP)
+	case SQLiteTimeStyle:
+		sql, err = sqliteTimeSQL(esg.dialect, utc, fsp, hasFSP)
+	case SQLServerTimeStyle:
+		sql = sqlServerTimeSQL(utc, fsp, hasFSP)
+	case DuckDBTimeStyle:
+		sql, err = duckDBTimeSQL(esg.dialect, utc, fsp, hasFSP)
+	default:
+		err = errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
+	}
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	b.WriteStrings(sql)
+}
+
+func timeFSP(fsp []int) (value int, ok bool, err error) {
+	switch len(fsp) {
+	case 0:
+		return 0, false, nil
+	case 1:
+		if fsp[0] < 0 || fsp[0] > microsecondFSP {
+			return 0, false, errTimeFSPRange(fsp[0])
+		}
+		return fsp[0], true, nil
+	default:
+		return 0, false, errTimeFSPCount(len(fsp))
+	}
+}
+
+func atUTC(now string, utc bool) string {
+	if utc {
+		return "(" + now + " AT TIME ZONE 'UTC')"
+	}
+	return now
+}
+
+func standardTimeSQL(utc bool, fsp int, hasFSP bool) string {
+	if hasFSP {
+		return atUTC(fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp), utc)
+	}
+	return atUTC("NOW()", utc)
+}
+
+func mysqlTimeSQL(utc bool, fsp int, hasFSP bool) string {
+	name := "NOW"
+	if utc {
+		name = "UTC_TIMESTAMP"
+	}
+	if hasFSP {
+		return fmt.Sprintf("%s(%d)", name, fsp)
+	}
+	return name + "()"
+}
+
+func sqliteTimeSQL(dialect string, utc bool, fsp int, hasFSP bool) (string, error) {
+	modifiers := "'now', 'localtime'"
+	if utc {
+		modifiers = "'now'"
+	}
+	switch {
+	case !hasFSP || fsp == 0:
+		return "datetime(" + modifiers + ")", nil
+	case fsp == millisecondFSP:
+		return "strftime('%Y-%m-%d %H:%M:%f', " + modifiers + ")", nil
+	default:
+		return "", errTimeFSPNotSupported(dialect, fsp)
+	}
+}
+
+func sqlServerTimeSQL(utc bool, fsp int, hasFSP bool) string {
+	name := "SYSDATETIME()"
+	if utc {
+		name = "SYSUTCDATETIME()"
+	}
+	if hasFSP {
+		return fmt.Sprintf("CAST(%s AS DATETIME2(%d))", name, fsp)
+	}
+	return name
+}
+
+func duckDBTimeSQL(dialect string, utc bool, fsp int, hasFSP bool) (string, error) {
+	now := "CAST(now() AS TIMESTAMP)"
+	if utc {
+		now = "make_timestamp(epoch_us(now()))"
+	}
+	switch {
+	case !hasFSP || fsp == microsecondFSP:
+		return now, nil
+	case fsp == 0:
+		return "CAST(" + now + " AS TIMESTAMP_S)", nil
+	case fsp == millisecondFSP:
+		return "CAST(" + now + " AS TIMESTAMP_MS)", nil
+	default:
+		return "", errTimeFSPNotSupported(dialect, fsp)
+	}
+}
+
+func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.IntervalExpression) {
+	unit := strings.ToUpper(e.Unit())
+	quantity, ok := intervalUnits[unit]
+	if !ok {
+		b.SetError(errIntervalUnit(e.Unit()))
+		return
+	}
+	switch esg.dialectOptions.TimeStyle {
+	case MySQLTimeStyle:
+		b.WriteStrings("INTERVAL ")
+		esg.Generate(b, e.Count())
+		b.WriteStrings(" " + unit)
+	case StandardTimeStyle, DuckDBTimeStyle:
+		b.WriteRunes(esg.dialectOptions.LeftParenRune)
+		esg.Generate(b, e.Count())
+		b.WriteStrings(" * INTERVAL '" + quantity + "'")
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	case SQLiteTimeStyle, SQLServerTimeStyle:
+		b.SetError(errIntervalNotSupported(esg.dialect))
+	default:
+		b.SetError(errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle))
+	}
 }
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
