@@ -12,6 +12,9 @@ type (
 	UnsupportedError struct {
 		baseError
 	}
+	InvalidExpressionError struct {
+		baseError
+	}
 )
 
 func (e baseError) Error() string {
@@ -24,5 +27,14 @@ func NewUnsupportedError(format string, args ...interface{}) error {
 
 func IsUnsupported(err error) bool {
 	var target UnsupportedError
+	return errors.As(err, &target)
+}
+
+func NewInvalidExpressionError(format string, args ...interface{}) error {
+	return InvalidExpressionError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsInvalidExpression(err error) bool {
+	var target InvalidExpressionError
 	return errors.As(err, &target)
 }

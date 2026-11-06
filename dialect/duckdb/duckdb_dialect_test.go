@@ -90,6 +90,11 @@ func (sds *duckdbDialectSuite) TestInsertOnConflict() {
 		},
 		sqlTestCase{ds: doUpdate, sql: "INSERT INTO \"test\" (\"a\") VALUES ('a') ON CONFLICT  (a) DO UPDATE SET \"a\"='b'"},
 		sqlTestCase{
+			ds: goqu.Dialect("duckdb").Insert("test").Rows(goqu.Record{"a": "a", "b": "b"}).
+				OnConflict(goqu.DoUpdateExcluded("a", "b")),
+			sql: "INSERT INTO \"test\" (\"a\", \"b\") VALUES ('a', 'b') ON CONFLICT  (a) DO UPDATE SET \"b\"=EXCLUDED.\"b\"",
+		},
+		sqlTestCase{
 			ds:  ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": "b"}).Where(goqu.C("a").Neq("b"))),
 			sql: "INSERT INTO \"test\" (\"a\") VALUES ('a') ON CONFLICT  (a) DO UPDATE SET \"a\"='b' WHERE (\"a\" != 'b')",
 		},

@@ -3,6 +3,7 @@ package mysql
 import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
 func DialectOptions() *goqu.SQLDialectOptions {
@@ -80,6 +81,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.ConflictFragment = []byte("")
 	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
 	opts.ConflictDoNothingFragment = []byte("")
+	opts.ExcludedStyle = sqlgen.ExcludedValuesFuncStyle
 	return opts
 }
 
@@ -92,6 +94,7 @@ func DialectOptionsV8() *goqu.SQLDialectOptions {
 	opts.ForShareFragment = []byte(" FOR SHARE ")
 	opts.UnsupportedLockWaitOptions = nil
 	opts.SupportsLockOf = true
+	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 	return opts
 }
 

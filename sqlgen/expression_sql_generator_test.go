@@ -1103,6 +1103,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
+		Generate(b, exp.NewIdentifierExpression("", "", "a").Eq(exp.NewExcludedExpression("a")))
+	_, _, err := b.ToSQL()
+	esgs.EqualError(err, "goqu: Excluded is only valid in an OnConflict DoUpdate")
+	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.False(sqlgen.IsUnsupported(err))
+}
+
 // Generates the sql for the WITH clauses for common table expressions (CTE)
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_CommonTableExpressionSlice() {
 	ae := newTestAppendableExpression(`SELECT * FROM "b"`, emptyArgs, nil, nil)

@@ -322,6 +322,17 @@ type (
 		WhereClause() ExpressionList
 		Update() interface{}
 	}
+	ExcludedExpression interface {
+		Expression
+		Comparable
+		Arithmeticable
+		Isable
+		Inable
+		Rangeable
+		Likeable
+		Bitwiseable
+		GetCol() string
+	}
 	CommonTableExpression interface {
 		Expression
 		IsRecursive() bool

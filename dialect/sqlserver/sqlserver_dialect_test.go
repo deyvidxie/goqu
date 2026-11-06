@@ -252,17 +252,18 @@ func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(sqlserverDialectSuite))
 }
 
-func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
-	_, _, err := goqu.Dialect("sqlserver").Insert("test").
-		Rows(goqu.Record{"a": "a"}).
-		OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a"))).
-		ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect=sqlserver]")
-
-	// no target is still fine
-	_, _, err = goqu.Dialect("sqlserver").Insert("test").
-		Rows(goqu.Record{"a": "a"}).
-		OnConflict(goqu.DoNothing()).
-		ToSQL()
-	assert.NoError(t, err)
+func TestInsertOnConflictNotSupported(t *testing.T) {
+	for name, conflict := range map[string]exp.ConflictExpression{
+		"do nothing":           goqu.DoNothing(),
+		"do nothing with cols": goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")),
+		"do update":            goqu.DoUpdate("", goqu.Record{"a": "b"}),
+		"do update where":      goqu.DoUpdate("", goqu.Record{"a": "b"}).Where(goqu.C("a").Eq(1)),
+		"do update nil":        goqu.DoUpdate("", nil),
+		"do update excluded":   goqu.DoUpdateExcluded("", "a"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := goqu.Dialect("sqlserver").Insert("test").Rows(goqu.Record{"a": "a"}).OnConflict(conflict).ToSQL()
+			assert.EqualError(t, err, "goqu: dialect does not support upsert [dialect=sqlserver]")
+		})
+	}
 }

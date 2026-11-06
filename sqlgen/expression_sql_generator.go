@@ -52,6 +52,12 @@ var (
 	)
 	ErrUnexpectedNamedWindow = errors.New(`unexpected named window function`)
 	ErrEmptyCaseWhens        = errors.New(`when conditions not found for case statement`)
+
+	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
+	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
+	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
+		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
+	)
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
@@ -76,6 +82,14 @@ func errUnsupportedArithmeticExpressionOperator(op exp.ArithmeticOperation) erro
 
 func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
 	return NewUnsupportedError("range operator %+v not supported", op)
+}
+
+func errExcludedFragmentEmpty(option string) error {
+	return NewInvalidExpressionError("Excluded requires %s", option)
+}
+
+func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
+	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
 func errLateralNotSupported(dialect string) error {
@@ -261,7 +275,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	}
 }
 
-//nolint:gocyclo // not complex just long
+//nolint:gocyclo,funlen
 func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp.Expression) {
 	switch e := expression.(type) {
 	case exp.ColumnListExpression:
@@ -298,6 +312,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.castExpressionSQL(b, e)
 	case exp.CollateExpression:
 		esg.collateExpressionSQL(b, e)
+	case exp.ExcludedExpression:
+		esg.excludedExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -902,6 +918,44 @@ func describeCollation(collation any) string {
 		return strings.Join(parts, ".")
 	}
 	return fmt.Sprintf("%v", collation)
+}
+
+func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
+	ub, ok := b.(*conflictUpdateBuilder)
+	if !ok {
+		b.SetError(errExcludedOutsideConflictUpdate)
+		return
+	}
+	if e.GetCol() == "" {
+		b.SetError(errExcludedWithoutColumn)
+		return
+	}
+	ub.usesExcluded = true
+	switch esg.dialectOptions.ExcludedStyle {
+	case ExcludedValuesFuncStyle:
+		if len(esg.dialectOptions.ExcludedValuesFuncFragment) == 0 {
+			b.SetError(errExcludedFragmentEmpty("ExcludedValuesFuncFragment"))
+			return
+		}
+		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
+		esg.quotedIdentifierSQL(b, e.GetCol())
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	case ExcludedRowAliasStyle:
+		if ub.rowAlias == nil {
+			b.SetError(errExcludedRowAliasUnresolved)
+			return
+		}
+		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
+	case ExcludedTableStyle:
+		if len(esg.dialectOptions.ExcludedTableFragment) == 0 {
+			b.SetError(errExcludedFragmentEmpty("ExcludedTableFragment"))
+			return
+		}
+		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
+		esg.quotedIdentifierSQL(b, e.GetCol())
+	default:
+		b.SetError(errUnknownExcludedStyle(esg.dialect, esg.dialectOptions.ExcludedStyle))
+	}
 }
 
 // unquoted collation name parts are restricted to simple identifiers

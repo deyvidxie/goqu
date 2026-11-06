@@ -9,6 +9,7 @@ import (
 
 type (
 	SQLFragmentType   int
+	ExcludedStyle     int
 	SQLDialectOptions struct {
 		// Set to true if the dialect supports ORDER BY expressions in DELETE statements (DEFAULT=false)
 		SupportsOrderByOnDelete bool
@@ -40,6 +41,9 @@ type (
 		SupportsConflictTarget bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
 		SupportsConflictUpdateWhere bool
+		// Set to true if the dialect supports upsert (ON CONFLICT / ON DUPLICATE KEY); when false, OnConflict returns an
+		// error (DEFAULT=true)
+		SupportsOnConflict bool
 		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
 		SupportsInsertIgnoreSyntax bool
 		// Set to true if the dialect supports Common Table Expressions (DEFAULT=true)
@@ -318,6 +322,14 @@ type (
 		ConflictDoNothingFragment []byte
 		// The SQL fragment to use for CONFLICT DO UPDATE (Default=[]byte(" DO UPDATE SET"))
 		ConflictDoUpdateFragment []byte
+		// How goqu.Excluded references the row proposed for insertion (Default=ExcludedTableStyle)
+		ExcludedStyle ExcludedStyle
+		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
+		ExcludedRowAlias string
+		// The table ExcludedTableStyle qualifies the column with (Default=[]byte("EXCLUDED"))
+		ExcludedTableFragment []byte
+		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
+		ExcludedValuesFuncFragment []byte
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -464,6 +476,12 @@ func (sf SQLFragmentType) String() string {
 	return fmt.Sprintf("%d", sf)
 }
 
+const (
+	ExcludedTableStyle ExcludedStyle = iota
+	ExcludedValuesFuncStyle
+	ExcludedRowAliasStyle
+)
+
 //nolint:funlen
 func DefaultDialectOptions() *SQLDialectOptions {
 	return &SQLDialectOptions{
@@ -475,6 +493,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsLimitAll:            true,
 		SupportsReturn:              true,
 		SupportsConflictUpdateWhere: true,
+		SupportsOnConflict:          true,
 		SupportsInsertIgnoreSyntax:  false,
 		SupportsConflictTarget:      true,
 		SupportsWithCTE:             true,
@@ -552,6 +571,10 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		Null:                      []byte("NULL"),
 		True:                      []byte("TRUE"),
 		False:                     []byte("FALSE"),
+
+		ExcludedRowAlias:           "excluded",
+		ExcludedTableFragment:      []byte("EXCLUDED"),
+		ExcludedValuesFuncFragment: []byte("VALUES"),
 
 		PlaceHolderFragment: []byte("?"),
 		QuoteRune:           '"',

@@ -120,6 +120,32 @@ func (mt *mysqlTest) SetupTest() {
 	}
 }
 
+func (mt *mysqlTest) SetupSubTest() {
+	mt.SetupTest()
+}
+
+func (mt *mysqlTest) serverVersion() [3]int {
+	var version string
+	ok, err := mt.db.Select(goqu.Func("version")).ScanVal(&version)
+	mt.Require().NoError(err)
+	mt.Require().True(ok)
+	var parts [3]int
+	for i, field := range strings.SplitN(strings.SplitN(version, "-", 2)[0], ".", 3) {
+		parts[i], err = strconv.Atoi(field)
+		mt.Require().NoError(err)
+	}
+	return parts
+}
+
+func versionAtLeast(version, minimum [3]int) bool {
+	for i := range version {
+		if version[i] != minimum[i] {
+			return version[i] > minimum[i]
+		}
+	}
+	return true
+}
+
 func (mt *mysqlTest) TestToSQL() {
 	ds := mt.db.From("entry")
 	mt.assertSQL(
@@ -525,20 +551,50 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
 }
 
-func (mt *mysqlTest) TestWindowFunction() {
-	var version string
-	ok, err := mt.db.Select(goqu.Func("version")).ScanVal(&version)
-	mt.NoError(err)
-	mt.True(ok)
+func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
+	version := mt.serverVersion()
+	for _, dialect := range []string{"mysql", "mysql8"} {
+		mt.Run(dialect, func() {
+			if dialect == "mysql8" && !versionAtLeast(version, [3]int{8, 0, 19}) {
+				mt.T().Skipf("row alias needs MySQL 8.0.19+, server is %v", version)
+			}
+			db := goqu.New(dialect, mt.db.Db)
+			ds := db.From("entry")
+			incoming := entry{Int: 1, Float: 10, String: "incoming", Time: time.Now(), Bytes: []byte("incoming")}
+			_, err := ds.Insert().Rows(incoming).
+				OnConflict(goqu.DoUpdate("", goqu.Record{
+					"string": goqu.Excluded("string"),
+					"float":  goqu.T("entry").Col("float").Add(goqu.Excluded("float")),
+				})).
+				Executor().Exec()
+			mt.Require().NoError(err)
 
-	fields := strings.Split(version, ".")
-	mt.True(len(fields) > 0)
-	major, err := strconv.Atoi(fields[0])
-	mt.NoError(err)
-	if major < 8 {
-		//nolint:forbidigo
-		fmt.Printf("SKIPPING MYSQL WINDOW FUNCTION TEST BECAUSE VERSION IS < 8 [mysql_version:=%d]\n", major)
-		return
+			var actual entry
+			_, err = ds.Where(goqu.C("int").Eq(1)).ScanStruct(&actual)
+			mt.Require().NoError(err)
+			mt.Equal("incoming", actual.String)
+			mt.InDelta(10.1, actual.Float, 0.001)
+
+			_, err = ds.Insert().
+				Cols("int", "float", "string", "time", "bool", "bytes").
+				FromQuery(db.From("entry").
+					Select(goqu.L("`int` + 1"), "float", goqu.V("from query"), "time", "bool", "bytes").
+					Where(goqu.C("int").Eq(1))).
+				OnConflict(goqu.DoUpdateExcluded("", "string")).
+				Executor().Exec()
+			mt.Require().NoError(err)
+
+			_, err = ds.Where(goqu.C("int").Eq(2)).ScanStruct(&actual)
+			mt.Require().NoError(err)
+			mt.Equal("from query", actual.String)
+			mt.InDelta(0.2, actual.Float, 0.001)
+		})
+	}
+}
+
+func (mt *mysqlTest) TestWindowFunction() {
+	if version := mt.serverVersion(); version[0] < 8 {
+		mt.T().Skipf("window functions need MySQL 8, server is %v", version)
 	}
 
 	ds := mt.db.From("entry").

@@ -539,34 +539,6 @@ func (sst *sqlserverTest) TestDelete() {
 	sst.EqualError(err, "goqu: dialect does not support RETURNING clause [dialect=sqlserver]")
 }
 
-func (sst *sqlserverTest) TestInsertIgnoreNotSupported() {
-	ds := sst.db.From("entry")
-	now := time.Now()
-
-	// insert one
-	entries := []goqu.Record{
-		{
-			"Int": 8, "Float": 6.100000, "String": "6.100000", "Bool": false, "Time": now,
-			"Bytes": goqu.Cast(goqu.V([]byte("6.100000")), "BINARY(8)"),
-		},
-		{
-			"Int": 9, "Float": 7.200000, "String": "7.200000", "Bool": false, "Time": now,
-			"Bytes": goqu.Cast(goqu.V([]byte("7.200000")), "BINARY(8)"),
-		},
-		{
-			"Int": 10, "Float": 7.200000, "String": "7.200000", "Bool": false, "Time": now,
-			"Bytes": goqu.Cast(goqu.V([]byte("7.200000")), "BINARY(8)"),
-		},
-	}
-	_, err := ds.Insert().Rows(entries).OnConflict(goqu.DoNothing()).Executor().Exec()
-	sst.Error(err)
-	sst.Contains(err.Error(), "Cannot insert duplicate key in object 'dbo.entry'. The duplicate key value is (8)")
-
-	count, err := ds.Count()
-	sst.NoError(err)
-	sst.Equal(count, int64(10))
-}
-
 func TestSqlServerSuite(t *testing.T) {
 	suite.Run(t, new(sqlserverTest))
 }

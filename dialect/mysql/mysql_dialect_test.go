@@ -7,6 +7,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -276,4 +277,95 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		OnConflict(goqu.DoNothing()).
 		ToSQL()
 	assert.NoError(t, err)
+}
+
+func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
+	cases := []struct {
+		name    string
+		dialect string
+		ds      func(d goqu.DialectWrapper) *goqu.InsertDataset
+		sql     string
+		err     string
+	}{
+		{
+			name:    "mysql values func",
+			dialect: "mysql",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1}).OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON DUPLICATE KEY UPDATE `b`=VALUES(`b`)",
+		},
+		{
+			name:    "mysql insert select with cols",
+			dialect: "mysql",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Cols("a", "b").FromQuery(d.From("src").Select("x", "y")).
+					OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) SELECT `x`, `y` FROM `src` ON DUPLICATE KEY UPDATE `b`=VALUES(`b`)",
+		},
+		{
+			name:    "mysql insert select",
+			dialect: "mysql",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` SELECT `x`, `y` FROM `src` ON DUPLICATE KEY UPDATE `b`=VALUES(`b`)",
+		},
+		{
+			name:    "mysql8 row alias",
+			dialect: "mysql8",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1}).OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) AS `excluded` ON DUPLICATE KEY UPDATE `b`=`excluded`.`b`",
+		},
+		{
+			name:    "mysql8nano reuses As alias",
+			dialect: "mysql8nano",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1}).As("new").
+					OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) AS `new` ON DUPLICATE KEY UPDATE `b`=`new`.`b`",
+		},
+		{
+			name:    "mysql8 without Excluded adds no alias",
+			dialect: "mysql8",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1}).
+					OnConflict(goqu.DoUpdate("", goqu.Record{"b": goqu.L("b + 1")}))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON DUPLICATE KEY UPDATE `b`=b + 1",
+		},
+		{
+			name:    "mysql8 insert select derived table",
+			dialect: "mysql8",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Cols("a", "b").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) SELECT * FROM (SELECT `x`, `y` FROM `src`) AS `excluded` (`a`, `b`) " +
+				"ON DUPLICATE KEY UPDATE `b`=`excluded`.`b`",
+		},
+		{
+			name:    "mysql8 insert select without Cols",
+			dialect: "mysql8",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=mysql8]",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sql, _, err := tc.ds(goqu.Dialect(tc.dialect)).ToSQL()
+			if tc.err != "" {
+				assert.EqualError(t, err, tc.err)
+				assert.True(t, sqlgen.IsUnsupported(err))
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.sql, sql)
+		})
+	}
 }

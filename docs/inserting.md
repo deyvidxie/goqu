@@ -405,8 +405,10 @@ Output:
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT DO NOTHING
 ```
 
+**NOTE** `OnConflict` returns an error on SQL Server.
+
 To specify the conflict target columns, use `SetCols`. This is supported by dialects that support a conflict target
-(Postgres, SQLite3). Using it with a dialect that does not (MySQL, SQL Server) returns an error instead of silently
+(Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error instead of silently
 ignoring the target.
 
 `SetCols` only supports a list of columns. To target a named constraint (`ON CONSTRAINT name`), use
@@ -425,6 +427,54 @@ Output:
 ```
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT ("a", "b") DO NOTHING
 ```
+
+To update the existing row from the row proposed for insertion, use `goqu.Excluded(col)` or
+`goqu.DoUpdateExcluded(target, cols...)`.
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/postgres"
+// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+for _, d := range []string{"postgres", "mysql", "mysql8"} {
+	sql, _, _ := goqu.Dialect(d).Insert("item").
+		Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
+		OnConflict(goqu.DoUpdate("id", goqu.Record{
+			"price": goqu.Excluded("price"),
+			"qty":   goqu.T("item").Col("qty").Add(goqu.Excluded("qty")),
+		})).
+		ToSQL()
+	fmt.Println(sql)
+}
+```
+
+Output:
+
+```
+INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=("item"."qty" + EXCLUDED."qty")
+INSERT INTO `item` (`id`, `price`, `qty`) VALUES (1, 10, 2) ON DUPLICATE KEY UPDATE `price`=VALUES(`price`),`qty`=(`item`.`qty` + VALUES(`qty`))
+INSERT INTO `item` (`id`, `price`, `qty`) VALUES (1, 10, 2) AS `excluded` ON DUPLICATE KEY UPDATE `price`=`excluded`.`price`,`qty`=(`item`.`qty` + `excluded`.`qty`)
+```
+
+```go
+sql, _, _ := goqu.Insert("item").
+	Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
+	OnConflict(goqu.DoUpdateExcluded("id", "price", "qty")).
+	ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+
+```
+INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO UPDATE SET "price"=EXCLUDED."price","qty"=EXCLUDED."qty"
+```
+
+**NOTE** Postgres and the `mysql8` row alias reject an unqualified reference to the existing row's column next to
+`Excluded`; qualify it with the table name.
+
+**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias; for older servers set `ExcludedStyle` to
+`sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`. An `INSERT ... SELECT` that
+uses `Excluded` cannot reference the tables of the `SELECT` in the update.
 
 <a name="returning"></a>
 **Returning Clause**

@@ -25,6 +25,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsConflictUpdateWhere = false
 	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = false
+	opts.SupportsOnConflict = false
 	opts.SupportsWithCTE = false
 	opts.SupportsWithCTERecursive = false
 	opts.SupportsDistinctOn = false
@@ -111,9 +112,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	}
 
 	opts.OfFragment = []byte("")
-	opts.ConflictFragment = []byte("")
-	opts.ConflictDoUpdateFragment = []byte("")
-	opts.ConflictDoNothingFragment = []byte("")
 
 	return opts
 }

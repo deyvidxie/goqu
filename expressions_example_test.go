@@ -573,19 +573,19 @@ func ExampleDoUpdate() {
 
 	sql, args, _ := ds.
 		Rows(goqu.Record{"address": "111 Address"}).
-		OnConflict(goqu.DoUpdate("address", goqu.C("address").Set(goqu.I("excluded.address")))).
+		OnConflict(goqu.DoUpdate("address", goqu.C("address").Set(goqu.Excluded("address")))).
 		ToSQL()
 	fmt.Println(sql, args)
 
 	sql, args, _ = ds.Prepared(true).
 		Rows(goqu.Record{"address": "111 Address"}).
-		OnConflict(goqu.DoUpdate("address", goqu.C("address").Set(goqu.I("excluded.address")))).
+		OnConflict(goqu.DoUpdate("address", goqu.C("address").Set(goqu.Excluded("address")))).
 		ToSQL()
 	fmt.Println(sql, args)
 
 	// Output:
-	// INSERT INTO "items" ("address") VALUES ('111 Address') ON CONFLICT (address) DO UPDATE SET "address"="excluded"."address" []
-	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"="excluded"."address" [111 Address]
+	// INSERT INTO "items" ("address") VALUES ('111 Address') ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" []
+	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" [111 Address]
 }
 
 func ExampleDoUpdate_where() {
@@ -595,7 +595,7 @@ func ExampleDoUpdate_where() {
 		Rows(goqu.Record{"address": "111 Address"}).
 		OnConflict(goqu.DoUpdate(
 			"address",
-			goqu.C("address").Set(goqu.I("excluded.address"))).Where(goqu.I("items.updated").IsNull()),
+			goqu.C("address").Set(goqu.Excluded("address"))).Where(goqu.I("items.updated").IsNull()),
 		).
 		ToSQL()
 	fmt.Println(sql, args)
@@ -604,14 +604,55 @@ func ExampleDoUpdate_where() {
 		Rows(goqu.Record{"address": "111 Address"}).
 		OnConflict(goqu.DoUpdate(
 			"address",
-			goqu.C("address").Set(goqu.I("excluded.address"))).Where(goqu.I("items.updated").IsNull()),
+			goqu.C("address").Set(goqu.Excluded("address"))).Where(goqu.I("items.updated").IsNull()),
 		).
 		ToSQL()
 	fmt.Println(sql, args)
 
 	// Output:
-	// INSERT INTO "items" ("address") VALUES ('111 Address') ON CONFLICT (address) DO UPDATE SET "address"="excluded"."address" WHERE ("items"."updated" IS NULL) []
-	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"="excluded"."address" WHERE ("items"."updated" IS NULL) [111 Address]
+	// INSERT INTO "items" ("address") VALUES ('111 Address') ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" WHERE ("items"."updated" IS NULL) []
+	// INSERT INTO "items" ("address") VALUES (?) ON CONFLICT (address) DO UPDATE SET "address"=EXCLUDED."address" WHERE ("items"."updated" IS NULL) [111 Address]
+}
+
+func ExampleDoUpdateExcluded() {
+	sql, _, _ := goqu.Insert("items").
+		Rows(goqu.Record{"address": "111 Address", "name": "bob"}).
+		OnConflict(goqu.DoUpdateExcluded("name", "address")).
+		ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// INSERT INTO "items" ("address", "name") VALUES ('111 Address', 'bob') ON CONFLICT (name) DO UPDATE SET "address"=EXCLUDED."address"
+}
+
+func ExampleExcluded() {
+	sql, _, _ := goqu.Insert("items").
+		Rows(goqu.Record{"name": "bob", "visits": 1}).
+		OnConflict(goqu.DoUpdate("name", goqu.Record{
+			"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
+		})).
+		ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// INSERT INTO "items" ("name", "visits") VALUES ('bob', 1) ON CONFLICT (name) DO UPDATE SET "visits"=("items"."visits" + EXCLUDED."visits")
+}
+
+func ExampleExcluded_dialects() {
+	for _, dialect := range []string{"postgres", "mysql", "mysql8"} {
+		sql, _, _ := goqu.Dialect(dialect).Insert("items").
+			Rows(goqu.Record{"name": "bob", "visits": 1}).
+			OnConflict(goqu.DoUpdate("name", goqu.Record{
+				"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
+			})).
+			ToSQL()
+		fmt.Println(sql)
+	}
+
+	// Output:
+	// INSERT INTO "items" ("name", "visits") VALUES ('bob', 1) ON CONFLICT (name) DO UPDATE SET "visits"=("items"."visits" + EXCLUDED."visits")
+	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + VALUES(`visits`))
+	// INSERT INTO `items` (`name`, `visits`) VALUES ('bob', 1) AS `excluded` ON DUPLICATE KEY UPDATE `visits`=(`items`.`visits` + `excluded`.`visits`)
 }
 
 func ExampleFIRST() {

@@ -446,6 +446,28 @@ func (pt *postgresTest) TestDelete() {
 	pt.Equal(id, e.ID)
 }
 
+func (pt *postgresTest) TestInsert_OnConflictExcluded() {
+	ds := pt.db.From("entry")
+	existing := goqu.T("entry")
+	upsert := func(e entry) {
+		_, err := ds.Insert().Rows(e).
+			OnConflict(goqu.DoUpdate("int", goqu.Record{
+				"string": goqu.Excluded("string"),
+				"float":  existing.Col("float").Add(goqu.Excluded("float")),
+			}).Where(existing.Col("float").Lt(goqu.Excluded("float")))).
+			Executor().Exec()
+		pt.Require().NoError(err)
+	}
+	upsert(entry{Int: 1, Float: 10, String: "incoming", Time: time.Now(), Bytes: []byte("incoming")})
+	upsert(entry{Int: 1, Float: 0.05, String: "skipped", Time: time.Now(), Bytes: []byte("skipped")})
+
+	var actual entry
+	_, err := ds.Where(goqu.C("int").Eq(1)).ScanStruct(&actual)
+	pt.Require().NoError(err)
+	pt.Equal("incoming", actual.String)
+	pt.InDelta(10.1, actual.Float, 0.001)
+}
+
 func (pt *postgresTest) TestInsert_OnConflict() {
 	ds := pt.db.From("entry")
 	now := time.Now()
@@ -498,7 +520,7 @@ func (pt *postgresTest) TestInsert_OnConflict() {
 	}
 	_, err = ds.Insert().
 		Rows(entries).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.I("excluded.int").Eq(2))).
+		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.Excluded("int").Eq(2))).
 		Executor().
 		Exec()
 	pt.NoError(err)

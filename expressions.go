@@ -59,6 +59,21 @@ func DoUpdate(target string, update interface{}) exp.ConflictUpdateExpression {
 	return exp.NewDoUpdateConflictExpression(target, update)
 }
 
+func DoUpdateExcluded(target string, cols ...any) exp.ConflictUpdateExpression {
+	updates := make([]exp.UpdateExpression, 0, len(cols))
+	for _, col := range cols {
+		e := exp.NewExcludedExpression(col)
+		updates = append(updates, C(e.GetCol()).Set(e))
+	}
+	return DoUpdate(target, updates)
+}
+
+// Excluded references col of the row proposed for insertion, inside an OnConflict DoUpdate.
+// Only the column part of a qualified identifier is used.
+func Excluded(col any) exp.ExcludedExpression {
+	return exp.NewExcludedExpression(col)
+}
+
 // A list of expressions that should be ORed together
 //
 //	Or(I("a").Eq(10), I("b").Eq(11)) //(("a" = 10) OR ("b" = 11))

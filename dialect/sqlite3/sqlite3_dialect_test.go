@@ -231,3 +231,12 @@ func TestInsertOnConflictDoNothingTarget(t *testing.T) {
 	assert.Equal(t, "INSERT INTO `test` (`a`) VALUES (?) ON CONFLICT  (`a`) DO NOTHING ", sql)
 	assert.Equal(t, []any{"a"}, args)
 }
+
+func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
+	sql, _, err := goqu.Dialect("sqlite3").Insert("test").
+		Rows(goqu.Record{"a": "a", "b": 1}).
+		OnConflict(goqu.DoUpdateExcluded("a", "b")).
+		ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON CONFLICT  (a) DO UPDATE SET `b`=EXCLUDED.`b`", sql)
+}

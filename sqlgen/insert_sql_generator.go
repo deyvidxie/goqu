@@ -21,9 +21,29 @@ type (
 	insertSQLGenerator struct {
 		CommonSQLGenerator
 	}
+	conflictUpdateBuilder struct {
+		sb.SQLBuilder
+		rowAlias     exp.IdentifierExpression
+		usesExcluded bool
+	}
+	renderedConflictUpdate struct {
+		sql   string
+		args  []any
+		valid bool
+	}
+	insertSource int
+)
+
+const (
+	insertSourceValues insertSource = iota
+	insertSourceQuery
+	insertSourceComplete
 )
 
 var (
+	errExcludedRowAliasEmpty     = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
+	errExcludedRowAliasQualified = NewInvalidExpressionError("Excluded requires an unqualified insert alias")
+
 	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
 	ErrNoSourceForInsert            = errors.New("no source found when generating insert sql")
 )
@@ -34,6 +54,14 @@ func errMisMatchedRowLength(expectedL, actualL int) error {
 
 func errUpsertWithWhereNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
+}
+
+func errOnConflictNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support upsert [dialect=%s]", dialect)
+}
+
+func errExcludedRequiresInsertCols(dialect string) error {
+	return NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
 }
 
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
@@ -86,32 +114,101 @@ func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExp
 	}
 }
 
-// Adds the columns list to an insert statement
 func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+	source := isg.insertSourceSQL(b, ic)
+	if source == insertSourceComplete || b.Error() != nil {
+		return
+	}
+	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	if rowAlias != nil && source == insertSourceQuery {
+		b.SetError(errExcludedRequiresInsertCols(isg.Dialect()))
+		return
+	}
+	isg.insertAliasAndConflictSQL(b, ic, rowAlias, rendered)
+}
+
+func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
 	switch {
 	case ic.HasRows():
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {
 			b.SetError(err)
-			return
+			return insertSourceValues
 		}
 		isg.InsertExpressionSQL(b, ie)
+		if ie.IsInsertFrom() {
+			return insertSourceQuery
+		}
 	case ic.HasCols() && ic.HasVals():
 		isg.insertColumnsSQL(b, ic.Cols())
 		isg.insertValuesSQL(b, ic.Vals())
 	case ic.HasCols() && ic.HasFrom():
-		isg.insertColumnsSQL(b, ic.Cols())
-		isg.insertFromSQL(b, ic.From())
+		isg.insertColumnsFromSQL(b, ic)
+		return insertSourceComplete
 	case ic.HasFrom():
 		isg.insertFromSQL(b, ic.From())
+		return insertSourceQuery
 	default:
 		isg.defaultValuesSQL(b)
 	}
-	if ic.HasAlias() {
-		b.Write(isg.DialectOptions().AsFragment)
-		isg.ExpressionSQLGenerator().Generate(b, ic.Alias())
+	return insertSourceValues
+}
+
+func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+	isg.insertColumnsSQL(b, ic.Cols())
+	if b.Error() != nil {
+		return
 	}
-	isg.onConflictSQL(b, ic.OnConflict())
+	if !isg.probesConflictUpdate(ic) {
+		isg.insertFromSQL(b, ic.From())
+		isg.insertAliasAndConflictSQL(b, ic, nil, renderedConflictUpdate{})
+		return
+	}
+	writeFrom := ic.From().AppendSQL
+	if !b.IsPrepared() || !isg.DialectOptions().IncludePlaceholderNum {
+		fromBuilder := sb.NewSQLBuilder(b.IsPrepared())
+		ic.From().AppendSQL(fromBuilder)
+		sql, args, err := fromBuilder.ToSQL()
+		sb.ReleaseSQLBuilder(fromBuilder)
+		if err != nil {
+			b.SetError(err)
+			return
+		}
+		writeFrom = func(b sb.SQLBuilder) { b.WriteStrings(sql).WriteArg(args...) }
+	}
+	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	if rowAlias == nil {
+		b.WriteRunes(isg.DialectOptions().SpaceRune)
+		writeFrom(b)
+		isg.insertAliasAndConflictSQL(b, ic, nil, rendered)
+		return
+	}
+	isg.insertFromRowAliasSQL(b, writeFrom, ic.Cols(), rowAlias)
+	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
+}
+
+func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
+	b sb.SQLBuilder,
+	ic exp.InsertClauses,
+	rowAlias exp.IdentifierExpression,
+	rendered renderedConflictUpdate,
+) {
+	if ic.HasAlias() {
+		rowAlias = rowAliasTable(ic.Alias())
+	}
+	if rowAlias != nil {
+		b.Write(isg.DialectOptions().AsFragment)
+		isg.ExpressionSQLGenerator().Generate(b, rowAlias)
+	}
+	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
 }
 
 func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.InsertExpression) {
@@ -134,6 +231,33 @@ func (isg *insertSQLGenerator) defaultValuesSQL(b sb.SQLBuilder) {
 func (isg *insertSQLGenerator) insertFromSQL(b sb.SQLBuilder, ae exp.AppendableExpression) {
 	b.WriteRunes(isg.DialectOptions().SpaceRune)
 	ae.AppendSQL(b)
+}
+
+func (isg *insertSQLGenerator) insertFromRowAliasSQL(
+	b sb.SQLBuilder,
+	writeFrom func(sb.SQLBuilder),
+	cols exp.ColumnListExpression,
+	rowAlias exp.IdentifierExpression,
+) {
+	opts := isg.DialectOptions()
+	b.WriteRunes(opts.SpaceRune).Write(opts.SelectClause).WriteRunes(opts.SpaceRune, opts.StarRune).
+		Write(opts.FromFragment).WriteRunes(opts.SpaceRune, opts.LeftParenRune)
+	writeFrom(b)
+	b.WriteRunes(opts.RightParenRune)
+	b.Write(opts.AsFragment)
+	isg.ExpressionSQLGenerator().Generate(b, rowAlias)
+	isg.insertColumnsSQL(b, unqualifiedColumns(cols))
+}
+
+func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression {
+	names := make([]any, 0, len(cols.Columns()))
+	for _, col := range cols.Columns() {
+		if ident, ok := col.(exp.IdentifierExpression); ok {
+			col = exp.NewIdentifierExpression("", "", ident.GetCol())
+		}
+		names = append(names, col)
+	}
+	return exp.NewColumnListExpression(nil, "", names...)
 }
 
 // Adds the columns list to an insert statement
@@ -160,9 +284,65 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]inter
 	}
 }
 
-// Adds the DefaultValuesFragment to an SQL statement
-func (isg *insertSQLGenerator) onConflictSQL(b sb.SQLBuilder, o exp.ConflictExpression) {
+func (isg *insertSQLGenerator) excludedRowAlias(
+	isPrepared bool,
+	ic exp.InsertClauses,
+) (exp.IdentifierExpression, renderedConflictUpdate, error) {
+	if !isg.probesConflictUpdate(ic) {
+		return nil, renderedConflictUpdate{}, nil
+	}
+	cu, _ := ic.OnConflict().(exp.ConflictUpdateExpression)
+	alias := exp.NewIdentifierExpression("", isg.DialectOptions().ExcludedRowAlias, nil)
+	if ic.HasAlias() {
+		alias = rowAliasTable(ic.Alias())
+	}
+	probe := &conflictUpdateBuilder{SQLBuilder: sb.NewSQLBuilder(isPrepared), rowAlias: alias}
+	defer sb.ReleaseSQLBuilder(probe.SQLBuilder)
+	isg.conflictUpdateSQL(probe, cu)
+	sql, args, err := probe.ToSQL()
+	if err != nil {
+		return nil, renderedConflictUpdate{}, err
+	}
+	rendered := renderedConflictUpdate{
+		sql:   sql,
+		args:  args,
+		valid: !isPrepared || !isg.DialectOptions().IncludePlaceholderNum,
+	}
+	if !probe.usesExcluded {
+		return nil, rendered, nil
+	}
+	if alias.IsEmpty() {
+		return nil, renderedConflictUpdate{}, errExcludedRowAliasEmpty
+	}
+	if col := alias.GetCol(); alias.GetSchema() != "" || (col != nil && col != "") {
+		return nil, renderedConflictUpdate{}, errExcludedRowAliasQualified
+	}
+	return alias, rendered, nil
+}
+
+func (isg *insertSQLGenerator) probesConflictUpdate(ic exp.InsertClauses) bool {
+	_, ok := ic.OnConflict().(exp.ConflictUpdateExpression)
+	return ok && isg.DialectOptions().ExcludedStyle == ExcludedRowAliasStyle && isg.DialectOptions().SupportsOnConflict
+}
+
+func rowAliasTable(alias exp.IdentifierExpression) exp.IdentifierExpression {
+	if name, ok := alias.GetCol().(string); ok && name != "" && alias.GetTable() == "" && alias.GetSchema() == "" {
+		return exp.NewIdentifierExpression("", name, nil)
+	}
+	return alias
+}
+
+func (isg *insertSQLGenerator) onConflictSQL(
+	b sb.SQLBuilder,
+	o exp.ConflictExpression,
+	rowAlias exp.IdentifierExpression,
+	rendered renderedConflictUpdate,
+) {
 	if o == nil {
+		return
+	}
+	if !isg.DialectOptions().SupportsOnConflict {
+		b.SetError(errOnConflictNotSupported(isg.Dialect()))
 		return
 	}
 	b.Write(isg.DialectOptions().ConflictFragment)
@@ -181,7 +361,7 @@ func (isg *insertSQLGenerator) onConflictSQL(b sb.SQLBuilder, o exp.ConflictExpr
 				b.Write([]byte(target))
 			}
 		}
-		isg.onConflictDoUpdateSQL(b, t)
+		isg.onConflictDoUpdateSQL(b, t, rowAlias, rendered)
 	case exp.ConflictNothingExpression:
 		isg.ConflictTargetSQL(b, t.Cols())
 		if b.Error() != nil {
@@ -193,8 +373,21 @@ func (isg *insertSQLGenerator) onConflictSQL(b sb.SQLBuilder, o exp.ConflictExpr
 	}
 }
 
-func (isg *insertSQLGenerator) onConflictDoUpdateSQL(b sb.SQLBuilder, o exp.ConflictUpdateExpression) {
+func (isg *insertSQLGenerator) onConflictDoUpdateSQL(
+	b sb.SQLBuilder,
+	o exp.ConflictUpdateExpression,
+	rowAlias exp.IdentifierExpression,
+	rendered renderedConflictUpdate,
+) {
 	b.Write(isg.DialectOptions().ConflictDoUpdateFragment)
+	if rendered.valid {
+		b.WriteStrings(rendered.sql).WriteArg(rendered.args...)
+		return
+	}
+	isg.conflictUpdateSQL(&conflictUpdateBuilder{SQLBuilder: b, rowAlias: rowAlias}, o)
+}
+
+func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp.ConflictUpdateExpression) {
 	update := o.Update()
 	if update == nil {
 		b.SetError(ErrConflictUpdateValuesRequired)
@@ -204,6 +397,12 @@ func (isg *insertSQLGenerator) onConflictDoUpdateSQL(b sb.SQLBuilder, o exp.Conf
 	if err != nil {
 		b.SetError(err)
 		return
+	}
+	for _, u := range ue {
+		if e, ok := u.Val().(exp.ExcludedExpression); ok && e.GetCol() == "" {
+			b.SetError(errExcludedWithoutColumn)
+			return
+		}
 	}
 	isg.UpdateExpressionSQL(b, ue...)
 	if b.Error() == nil && o.WhereClause() != nil {

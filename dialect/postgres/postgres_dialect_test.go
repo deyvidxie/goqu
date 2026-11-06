@@ -5,6 +5,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,6 +22,24 @@ func TestInsertOnConflictDoNothingTarget(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `INSERT INTO "test" ("a") VALUES ($1) ON CONFLICT ("a") DO NOTHING`, sql)
 	assert.Equal(t, []any{"a"}, args)
+}
+
+func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
+	ds := goqu.Dialect("postgres").Insert("test").
+		Rows(goqu.Record{"a": "a", "b": 1}).
+		OnConflict(goqu.DoUpdateExcluded("a", "b").Where(goqu.T("test").Col("b").Lt(goqu.Excluded("b"))))
+	sql, args, err := ds.Prepared(true).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "test" ("a", "b") VALUES ($1, $2) ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b" `+
+		`WHERE ("test"."b" < EXCLUDED."b")`, sql)
+	assert.Equal(t, []any{"a", int64(1)}, args)
+
+	_, _, err = goqu.Dialect("postgres").Insert("test").
+		Rows(goqu.Record{"a": "a"}).
+		OnConflict(goqu.DoUpdateExcluded("a", 1)).
+		ToSQL()
+	assert.EqualError(t, err, "goqu: Excluded requires a column name")
+	assert.True(t, sqlgen.IsInvalidExpression(err))
 }
 
 func TestUpdateAndDeleteLimitAndOrderAreErrors(t *testing.T) {

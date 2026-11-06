@@ -19,15 +19,25 @@ func TestIsUnsupported(t *testing.T) {
 	assert.False(t, sqlgen.IsUnsupported(nil))
 }
 
+func TestIsInvalidExpression(t *testing.T) {
+	err := sqlgen.NewInvalidExpressionError("bad %s", "x")
+	assert.EqualError(t, err, "goqu: bad x")
+	assert.True(t, sqlgen.IsInvalidExpression(err))
+	assert.True(t, sqlgen.IsInvalidExpression(fmt.Errorf("building query: %w", err)))
+	assert.False(t, sqlgen.IsInvalidExpression(sqlgen.NewUnsupportedError("x")))
+	assert.False(t, sqlgen.IsInvalidExpression(nil))
+}
+
+//nolint:funlen
 func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 	type sqlBuilder interface {
 		ToSQL() (string, []interface{}, error)
 	}
 	for _, c := range []struct {
-		name    string
-		want    string
-		disable func(*sqlgen.SQLDialectOptions)
-		build   func(goqu.DialectWrapper) sqlBuilder
+		name      string
+		want      string
+		configure func(*sqlgen.SQLDialectOptions)
+		build     func(goqu.DialectWrapper) sqlBuilder
 	}{
 		{"CTE", "CTE WITH clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWithCTE = false
@@ -50,11 +60,26 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 		}},
+		{"upsert", "does not support upsert [dialect=", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsOnConflict = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoNothing())
+		}},
 		{"upsert WHERE", "upsert with where clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictUpdateWhere = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.C("a").Eq(1)))
+		}},
+		{"unknown ExcludedStyle", "unknown ExcludedStyle", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle + 1
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdateExcluded("a", "b"))
+		}},
+		{"Excluded with INSERT SELECT without Cols", "requires Cols(...).FromQuery(...) to use Excluded", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
 		{"UPDATE multiple tables", "multiple tables in UPDATE", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMultipleUpdateTables = false
@@ -153,7 +178,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}},
 	} {
 		opts := sqlgen.DefaultDialectOptions()
-		c.disable(opts)
+		c.configure(opts)
 		dialect := "unsupported-" + c.name
 		goqu.RegisterDialect(dialect, "db", opts)
 		_, _, err := c.build(goqu.Dialect(dialect)).ToSQL()
