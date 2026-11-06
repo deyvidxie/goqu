@@ -151,6 +151,21 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 	}
 }
 
+func (dws *dialectWrapperSuite) TestExpressionSQL_errorNamesDialect() {
+	_, _, err := goqu.DialectWithTagName("sqlserver", "json").ExpressionSQL(goqu.C("a").IsTrue())
+	dws.EqualError(err, `goqu: boolean data type is not supported by dialect "sqlserver"`)
+}
+
+func (dws *dialectWrapperSuite) TestExpressionSQL_ignoresDefaultPrepared() {
+	goqu.SetDefaultPrepared(true)
+	defer goqu.SetDefaultPrepared(false)
+
+	sql, args, err := goqu.Dialect("mysql").ExpressionSQL(goqu.C("a").Eq(1))
+	dws.Require().NoError(err)
+	dws.Equal("(`a` = 1)", sql)
+	dws.Empty(args)
+}
+
 func (dws *dialectWrapperSuite) TestExpressionSQL_unregisteredDialect() {
 	sql, _, err := goqu.Dialect("nope").ExpressionSQL(goqu.C("a").Eq(1))
 	dws.Require().NoError(err)
