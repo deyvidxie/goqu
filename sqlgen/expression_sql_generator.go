@@ -84,6 +84,10 @@ func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
 	return NewUnsupportedError("range operator %+v not supported", op)
 }
 
+func errExcludedFragmentEmpty(option string) error {
+	return NewInvalidExpressionError("Excluded requires %s", option)
+}
+
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
@@ -929,6 +933,10 @@ func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.
 	ub.usesExcluded = true
 	switch esg.dialectOptions.ExcludedStyle {
 	case ExcludedValuesFuncStyle:
+		if len(esg.dialectOptions.ExcludedValuesFuncFragment) == 0 {
+			b.SetError(errExcludedFragmentEmpty("ExcludedValuesFuncFragment"))
+			return
+		}
 		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
 		esg.quotedIdentifierSQL(b, e.GetCol())
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
@@ -939,6 +947,10 @@ func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.
 		}
 		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
 	case ExcludedTableStyle:
+		if len(esg.dialectOptions.ExcludedTableFragment) == 0 {
+			b.SetError(errExcludedFragmentEmpty("ExcludedTableFragment"))
+			return
+		}
 		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
 		esg.quotedIdentifierSQL(b, e.GetCol())
 	default:

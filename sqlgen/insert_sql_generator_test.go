@@ -734,6 +734,24 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 				`ON CONFLICT [a] DO UPDATE SET "b"="excluded"."b"`,
 		},
 	)
+
+	for _, tc := range []struct {
+		style  sqlgen.ExcludedStyle
+		option string
+	}{
+		{style: sqlgen.ExcludedTableStyle, option: "ExcludedTableFragment"},
+		{style: sqlgen.ExcludedValuesFuncStyle, option: "ExcludedValuesFuncFragment"},
+	} {
+		emptyOpts := sqlgen.DefaultDialectOptions()
+		emptyOpts.ExcludedStyle = tc.style
+		emptyOpts.ExcludedTableFragment = nil
+		emptyOpts.ExcludedValuesFuncFragment = nil
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewInsertSQLGenerator("test", "db", emptyOpts).Generate(b, ic.SetOnConflict(excludedB))
+		_, _, err := b.ToSQL()
+		igs.EqualError(err, "goqu: Excluded requires "+tc.option)
+		igs.True(sqlgen.IsInvalidExpression(err))
+	}
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_insertSourcePrecedenceWithRowAlias() {
