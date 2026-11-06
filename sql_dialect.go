@@ -76,6 +76,13 @@ func dropTaggedDialects(name string) {
 	}
 }
 
+func isRegisteredDialect(name string) bool {
+	dialectsMu.RLock()
+	defer dialectsMu.RUnlock()
+	_, ok := dialects[strings.ToLower(name)]
+	return ok
+}
+
 func GetDialect(name string) SQLDialect {
 	dialectsMu.RLock()
 	defer dialectsMu.RUnlock()

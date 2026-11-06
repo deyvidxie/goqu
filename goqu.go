@@ -32,6 +32,19 @@ func DialectWithTagName(dialect, requestedTag string) DialectWrapper {
 	return DialectWrapper{dialect: dialect, tag: requestTag(requestedTag)}
 }
 
+func LookupDialect(dialect string) (DialectWrapper, error) {
+	return LookupDialectWithTagName(dialect, "")
+}
+
+func LookupDialectWithTagName(dialect, requestedTag string) (DialectWrapper, error) {
+	if !isRegisteredDialect(dialect) {
+		return DialectWrapper{}, newUnknownDialectError(
+			"dialect %q is not registered; blank-import its dialect package or call RegisterDialect", dialect,
+		)
+	}
+	return DialectWithTagName(dialect, requestedTag), nil
+}
+
 // Create a new dataset for creating SELECT sql statements
 func (dw DialectWrapper) From(table ...interface{}) *SelectDataset {
 	return newDataset(dw.dialect, dw.tag, nil).From(table...)
