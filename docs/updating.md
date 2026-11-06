@@ -627,7 +627,6 @@ if err := update.ScanVals(&ids); err != nil {
 
 ```
 
-
 Output:
 ```
 Updated users with ids [1 2 3]

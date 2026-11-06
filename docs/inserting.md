@@ -639,7 +639,6 @@ if _, err := insert.ScanVal(&id); err != nil {
 }
 ```
 
-
 Output:
 
 ```

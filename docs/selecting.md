@@ -1263,7 +1263,7 @@ if !found{
 <a name="generic-scan"></a>
 **`goqu.ScanAllStructs`, `goqu.ScanOneStruct`, `goqu.ScanAllVals`, `goqu.ScanOneVal`**
 
-Each takes a `*SelectDataset` or an `exec.QueryExecutor` (e.g. `Insert(...).Returning(...).Executor()`). `ScanAllStructs`/`ScanOneStruct` take a struct or a pointer to a struct. An empty result is a `nil` slice.
+Each takes a `*SelectDataset` or an `exec.QueryExecutor`. `ScanAllStructs`/`ScanOneStruct` take a struct or a pointer to a struct. An empty result is a `nil` slice.
 
 ```go
 users, err := goqu.ScanAllStructs[User](ctx, db.From("user"))

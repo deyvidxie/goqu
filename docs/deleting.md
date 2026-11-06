@@ -339,7 +339,6 @@ if err := de.ScanVals(&ids); err != nil {
 }
 ```
 
-
 Output:
 
 ```

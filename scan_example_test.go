@@ -82,8 +82,12 @@ func ExampleScanAllVals_returning() {
 		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley", "created": "2020-01-01 00:00:00"}).
 		Returning("id")
 	ids, err := goqu.ScanAllVals[int64](context.Background(), ds.Executor())
-	fmt.Println(ids, err)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(ids)
 
 	// Output:
-	// [5] <nil>
+	// [5]
 }

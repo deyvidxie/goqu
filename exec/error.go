@@ -1,4 +1,4 @@
-package goqu
+package exec
 
 import (
 	"errors"
