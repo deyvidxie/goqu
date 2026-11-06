@@ -14,6 +14,7 @@
 * [`Or`](#or) - OR multiple expressions together.
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
+* [Rendering an expression](#expression-sql) - `ExpressionSQL` and `PreparedExpressionSQL` on a dialect.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
 
 The entry points for expressions are:
@@ -432,6 +433,28 @@ SELECT * FROM "test" WHERE EXISTS (SELECT * FROM "other" WHERE ("test_id" = "id"
 ```
 
 To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exists) on the dataset.
+
+<a name="expression-sql"></a>
+**[`ExpressionSQL()`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.ExpressionSQL)**
+
+Renders one expression with a dialect, without a surrounding statement.
+
+```go
+dialect := goqu.Dialect("mysql")
+condition := goqu.And(goqu.C("status").Eq("active"), goqu.C("age").Gte(18))
+
+sql, _, _ := dialect.ExpressionSQL(condition)
+fmt.Println(sql)
+
+sql, args, _ := dialect.PreparedExpressionSQL(condition)
+fmt.Println(sql, args)
+```
+
+Output:
+```
+((`status` = 'active') AND (`age` >= 18))
+((`status` = ?) AND (`age` >= ?)) [active 18]
+```
 
 <a name="complex"></a>
 ## Complex Example

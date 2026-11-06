@@ -6,6 +6,10 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -92,6 +96,57 @@ func (dws *dialectWrapperSuite) TestLookupDialectWithTagName_unregistered() {
 	dw, err := goqu.LookupDialectWithTagName("nope", "json")
 	dws.True(goqu.IsUnknownDialect(err))
 	dws.Equal(goqu.DialectWrapper{}, dw)
+}
+
+func (dws *dialectWrapperSuite) TestExpressionSQL() {
+	for _, c := range []struct {
+		dialect string
+		expr    exp.Expression
+		sql     string
+	}{
+		{"mysql", goqu.C("a").Eq(1), "(`a` = 1)"},
+		{"mysql", goqu.I("t.a"), "`t`.`a`"},
+		{"mysql", goqu.Func("COALESCE", goqu.C("a"), "x"), "COALESCE(`a`, 'x')"},
+		{"postgres", goqu.C("a").Eq(1), `("a" = 1)`},
+		{"postgres", goqu.I("t.a"), `"t"."a"`},
+		{"postgres", goqu.Func("COALESCE", goqu.C("a"), "x"), `COALESCE("a", 'x')`},
+	} {
+		sql, args, err := goqu.Dialect(c.dialect).ExpressionSQL(c.expr)
+		dws.Require().NoError(err, c.sql)
+		dws.Equal(c.sql, sql)
+		dws.Empty(args, c.sql)
+	}
+}
+
+func (dws *dialectWrapperSuite) TestPreparedExpressionSQL() {
+	for _, c := range []struct {
+		dialect string
+		expr    exp.Expression
+		sql     string
+		args    []interface{}
+	}{
+		{"mysql", goqu.C("a").Eq(1), "(`a` = ?)", []interface{}{int64(1)}},
+		{"mysql", goqu.I("t.a"), "`t`.`a`", []interface{}{}},
+		{"mysql", goqu.Func("COALESCE", goqu.C("a"), "x"), "COALESCE(`a`, ?)", []interface{}{"x"}},
+		{"postgres", goqu.C("a").Eq(1), `("a" = $1)`, []interface{}{int64(1)}},
+		{"postgres", goqu.I("t.a"), `"t"."a"`, []interface{}{}},
+		{"postgres", goqu.Func("COALESCE", goqu.C("a"), "x"), `COALESCE("a", $1)`, []interface{}{"x"}},
+	} {
+		sql, args, err := goqu.Dialect(c.dialect).PreparedExpressionSQL(c.expr)
+		dws.Require().NoError(err, c.sql)
+		dws.Equal(c.sql, sql)
+		dws.Equal(c.args, args, c.sql)
+	}
+}
+
+func (dws *dialectWrapperSuite) TestExpressionSQL_unsupported() {
+	dw := goqu.Dialect("sqlserver")
+	for _, render := range []func(exp.Expression) (string, []interface{}, error){dw.ExpressionSQL, dw.PreparedExpressionSQL} {
+		sql, args, err := render(goqu.C("a").Eq(true))
+		dws.EqualError(err, `goqu: boolean data type is not supported by dialect "sqlserver"`)
+		dws.Empty(sql)
+		dws.Empty(args)
+	}
 }
 
 func TestDialectWrapper(t *testing.T) {

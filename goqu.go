@@ -14,6 +14,8 @@ package goqu
 import (
 	"time"
 
+	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 )
@@ -73,6 +75,21 @@ func (dw DialectWrapper) Delete(table interface{}) *DeleteDataset {
 // Create a new dataset for creating TRUNCATE sql statements
 func (dw DialectWrapper) Truncate(table ...interface{}) *TruncateDataset {
 	return newTruncateDataset(dw.dialect, dw.tag, nil).Table(table...)
+}
+
+func (dw DialectWrapper) ExpressionSQL(e exp.Expression) (sql string, args []interface{}, err error) {
+	return dw.expressionSQL(e, false)
+}
+
+func (dw DialectWrapper) PreparedExpressionSQL(e exp.Expression) (sql string, args []interface{}, err error) {
+	return dw.expressionSQL(e, true)
+}
+
+func (dw DialectWrapper) expressionSQL(e exp.Expression, prepared bool) (sql string, args []interface{}, err error) {
+	b := sb.NewSQLBuilder(prepared)
+	defer sb.ReleaseSQLBuilder(b)
+	dialectFor(dw.dialect, dw.tag.resolve(dw.dialect)).expressionGen.Generate(b, e)
+	return b.ToSQL()
 }
 
 func (dw DialectWrapper) DB(db SQLDatabase) *Database {

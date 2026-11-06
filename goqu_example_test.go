@@ -223,6 +223,23 @@ func ExampleDialect_dbSqlite3() {
 	// {1 111 Test Addr Test1} true <nil>
 }
 
+func ExampleDialectWrapper_ExpressionSQL() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	dialect := goqu.Dialect("mysql")
+	condition := goqu.And(goqu.C("status").Eq("active"), goqu.C("age").Gte(18))
+
+	sql, _, _ := dialect.ExpressionSQL(condition)
+	fmt.Println(sql)
+
+	sql, args, _ := dialect.PreparedExpressionSQL(condition)
+	fmt.Println(sql, args)
+
+	// Output:
+	// ((`status` = 'active') AND (`age` >= 18))
+	// ((`status` = ?) AND (`age` >= ?)) [active 18]
+}
+
 func ExampleLookupDialect() {
 	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
