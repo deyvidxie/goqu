@@ -37,7 +37,7 @@ func LookupDialect(dialect string) (DialectWrapper, error) {
 }
 
 func LookupDialectWithTagName(dialect, requestedTag string) (DialectWrapper, error) {
-	if !isRegisteredDialect(dialect) {
+	if _, ok := registeredDialect(dialect); !ok {
 		return DialectWrapper{}, newUnknownDialectError(
 			"dialect %q is not registered; blank-import its dialect package or call RegisterDialect", dialect,
 		)

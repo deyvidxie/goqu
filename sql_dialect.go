@@ -83,11 +83,6 @@ func registeredDialect(name string) (*sqlDialect, bool) {
 	return d, ok
 }
 
-func isRegisteredDialect(name string) bool {
-	_, ok := registeredDialect(name)
-	return ok
-}
-
 func GetDialect(name string) SQLDialect {
 	if d, ok := registeredDialect(name); ok {
 		return d
@@ -116,10 +111,12 @@ func (r tagRequest) resolve(dialect string) string {
 }
 
 func registeredTagName(name string) string {
-	if d, ok := registeredDialect(name); ok {
+	dialectsMu.RLock()
+	defer dialectsMu.RUnlock()
+	if d, ok := dialects[strings.ToLower(name)]; ok {
 		return d.tagName
 	}
-	if d, ok := registeredDialect("default"); ok {
+	if d, ok := dialects["default"]; ok {
 		return d.tagName
 	}
 	return "db"

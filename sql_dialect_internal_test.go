@@ -93,6 +93,7 @@ func (dts *dialectTestSuite) TestGetDialectWithTag() {
 
 	dbTagged := GetDialectWithTag("tag-test", "db")
 	dts.Same(GetDialect("tag-test"), dbTagged)
+	dts.Equal("default", GetDialect("not-registered").Dialect())
 	dts.Same(dbTagged, GetDialectWithTag("tag-test", ""))
 	dts.Equal("default", GetDialectWithTag("not-registered", "json").Dialect())
 
@@ -119,7 +120,6 @@ func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
 			GetDialectWithTag("race-test", "json")
 			GetDialect("race-test")
 			registeredTagName("race-test")
-			isRegisteredDialect("race-test")
 		}()
 	}
 	wg.Wait()

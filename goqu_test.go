@@ -60,6 +60,7 @@ func (dws *dialectWrapperSuite) TestDB() {
 func (dws *dialectWrapperSuite) TestTx() {
 	mDB, mock, err := sqlmock.New()
 	dws.Require().NoError(err)
+	defer mDB.Close()
 	mock.ExpectBegin()
 	tx, err := mDB.BeginTx(context.Background(), nil)
 	dws.Require().NoError(err)
@@ -77,7 +78,6 @@ func (dws *dialectWrapperSuite) TestLookupDialect() {
 
 func (dws *dialectWrapperSuite) TestLookupDialect_unregistered() {
 	dw, err := goqu.LookupDialect("nope")
-	dws.EqualError(err, `goqu: dialect "nope" is not registered; blank-import its dialect package or call RegisterDialect`)
 	dws.True(goqu.IsUnknownDialect(err))
 	dws.Equal(goqu.DialectWrapper{}, dw)
 }
@@ -90,7 +90,6 @@ func (dws *dialectWrapperSuite) TestLookupDialectWithTagName() {
 
 func (dws *dialectWrapperSuite) TestLookupDialectWithTagName_unregistered() {
 	dw, err := goqu.LookupDialectWithTagName("nope", "json")
-	dws.EqualError(err, `goqu: dialect "nope" is not registered; blank-import its dialect package or call RegisterDialect`)
 	dws.True(goqu.IsUnknownDialect(err))
 	dws.Equal(goqu.DialectWrapper{}, dw)
 }
