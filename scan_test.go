@@ -46,7 +46,16 @@ type (
 		Created time.Time `db:"created"`
 		Note    *string   `db:"note"`
 	}
-	scanTestBlob        []byte
+	scanTestBlob      []byte
+	ScanTestTime      time.Time
+	scanTestSkippedID struct {
+		*ScanTestID `db:"-"`
+		ID          int64 `db:"id"`
+	}
+	scanTestSkippedNested struct {
+		scanTestEmbeddedID `db:"-"`
+		ID                 int64 `db:"id"`
+	}
 	scanTestNestedID    struct{ scanTestEmbeddedID }
 	scanTestNestedIDPtr struct{ *scanTestEmbeddedID }
 	scanTestMixed       struct {
@@ -73,6 +82,23 @@ func (*scanTestScannerRow) Scan(interface{}) error {
 }
 
 func (scanTestError) Error() string { return "scan failed" }
+
+func allStructsErr[T any](ss *scanSuite) error {
+	_, err := goqu.ScanAllStructs[T](context.Background(), ss.db.From("items"))
+	return err
+}
+
+func allValsErr[T any](ss *scanSuite) error {
+	vals, err := goqu.ScanAllVals[T](context.Background(), ss.db.From("items"))
+	ss.Nil(vals)
+	return err
+}
+
+func oneValErr[T any](ss *scanSuite) error {
+	_, found, err := goqu.ScanOneVal[T](context.Background(), ss.db.From("items"))
+	ss.False(found)
+	return err
+}
 
 func (*scanTestOpaqueScanner) Scan(interface{}) error {
 	return scanTestError{}
@@ -266,34 +292,15 @@ func (ss *scanSuite) TestScanRejectsSingleColumnStructs() {
 		"use ScanAllVals[goqu_test.scanTestOpaqueScanner]")
 }
 
-func (ss *scanSuite) TestScanRejectsStructsWithoutExportedFields() {
-	for name, scan := range map[string]func() error{
-		"netip.Addr": func() error {
-			_, err := goqu.ScanAllStructs[netip.Addr](context.Background(), ss.db.From("items"))
-			return err
-		},
-		"goqu_test.scanTestEmbedded": func() error {
-			_, err := goqu.ScanAllStructs[scanTestEmbedded](context.Background(), ss.db.From("items"))
-			return err
-		},
-		"goqu_test.scanTestEmbeddedPtr": func() error {
-			_, err := goqu.ScanAllStructs[scanTestEmbeddedPtr](context.Background(), ss.db.From("items"))
-			return err
-		},
-		"goqu_test.ScanTestSelfRef": func() error {
-			_, err := goqu.ScanAllStructs[ScanTestSelfRef](context.Background(), ss.db.From("items"))
-			return err
-		},
-		"goqu_test.scanTestUnexportedPtr": func() error {
-			_, err := goqu.ScanAllStructs[scanTestUnexportedPtr](context.Background(), ss.db.From("items"))
-			return err
-		},
-		"strings.Builder": func() error {
-			_, err := goqu.ScanAllStructs[strings.Builder](context.Background(), ss.db.From("items"))
-			return err
-		},
+func (ss *scanSuite) TestScanRejectsStructsWithoutRowFields() {
+	for name, err := range map[string]error{
+		"netip.Addr":                      allStructsErr[netip.Addr](ss),
+		"goqu_test.scanTestEmbedded":      allStructsErr[scanTestEmbedded](ss),
+		"goqu_test.scanTestEmbeddedPtr":   allStructsErr[scanTestEmbeddedPtr](ss),
+		"goqu_test.ScanTestSelfRef":       allStructsErr[ScanTestSelfRef](ss),
+		"goqu_test.scanTestUnexportedPtr": allStructsErr[scanTestUnexportedPtr](ss),
+		"strings.Builder":                 allStructsErr[strings.Builder](ss),
 	} {
-		err := scan()
 		ss.EqualError(err, "goqu: ScanAllStructs requires a row struct, got "+name+", which has no fields goqu can scan into", name)
 		ss.True(exec.IsUnsupportedScanType(err), name)
 	}
@@ -462,29 +469,25 @@ func (ss *scanSuite) TestScanOneValFromExecutor() {
 }
 
 func (ss *scanSuite) TestScanOneValRejectsSlices() {
-	_, _, err := goqu.ScanOneVal[[]int64](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanOneVal cannot scan into slice type []int64; use []byte or a sql.Scanner")
-	ss.True(exec.IsUnsupportedScanType(err))
+	for _, err := range []error{oneValErr[[]int64](ss), oneValErr[*[]int64](ss), oneValErr[**[]int64](ss)} {
+		ss.EqualError(err, "goqu: ScanOneVal cannot scan into slice type []int64; use []byte or a sql.Scanner")
+		ss.True(exec.IsUnsupportedScanType(err))
+	}
 
-	_, _, err = goqu.ScanOneVal[*[]int64](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanOneVal cannot scan into slice type *[]int64; use []byte or a sql.Scanner")
+	err := oneValErr[scanTestBlob](ss)
+	ss.EqualError(err, "goqu: ScanOneVal cannot scan into goqu_test.scanTestBlob; use *goqu_test.scanTestBlob")
 	ss.True(exec.IsUnsupportedScanType(err))
 }
 
 func (ss *scanSuite) TestScanValsRejectRawBytes() {
-	_, _, err := goqu.ScanOneVal[sql.RawBytes](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, which is only valid until the next row; use []byte")
-	ss.True(exec.IsUnsupportedScanType(err))
-
-	_, err = goqu.ScanAllVals[sql.RawBytes](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, which is only valid until the next row; use []byte")
-	ss.True(exec.IsUnsupportedScanType(err))
-
-	_, _, err = goqu.ScanOneVal[*sql.RawBytes](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, which is only valid until the next row; use []byte")
-
-	_, err = goqu.ScanAllVals[*sql.RawBytes](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, which is only valid until the next row; use []byte")
+	for _, err := range []error{oneValErr[sql.RawBytes](ss), oneValErr[*sql.RawBytes](ss), oneValErr[**sql.RawBytes](ss)} {
+		ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, which is only valid until the next row; use []byte")
+		ss.True(exec.IsUnsupportedScanType(err))
+	}
+	for _, err := range []error{allValsErr[sql.RawBytes](ss), allValsErr[*sql.RawBytes](ss), allValsErr[**sql.RawBytes](ss)} {
+		ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, which is only valid until the next row; use []byte")
+		ss.True(exec.IsUnsupportedScanType(err))
+	}
 }
 
 func (ss *scanSuite) TestScanAllValsAcceptsNullablePointers() {
@@ -527,44 +530,29 @@ func (ss *scanSuite) TestScanAllValsAcceptsNullablePointers() {
 
 func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 	ids, err := goqu.ScanAllVals[*int64](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan NULL into *int64; use sql.Null[int64]")
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64, which cannot hold NULL; use sql.Null[int64]")
 	ss.True(exec.IsUnsupportedScanType(err))
 	ss.Nil(ids)
 
-	_, err = goqu.ScanAllVals[*fmt.Stringer](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *fmt.Stringer")
-	_, err = goqu.ScanAllVals[*[]int64](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *[]int64")
-	ss.True(exec.IsUnsupportedScanType(err))
-	_, err = goqu.ScanAllVals[*uintptr](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *uintptr")
-
-	for _, c := range []struct {
-		scan func() error
-		want string
-	}{
-		{func() error {
-			_, err := goqu.ScanAllVals[*string](context.Background(), ss.db.From("items"))
-			return err
-		}, "string"},
-		{func() error { _, err := goqu.ScanAllVals[*bool](context.Background(), ss.db.From("items")); return err }, "bool"},
-		{func() error {
-			_, err := goqu.ScanAllVals[*float64](context.Background(), ss.db.From("items"))
-			return err
-		}, "float64"},
-		{func() error {
-			_, err := goqu.ScanAllVals[*time.Time](context.Background(), ss.db.From("items"))
-			return err
-		}, "time.Time"},
-		{
-			func() error {
-				_, err := goqu.ScanAllVals[*scanTestBlob](context.Background(), ss.db.From("items"))
-				return err
-			},
-			"goqu_test.scanTestBlob",
-		},
+	for name, err := range map[string]error{
+		"string":                 allValsErr[*string](ss),
+		"bool":                   allValsErr[*bool](ss),
+		"float64":                allValsErr[*float64](ss),
+		"time.Time":              allValsErr[*time.Time](ss),
+		"goqu_test.ScanTestTime": allValsErr[*ScanTestTime](ss),
+		"goqu_test.scanTestBlob": allValsErr[*scanTestBlob](ss),
 	} {
-		ss.EqualError(c.scan(), "goqu: ScanAllVals cannot scan NULL into *"+c.want+"; use sql.Null["+c.want+"]")
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+", which cannot hold NULL; use sql.Null["+name+"]", name)
+	}
+
+	for name, err := range map[string]error{
+		"*fmt.Stringer": allValsErr[*fmt.Stringer](ss),
+		"*[]int64":      allValsErr[*[]int64](ss),
+		"**[]int64":     allValsErr[**[]int64](ss),
+		"*uintptr":      allValsErr[*uintptr](ss),
+	} {
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+name, name)
+		ss.True(exec.IsUnsupportedScanType(err), name)
 	}
 }
 
@@ -573,8 +561,6 @@ func (ss *scanSuite) TestScanAllStructsAcceptsStructFieldsAndNonStructEmbeds() {
 	ss.mock.ExpectQuery(`SELECT "created", "note" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"created", "note"}).AddRow(created, nil))
 	ss.mock.ExpectQuery(`SELECT "scantestname" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"scantestname"}).AddRow("a"))
-	ss.mock.ExpectQuery(`SELECT "isolation", "readonly" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"isolation", "readonly"}).AddRow(int64(2), true))
 
 	times, err := goqu.ScanAllStructs[scanTestTimeRow](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
@@ -583,10 +569,28 @@ func (ss *scanSuite) TestScanAllStructsAcceptsStructFieldsAndNonStructEmbeds() {
 	named, err := goqu.ScanAllStructs[scanTestNamed](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.Equal([]scanTestNamed{{ScanTestName: "a"}}, named)
+}
+
+func (ss *scanSuite) TestScanAllStructsAcceptsDatabaseSQLRowStructs() {
+	ss.mock.ExpectQuery(`SELECT "isolation", "readonly" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"isolation", "readonly"}).AddRow(int64(2), true))
 
 	opts, err := goqu.ScanAllStructs[sql.TxOptions](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.Equal([]sql.TxOptions{{Isolation: sql.LevelReadCommitted, ReadOnly: true}}, opts)
+}
+
+func (ss *scanSuite) TestScanAllStructsAcceptsSkippedEmbeddedNonStructPointers() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(5)))
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(6)))
+
+	skipped, err := goqu.ScanAllStructs[scanTestSkippedID](context.Background(), ss.db.From("items"))
+	ss.NoError(err)
+	ss.Equal([]scanTestSkippedID{{ID: 5}}, skipped)
+
+	nested, err := goqu.ScanAllStructs[scanTestSkippedNested](context.Background(), ss.db.From("items"))
+	ss.NoError(err)
+	ss.Equal([]scanTestSkippedNested{{ID: 6}}, nested)
 }
 
 func (ss *scanSuite) TestScanStructsRejectEmbeddedNonStructPointers() {
