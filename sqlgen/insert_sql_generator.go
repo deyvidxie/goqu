@@ -192,7 +192,7 @@ func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
 	rowAlias exp.IdentifierExpression,
 	rendered *renderedConflictUpdate,
 ) {
-	if rowAlias == nil && ic.HasAlias() {
+	if ic.HasAlias() {
 		rowAlias = rowAliasTable(ic.Alias())
 	}
 	if rowAlias != nil {

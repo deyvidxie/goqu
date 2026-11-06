@@ -802,12 +802,17 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasError
 		},
 	)
 
-	conflictValuer := &secondCallValuer{firstErr: errValuerFailed}
 	b := sb.NewSQLBuilder(false)
+	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, ic.SetAlias(exp.ParseIdentifier("t.new")).SetOnConflict(excludedB))
+	_, _, err := b.ToSQL()
+	igs.True(sqlgen.IsInvalidExpression(err))
+
+	conflictValuer := &secondCallValuer{firstErr: errValuerFailed}
+	b = sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, ic.
 		SetVals([][]interface{}{{&secondCallValuer{firstErr: valuerError{"row valuer failed"}}, "b1"}}).
 		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
-	_, _, err := b.ToSQL()
+	_, _, err = b.ToSQL()
 	igs.EqualError(err, "row valuer failed")
 	igs.False(conflictValuer.called)
 
