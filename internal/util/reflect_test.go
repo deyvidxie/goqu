@@ -721,6 +721,55 @@ func (rt *reflectTest) TestAssignStructVals_withStructWithTaggedPointerField() {
 	})
 }
 
+func (rt *reflectTest) TestCheckColumnMap() {
+	type (
+		ID    int
+		Point struct {
+			X int `db:"x"`
+		}
+		Node struct {
+			Parent *Node
+			ID     int `db:"id"`
+		}
+		SkippedNode struct {
+			Parent *SkippedNode `db:"-"`
+			ID     int          `db:"id"`
+		}
+		SelfRef struct{ *SelfRef }
+		meta    struct {
+			Note string `db:"-"`
+		}
+		item struct {
+			Name string `db:"name"`
+		}
+		JSONSkip struct {
+			*ID `json:"-"`
+		}
+	)
+	ok := util.ColumnMapProblem{}
+	for _, c := range []struct {
+		t       reflect.Type
+		tagName string
+		want    util.ColumnMapProblem
+	}{
+		{reflect.TypeFor[struct{ From, To Point }](), "db", ok},
+		{reflect.TypeFor[SkippedNode](), "db", ok},
+		{reflect.TypeFor[struct{ *meta }](), "db", ok},
+		{reflect.TypeFor[JSONSkip](), "json", ok},
+		{reflect.TypeFor[JSONSkip](), "db", util.ColumnMapProblem{util.ColumnMapNonStructEmbed, "ID", reflect.TypeFor[*ID]()}},
+		{reflect.TypeFor[struct{ *item }](), "db", util.ColumnMapProblem{util.ColumnMapUnexportedPointerEmbed, "item", reflect.TypeFor[item]()}},
+		{reflect.TypeFor[SelfRef](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "SelfRef", reflect.TypeFor[SelfRef]()}},
+		{reflect.TypeFor[Node](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Parent", reflect.TypeFor[Node]()}},
+		{reflect.TypeFor[struct{ Root Node }](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Root.Parent", reflect.TypeFor[Node]()}},
+	} {
+		rt.Equal(c.want, util.CheckColumnMap(c.t, c.tagName), c.t.String())
+	}
+
+	util.SetIgnoreUntaggedFields(true)
+	defer util.SetIgnoreUntaggedFields(false)
+	rt.Equal(ok, util.CheckColumnMap(reflect.TypeFor[Node](), "db"))
+}
+
 func (rt *reflectTest) TestGetColumnMap_withStruct() {
 	type TestStruct struct {
 		Str    string

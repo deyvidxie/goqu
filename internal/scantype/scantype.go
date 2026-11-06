@@ -9,10 +9,9 @@ import (
 )
 
 var (
-	sqlScannerType = reflect.TypeFor[sql.Scanner]()
-	timeType       = reflect.TypeFor[time.Time]()
-	bytesType      = reflect.TypeFor[[]byte]()
-	rawBytesType   = reflect.TypeFor[sql.RawBytes]()
+	timeType     = reflect.TypeFor[time.Time]()
+	bytesType    = reflect.TypeFor[[]byte]()
+	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 )
 
 func Struct[T any](tagName string) error {
@@ -24,19 +23,26 @@ func Struct[T any](tagName string) error {
 	if elem.Kind() != reflect.Struct {
 		return NewUnsupportedScanTypeError("cannot scan rows into %s: requires a struct or a pointer to a struct", t)
 	}
-	switch issue, culprit := util.CheckColumnMap(elem, tagName); issue {
-	case util.ColumnMapNonStructEmbed, util.ColumnMapUnexportedPointerEmbed:
-		return NewUnsupportedScanTypeError("cannot scan rows into %s, which embeds %s", t, culprit)
+	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
+	case util.ColumnMapNonStructEmbed:
+		return NewUnsupportedScanTypeError(
+			"cannot scan rows into %s: embedded field %s is %s, which is not a struct; tag it `%s:\"-\"`",
+			t, problem.Field, problem.Type, tagName,
+		)
+	case util.ColumnMapUnexportedPointerEmbed:
+		return NewUnsupportedScanTypeError(
+			"cannot scan rows into %s: embedded field %s is a pointer to unexported %s; embed it by value or tag it `%s:\"-\"`",
+			t, problem.Field, problem.Type, tagName,
+		)
 	case util.ColumnMapCycle:
-		return NewUnsupportedScanTypeError("cannot scan rows into %s, which contains itself through %s", t, culprit)
+		return NewUnsupportedScanTypeError(
+			"cannot scan rows into %s: field %s leads back to %s; tag it `%s:\"-\"`", t, problem.Field, problem.Type, tagName,
+		)
 	case util.ColumnMapOK:
 	}
-	oneColumn := elem == timeType || reflect.PointerTo(elem).Implements(sqlScannerType)
+	oneColumn := elem == timeType || util.IsScanner(elem)
 	sqlValue := oneColumn && elem.PkgPath() == "database/sql"
-	columns, err := util.GetColumnMap(reflect.New(elem).Interface(), tagName)
-	if err != nil {
-		return NewUnsupportedScanTypeError("cannot scan rows into %s: %s", t, err)
-	}
+	columns := util.StructColumnMap(elem, tagName)
 	switch {
 	case len(columns) > 0 && !sqlValue:
 		return nil
@@ -59,13 +65,13 @@ func AllVals[T any]() error {
 	}
 	switch {
 	case isUnscannableSlice(derefAll(t)):
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
+		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use []byte or a sql.Scanner", t)
 	case acceptsNull(t.Elem()):
 		return nil
 	case isPlainValue(t.Elem()):
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which cannot hold NULL; use sql.Null[%s]", t, t.Elem())
 	default:
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
+		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 	}
 }
 
@@ -78,7 +84,7 @@ func OneVal[T any]() error {
 	switch {
 	case isUnscannableSlice(inner):
 		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into slice type %s; use []byte or a sql.Scanner", inner)
-	case t == inner && isByteSlice(t) && t != bytesType && !reflect.PointerTo(t).Implements(sqlScannerType):
+	case t == inner && isByteSlice(t) && t != bytesType && !util.IsScanner(t):
 		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 	default:
 		return nil
@@ -87,7 +93,7 @@ func OneVal[T any]() error {
 
 func acceptsNull(t reflect.Type) bool {
 	return t.Kind() == reflect.Pointer || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
-		reflect.PointerTo(t).Implements(sqlScannerType)
+		util.IsScanner(t)
 }
 
 func isPlainValue(t reflect.Type) bool {
@@ -97,7 +103,7 @@ func isPlainValue(t reflect.Type) bool {
 }
 
 func isUnscannableSlice(t reflect.Type) bool {
-	return t.Kind() == reflect.Slice && !isByteSlice(t) && !reflect.PointerTo(t).Implements(sqlScannerType)
+	return t.Kind() == reflect.Slice && !isByteSlice(t) && !util.IsScanner(t)
 }
 
 func isByteSlice(t reflect.Type) bool {

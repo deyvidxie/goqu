@@ -91,6 +91,22 @@ type (
 	scanTestTagged  struct {
 		ID int64 `json:"id"`
 	}
+	ScanTestTree struct {
+		ID       int64         `db:"id"`
+		Parent   *ScanTestTree `db:"-"`
+		children *ScanTestTree
+	}
+	scanTestNodeRow struct {
+		ID   int64        `db:"id"`
+		Node ScanTestNode `db:"node"`
+	}
+	scanTestMeta struct {
+		Note string `db:"-"`
+	}
+	scanTestHiddenMeta struct {
+		*scanTestMeta
+		ID int64 `db:"id"`
+	}
 )
 
 func (t *scanTestTags) Scan(src interface{}) error {
@@ -377,20 +393,28 @@ func (ss *scanSuite) TestScanAllStructsAcceptsEmbeddedRowFields() {
 	ss.Equal([]scanTestUnexportedRow{{dsTestActionItem{Address: "411 Test Addr", Name: "Test4"}}}, unexported)
 }
 
-func (ss *scanSuite) TestScanAllStructsUsesDatasetTagName() {
+func (ss *scanSuite) TestScanStructsUseDatasetTagName() {
 	goqu.SetIgnoreUntaggedFields(true)
 	defer goqu.SetIgnoreUntaggedFields(false)
 	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	ss.Require().NoError(err)
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery(`SELECT "id" FROM "items" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(8)))
+	db := goqu.NewWithTagName("mock", "json", mDB)
 
-	rows, err := goqu.NewWithTagName("mock", "json", mDB).From("items").ScanAllStructs[scanTestTagged](context.Background())
+	rows, err := db.From("items").ScanAllStructs[scanTestTagged](context.Background())
 	ss.NoError(err)
 	ss.Equal([]scanTestTagged{{ID: 7}}, rows)
+
+	row, found, err := db.From("items").ScanOneStruct[scanTestTagged](context.Background())
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestTagged{ID: 8}, row)
 	ss.NoError(mock.ExpectationsWereMet())
 
-	_, err = goqu.NewWithTagName("mock", "json", mDB).From("items").ScanAllStructs[scanTestDBSkip](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip, which embeds *goqu_test.ScanTestID")
+	_, err = db.From("items").ScanAllStructs[scanTestDBSkip](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip: embedded field ScanTestID is *goqu_test.ScanTestID, "+
+		"which is not a struct; tag it `json:\"-\"`")
 }
 
 func (ss *scanSuite) TestScanOneStructAcceptsRowStructWithScan() {
@@ -596,14 +620,14 @@ func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+", which cannot hold NULL; use sql.Null["+name+"]", name)
 	}
 
-	for name, err := range map[string]error{
-		"*fmt.Stringer": allValsErr[*fmt.Stringer](ss),
-		"*[]int64":      allValsErr[*[]int64](ss),
-		"**[]int64":     allValsErr[**[]int64](ss),
-		"*uintptr":      allValsErr[*uintptr](ss),
+	for msg, err := range map[string]error{
+		"*fmt.Stringer; use a sql.Scanner":       allValsErr[*fmt.Stringer](ss),
+		"*uintptr; use a sql.Scanner":            allValsErr[*uintptr](ss),
+		"*[]int64; use []byte or a sql.Scanner":  allValsErr[*[]int64](ss),
+		"**[]int64; use []byte or a sql.Scanner": allValsErr[**[]int64](ss),
 	} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+name, name)
-		ss.True(exec.IsUnsupportedScanType(err), name)
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+msg, msg)
+		ss.True(exec.IsUnsupportedScanType(err), msg)
 	}
 }
 
@@ -644,27 +668,42 @@ func (ss *scanSuite) TestScanAllStructsAcceptsSkippedEmbeddedNonStructPointers()
 	ss.Equal([]scanTestSkippedNested{{ID: 6}}, nested)
 }
 
-func (ss *scanSuite) TestScanStructsRejectEmbeddedNonStructPointers() {
-	_, err := ss.db.From("items").ScanAllStructs[scanTestEmbeddedID](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestEmbeddedID, which embeds *goqu_test.ScanTestID")
-	ss.True(exec.IsUnsupportedScanType(err))
+func (ss *scanSuite) TestScanStructsRejectUnscannableFields() {
+	_, _, err := ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr: embedded field scanTestEmbeddedID.ScanTestID "+
+		"is *goqu_test.ScanTestID, which is not a struct; tag it `db:\"-\"`")
 
-	_, err = ss.db.From("items").ScanAllStructs[scanTestNestedID](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedID, which embeds *goqu_test.ScanTestID")
-
-	_, _, err = ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr, which embeds *goqu_test.scanTestEmbeddedID")
-
-	for name, err := range map[string]error{
-		"goqu_test.scanTestUnexportedPtr, which embeds *goqu_test.dsTestActionItem":          allStructsErr[scanTestUnexportedPtr](ss),
-		"goqu_test.scanTestJSONSkip, which embeds *goqu_test.ScanTestID":                     allStructsErr[scanTestJSONSkip](ss),
-		"goqu_test.scanTestAuditRow, which embeds *goqu_test.ScanTestID":                     allStructsErr[scanTestAuditRow](ss),
-		"goqu_test.ScanTestSelfRef, which contains itself through goqu_test.ScanTestSelfRef": allStructsErr[ScanTestSelfRef](ss),
-		"goqu_test.ScanTestNode, which contains itself through goqu_test.ScanTestNode":       allStructsErr[ScanTestNode](ss),
+	nonStruct := "is *goqu_test.ScanTestID, which is not a struct; tag it `db:\"-\"`"
+	for msg, err := range map[string]error{
+		"scanTestEmbeddedID: embedded field ScanTestID " + nonStruct:                  allStructsErr[scanTestEmbeddedID](ss),
+		"scanTestNestedID: embedded field scanTestEmbeddedID.ScanTestID " + nonStruct: allStructsErr[scanTestNestedID](ss),
+		"scanTestJSONSkip: embedded field ScanTestID " + nonStruct:                    allStructsErr[scanTestJSONSkip](ss),
+		"scanTestAuditRow: embedded field Audit.ScanTestID " + nonStruct:              allStructsErr[scanTestAuditRow](ss),
+		"scanTestUnexportedPtr: embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; " +
+			"embed it by value or tag it `db:\"-\"`": allStructsErr[scanTestUnexportedPtr](ss),
+		"ScanTestSelfRef: field ScanTestSelfRef leads back to goqu_test.ScanTestSelfRef; tag it `db:\"-\"`": allStructsErr[ScanTestSelfRef](ss),
+		"ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`":                allStructsErr[ScanTestNode](ss),
+		"scanTestNodeRow: field Node.Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`":        allStructsErr[scanTestNodeRow](ss),
 	} {
-		ss.EqualError(err, "goqu: cannot scan rows into "+name, name)
-		ss.True(exec.IsUnsupportedScanType(err), name)
+		ss.EqualError(err, "goqu: cannot scan rows into goqu_test."+msg, msg)
+		ss.True(exec.IsUnsupportedScanType(err), msg)
 	}
+}
+
+func (ss *scanSuite) TestScanAllStructsAcceptsSkippedSelfReferences() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
+
+	trees, err := ss.db.From("items").ScanAllStructs[ScanTestTree](context.Background())
+	ss.NoError(err)
+	ss.Equal([]ScanTestTree{{ID: 1, children: nil}}, trees)
+}
+
+func (ss *scanSuite) TestScanAllStructsAcceptsUnexportedPointerEmbedsWithoutColumns() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(2)))
+
+	rows, err := ss.db.From("items").ScanAllStructs[scanTestHiddenMeta](context.Background())
+	ss.NoError(err)
+	ss.Equal([]scanTestHiddenMeta{{ID: 2}}, rows)
 }
 
 func (ss *scanSuite) TestScanOneValAcceptsBytes() {

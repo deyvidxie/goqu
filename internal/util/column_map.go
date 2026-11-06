@@ -90,45 +90,52 @@ const (
 	ColumnMapCycle
 )
 
-func CheckColumnMap(t reflect.Type, tagName string) (ColumnMapIssue, reflect.Type) {
-	return checkColumnMap(t, tagName, map[reflect.Type]bool{})
+type ColumnMapProblem struct {
+	Issue ColumnMapIssue
+	Field string
+	Type  reflect.Type
 }
 
-func checkColumnMap(t reflect.Type, tagName string, path map[reflect.Type]bool) (ColumnMapIssue, reflect.Type) {
-	if path[t] {
-		return ColumnMapCycle, t
-	}
+func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
+	return checkColumnMap(t, tagName, "", map[reflect.Type]bool{})
+}
+
+func checkColumnMap(t reflect.Type, tagName, prefix string, path map[reflect.Type]bool) ColumnMapProblem {
 	path[t] = true
 	defer delete(path, t)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		sub := f.Type
+		field, sub, unexportedPointerEmbed := prefix+f.Name, f.Type, false
 		switch {
-		case f.Anonymous && (sub.Kind() == reflect.Struct || sub.Kind() == reflect.Ptr):
+		case f.Anonymous && (sub.Kind() == reflect.Struct || sub.Kind() == reflect.Pointer):
 			if tag.New(tagName, f.Tag).Contains("-") {
 				continue
 			}
-			if sub.Kind() == reflect.Ptr {
+			if sub.Kind() == reflect.Pointer {
 				if sub.Elem().Kind() != reflect.Struct {
-					return ColumnMapNonStructEmbed, f.Type
+					return ColumnMapProblem{ColumnMapNonStructEmbed, field, f.Type}
 				}
-				if f.PkgPath != "" {
-					return ColumnMapUnexportedPointerEmbed, f.Type
-				}
+				unexportedPointerEmbed = f.PkgPath != ""
 				sub = sub.Elem()
 			}
 		case f.PkgPath == "" && !shouldIgnoreField(tag.New(tagName, f.Tag)) && !implementsScanner(sub):
-			if sub.Kind() == reflect.Ptr {
+			if sub.Kind() == reflect.Pointer {
 				sub = sub.Elem()
 			}
 		default:
 			continue
 		}
-		if issue, culprit := checkColumnMap(sub, tagName, path); issue != ColumnMapOK {
-			return issue, culprit
+		if path[sub] {
+			return ColumnMapProblem{ColumnMapCycle, field, sub}
+		}
+		if problem := checkColumnMap(sub, tagName, field+".", path); problem.Issue != ColumnMapOK {
+			return problem
+		}
+		if unexportedPointerEmbed && len(StructColumnMap(sub, tagName)) > 0 {
+			return ColumnMapProblem{ColumnMapUnexportedPointerEmbed, field, sub}
 		}
 	}
-	return ColumnMapOK, nil
+	return ColumnMapProblem{}
 }
 
 func implementsScanner(t reflect.Type) bool {

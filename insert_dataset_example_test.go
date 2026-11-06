@@ -213,6 +213,21 @@ func ExampleInsertDataset_Executor_scanStructs() {
 	// Inserted user: [ID=8], [FirstName=Jeff] [LastName=Jeffers]
 }
 
+func ExampleInsertDataset_Executor_scanAllVals() {
+	ds := getDB().Insert("goqu_user").
+		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley"}).
+		Returning("id")
+	ids, err := ds.Executor().ScanAllVals[int64](context.Background())
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(ids)
+
+	// Output:
+	// [5]
+}
+
 func ExampleInsertDataset_FromQuery() {
 	insertSQL, _, _ := goqu.Insert("test").
 		FromQuery(goqu.From("test2").Where(goqu.C("age").Gt(10))).
@@ -789,19 +804,4 @@ func ExampleInsertDataset_ClearVals() {
 	// Output:
 	// INSERT INTO "test" DEFAULT VALUES
 	// INSERT INTO "test" DEFAULT VALUES
-}
-
-func ExampleInsertDataset_Executor_scanAllVals() {
-	ds := getDB().Insert("goqu_user").
-		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley"}).
-		Returning("id")
-	ids, err := ds.Executor().ScanAllVals[int64](context.Background())
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Println(ids)
-
-	// Output:
-	// [5]
 }
