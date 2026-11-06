@@ -7,12 +7,12 @@ import (
 	"github.com/doug-martin/goqu/v9"
 )
 
-func ExampleScanAllStructs() {
+func ExampleSelectDataset_ScanAllStructs() {
 	type User struct {
 		FirstName string `db:"first_name"`
 		LastName  string `db:"last_name"`
 	}
-	users, err := goqu.ScanAllStructs[User](context.Background(), getDB().From("goqu_user").Order(goqu.C("id").Asc()))
+	users, err := getDB().From("goqu_user").Order(goqu.C("id").Asc()).ScanAllStructs[User](context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -23,14 +23,14 @@ func ExampleScanAllStructs() {
 	// [{FirstName:Bob LastName:Yukon} {FirstName:Sally LastName:Yukon} {FirstName:Vinita LastName:Yukon} {FirstName:John LastName:Doe}]
 }
 
-func ExampleScanOneStruct() {
+func ExampleSelectDataset_ScanOneStruct() {
 	type User struct {
 		FirstName string `db:"first_name"`
 		LastName  string `db:"last_name"`
 	}
 	for _, name := range []string{"Bob", "Zeb"} {
 		ds := getDB().From("goqu_user").Where(goqu.C("first_name").Eq(name))
-		user, found, err := goqu.ScanOneStruct[*User](context.Background(), ds)
+		user, found, err := ds.ScanOneStruct[*User](context.Background())
 		switch {
 		case err != nil:
 			fmt.Println(err.Error())
@@ -46,8 +46,8 @@ func ExampleScanOneStruct() {
 	// No user found for first_name Zeb: <nil>
 }
 
-func ExampleScanAllVals() {
-	ids, err := goqu.ScanAllVals[int64](context.Background(), getDB().From("goqu_user").Select("id").Order(goqu.C("id").Asc()))
+func ExampleSelectDataset_ScanAllVals() {
+	ids, err := getDB().From("goqu_user").Select("id").Order(goqu.C("id").Asc()).ScanAllVals[int64](context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -58,10 +58,10 @@ func ExampleScanAllVals() {
 	// UserIds = [1 2 3 4]
 }
 
-func ExampleScanOneVal() {
+func ExampleSelectDataset_ScanOneVal() {
 	for _, name := range []string{"Sally", "Zeb"} {
 		ds := getDB().From("goqu_user").Select("id").Where(goqu.C("first_name").Eq(name))
-		id, found, err := goqu.ScanOneVal[int64](context.Background(), ds)
+		id, found, err := ds.ScanOneVal[int64](context.Background())
 		switch {
 		case err != nil:
 			fmt.Println(err.Error())
@@ -77,11 +77,11 @@ func ExampleScanOneVal() {
 	// No id found for user Zeb
 }
 
-func ExampleScanAllVals_returning() {
+func ExampleInsertDataset_Executor_scanAllVals() {
 	ds := getDB().Insert("goqu_user").
 		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley"}).
 		Returning("id")
-	ids, err := goqu.ScanAllVals[int64](context.Background(), ds.Executor())
+	ids, err := ds.Executor().ScanAllVals[int64](context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
 		return

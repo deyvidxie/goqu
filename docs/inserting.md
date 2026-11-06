@@ -645,4 +645,4 @@ Output:
 Inserted 1 user id:=5
 ```
 
-With [`goqu.ScanOneVal`](./selecting.md#generic-scan): `id, found, err := goqu.ScanOneVal[int64](context.Background(), insert)`.
+With [`ScanOneVal`](./selecting.md#generic-scan): `id, found, err := insert.ScanOneVal[int64](context.Background())`.

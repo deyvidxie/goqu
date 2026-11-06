@@ -717,6 +717,47 @@ func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (boo
 	return sd.Limit(1).Executor().ScanValContext(ctx, i)
 }
 
+func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
+	if sd.queryFactory == nil {
+		return nil, ErrQueryFactoryNotFoundError
+	}
+	if err := exec.CheckStructScanType[T](); err != nil {
+		return nil, err
+	}
+	return sd.selectStructColumns(new([]T)).Executor().ScanAllStructs[T](ctx)
+}
+
+func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
+	if sd.queryFactory == nil {
+		return row, false, ErrQueryFactoryNotFoundError
+	}
+	if typeErr := exec.CheckStructScanType[T](); typeErr != nil {
+		return row, false, typeErr
+	}
+	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
+}
+
+func (sd *SelectDataset) ScanAllVals[T any](ctx context.Context) ([]T, error) {
+	if sd.queryFactory == nil {
+		return nil, ErrQueryFactoryNotFoundError
+	}
+	return sd.Executor().ScanAllVals[T](ctx)
+}
+
+func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
+	if sd.queryFactory == nil {
+		return val, false, ErrQueryFactoryNotFoundError
+	}
+	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
+}
+
+func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {
+	if sd.GetClauses().IsDefaultSelect() {
+		return sd.Select(target)
+	}
+	return sd
+}
+
 // Generates the SELECT COUNT(*) sql for this dataset and uses Exec#ScanVal to scan the result into an int64.
 func (sd *SelectDataset) Count() (int64, error) {
 	return sd.CountContext(context.Background())

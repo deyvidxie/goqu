@@ -632,4 +632,4 @@ Output:
 Updated users with ids [1 2 3]
 ```
 
-With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](context.Background(), update)`.
+With [`ScanAllVals`](./selecting.md#generic-scan): `ids, err := update.ScanAllVals[int64](context.Background())`.

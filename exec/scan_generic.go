@@ -1,4 +1,4 @@
-package goqu
+package exec
 
 import (
 	"context"
@@ -7,61 +7,43 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/doug-martin/goqu/v9/exec"
-)
-
-type (
-	StructSource interface {
-		ScanStructsContext(ctx context.Context, i interface{}) error
-		ScanStructContext(ctx context.Context, i interface{}) (bool, error)
-	}
-	ValSource interface {
-		ScanValsContext(ctx context.Context, i interface{}) error
-		ScanValContext(ctx context.Context, i interface{}) (bool, error)
-	}
 )
 
 var (
-	_ StructSource = (*SelectDataset)(nil)
-	_ StructSource = exec.QueryExecutor{}
-	_ ValSource    = (*SelectDataset)(nil)
-	_ ValSource    = exec.QueryExecutor{}
-
 	sqlScannerType = reflect.TypeFor[sql.Scanner]()
 	timeType       = reflect.TypeFor[time.Time]()
 	bytesType      = reflect.TypeFor[[]byte]()
 	rawBytesType   = reflect.TypeFor[sql.RawBytes]()
 )
 
-func ScanAllStructs[T any](ctx context.Context, s StructSource) ([]T, error) {
-	if err := requireRowType[T]("ScanAllStructs", "ScanAllVals"); err != nil {
+func (q QueryExecutor) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
+	if err := CheckStructScanType[T](); err != nil {
 		return nil, err
 	}
 	var rows []T
-	if err := s.ScanStructsContext(ctx, &rows); err != nil {
+	if err := q.ScanStructsContext(ctx, &rows); err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-func ScanOneStruct[T any](ctx context.Context, s StructSource) (row T, found bool, err error) {
-	if typeErr := requireRowType[T]("ScanOneStruct", "ScanOneVal"); typeErr != nil {
+func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
+	if typeErr := CheckStructScanType[T](); typeErr != nil {
 		return row, false, typeErr
 	}
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Pointer {
-		found, err = s.ScanStructContext(ctx, &row)
+		found, err = q.ScanStructContext(ctx, &row)
 		return row, found, err
 	}
 	elem := reflect.New(t.Elem())
-	if found, err = s.ScanStructContext(ctx, elem.Interface()); found {
+	if found, err = q.ScanStructContext(ctx, elem.Interface()); found {
 		reflect.ValueOf(&row).Elem().Set(elem)
 	}
 	return row, found, err
 }
 
-func ScanAllVals[T any](ctx context.Context, s ValSource) ([]T, error) {
+func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 	t := reflect.TypeFor[T]()
 	if err := rejectRawBytes("ScanAllVals", t); err != nil {
 		return nil, err
@@ -69,40 +51,40 @@ func ScanAllVals[T any](ctx context.Context, s ValSource) ([]T, error) {
 	if t.Kind() == reflect.Pointer {
 		switch {
 		case isUnscannableSlice(derefAll(t)):
-			return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
+			return nil, NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
 		case acceptsNull(t.Elem()):
 		case isPlainValue(t.Elem()):
-			return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which cannot hold NULL; use sql.Null[%s]", t, t.Elem())
+			return nil, NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which cannot hold NULL; use sql.Null[%s]", t, t.Elem())
 		default:
-			return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
+			return nil, NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
 		}
 	}
 	var vals []T
-	if err := s.ScanValsContext(ctx, &vals); err != nil {
+	if err := q.ScanValsContext(ctx, &vals); err != nil {
 		return nil, err
 	}
 	return vals, nil
 }
 
-func ScanOneVal[T any](ctx context.Context, s ValSource) (val T, found bool, err error) {
+func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
 	if typeErr := requireOneValType[T](); typeErr != nil {
 		return val, false, typeErr
 	}
-	found, err = s.ScanValContext(ctx, &val)
+	found, err = q.ScanValContext(ctx, &val)
 	return val, found, err
 }
 
-func requireRowType[T any](fn, valFn string) error {
+func CheckStructScanType[T any]() error {
 	t := reflect.TypeFor[T]()
 	elem := t
 	if elem.Kind() == reflect.Pointer {
 		elem = elem.Elem()
 	}
 	if elem.Kind() != reflect.Struct {
-		return exec.NewUnsupportedScanTypeError("%s requires a struct or a pointer to a struct, got %s", fn, t)
+		return NewUnsupportedScanTypeError("cannot scan rows into %s: requires a struct or a pointer to a struct", t)
 	}
 	if embedded := nonStructEmbeddedPointer(elem, map[reflect.Type]bool{}); embedded != nil {
-		return exec.NewUnsupportedScanTypeError("%s cannot scan %s, which embeds %s", fn, t, embedded)
+		return NewUnsupportedScanTypeError("cannot scan rows into %s, which embeds %s", t, embedded)
 	}
 	oneColumn := elem == timeType || reflect.PointerTo(elem).Implements(sqlScannerType)
 	sqlValue := oneColumn && elem.PkgPath() == "database/sql"
@@ -110,9 +92,11 @@ func requireRowType[T any](fn, valFn string) error {
 		return nil
 	}
 	if oneColumn {
-		return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which scans as one column; use %s[%s]", fn, t, valFn, elem)
+		return NewUnsupportedScanTypeError(
+			"cannot scan rows into %s, which scans as one column; use ScanAllVals[%s] or ScanOneVal[%s]", t, elem, elem,
+		)
 	}
-	return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which has no fields goqu can scan into", fn, t)
+	return NewUnsupportedScanTypeError("cannot scan rows into %s, which has no fields goqu can scan into", t)
 }
 
 func acceptsNull(t reflect.Type) bool {
@@ -208,9 +192,9 @@ func requireOneValType[T any]() error {
 	inner := derefAll(t)
 	switch {
 	case isUnscannableSlice(inner):
-		return exec.NewUnsupportedScanTypeError("ScanOneVal cannot scan into slice type %s; use []byte or a sql.Scanner", inner)
+		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into slice type %s; use []byte or a sql.Scanner", inner)
 	case t == inner && isByteSlice(t) && t != bytesType && !reflect.PointerTo(t).Implements(sqlScannerType):
-		return exec.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
+		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 	default:
 		return nil
 	}
@@ -218,7 +202,7 @@ func requireOneValType[T any]() error {
 
 func rejectRawBytes(fn string, t reflect.Type) error {
 	if derefAll(t) == rawBytesType {
-		return exec.NewUnsupportedScanTypeError("%s cannot return sql.RawBytes, which is only valid until the next row; use []byte", fn)
+		return NewUnsupportedScanTypeError("%s cannot return sql.RawBytes, which is only valid until the next row; use []byte", fn)
 	}
 	return nil
 }

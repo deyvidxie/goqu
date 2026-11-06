@@ -20,7 +20,7 @@
   * [`ScanStruct`](#scan-struct) - Scans a row into a slice a struct, returns false if a row wasnt found
   * [`ScanVals`](#scan-vals)- Scans a rows of 1 column into a slice of primitive values
   * [`ScanVal`](#scan-val) - Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
-  * [`goqu.ScanAllStructs`, `goqu.ScanOneStruct`, `goqu.ScanAllVals`, `goqu.ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
+  * [`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
   * [`Scanner`](#scanner) - Allows you to interatively scan rows into structs or values.
   * [`Count`](#count) - Returns the count for the current query
   * [`Exists`](#exists) - Reports whether the current query returns at least one row
@@ -1261,18 +1261,18 @@ if !found{
 ```
 
 <a name="generic-scan"></a>
-**`goqu.ScanAllStructs`, `goqu.ScanOneStruct`, `goqu.ScanAllVals`, `goqu.ScanOneVal`**
+**[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
 
-Each takes a `*SelectDataset` or an `exec.QueryExecutor`. `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. A `T` that cannot be scanned (for example `time.Time` or `sql.NullString` in the struct helpers, `sql.RawBytes` in the value helpers) returns `exec.UnsupportedScanTypeError` (`exec.IsUnsupportedScanType`) before the query runs. An empty result is a `nil` slice.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. A `T` that cannot be scanned (for example `time.Time` or `sql.NullString` in the struct helpers, `sql.RawBytes` in the value helpers) returns `exec.UnsupportedScanTypeError` (`exec.IsUnsupportedScanType`) before the query runs. An empty result is a `nil` slice.
 
 ```go
-users, err := goqu.ScanAllStructs[User](ctx, db.From("user"))
+users, err := db.From("user").ScanAllStructs[User](ctx)
 
-user, found, err := goqu.ScanOneStruct[User](ctx, db.From("user").Where(goqu.C("id").Eq(1)))
+user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User](ctx)
 
-ids, err := goqu.ScanAllVals[int64](ctx, db.Insert("user").Rows(rows).Returning("id").Executor())
+ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](ctx)
 
-id, found, err := goqu.ScanOneVal[int64](ctx, db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")))
+id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](ctx)
 ```
 
 <a name="scanner"></a>

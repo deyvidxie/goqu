@@ -345,4 +345,4 @@ Output:
 Deleted users [ids:=[1 2 3]]
 ```
 
-With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](context.Background(), de)`.
+With [`ScanAllVals`](./selecting.md#generic-scan): `ids, err := de.ScanAllVals[int64](context.Background())`.
