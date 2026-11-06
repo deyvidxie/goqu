@@ -369,3 +369,13 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyInList(t *testing.T) {
+	ds := goqu.Dialect("mysql").From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+	for _, prepared := range []bool{false, true} {
+		sql, args, err := ds.Prepared(prepared).ToSQL()
+		assert.NoError(t, err)
+		assert.Equal(t, "SELECT * FROM `test` WHERE ((1=0) AND (1=1))", sql)
+		assert.Empty(t, args)
+	}
+}

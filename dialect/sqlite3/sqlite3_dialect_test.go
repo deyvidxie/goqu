@@ -240,3 +240,13 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON CONFLICT  (a) DO UPDATE SET `b`=EXCLUDED.`b`", sql)
 }
+
+func TestEmptyInList(t *testing.T) {
+	ds := goqu.Dialect("sqlite3").From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+	for _, prepared := range []bool{false, true} {
+		sql, args, err := ds.Prepared(prepared).ToSQL()
+		assert.NoError(t, err)
+		assert.Equal(t, "SELECT * FROM `test` WHERE ((1=0) AND (1=1))", sql)
+		assert.Empty(t, args)
+	}
+}

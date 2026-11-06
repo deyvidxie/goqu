@@ -72,3 +72,13 @@ func TestUpdateAndDeleteLimitAllIsDropped(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `DELETE FROM "test"`, sql)
 }
+
+func TestEmptyInList(t *testing.T) {
+	ds := goqu.Dialect("postgres").From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+	for _, prepared := range []bool{false, true} {
+		sql, args, err := ds.Prepared(prepared).ToSQL()
+		assert.NoError(t, err)
+		assert.Equal(t, "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))", sql)
+		assert.Empty(t, args)
+	}
+}

@@ -56,8 +56,6 @@ Output:
 SELECT * FROM "items" WHERE (("col1" != 'a') AND ("col3" IS NOT TRUE) AND ("col6" NOT IN ('a', 'b', 'c')))
 ```
 
-An empty list matches no rows with `IN` and every row with `NOT IN`, set by the dialect's `EmptyInFragment` and `EmptyNotInFragment`.
-
 ```go
 sql, _, _ := db.From("items").Where(goqu.Ex{
   "col1": []string{},

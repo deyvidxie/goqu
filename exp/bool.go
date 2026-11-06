@@ -72,6 +72,9 @@ func lte(lhs Expression, rhs interface{}) BooleanExpression {
 }
 
 func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanExpression {
+	if len(vals) == 1 && isNilList(vals[0]) {
+		return NewBooleanExpression(op, lhs, []interface{}{})
+	}
 	if len(vals) == 1 {
 		valType := reflect.Indirect(reflect.ValueOf(vals[0]))
 		// a single binary/JSON value is one element of the list, not the list itself
@@ -83,6 +86,11 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 		}
 	}
 	return NewBooleanExpression(op, lhs, vals)
+}
+
+func isNilList(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	return v == nil || (rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Kind() == reflect.Slice)
 }
 
 // used internally to create an IN BooleanExpression

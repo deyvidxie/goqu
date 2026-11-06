@@ -168,6 +168,10 @@ type (
 		True []byte
 		// The FALSE literal to use when interpolating bool false values (DEFAULT=[]byte("FALSE"))
 		False []byte
+		// Written in place of a whole IN comparison whose list is empty (Default=[]byte("(1=0)"))
+		EmptyInFragment []byte
+		// Written in place of a whole NOT IN comparison whose list is empty (Default=[]byte("(1=1)"))
+		EmptyNotInFragment []byte
 		// The ASC fragment when specifying column order (DEFAULT=[]byte(" ASC"))
 		AscFragment []byte
 		// The DESC fragment when specifying column order (DEFAULT=[]byte(" DESC"))
@@ -330,10 +334,6 @@ type (
 		ExcludedTableFragment []byte
 		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
 		ExcludedValuesFuncFragment []byte
-		// Replaces IN with an empty list, which most databases reject (Default=[]byte("(1=0)"))
-		EmptyInFragment []byte
-		// Replaces NOT IN with an empty list (Default=[]byte("(1=1)"))
-		EmptyNotInFragment []byte
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -575,13 +575,12 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		Null:                      []byte("NULL"),
 		True:                      []byte("TRUE"),
 		False:                     []byte("FALSE"),
+		EmptyInFragment:           []byte("(1=0)"),
+		EmptyNotInFragment:        []byte("(1=1)"),
 
 		ExcludedRowAlias:           "excluded",
 		ExcludedTableFragment:      []byte("EXCLUDED"),
 		ExcludedValuesFuncFragment: []byte("VALUES"),
-
-		EmptyInFragment:    []byte("(1=0)"),
-		EmptyNotInFragment: []byte("(1=1)"),
 
 		PlaceHolderFragment: []byte("?"),
 		QuoteRune:           '"',

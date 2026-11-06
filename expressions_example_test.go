@@ -242,16 +242,13 @@ func ExampleC_comparisons() {
 }
 
 func ExampleC_inOperators() {
-	// using identifiers
 	sql, _, _ := goqu.From("test").Where(goqu.C("a").In("a", "b", "c")).ToSQL()
 	fmt.Println(sql)
-	// with a slice
 	sql, _, _ = goqu.From("test").Where(goqu.C("a").In([]string{"a", "b", "c"})).ToSQL()
 	fmt.Println(sql)
 
 	sql, _, _ = goqu.From("test").Where(goqu.C("a").NotIn("a", "b", "c")).ToSQL()
 	fmt.Println(sql)
-	// with a slice
 	sql, _, _ = goqu.From("test").Where(goqu.C("a").NotIn([]string{"a", "b", "c"})).ToSQL()
 	fmt.Println(sql)
 
@@ -1499,6 +1496,17 @@ func ExampleEx_in() {
 
 	// Output:
 	// SELECT * FROM "test" WHERE ("a" IN ('a', 'b', 'c'))
+}
+
+func ExampleEx_emptyIn() {
+	sql, _, _ := goqu.From("items").Where(goqu.Ex{
+		"col1": []string{},
+		"col2": goqu.Op{"notIn": []int{}},
+	}).ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// SELECT * FROM "items" WHERE ((1=0) AND (1=1))
 }
 
 func ExampleExOr() {

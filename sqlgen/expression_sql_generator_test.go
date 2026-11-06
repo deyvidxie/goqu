@@ -691,73 +691,119 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	)
 }
 
-type intArrayValuer []int
+type emptyArrayValuer []int
 
-func (v intArrayValuer) Value() (driver.Value, error) {
+func (v emptyArrayValuer) Value() (driver.Value, error) {
 	return "{}", nil
 }
+
+type uint8Codes []uint8
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	var nilInts []int
+	var nilIntsPtr *[]int
 	emptyStrings := []string{}
 
-	cases := []expressionTestCase{
-		{val: ident.In([]int{}), sql: `(1=0)`},
-		{val: ident.In(nilInts), sql: `(1=0)`},
-		{val: ident.In(), sql: `(1=0)`},
-		{val: ident.In([]interface{}{}), sql: `(1=0)`},
-		{val: ident.In(&emptyStrings), sql: `(1=0)`},
-		{val: ident.Eq([]int{}), sql: `(1=0)`},
-		{val: exp.Ex{"a": []string{}}, sql: `(1=0)`},
-		{val: exp.Ex{"a": nilInts}, sql: `(1=0)`},
-		{val: exp.Ex{"a": exp.Op{"in": []string{}}}, sql: `(1=0)`},
-		{val: ident.NotIn([]int{}), sql: `(1=1)`},
-		{val: ident.NotIn(), sql: `(1=1)`},
-		{val: ident.Neq(nilInts), sql: `(1=1)`},
-		{val: exp.Ex{"a": exp.Op{"notIn": []string{}}}, sql: `(1=1)`},
-		{val: exp.Ex{"a": exp.Op{"neq": []int{}}}, sql: `(1=1)`},
-		{val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN '')`},
-		{val: exp.NewBooleanExpression(exp.InOp, ident, intArrayValuer{}), sql: `("a" IN '{}')`},
-		{val: exp.NewExpressionList(exp.AndType, ident.In([]int{}), ident.Eq(1)), sql: `((1=0) AND ("a" = 1))`},
+	for _, c := range []struct {
+		val          exp.Expression
+		sql          string
+		preparedSQL  string
+		preparedArgs []interface{}
+	}{
+		{val: ident.In([]int{}), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(nilInts), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(nilIntsPtr), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(nil), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In([]interface{}{}), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(&emptyStrings), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.In(uint8Codes{}), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.Eq([]int{}), sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: exp.Ex{"a": []string{}}, sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: exp.Ex{"a": nilInts}, sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: exp.Ex{"a": exp.Op{"in": []string{}}}, sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: exp.Ex{"a": exp.Op{"in": nil}}, sql: `(1=0)`, preparedSQL: `(1=0)`},
+		{val: ident.NotIn([]int{}), sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: ident.NotIn(nil), sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: ident.NotIn(), sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: ident.Neq(nilInts), sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"notIn": []string{}}}, sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"notIn": nil}}, sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"neq": []int{}}}, sql: `(1=1)`, preparedSQL: `(1=1)`},
+		{val: exp.ExOr{"a": []int{}, "b": exp.Op{"notIn": []int{}}}, sql: `((1=0) OR (1=1))`, preparedSQL: `((1=0) OR (1=1))`},
+		{
+			val:          exp.NewExpressionList(exp.AndType, ident.In([]int{}), ident.Eq(1)),
+			sql:          `((1=0) AND ("a" = 1))`,
+			preparedSQL:  `((1=0) AND ("a" = ?))`,
+			preparedArgs: []interface{}{int64(1)},
+		},
+		{val: ident.Gt([]int{}), sql: `("a" > ())`, preparedSQL: `("a" > ())`},
+	} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+			expressionTestCase{val: c.val, sql: c.sql},
+			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
+		)
 	}
-	for _, c := range cases {
-		prepared := c
-		prepared.isPrepared = true
-		if _, ok := c.val.(exp.ExpressionList); ok {
-			prepared.sql = `((1=0) AND ("a" = ?))`
-			prepared.args = []interface{}{int64(1)}
-		}
-		if be, ok := c.val.(exp.BooleanExpression); ok && be.RHS() != nil {
-			switch be.RHS().(type) {
-			case []byte:
-				prepared.sql, prepared.args = `("a" IN ?)`, []interface{}{[]byte{}}
-			case intArrayValuer:
-				prepared.sql, prepared.args = `("a" IN ?)`, []interface{}{"{}"}
-			}
-		}
-		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()), c, prepared)
-	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionSingleValueList() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	var nilInt *int
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: ident.In(nilInt), sql: `("a" IN (NULL))`},
+		expressionTestCase{val: ident.In(nilInt), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{nil}},
+		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, json.RawMessage{}), sql: `("a" IN '')`},
+		expressionTestCase{
+			val:        exp.NewBooleanExpression(exp.InOp, ident, json.RawMessage{}),
+			sql:        `("a" IN ?)`,
+			isPrepared: true,
+			args:       []interface{}{[]byte{}},
+		},
+		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN '')`},
+		expressionTestCase{
+			val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN ?)`, isPrepared: true, args: []interface{}{[]byte{}},
+		},
+		expressionTestCase{val: ident.In(emptyArrayValuer{}), sql: `("a" IN '{}')`},
+		expressionTestCase{val: ident.In(emptyArrayValuer{}), sql: `("a" IN ?)`, isPrepared: true, args: []interface{}{"{}"}},
+		expressionTestCase{val: exp.Ex{"a": emptyArrayValuer{}}, sql: `("a" IN '{}')`},
+		expressionTestCase{val: exp.Ex{"a": emptyArrayValuer{}}, sql: `("a" IN ?)`, isPrepared: true, args: []interface{}{"{}"}},
+	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListWithoutFragment() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	for _, c := range []struct {
 		val       exp.Expression
-		option    string
+		want      string
 		configure func(*sqlgen.SQLDialectOptions)
 	}{
-		{ident.In([]int{}), "EmptyInFragment", func(o *sqlgen.SQLDialectOptions) { o.EmptyInFragment = nil }},
-		{ident.NotIn([]int{}), "EmptyNotInFragment", func(o *sqlgen.SQLDialectOptions) { o.EmptyNotInFragment = nil }},
+		{ident.In([]int{}), "goqu: an empty IN list requires EmptyInFragment", func(o *sqlgen.SQLDialectOptions) {
+			o.EmptyInFragment = nil
+		}},
+		{ident.NotIn([]int{}), "goqu: an empty NOT IN list requires EmptyNotInFragment", func(o *sqlgen.SQLDialectOptions) {
+			o.EmptyNotInFragment = nil
+		}},
 	} {
 		opts := sqlgen.DefaultDialectOptions()
 		c.configure(opts)
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, c.val)
 		_, _, err := b.ToSQL()
-		esgs.EqualError(err, "goqu: an empty IN list requires "+c.option)
+		esgs.EqualError(err, c.want)
 		esgs.True(sqlgen.IsInvalidExpression(err))
 	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListUnsupportedOperator() {
+	opts := sqlgen.DefaultDialectOptions()
+	delete(opts.BooleanOperatorLookup, exp.InOp)
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, exp.NewIdentifierExpression("", "", "a").In([]int{}))
+	_, _, err := b.ToSQL()
+	esgs.EqualError(err, "goqu: boolean operator 'in' not supported")
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionLikeEscape() {
