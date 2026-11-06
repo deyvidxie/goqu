@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exec"
-	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
 type (
@@ -63,7 +62,7 @@ func ScanAllVals[T any](ctx context.Context, s ValSource) ([]T, error) {
 	if err := rejectRawBytes("ScanAllVals", t); err != nil {
 		return nil, err
 	}
-	if t.Kind() == reflect.Pointer {
+	if t.Kind() == reflect.Pointer && !t.Implements(sqlScannerType) {
 		return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan NULL into %s; use sql.Null[%s]", t, t.Elem())
 	}
 	var vals []T
@@ -90,14 +89,34 @@ func requireRowType[T any](fn, valFn string) error {
 	if elem.Kind() != reflect.Struct {
 		return exec.NewUnsupportedScanTypeError("%s requires a struct or a pointer to a struct, got %s", fn, t)
 	}
-	cm, err := util.GetColumnMap(reflect.New(elem).Interface(), "db")
-	if err != nil {
-		return err
-	}
-	if len(cm) == 0 || elem.PkgPath() == "database/sql" {
-		return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which scans as one column; use %s", fn, t, valFn)
+	if !hasRowFields(elem, map[reflect.Type]bool{}) || elem.PkgPath() == "database/sql" {
+		return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which scans as one column; use %s[%s]", fn, t, valFn, elem)
 	}
 	return nil
+}
+
+func hasRowFields(t reflect.Type, seen map[reflect.Type]bool) bool {
+	if seen[t] {
+		return false
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		ft := f.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		if f.Anonymous && ft.Kind() == reflect.Struct {
+			if hasRowFields(ft, seen) {
+				return true
+			}
+			continue
+		}
+		if f.IsExported() {
+			return true
+		}
+	}
+	return false
 }
 
 func requireOneValType[T any]() error {
