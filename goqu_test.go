@@ -157,8 +157,8 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_errorNamesDialect() {
 }
 
 func (dws *dialectWrapperSuite) TestExpressionSQL_ignoresDefaultPrepared() {
-	goqu.SetDefaultPrepared(true)
 	defer goqu.SetDefaultPrepared(false)
+	goqu.SetDefaultPrepared(true)
 
 	sql, args, err := goqu.Dialect("mysql").ExpressionSQL(goqu.C("a").Eq(1))
 	dws.Require().NoError(err)

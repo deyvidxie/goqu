@@ -14,7 +14,7 @@
 * [`Or`](#or) - OR multiple expressions together.
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
-* [`ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
+* [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
 
 The entry points for expressions are:
@@ -435,7 +435,7 @@ SELECT * FROM "test" WHERE EXISTS (SELECT * FROM "other" WHERE ("test_id" = "id"
 To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exists) on the dataset.
 
 <a name="expression-sql"></a>
-**[`ExpressionSQL()`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.ExpressionSQL) and [`PreparedExpressionSQL()`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.PreparedExpressionSQL)**
+**[`DialectWrapper.ExpressionSQL`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.ExpressionSQL) and [`DialectWrapper.PreparedExpressionSQL`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.PreparedExpressionSQL)**
 
 Renders one expression with a dialect, without a surrounding statement. Prepared placeholders are numbered from 1 on every call (`$1` on postgres).
 
