@@ -128,6 +128,32 @@ func (mds *mysqlDialectSuite) TestArithmeticOperations() {
 	)
 }
 
+func (mds *mysqlDialectSuite) TestJSONFunctions() {
+	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(dialect).From("test")
+		mds.assertSQL(
+			sqlTestCase{
+				ds:  ds.Select(goqu.JSONExtract("doc", "$.a")),
+				sql: "SELECT JSON_EXTRACT(`doc`, '$.a') FROM `test`",
+			},
+			sqlTestCase{
+				ds:  ds.Where(goqu.JSONValue("t.doc", "$.name").Eq("bob")),
+				sql: "SELECT * FROM `test` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`t`.`doc`, '$.name')) = 'bob')",
+			},
+			sqlTestCase{
+				ds:  ds.Where(goqu.JSONContains("doc", "a\x01\"b", "$.tags")),
+				sql: "SELECT * FROM `test` WHERE JSON_CONTAINS(`doc`, '\"a\\\\u0001\\\\\"b\"', '$.tags')",
+			},
+			sqlTestCase{
+				ds:         ds.Prepared(true).Where(goqu.JSONContains("doc", []int{1, 2})),
+				sql:        "SELECT * FROM `test` WHERE JSON_CONTAINS(`doc`, ?)",
+				isPrepared: true,
+				args:       []interface{}{"[1,2]"},
+			},
+		)
+	}
+}
+
 func (mds *mysqlDialectSuite) TestBitwiseOperations() {
 	col := goqu.C("a")
 	ds := mds.GetDs("test")

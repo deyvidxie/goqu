@@ -333,6 +333,20 @@ type (
 		Bitwiseable
 		GetCol() string
 	}
+	JSONExpression interface {
+		Expression
+		Aliaseable
+		Comparable
+		Rangeable
+		Inable
+		Isable
+		Likeable
+		Orderable
+		Function() JSONFunction
+		Col() interface{}
+		Candidate() interface{}
+		Paths() []string
+	}
 	CommonTableExpression interface {
 		Expression
 		IsRecursive() bool

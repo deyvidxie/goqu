@@ -424,6 +424,36 @@ func (mt *mysqlTest) TestInsertReturning() {
 	mt.Error(err)
 }
 
+func (mt *mysqlTest) TestJSONFunctions() {
+	_, err := mt.db.Exec("CREATE TABLE `docs` (`id` INT NOT NULL, `doc` JSON NOT NULL)")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := mt.db.Exec("DROP TABLE `docs`")
+		mt.NoError(err)
+	}()
+	_, err = mt.db.Insert("docs").Rows(
+		goqu.Record{"id": 1, "doc": `{"name": "bob", "n": 2, "tags": ["a\u0001b", "x"]}`},
+		goqu.Record{"id": 2, "doc": `{"name": "sally", "n": 1, "tags": ["y"]}`},
+	).Executor().Exec()
+	mt.Require().NoError(err)
+
+	for _, prepared := range []bool{false, true} {
+		ds := mt.db.From("docs").Prepared(prepared)
+
+		var ids []int64
+		mt.Require().NoError(ds.Select("id").Where(goqu.JSONContains("doc", "a\x01b", "$.tags")).ScanVals(&ids))
+		mt.Equal([]int64{1}, ids)
+
+		var names []string
+		mt.Require().NoError(ds.Select(goqu.JSONValue("doc", "$.name")).Order(goqu.JSONExtract("doc", "$.n").Asc()).ScanVals(&names))
+		mt.Equal([]string{"sally", "bob"}, names)
+
+		count, err := ds.Where(goqu.JSONContains("doc", map[string]interface{}{"name": "sally"})).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(1), count)
+	}
+}
+
 func (mt *mysqlTest) TestMysql8NanoEqMatchesPreparedFractionalTime() {
 	_, err := mt.db.Exec("CREATE TABLE `precise` (`t` DATETIME(6) NOT NULL)")
 	mt.Require().NoError(err)

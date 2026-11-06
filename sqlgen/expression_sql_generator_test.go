@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"testing"
 	"time"
@@ -1299,6 +1300,55 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 			val: ident.Collate(exp.NewIdentifierExpression("", "", "a\x00b")), err: "goqu: invalid collation name \"a\\x00b\"",
 		},
 	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsJSONFunctions = true
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", do),
+		expressionTestCase{val: exp.NewJSONExtractExpression("doc", "$.a"), sql: `JSON_EXTRACT("doc", '$.a')`},
+		expressionTestCase{
+			val: exp.NewJSONExtractExpression("doc", "$.a"), sql: `JSON_EXTRACT("doc", ?)`, isPrepared: true, args: []interface{}{"$.a"},
+		},
+		expressionTestCase{val: exp.NewJSONValueExpression("t.doc", "$.a"), sql: `JSON_UNQUOTE(JSON_EXTRACT("t"."doc", '$.a'))`},
+		expressionTestCase{
+			val: exp.NewJSONValueExpression("doc", "$.a"), sql: `JSON_UNQUOTE(JSON_EXTRACT("doc", ?))`, isPrepared: true,
+			args: []interface{}{"$.a"},
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", map[string]int{"a": 1}), sql: `JSON_CONTAINS("doc", '{"a":1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", "<a>&", "$.t"), sql: `JSON_CONTAINS("doc", '"<a>&"', '$.t')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", "a\x01b", "$.t"), sql: `JSON_CONTAINS("doc", ?, ?)`, isPrepared: true,
+			args: []interface{}{`"a\u0001b"`, "$.t"},
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"), err: "goqu: JSONContains takes at most one path, got 2"},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", math.NaN()), err: "goqu: JSONContains candidate: json: unsupported value: NaN",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{
+			val: exp.NewJSONValueExpression("doc", "$.a"), err: "goqu: dialect does not support JSON functions [dialect=test]",
+		},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
+	render := func(do *sqlgen.SQLDialectOptions, e exp.Expression) error {
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", do).Generate(b, e)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.DefaultDialectOptions(), exp.NewJSONExtractExpression("doc", "$"))))
+
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsJSONFunctions = true
+	esgs.True(sqlgen.IsInvalidExpression(render(do, exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
+	var unsupportedValue *json.UnsupportedValueError
+	esgs.ErrorAs(render(do, exp.NewJSONContainsExpression("doc", math.NaN())), &unsupportedValue)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {

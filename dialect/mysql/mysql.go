@@ -10,6 +10,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
 
 	opts.SupportsReturn = false
+	opts.SupportsJSONFunctions = true
 	opts.SupportsOrderByOnUpdate = true
 	opts.SupportsLimitOnUpdate = true
 	opts.SupportsLimitOnDelete = true

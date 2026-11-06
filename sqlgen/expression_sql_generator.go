@@ -94,6 +94,18 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
+func errJSONFunctionsNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support JSON functions [dialect=%s]", dialect)
+}
+
+func errJSONContainsPaths(n int) error {
+	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
+}
+
+func errJSONFunctionUnknown(function exp.JSONFunction) error {
+	return NewInvalidExpressionError("unknown JSON function %d", function)
+}
+
 func errLateralNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
 }
@@ -316,6 +328,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.collateExpressionSQL(b, e)
 	case exp.ExcludedExpression:
 		esg.excludedExpressionSQL(b, e)
+	case exp.JSONExpression:
+		esg.jsonExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -967,6 +981,47 @@ func describeCollation(collation any) string {
 		return strings.Join(parts, ".")
 	}
 	return fmt.Sprintf("%v", collation)
+}
+
+func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
+	if !esg.dialectOptions.SupportsJSONFunctions {
+		b.SetError(errJSONFunctionsNotSupported(esg.dialect))
+		return
+	}
+	paths := make([]interface{}, len(e.Paths()))
+	for i, path := range e.Paths() {
+		paths[i] = path
+	}
+	switch e.Function() {
+	case exp.JSONExtractFunction:
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_EXTRACT", append([]interface{}{e.Col()}, paths...)...))
+	case exp.JSONValueFunction:
+		extract := exp.NewSQLFunctionExpression("JSON_EXTRACT", append([]interface{}{e.Col()}, paths...)...)
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_UNQUOTE", extract))
+	case exp.JSONContainsFunction:
+		if len(paths) > 1 {
+			b.SetError(errJSONContainsPaths(len(paths)))
+			return
+		}
+		candidate, err := marshalJSONCandidate(e.Candidate())
+		if err != nil {
+			b.SetError(fmt.Errorf("goqu: JSONContains candidate: %w", err))
+			return
+		}
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_CONTAINS", append([]interface{}{e.Col(), candidate}, paths...)...))
+	default:
+		b.SetError(errJSONFunctionUnknown(e.Function()))
+	}
+}
+
+func marshalJSONCandidate(v interface{}) (string, error) {
+	var buf strings.Builder
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(buf.String(), "\n"), nil
 }
 
 func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
