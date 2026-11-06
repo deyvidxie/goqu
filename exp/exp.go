@@ -333,6 +333,7 @@ type (
 		Bitwiseable
 		GetCol() string
 	}
+	JSONFunction   int
 	JSONExpression interface {
 		Expression
 		Aliaseable
@@ -465,7 +466,6 @@ type (
 	}
 
 	ArithmeticOperation  int
-	JSONFunction         int
 	ArithmeticExpression interface {
 		Expression
 		Aliaseable
