@@ -368,6 +368,8 @@ func (ss *scanSuite) TestScanRejectsStructsWithoutRowFields() {
 		ss.EqualError(err, "goqu: cannot scan rows into "+name+", which has no fields goqu can scan into", name)
 		ss.True(exec.IsUnsupportedScanType(err), name)
 	}
+
+	ss.EqualError(allStructsErr[*strings.Builder](ss), "goqu: cannot scan rows into *strings.Builder, which has no fields goqu can scan into")
 }
 
 func (ss *scanSuite) TestScanAllStructsAcceptsEmbeddedRowFields() {
@@ -413,8 +415,8 @@ func (ss *scanSuite) TestScanStructsUseDatasetTagName() {
 	ss.NoError(mock.ExpectationsWereMet())
 
 	_, err = db.From("items").ScanAllStructs[scanTestDBSkip](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip: embedded field ScanTestID is *goqu_test.ScanTestID, "+
-		"which is not a struct; tag it `json:\"-\"`")
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip: embedded field ScanTestID is a pointer to "+
+		"non-struct goqu_test.ScanTestID; tag it `json:\"-\"`")
 }
 
 func (ss *scanSuite) TestScanOneStructAcceptsRowStructWithScan() {
@@ -605,7 +607,7 @@ func (ss *scanSuite) TestScanAllValsAcceptsNullablePointers() {
 
 func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 	ids, err := ss.db.From("items").ScanAllVals[*int64](context.Background())
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64, which cannot hold NULL; use sql.Null[int64]")
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64, whose element int64 cannot hold NULL; use sql.Null[int64]")
 	ss.True(exec.IsUnsupportedScanType(err))
 	ss.Nil(ids)
 
@@ -617,14 +619,16 @@ func (ss *scanSuite) TestScanAllValsRejectsNonNullablePointers() {
 		"goqu_test.ScanTestTime": allValsErr[*ScanTestTime](ss),
 		"goqu_test.scanTestBlob": allValsErr[*scanTestBlob](ss),
 	} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+", which cannot hold NULL; use sql.Null["+name+"]", name)
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+", whose element "+name+" cannot hold NULL; use sql.Null["+name+"]", name)
 	}
 
 	for msg, err := range map[string]error{
-		"*fmt.Stringer; use a sql.Scanner":       allValsErr[*fmt.Stringer](ss),
-		"*uintptr; use a sql.Scanner":            allValsErr[*uintptr](ss),
-		"*[]int64; use []byte or a sql.Scanner":  allValsErr[*[]int64](ss),
-		"**[]int64; use []byte or a sql.Scanner": allValsErr[**[]int64](ss),
+		"*fmt.Stringer; use a sql.Scanner": allValsErr[*fmt.Stringer](ss),
+		"*uintptr; use a sql.Scanner":      allValsErr[*uintptr](ss),
+		"*complex128; use a sql.Scanner":   allValsErr[*complex128](ss),
+		"*goqu_test.ScanTestItem, which is a row struct; use ScanAllStructs[*goqu_test.ScanTestItem]": allValsErr[*ScanTestItem](ss),
+		"*[]int64; use []byte or a sql.Scanner":                                                       allValsErr[*[]int64](ss),
+		"**[]int64; use []byte or a sql.Scanner":                                                      allValsErr[**[]int64](ss),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+msg, msg)
 		ss.True(exec.IsUnsupportedScanType(err), msg)
@@ -671,9 +675,13 @@ func (ss *scanSuite) TestScanAllStructsAcceptsSkippedEmbeddedNonStructPointers()
 func (ss *scanSuite) TestScanStructsRejectUnscannableFields() {
 	_, _, err := ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr: embedded field scanTestEmbeddedID.ScanTestID "+
-		"is *goqu_test.ScanTestID, which is not a struct; tag it `db:\"-\"`")
+		"is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`")
 
-	nonStruct := "is *goqu_test.ScanTestID, which is not a struct; tag it `db:\"-\"`"
+	_, err = ss.db.From("items").ScanAllStructs[*ScanTestNode](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into *goqu_test.ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; "+
+		"tag it `db:\"-\"`")
+
+	nonStruct := "is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`"
 	for msg, err := range map[string]error{
 		"scanTestEmbeddedID: embedded field ScanTestID " + nonStruct:                  allStructsErr[scanTestEmbeddedID](ss),
 		"scanTestNestedID: embedded field scanTestEmbeddedID.ScanTestID " + nonStruct: allStructsErr[scanTestNestedID](ss),

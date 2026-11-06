@@ -17,7 +17,7 @@ var (
 func Struct[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
 	elem := t
-	if elem.Kind() == reflect.Pointer {
+	if elem.Kind() == reflect.Ptr {
 		elem = elem.Elem()
 	}
 	if elem.Kind() != reflect.Struct {
@@ -26,7 +26,7 @@ func Struct[T any](tagName string) error {
 	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
 	case util.ColumnMapNonStructEmbed:
 		return NewUnsupportedScanTypeError(
-			"cannot scan rows into %s: embedded field %s is %s, which is not a struct; tag it `%s:\"-\"`",
+			"cannot scan rows into %s: embedded field %s is a pointer to non-struct %s; tag it `%s:\"-\"`",
 			t, problem.Field, problem.Type, tagName,
 		)
 	case util.ColumnMapUnexportedPointerEmbed:
@@ -60,7 +60,7 @@ func AllVals[T any]() error {
 	if err := rejectRawBytes("ScanAllVals", t); err != nil {
 		return err
 	}
-	if t.Kind() != reflect.Pointer {
+	if t.Kind() != reflect.Ptr {
 		return nil
 	}
 	switch {
@@ -69,7 +69,11 @@ func AllVals[T any]() error {
 	case acceptsNull(t.Elem()):
 		return nil
 	case isPlainValue(t.Elem()):
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which cannot hold NULL; use sql.Null[%s]", t, t.Elem())
+		return NewUnsupportedScanTypeError(
+			"ScanAllVals cannot scan into %s, whose element %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
+		)
+	case util.IsStruct(t.Elem().Kind()):
+		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which is a row struct; use ScanAllStructs[%s]", t, t)
 	default:
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 	}
@@ -92,14 +96,14 @@ func OneVal[T any]() error {
 }
 
 func acceptsNull(t reflect.Type) bool {
-	return t.Kind() == reflect.Pointer || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
+	return t.Kind() == reflect.Ptr || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
 		util.IsScanner(t)
 }
 
 func isPlainValue(t reflect.Type) bool {
 	k := t.Kind()
-	return (k >= reflect.Bool && k <= reflect.Float64 && k != reflect.Uintptr) || k == reflect.String ||
-		(k == reflect.Struct && t.ConvertibleTo(timeType)) || isByteSlice(t)
+	return util.IsBool(k) || util.IsInt(k) || util.IsUint(k) || util.IsFloat(k) || util.IsString(k) ||
+		(util.IsStruct(k) && t.ConvertibleTo(timeType)) || isByteSlice(t)
 }
 
 func isUnscannableSlice(t reflect.Type) bool {
@@ -111,7 +115,7 @@ func isByteSlice(t reflect.Type) bool {
 }
 
 func derefAll(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Pointer {
+	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 	return t

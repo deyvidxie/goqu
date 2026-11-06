@@ -270,7 +270,7 @@ func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found b
 		return row, false, typeErr
 	}
 	t := reflect.TypeFor[T]()
-	if t.Kind() != reflect.Pointer {
+	if t.Kind() != reflect.Ptr {
 		found, err = q.ScanStructContext(ctx, &row)
 		return row, found, err
 	}

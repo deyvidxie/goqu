@@ -745,8 +745,22 @@ func (rt *reflectTest) TestCheckColumnMap() {
 		JSONSkip struct {
 			*ID `json:"-"`
 		}
+		loop struct {
+			ID   int `db:"id"`
+			Next *loop
+		}
+		audit struct {
+			ID int `db:"id"`
+		}
+		Wrapper  struct{ *item }
+		Shadowed struct {
+			ID   int `db:"id"`
+			Name string
+			*audit
+		}
 	)
 	ok := util.ColumnMapProblem{}
+	unexportedPtr := util.ColumnMapUnexportedPointerEmbed
 	for _, c := range []struct {
 		t       reflect.Type
 		tagName string
@@ -756,8 +770,12 @@ func (rt *reflectTest) TestCheckColumnMap() {
 		{reflect.TypeFor[SkippedNode](), "db", ok},
 		{reflect.TypeFor[struct{ *meta }](), "db", ok},
 		{reflect.TypeFor[JSONSkip](), "json", ok},
-		{reflect.TypeFor[JSONSkip](), "db", util.ColumnMapProblem{util.ColumnMapNonStructEmbed, "ID", reflect.TypeFor[*ID]()}},
-		{reflect.TypeFor[struct{ *item }](), "db", util.ColumnMapProblem{util.ColumnMapUnexportedPointerEmbed, "item", reflect.TypeFor[item]()}},
+		{reflect.TypeFor[JSONSkip](), "db", util.ColumnMapProblem{util.ColumnMapNonStructEmbed, "ID", reflect.TypeFor[ID]()}},
+		{reflect.TypeFor[struct{ *item }](), "db", util.ColumnMapProblem{unexportedPtr, "item", reflect.TypeFor[item]()}},
+		{reflect.TypeFor[struct{ *meta }](), "json", util.ColumnMapProblem{unexportedPtr, "meta", reflect.TypeFor[meta]()}},
+		{reflect.TypeFor[Shadowed](), "db", ok},
+		{reflect.TypeFor[struct{ Wrapper }](), "db", util.ColumnMapProblem{unexportedPtr, "Wrapper.item", reflect.TypeFor[item]()}},
+		{reflect.TypeFor[struct{ *loop }](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "loop.Next", reflect.TypeFor[loop]()}},
 		{reflect.TypeFor[SelfRef](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "SelfRef", reflect.TypeFor[SelfRef]()}},
 		{reflect.TypeFor[Node](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Parent", reflect.TypeFor[Node]()}},
 		{reflect.TypeFor[struct{ Root Node }](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Root.Parent", reflect.TypeFor[Node]()}},
