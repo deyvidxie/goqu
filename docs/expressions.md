@@ -14,6 +14,7 @@
 * [`Or`](#or) - OR multiple expressions together.
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
+* [`JSONExtract`, `JSONValue`, `JSONContains`](#json) - MySQL JSON functions.
 * [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
 
@@ -433,6 +434,29 @@ SELECT * FROM "test" WHERE EXISTS (SELECT * FROM "other" WHERE ("test_id" = "id"
 ```
 
 To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exists) on the dataset.
+
+<a name="json"></a>
+**[`JSONExtract()`](https://godoc.org/github.com/doug-martin/goqu#JSONExtract), [`JSONValue()`](https://godoc.org/github.com/doug-martin/goqu#JSONValue) and [`JSONContains()`](https://godoc.org/github.com/doug-martin/goqu#JSONContains)**
+
+`JSON_EXTRACT(col, path)`, `JSON_UNQUOTE(JSON_EXTRACT(col, path))` and `JSON_CONTAINS(col, candidate[, path])` on the mysql dialects; other dialects return an error from `ToSQL` unless registered with `SupportsMySQLJSONFunctions` set to `true`. A string `col` is an identifier. `JSONExtract` yields JSON text, so strings keep their quotes; compare or scan scalars through `JSONValue`. The `JSONContains` candidate: `goqu.Ex`/`goqu.ExOr` are rejected (use `map[string]any` for a JSON object); any other expression is rendered as SQL; a `json.Marshaler` (incl. `json.RawMessage`) is encoded through `MarshalJSON`; any other `driver.Valuer` is resolved through `Value()` first; `[]byte` and `*[]byte` are used as JSON text; anything else goes through `encoding/json`.
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+ds := goqu.Dialect("mysql").From("users").
+  Select(goqu.JSONExtract("profile", "$.age")).
+  Where(
+    goqu.JSONValue("profile", "$.name").Eq("bob"),
+    goqu.JSONContains("profile", "admin", "$.roles"),
+  )
+sql, _, _ := ds.ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```sql
+SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') AND JSON_CONTAINS(`profile`, '"admin"', '$.roles'))
+```
 
 <a name="expression-sql"></a>
 **[`DialectWrapper.ExpressionSQL`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.ExpressionSQL) and [`DialectWrapper.PreparedExpressionSQL`](https://godoc.org/github.com/doug-martin/goqu#DialectWrapper.PreparedExpressionSQL)**

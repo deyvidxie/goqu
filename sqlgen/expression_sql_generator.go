@@ -57,7 +57,11 @@ var (
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
 	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
-	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
+	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
+	errJSONCandidateCondition        = NewInvalidExpressionError(
+		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
+	)
+	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
 )
@@ -94,6 +98,22 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
+func errJSONFunctionsNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support JSONExtract, JSONValue or JSONContains [dialect=%s]", dialect)
+}
+
+func errJSONContainsPaths(n int) error {
+	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
+}
+
+func errUnknownJSONFunction(function exp.JSONFunction) error {
+	return NewInvalidExpressionError("unknown JSONFunction %d", function)
+}
+
+func errJSONCandidate(cause error) error {
+	return NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
+}
+
 func errLateralNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
 }
@@ -105,8 +125,6 @@ func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) Expression
 func (esg *expressionSQLGenerator) Dialect() string {
 	return esg.dialect
 }
-
-var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 
 func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	if b.Error() != nil {
@@ -153,21 +171,23 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	}
 }
 
-// valuerSQL renders a driver.Valuer by generating SQL for the value it returns.
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
-	// See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
-	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr &&
-		rv.IsNil() &&
-		rv.Type().Elem().Implements(valuerReflectType) {
-		esg.literalNil(b)
-		return
-	}
-	dVal, err := v.Value()
+	dVal, err := valuerValue(v)
 	if err != nil {
 		b.SetError(err)
 		return
 	}
 	esg.Generate(b, dVal)
+}
+
+var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
+// See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
+func valuerValue(v driver.Valuer) (driver.Value, error) {
+	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerReflectType) {
+		return nil, nil
+	}
+	return v.Value()
 }
 
 // typedSliceSQL handles the most common slice types without reflection. It returns false if val is not one of them.
@@ -316,6 +336,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.collateExpressionSQL(b, e)
 	case exp.ExcludedExpression:
 		esg.excludedExpressionSQL(b, e)
+	case exp.JSONExpression:
+		esg.jsonExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -967,6 +989,86 @@ func describeCollation(collation any) string {
 		return strings.Join(parts, ".")
 	}
 	return fmt.Sprintf("%v", collation)
+}
+
+func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
+	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
+		b.SetError(errJSONFunctionsNotSupported(esg.dialect))
+		return
+	}
+	paths := make([]interface{}, len(e.Paths()))
+	for i, path := range e.Paths() {
+		paths[i] = path
+	}
+	switch e.Function() {
+	case exp.JSONExtractFunction:
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_EXTRACT", append([]interface{}{e.Col()}, paths...)...))
+	case exp.JSONValueFunction:
+		extract := exp.NewSQLFunctionExpression("JSON_EXTRACT", append([]interface{}{e.Col()}, paths...)...)
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_UNQUOTE", extract))
+	case exp.JSONContainsFunction:
+		if len(paths) > 1 {
+			b.SetError(errJSONContainsPaths(len(paths)))
+			return
+		}
+		candidate, err := jsonCandidate(e.Candidate())
+		if err != nil {
+			b.SetError(err)
+			return
+		}
+		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_CONTAINS", append([]interface{}{e.Col(), candidate}, paths...)...))
+	default:
+		b.SetError(errUnknownJSONFunction(e.Function()))
+	}
+}
+
+func jsonCandidate(v interface{}) (interface{}, error) {
+	switch v.(type) {
+	case exp.Ex, exp.ExOr:
+		return nil, errJSONCandidateCondition
+	}
+	if e, ok := v.(exp.Expression); ok {
+		return e, nil
+	}
+	if _, marshals := v.(json.Marshaler); !marshals {
+		if valuer, ok := v.(driver.Valuer); ok {
+			value, err := valuerValue(valuer)
+			if err != nil {
+				return nil, errJSONCandidate(err)
+			}
+			v = value
+		}
+		if raw, ok := jsonBytes(v); ok {
+			if raw == nil {
+				return "null", nil
+			}
+			if !json.Valid(raw) {
+				return nil, errJSONCandidateInvalid
+			}
+			return string(raw), nil
+		}
+	}
+	var buf strings.Builder
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, errJSONCandidate(err)
+	}
+	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
+func jsonBytes(v interface{}) ([]byte, bool) {
+	switch b := v.(type) {
+	case []byte:
+		return b, true
+	case *[]byte:
+		if b == nil {
+			return nil, true
+		}
+		return *b, true
+	default:
+		return nil, false
+	}
 }
 
 func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {

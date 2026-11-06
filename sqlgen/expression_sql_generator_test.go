@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"math"
+	"net"
 	"regexp"
 	"testing"
 	"time"
@@ -349,6 +351,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_NilTypes() {
 	)
 }
 
+type pointerValuer struct{}
+
+func (*pointerValuer) Value() (driver.Value, error) { return "pointer", nil }
+
 type datasetValuerType struct {
 	int int64
 	err error
@@ -378,6 +384,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
 		expressionTestCase{
 			val: val, sql: "NULL",
 		},
+		expressionTestCase{val: &datasetValuerType{int: 10}, sql: "'Hello World 10'"},
+		expressionTestCase{val: (*pointerValuer)(nil), sql: "'pointer'"},
 	)
 }
 
@@ -1299,6 +1307,135 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 			val: ident.Collate(exp.NewIdentifierExpression("", "", "a\x00b")), err: "goqu: invalid collation name \"a\\x00b\"",
 		},
 	)
+}
+
+type (
+	jsonStringValuer      string
+	jsonBytesValuer       string
+	jsonMarshalingValuer  struct{}
+	jsonFailingValuer     struct{}
+	jsonValueError        struct{}
+	unknownJSONExpression struct{ exp.JSONExpression }
+)
+
+func (jsonFailingValuer) Value() (driver.Value, error) { return nil, jsonValueError{} }
+
+func (jsonValueError) Error() string { return "value failed" }
+
+func (v jsonBytesValuer) Value() (driver.Value, error) { return []byte(v), nil }
+
+func (jsonMarshalingValuer) Value() (driver.Value, error) { return "x", nil }
+
+func (jsonMarshalingValuer) MarshalJSON() ([]byte, error) { return []byte(`{"k":1}`), nil }
+
+func (v jsonStringValuer) Value() (driver.Value, error) {
+	if v == "" {
+		return nil, nil
+	}
+	return string(v), nil
+}
+
+func (unknownJSONExpression) Function() exp.JSONFunction { return 99 }
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
+	jsonDoc, name, name2 := []byte(`{"a": 1}`), "x", jsonStringValuer("y")
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsMySQLJSONFunctions = true
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", do),
+		expressionTestCase{val: exp.NewJSONExtractExpression("doc", "$.a"), sql: `JSON_EXTRACT("doc", '$.a')`},
+		expressionTestCase{
+			val: exp.NewJSONExtractExpression("doc", "$.a"), sql: `JSON_EXTRACT("doc", ?)`, isPrepared: true, args: []interface{}{"$.a"},
+		},
+		expressionTestCase{val: exp.NewJSONValueExpression("t.doc", "$.a"), sql: `JSON_UNQUOTE(JSON_EXTRACT("t"."doc", '$.a'))`},
+		expressionTestCase{
+			val: exp.NewJSONValueExpression("doc", "$.a"), sql: `JSON_UNQUOTE(JSON_EXTRACT("doc", ?))`, isPrepared: true,
+			args: []interface{}{"$.a"},
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", map[string]int{"a": 1}), sql: `JSON_CONTAINS("doc", '{"a":1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", "<a>&", "$.t"), sql: `JSON_CONTAINS("doc", '"<a>&"', '$.t')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", "a\x01b", "$.t"), sql: `JSON_CONTAINS("doc", ?, ?)`, isPrepared: true,
+			args: []interface{}{`"a\u0001b"`, "$.t"},
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"), err: "goqu: JSONContains takes at most one path, got 2"},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", math.NaN()), err: "goqu: JSONContains candidate: json: unsupported value: NaN",
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.NewIdentifierExpression("", "o", "doc")), sql: `JSON_CONTAINS("doc", "o"."doc")`,
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", []byte(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", json.RawMessage(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a":1}')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", []byte("{")), err: "goqu: JSONContains candidate is not valid JSON",
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", jsonStringValuer("x")), sql: `JSON_CONTAINS("doc", '"x"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", jsonStringValuer("")), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", jsonFailingValuer{}), err: "goqu: JSONContains candidate: value failed",
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*jsonStringValuer)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &name2), sql: `JSON_CONTAINS("doc", '"y"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*pointerValuer)(nil)), sql: `JSON_CONTAINS("doc", '"pointer"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", []byte(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.Ex{"name": "bob"}),
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.ExOr{"name": "bob"}),
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &jsonDoc), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*[]byte)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", net.ParseIP("1.2.3.4")), sql: `JSON_CONTAINS("doc", '"1.2.3.4"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &name), sql: `JSON_CONTAINS("doc", '"x"')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", jsonMarshalingValuer{}), sql: `JSON_CONTAINS("doc", '{"k":1}')`,
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", jsonBytesValuer(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a": 1}')`,
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", jsonBytesValuer("{")), err: "goqu: JSONContains candidate is not valid JSON",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{
+			val: exp.NewJSONValueExpression("doc", "$.a"),
+			err: "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=test]",
+		},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsMySQLJSONFunctions = true
+	render := func(e exp.Expression) error {
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", do).Generate(b, e)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
+
+	err := render(exp.NewJSONContainsExpression("doc", math.NaN()))
+	esgs.True(sqlgen.IsInvalidExpression(err))
+	var unsupportedValue *json.UnsupportedValueError
+	esgs.ErrorAs(err, &unsupportedValue)
+
+	err = render(exp.NewJSONContainsExpression("doc", jsonFailingValuer{}))
+	esgs.True(sqlgen.IsInvalidExpression(err))
+	var valueErr jsonValueError
+	esgs.ErrorAs(err, &valueErr)
+
+	err = render(unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
+	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
+	esgs.True(sqlgen.IsInvalidExpression(err))
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {

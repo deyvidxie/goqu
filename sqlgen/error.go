@@ -14,6 +14,7 @@ type (
 	}
 	InvalidExpressionError struct {
 		baseError
+		cause error
 	}
 )
 
@@ -31,7 +32,22 @@ func IsUnsupported(err error) bool {
 }
 
 func NewInvalidExpressionError(format string, args ...interface{}) error {
-	return InvalidExpressionError{baseError{msg: fmt.Sprintf(format, args...)}}
+	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func NewInvalidExpressionErrorWithCause(cause error, format string, args ...interface{}) error {
+	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}, cause: cause}
+}
+
+func (e InvalidExpressionError) Error() string {
+	if e.cause == nil {
+		return e.baseError.Error()
+	}
+	return e.baseError.Error() + ": " + e.cause.Error()
+}
+
+func (e InvalidExpressionError) Unwrap() error {
+	return e.cause
 }
 
 func IsInvalidExpression(err error) bool {

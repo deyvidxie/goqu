@@ -74,6 +74,19 @@ func Excluded(col any) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
 }
 
+func JSONExtract(col any, path string) exp.JSONExpression {
+	return exp.NewJSONExtractExpression(col, path)
+}
+
+// JSONValue renders JSON_UNQUOTE(JSON_EXTRACT(col, path)), not JSON_VALUE.
+func JSONValue(col any, path string) exp.JSONExpression {
+	return exp.NewJSONValueExpression(col, path)
+}
+
+func JSONContains(col, candidate any, path ...string) exp.JSONExpression {
+	return exp.NewJSONContainsExpression(col, candidate, path...)
+}
+
 // A list of expressions that should be ORed together
 //
 //	Or(I("a").Eq(10), I("b").Eq(11)) //(("a" = 10) OR ("b" = 11))

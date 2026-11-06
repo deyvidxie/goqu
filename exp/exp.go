@@ -333,6 +333,22 @@ type (
 		Bitwiseable
 		GetCol() string
 	}
+	JSONFunction   int
+	JSONExpression interface {
+		Expression
+		Aliaseable
+		Comparable
+		Arithmeticable
+		Rangeable
+		Inable
+		Isable
+		Likeable
+		Orderable
+		Function() JSONFunction
+		Col() any
+		Candidate() any
+		Paths() []string
+	}
 	CommonTableExpression interface {
 		Expression
 		IsRecursive() bool
@@ -679,6 +695,10 @@ const (
 	ArithmeticSubOp
 	ArithmeticMulOp
 	ArithmeticDivOp
+
+	JSONExtractFunction JSONFunction = iota
+	JSONValueFunction
+	JSONContainsFunction
 )
 
 // StraightJoinType is the STRAIGHT_JOIN join type (MySQL only).

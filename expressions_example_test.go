@@ -680,6 +680,67 @@ func ExampleFIRST_as() {
 	// SELECT FIRST("a") AS "a" FROM "test"
 }
 
+func ExampleJSONExtract() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	ds := goqu.Dialect("mysql").From("users").Select(goqu.JSONExtract("profile", "$.age"))
+	sql, args, _ := ds.ToSQL()
+	fmt.Println(sql, args)
+
+	sql, args, _ = ds.Prepared(true).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` []
+	// SELECT JSON_EXTRACT(`profile`, ?) FROM `users` [$.age]
+}
+
+func ExampleJSONValue() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	ds := goqu.Dialect("mysql").From("users").Where(goqu.JSONValue("profile", "$.name").Eq("bob"))
+	sql, args, _ := ds.ToSQL()
+	fmt.Println(sql, args)
+
+	sql, args, _ = ds.Prepared(true).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') []
+	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, ?)) = ?) [$.name bob]
+}
+
+func ExampleJSONValue_dialects() {
+	for _, dialect := range []string{"mysql8", "postgres", "sqlite3"} {
+		sql, _, err := goqu.Dialect(dialect).From("users").Where(goqu.JSONValue("profile", "$.name").Eq("bob")).ToSQL()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(sql)
+	}
+
+	// Output:
+	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob')
+	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
+	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]
+}
+
+func ExampleJSONContains() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	ds := goqu.Dialect("mysql").From("users").Where(goqu.JSONContains("profile", "admin", "$.roles"))
+	sql, args, _ := ds.ToSQL()
+	fmt.Println(sql, args)
+
+	sql, args, _ = ds.Prepared(true).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT * FROM `users` WHERE JSON_CONTAINS(`profile`, '"admin"', '$.roles') []
+	// SELECT * FROM `users` WHERE JSON_CONTAINS(`profile`, ?, ?) ["admin" $.roles]
+}
+
 // This example shows how to create custom SQL Functions
 func ExampleFunc() {
 	stragg := func(expression exp.Expression, delimiter string) exp.SQLFunctionExpression {

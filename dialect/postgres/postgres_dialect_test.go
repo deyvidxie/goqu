@@ -92,3 +92,9 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 	assert.Equal(t, `INSERT INTO "test" ("a", "b") VALUES ('a', 1) ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b" WHERE (1=0)`, sql)
 	assert.Empty(t, args)
 }
+
+func TestJSONFunctionsAreErrors(t *testing.T) {
+	_, _, err := goqu.Dialect("postgres").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
+	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]")
+	assert.True(t, sqlgen.IsUnsupported(err))
+}

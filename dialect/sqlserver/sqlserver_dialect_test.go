@@ -6,6 +6,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -276,4 +277,10 @@ func TestEmptyInList(t *testing.T) {
 		assert.Equal(t, "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))", sql)
 		assert.Empty(t, args)
 	}
+}
+
+func TestJSONFunctionsAreErrors(t *testing.T) {
+	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
+	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlserver]")
+	assert.True(t, sqlgen.IsUnsupported(err))
 }
