@@ -339,10 +339,11 @@ if err := de.ScanVals(&ids); err != nil {
 }
 ```
 
-With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](ctx, de)`.
 
 Output:
 
 ```
 Deleted users [ids:=[1 2 3]]
 ```
+
+With [`goqu.ScanAllVals`](./selecting.md#generic-scan): `ids, err := goqu.ScanAllVals[int64](context.Background(), de)`.

@@ -2,7 +2,10 @@ package goqu_test
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
@@ -15,8 +18,16 @@ type (
 		db   *goqu.Database
 		mock sqlmock.Sqlmock
 	}
-	scanTestError struct{}
+	scanTestError   struct{}
+	scanTestItemRef *dsTestActionItem
+	scanTestTags    []string
 )
+
+func (t *scanTestTags) Scan(src interface{}) error {
+	b, _ := src.([]byte)
+	*t = strings.Split(string(b), ",")
+	return nil
+}
 
 func (scanTestError) Error() string { return "scan failed" }
 
@@ -35,159 +46,192 @@ func (ss *scanSuite) itemRows(csv string) *sqlmock.Rows {
 	return sqlmock.NewRows([]string{"address", "name"}).FromCSVString(csv)
 }
 
-func (ss *scanSuite) TestScanAll() {
+func (ss *scanSuite) TestScanAllStructs() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2"))
 
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ss.db.From("items"))
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}, {Address: "211 Test Addr", Name: "Test2"}}, items)
 }
 
-func (ss *scanSuite) TestScanAllPointers() {
+func (ss *scanSuite) TestScanAllStructsPointers() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
-	items, err := goqu.ScanAll[*dsTestActionItem](context.Background(), ss.db.From("items"))
+	items, err := goqu.ScanAllStructs[*dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.Equal([]*dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
 }
 
-func (ss *scanSuite) TestScanAllPrepared() {
+func (ss *scanSuite) TestScanAllStructsPrepared() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" WHERE \("name" = \?\)`).
 		WithArgs("Test1").
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
 	ds := ss.db.From("items").Prepared(true).Where(goqu.C("name").Eq("Test1"))
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ds)
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ds)
 	ss.NoError(err)
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
 }
 
-func (ss *scanSuite) TestScanAllNoRows() {
+func (ss *scanSuite) TestScanAllStructsNoRows() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows(""))
 
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ss.db.From("items"))
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.Nil(items)
 }
 
-func (ss *scanSuite) TestScanAllQueryError() {
+func (ss *scanSuite) TestScanAllStructsQueryError() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnError(scanTestError{})
 
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ss.db.From("items"))
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.ErrorIs(err, scanTestError{})
 	ss.Nil(items)
 }
 
-func (ss *scanSuite) TestScanAllRowError() {
+func (ss *scanSuite) TestScanAllStructsRowError() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2").RowError(1, scanTestError{}))
 
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ss.db.From("items"))
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.ErrorIs(err, scanTestError{})
 	ss.Nil(items)
 }
 
-func (ss *scanSuite) TestScanAllFromExecutor() {
+func (ss *scanSuite) TestScanAllStructsFromExecutor() {
 	ss.mock.ExpectQuery(`INSERT INTO "items" \("address", "name"\) VALUES \('111 Test Addr', 'Test1'\) RETURNING "address", "name"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
 	ds := ss.db.Insert("items").Rows(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}).Returning("address", "name")
-	items, err := goqu.ScanAll[dsTestActionItem](context.Background(), ds.Executor())
+	items, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), ds.Executor())
 	ss.NoError(err)
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
 }
 
-func (ss *scanSuite) TestScanAllRequiresStruct() {
+func (ss *scanSuite) TestScanAllStructsRequiresStruct() {
 	for _, ds := range []*goqu.SelectDataset{ss.db.From("items"), ss.db.From("items").Select("name")} {
-		items, err := goqu.ScanAll[string](context.Background(), ds)
-		ss.EqualError(err, "goqu: ScanAll requires a struct or a pointer to a struct, got string")
+		items, err := goqu.ScanAllStructs[string](context.Background(), ds)
+		ss.EqualError(err, "goqu: ScanAllStructs requires a struct or a pointer to a struct, got string")
 		ss.True(goqu.IsUnsupportedScanType(err))
 		ss.Nil(items)
 	}
 }
 
-func (ss *scanSuite) TestScanAllWithoutDatabase() {
-	_, err := goqu.ScanAll[dsTestActionItem](context.Background(), goqu.From("items"))
+func (ss *scanSuite) TestScanAllStructsWithoutDatabase() {
+	_, err := goqu.ScanAllStructs[dsTestActionItem](context.Background(), goqu.From("items"))
 	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
 }
 
-func (ss *scanSuite) TestScanOne() {
+func (ss *scanSuite) TestScanOneStruct() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
-	item, found, err := goqu.ScanOne[dsTestActionItem](context.Background(), ss.db.From("items"))
+	item, found, err := goqu.ScanOneStruct[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, item)
 }
 
-func (ss *scanSuite) TestScanOnePointer() {
+func (ss *scanSuite) TestScanOneStructPointer() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
-	item, found, err := goqu.ScanOne[*dsTestActionItem](context.Background(), ss.db.From("items"))
+	item, found, err := goqu.ScanOneStruct[*dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(&dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, item)
 }
 
-func (ss *scanSuite) TestScanOnePointerNotFound() {
+func (ss *scanSuite) TestScanOneStructPointerNotFound() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnRows(ss.itemRows(""))
 
-	item, found, err := goqu.ScanOne[*dsTestActionItem](context.Background(), ss.db.From("items"))
+	item, found, err := goqu.ScanOneStruct[*dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.False(found)
 	ss.Nil(item)
 }
 
-func (ss *scanSuite) TestScanOneNotFound() {
+func (ss *scanSuite) TestScanOneStructNotFound() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnRows(ss.itemRows(""))
 
-	item, found, err := goqu.ScanOne[dsTestActionItem](context.Background(), ss.db.From("items"))
+	item, found, err := goqu.ScanOneStruct[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
 	ss.False(found)
 	ss.Zero(item)
 }
 
-func (ss *scanSuite) TestScanOneQueryError() {
+func (ss *scanSuite) TestScanOneStructQueryError() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnError(scanTestError{})
 
-	_, found, err := goqu.ScanOne[dsTestActionItem](context.Background(), ss.db.From("items"))
+	_, found, err := goqu.ScanOneStruct[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.ErrorIs(err, scanTestError{})
 	ss.False(found)
 }
 
-func (ss *scanSuite) TestScanOneRowError() {
+func (ss *scanSuite) TestScanOneStructRowError() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1").RowError(0, scanTestError{}))
 
-	item, found, err := goqu.ScanOne[dsTestActionItem](context.Background(), ss.db.From("items"))
+	item, found, err := goqu.ScanOneStruct[dsTestActionItem](context.Background(), ss.db.From("items"))
 	ss.ErrorIs(err, scanTestError{})
 	ss.False(found)
 	ss.Zero(item)
 }
 
-func (ss *scanSuite) TestScanOneFromExecutor() {
+func (ss *scanSuite) TestScanOneStructFromExecutor() {
 	ss.mock.ExpectQuery(`UPDATE "items" SET "name"='Test2' RETURNING "address", "name"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test2"))
 
 	ds := ss.db.Update("items").Set(goqu.Record{"name": "Test2"}).Returning("address", "name")
-	item, found, err := goqu.ScanOne[*dsTestActionItem](context.Background(), ds.Executor())
+	item, found, err := goqu.ScanOneStruct[*dsTestActionItem](context.Background(), ds.Executor())
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(&dsTestActionItem{Address: "111 Test Addr", Name: "Test2"}, item)
 }
 
-func (ss *scanSuite) TestScanOneRequiresStruct() {
-	_, _, err := goqu.ScanOne[string](context.Background(), ss.db.From("items"))
-	ss.EqualError(err, "goqu: ScanOne requires a struct or a pointer to a struct, got string")
+func (ss *scanSuite) TestScanOneStructRequiresStruct() {
+	for _, ds := range []*goqu.SelectDataset{ss.db.From("items"), ss.db.From("items").Select("name")} {
+		_, found, err := goqu.ScanOneStruct[string](context.Background(), ds)
+		ss.EqualError(err, "goqu: ScanOneStruct requires a struct or a pointer to a struct, got string")
+		ss.True(goqu.IsUnsupportedScanType(err))
+		ss.False(found)
+	}
+
+	row, found, err := goqu.ScanOneStruct[**dsTestActionItem](context.Background(), ss.db.From("items"))
+	ss.EqualError(err, "goqu: ScanOneStruct requires a struct or a pointer to a struct, got **goqu_test.dsTestActionItem")
+	ss.False(found)
+	ss.Nil(row)
+}
+
+func (ss *scanSuite) TestScanRejectsSingleColumnStructs() {
+	_, err := goqu.ScanAllStructs[time.Time](context.Background(), ss.db.From("items"))
+	ss.EqualError(err, "goqu: ScanAllStructs requires a row struct, got time.Time, which scans as one column; use ScanAllVals")
 	ss.True(goqu.IsUnsupportedScanType(err))
 
-	_, _, err = goqu.ScanOne[**dsTestActionItem](context.Background(), ss.db.From("items"))
+	_, _, err = goqu.ScanOneStruct[*sql.NullString](context.Background(), ss.db.From("items"))
+	ss.EqualError(err, "goqu: ScanOneStruct requires a row struct, got *sql.NullString, which scans as one column; use ScanOneVal")
 	ss.True(goqu.IsUnsupportedScanType(err))
 }
 
-func (ss *scanSuite) TestScanOneWithoutDatabase() {
-	_, _, err := goqu.ScanOne[dsTestActionItem](context.Background(), goqu.From("items"))
+func (ss *scanSuite) TestScanOneStructNamedPointer() {
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
+
+	item, found, err := goqu.ScanOneStruct[scanTestItemRef](context.Background(), ss.db.From("items"))
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestItemRef(&dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}), item)
+}
+
+func (ss *scanSuite) TestScanOneStructPointerQueryError() {
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" LIMIT 1`).WillReturnError(scanTestError{})
+
+	item, found, err := goqu.ScanOneStruct[*dsTestActionItem](context.Background(), ss.db.From("items"))
+	ss.ErrorIs(err, scanTestError{})
+	ss.False(found)
+	ss.Nil(item)
+}
+
+func (ss *scanSuite) TestScanOneStructWithoutDatabase() {
+	_, _, err := goqu.ScanOneStruct[dsTestActionItem](context.Background(), goqu.From("items"))
 	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
 }
 
@@ -285,9 +329,41 @@ func (ss *scanSuite) TestScanOneValFromExecutor() {
 	ss.Equal(int64(7), id)
 }
 
-func (ss *scanSuite) TestScanOneValRejectsSlice() {
-	_, _, err := goqu.ScanOneVal[[]int64](context.Background(), ss.db.From("items").Select("id"))
-	ss.EqualError(err, "goqu: type cannot be a pointer to a slice when scanning into val")
+func (ss *scanSuite) TestScanValsRejectSlices() {
+	_, found, err := goqu.ScanOneVal[[]int64](context.Background(), ss.db.From("items").Select("id"))
+	ss.EqualError(err, "goqu: ScanOneVal requires a single-column value type, got []int64")
+	ss.True(goqu.IsUnsupportedScanType(err))
+	ss.False(found)
+
+	ids, err := goqu.ScanAllVals[[]int64](context.Background(), ss.db.From("items").Select("id"))
+	ss.EqualError(err, "goqu: ScanAllVals requires a single-column value type, got []int64")
+	ss.Nil(ids)
+}
+
+func (ss *scanSuite) TestScanValsAcceptByteSlices() {
+	ss.mock.ExpectQuery(`SELECT "data" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
+	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
+
+	data, found, err := goqu.ScanOneVal[[]byte](context.Background(), ss.db.From("items").Select("data"))
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal([]byte("abc"), data)
+
+	all, err := goqu.ScanAllVals[sql.NullString](context.Background(), ss.db.From("items").Select("data"))
+	ss.NoError(err)
+	ss.Equal([]sql.NullString{{String: "abc", Valid: true}}, all)
+}
+
+func (ss *scanSuite) TestScanValsAcceptSliceScanners() {
+	ss.mock.ExpectQuery(`SELECT "tags" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"tags"}).AddRow([]byte("a,b")))
+
+	tags, found, err := goqu.ScanOneVal[scanTestTags](context.Background(), ss.db.From("items").Select("tags"))
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestTags{"a", "b"}, tags)
 }
 
 func (ss *scanSuite) TestScanOneValWithoutDatabase() {
