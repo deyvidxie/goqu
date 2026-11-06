@@ -223,6 +223,25 @@ func ExampleDialect_dbSqlite3() {
 	// {1 111 Test Addr Test1} true <nil>
 }
 
+func ExampleLookupDialect() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	dialect, err := goqu.LookupDialect("mysql")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	sql, _, _ := dialect.From("test").ToSQL()
+	fmt.Println(sql)
+
+	_, err = goqu.LookupDialect("oracle")
+	fmt.Println(goqu.IsUnknownDialect(err), err)
+
+	// Output:
+	// SELECT * FROM `test`
+	// true goqu: dialect "oracle" is not registered; blank-import its dialect package or call RegisterDialect
+}
+
 func ExampleSetTimeLocation() {
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
