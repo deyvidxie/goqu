@@ -10,6 +10,7 @@ import (
 
 var (
 	timeType     = reflect.TypeFor[time.Time]()
+	byteType     = reflect.TypeFor[byte]()
 	bytesType    = reflect.TypeFor[[]byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 )
@@ -61,7 +62,7 @@ func AllVals[T any](tagName string) error {
 		return nil
 	}
 	switch {
-	case isUnscannableSlice(derefAll(t)):
+	case isUnscannableSlice(util.DerefAll(t)):
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use []byte or a sql.Scanner", t)
 	case acceptsNull(t.Elem()):
 		return nil
@@ -83,7 +84,7 @@ func OneVal[T any]() error {
 	if err := rejectRawBytes("ScanOneVal", t); err != nil {
 		return err
 	}
-	inner := derefAll(t)
+	inner := util.DerefAll(t)
 	switch {
 	case isUnscannableSlice(inner):
 		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use []byte or a sql.Scanner", t)
@@ -119,19 +120,14 @@ func isUnscannableSlice(t reflect.Type) bool {
 }
 
 func isByteSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && t.Elem().Kind() == reflect.Uint8
-}
-
-func derefAll(t reflect.Type) reflect.Type {
-	for util.IsPointer(t.Kind()) {
-		t = t.Elem()
-	}
-	return t
+	return util.IsSlice(t.Kind()) && t.Elem() == byteType
 }
 
 func rejectRawBytes(fn string, t reflect.Type) error {
-	if derefAll(t) == rawBytesType {
-		return NewUnsupportedScanTypeError("%s cannot return sql.RawBytes, which does not outlive the query; use []byte", fn)
+	if util.DerefAll(t) == rawBytesType {
+		return NewUnsupportedScanTypeError(
+			"%s cannot return sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte", fn,
+		)
 	}
 	return nil
 }

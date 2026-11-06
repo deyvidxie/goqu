@@ -46,6 +46,7 @@ type (
 		Created time.Time `db:"created"`
 		Note    *string   `db:"note"`
 	}
+	scanTestByte        uint8
 	scanTestBlob        []byte
 	scanTestScannedBlob []byte
 	scanTestJSONSkip    struct {
@@ -350,7 +351,7 @@ func (ss *scanSuite) TestScanOneStruct_requiresStruct() {
 	ss.Nil(row)
 }
 
-func (ss *scanSuite) TestScanStructs_rejectSingleColumnTypes() {
+func (ss *scanSuite) TestStructScans_rejectsSingleColumnTypes() {
 	_, err := ss.db.From("items").ScanAllStructs[time.Time](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into time.Time, which scans as one column; "+
 		"use ScanAllVals[time.Time] or ScanOneVal[time.Time]")
@@ -377,7 +378,7 @@ func (ss *scanSuite) TestScanStructs_rejectSingleColumnTypes() {
 		"use ScanAllVals[goqu_test.ScanTestTime] or ScanOneVal[goqu_test.ScanTestTime]")
 }
 
-func (ss *scanSuite) TestScanStructs_rejectStructsWithoutColumns() {
+func (ss *scanSuite) TestScanAllStructs_rejectsStructsWithoutColumns() {
 	for name, err := range map[string]error{
 		"netip.Addr":                    ss.allStructsErr[netip.Addr](),
 		"goqu_test.scanTestEmbedded":    ss.allStructsErr[scanTestEmbedded](),
@@ -414,7 +415,7 @@ func (ss *scanSuite) TestScanAllStructs_acceptsEmbeddedRowFields() {
 	ss.Equal([]scanTestUnexportedRow{{dsTestActionItem{Address: "411 Test Addr", Name: "Test4"}}}, unexported)
 }
 
-func (ss *scanSuite) TestScanStructs_useDatasetTagName() {
+func (ss *scanSuite) TestGenericScans_useDatasetTagName() {
 	goqu.SetIgnoreUntaggedFields(true)
 	defer goqu.SetIgnoreUntaggedFields(false)
 	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
@@ -570,26 +571,35 @@ func (ss *scanSuite) TestScanOneVal_fromExecutor() {
 
 func (ss *scanSuite) TestScanOneVal_rejectsSlices() {
 	for name, err := range map[string]error{
-		"[]int64":   ss.oneValErr[[]int64](),
-		"*[]int64":  ss.oneValErr[*[]int64](),
-		"**[]int64": ss.oneValErr[**[]int64](),
+		"[]int64":                   ss.oneValErr[[]int64](),
+		"*[]int64":                  ss.oneValErr[*[]int64](),
+		"**[]int64":                 ss.oneValErr[**[]int64](),
+		"[]goqu_test.scanTestByte":  ss.oneValErr[[]scanTestByte](),
+		"*[]goqu_test.scanTestByte": ss.oneValErr[*[]scanTestByte](),
 	} {
 		ss.EqualError(err, "goqu: ScanOneVal cannot scan into "+name+"; use []byte or a sql.Scanner", name)
 		ss.True(exec.IsUnsupportedScanType(err), name)
 	}
+}
 
+func (ss *scanSuite) TestScanOneVal_rejectsNamedByteSliceValues() {
 	err := ss.oneValErr[scanTestBlob]()
 	ss.EqualError(err, "goqu: ScanOneVal cannot scan into goqu_test.scanTestBlob; use *goqu_test.scanTestBlob")
 	ss.True(exec.IsUnsupportedScanType(err))
 }
 
-func (ss *scanSuite) TestScanVals_rejectRawBytes() {
+func (ss *scanSuite) TestScanOneVal_rejectsRawBytes() {
 	for _, err := range []error{ss.oneValErr[sql.RawBytes](), ss.oneValErr[*sql.RawBytes](), ss.oneValErr[**sql.RawBytes]()} {
-		ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, which does not outlive the query; use []byte")
+		ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, "+
+			"which is only valid until the next row is read or the rows are closed; use []byte")
 		ss.True(exec.IsUnsupportedScanType(err))
 	}
+}
+
+func (ss *scanSuite) TestScanAllVals_rejectsRawBytes() {
 	for _, err := range []error{ss.allValsErr[sql.RawBytes](), ss.allValsErr[*sql.RawBytes](), ss.allValsErr[**sql.RawBytes]()} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, which does not outlive the query; use []byte")
+		ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, "+
+			"which is only valid until the next row is read or the rows are closed; use []byte")
 		ss.True(exec.IsUnsupportedScanType(err))
 	}
 }
@@ -649,19 +659,24 @@ func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+", whose element "+name+" cannot hold NULL; use sql.Null["+name+"]", name)
 	}
+}
 
+func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 	for msg, err := range map[string]error{
-		"*fmt.Stringer; use a sql.Scanner":       ss.allValsErr[*fmt.Stringer](),
-		"*uintptr; use a sql.Scanner":            ss.allValsErr[*uintptr](),
-		"*complex128; use a sql.Scanner":         ss.allValsErr[*complex128](),
-		"*netip.Addr; use a sql.Scanner":         ss.allValsErr[*netip.Addr](),
-		"*[]int64; use []byte or a sql.Scanner":  ss.allValsErr[*[]int64](),
-		"**[]int64; use []byte or a sql.Scanner": ss.allValsErr[**[]int64](),
+		"*fmt.Stringer; use a sql.Scanner":                       ss.allValsErr[*fmt.Stringer](),
+		"*uintptr; use a sql.Scanner":                            ss.allValsErr[*uintptr](),
+		"*complex128; use a sql.Scanner":                         ss.allValsErr[*complex128](),
+		"*netip.Addr; use a sql.Scanner":                         ss.allValsErr[*netip.Addr](),
+		"*[]int64; use []byte or a sql.Scanner":                  ss.allValsErr[*[]int64](),
+		"**[]int64; use []byte or a sql.Scanner":                 ss.allValsErr[**[]int64](),
+		"*[]goqu_test.scanTestByte; use []byte or a sql.Scanner": ss.allValsErr[*[]scanTestByte](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+msg, msg)
 		ss.True(exec.IsUnsupportedScanType(err), msg)
 	}
+}
 
+func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 	for elem, err := range map[string]error{
 		"goqu_test.ScanTestItem":          ss.allValsErr[*ScanTestItem](),
 		"goqu_test.ScanTestNode":          ss.allValsErr[*ScanTestNode](),
@@ -711,7 +726,7 @@ func (ss *scanSuite) TestScanAllStructs_acceptsSkippedEmbeddedNonStructPointers(
 	ss.Equal([]scanTestSkippedNested{{ID: 6}}, nested)
 }
 
-func (ss *scanSuite) TestScanStructs_rejectUnscannableFields() {
+func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 	_, _, err := ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr: embedded field scanTestEmbeddedID.ScanTestID "+
 		"is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`")

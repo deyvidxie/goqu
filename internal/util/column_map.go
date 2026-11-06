@@ -153,6 +153,13 @@ func isEmbed(f *reflect.StructField) bool {
 	return f.Anonymous && (IsStruct(f.Type.Kind()) || IsPointer(f.Type.Kind()))
 }
 
+func DerefAll(t reflect.Type) reflect.Type {
+	for IsPointer(t.Kind()) {
+		t = t.Elem()
+	}
+	return t
+}
+
 func Deref(t reflect.Type) reflect.Type {
 	if IsPointer(t.Kind()) {
 		return t.Elem()
