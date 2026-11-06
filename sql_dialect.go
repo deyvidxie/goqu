@@ -196,3 +196,7 @@ func (d *sqlDialect) ToDeleteSQL(b sb.SQLBuilder, clauses exp.DeleteClauses) {
 func (d *sqlDialect) ToTruncateSQL(b sb.SQLBuilder, clauses exp.TruncateClauses) {
 	d.truncateGen.Generate(b, clauses)
 }
+
+func (d *sqlDialect) toExpressionSQL(b sb.SQLBuilder, e exp.Expression) {
+	d.expressionGen.Generate(b, e)
+}

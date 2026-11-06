@@ -6,6 +6,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/doug-martin/goqu/v9/sqlgen/mocks"
 	"github.com/stretchr/testify/suite"
 )
@@ -85,6 +86,18 @@ func (dts *dialectTestSuite) TestToTruncateSQL() {
 
 	d.ToTruncateSQL(b, tc)
 	tm.AssertExpectations(dts.T())
+}
+
+func (dts *dialectTestSuite) TestToExpressionSQL() {
+	opts := DefaultDialectOptions()
+	d := sqlDialect{dialect: "test", dialectOptions: opts, expressionGen: sqlgen.NewExpressionSQLGenerator("test", opts)}
+
+	b := sb.NewSQLBuilder(true)
+	d.toExpressionSQL(b, exp.NewIdentifierExpression("", "", "a").Eq(1))
+	sql, args, err := b.ToSQL()
+	dts.Require().NoError(err)
+	dts.Equal(`("a" = ?)`, sql)
+	dts.Equal([]interface{}{int64(1)}, args)
 }
 
 func (dts *dialectTestSuite) TestGetDialect() {

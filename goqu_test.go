@@ -10,6 +10,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -139,14 +140,28 @@ func (dws *dialectWrapperSuite) TestPreparedExpressionSQL() {
 	}
 }
 
-func (dws *dialectWrapperSuite) TestExpressionSQL_unsupported() {
+func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 	dw := goqu.Dialect("sqlserver")
 	for _, render := range []func(exp.Expression) (string, []interface{}, error){dw.ExpressionSQL, dw.PreparedExpressionSQL} {
-		sql, args, err := render(goqu.C("a").Eq(true))
-		dws.EqualError(err, `goqu: boolean data type is not supported by dialect "sqlserver"`)
+		sql, args, err := render(goqu.C("a").BitwiseLeftShift(1))
+		dws.EqualError(err, "goqu: bitwise operator 'Left Shift' not supported")
+		dws.True(sqlgen.IsUnsupported(err))
 		dws.Empty(sql)
 		dws.Empty(args)
 	}
+}
+
+func (dws *dialectWrapperSuite) TestExpressionSQL_unregisteredDialect() {
+	sql, _, err := goqu.Dialect("nope").ExpressionSQL(goqu.C("a").Eq(1))
+	dws.Require().NoError(err)
+	dws.Equal(`("a" = 1)`, sql)
+}
+
+func (dws *dialectWrapperSuite) TestPreparedExpressionSQL_tagName() {
+	sql, args, err := goqu.DialectWithTagName("postgres", "json").PreparedExpressionSQL(goqu.C("a").Eq(1))
+	dws.Require().NoError(err)
+	dws.Equal(`("a" = $1)`, sql)
+	dws.Equal([]interface{}{int64(1)}, args)
 }
 
 func TestDialectWrapper(t *testing.T) {

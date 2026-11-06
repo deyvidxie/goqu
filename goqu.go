@@ -88,7 +88,7 @@ func (dw DialectWrapper) PreparedExpressionSQL(e exp.Expression) (sql string, ar
 func (dw DialectWrapper) expressionSQL(e exp.Expression, prepared bool) (sql string, args []interface{}, err error) {
 	b := sb.NewSQLBuilder(prepared)
 	defer sb.ReleaseSQLBuilder(b)
-	dialectFor(dw.dialect, dw.tag.resolve(dw.dialect)).expressionGen.Generate(b, e)
+	dialectFor(dw.dialect, dw.tag.resolve(dw.dialect)).toExpressionSQL(b, e)
 	return b.ToSQL()
 }
 
