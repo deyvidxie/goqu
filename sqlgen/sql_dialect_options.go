@@ -59,8 +59,8 @@ type (
 		// Set to true if the dialect supports QUALIFY expressions, e.g. Teradata, Snowflake, BigQuery (DEFAULT=false).
 		// None of the built in dialects enable it: register your own dialect with it set to true.
 		SupportsQualify bool
-		// Set to true if the dialect renders JSONExtract, JSONValue and JSONContains as MySQL's JSON functions (DEFAULT=false)
-		SupportsJSONFunctions bool
+		// Set to true if the dialect renders JSONExtract, JSONValue and JSONContains; when false they fail ToSQL (DEFAULT=false)
+		SupportsMySQLJSONFunctions bool
 		// Set to false if the dialect does not require expressions to be wrapped in parens (DEFAULT=true)
 		WrapCompoundsInParens bool
 
@@ -511,6 +511,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsWindowFunction:      true,
 		SupportsLateral:             true,
 		SupportsQualify:             false,
+		SupportsMySQLJSONFunctions:  false,
 		SupportsLockOf:              true,
 
 		SupportsMultipleUpdateTables:         true,

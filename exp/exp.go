@@ -337,14 +337,15 @@ type (
 		Expression
 		Aliaseable
 		Comparable
+		Arithmeticable
 		Rangeable
 		Inable
 		Isable
 		Likeable
 		Orderable
 		Function() JSONFunction
-		Col() interface{}
-		Candidate() interface{}
+		Col() any
+		Candidate() any
 		Paths() []string
 	}
 	CommonTableExpression interface {

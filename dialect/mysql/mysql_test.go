@@ -451,6 +451,14 @@ func (mt *mysqlTest) TestJSONFunctions() {
 		count, err := ds.Where(goqu.JSONContains("doc", map[string]interface{}{"name": "sally"})).Count()
 		mt.Require().NoError(err)
 		mt.Equal(int64(1), count)
+
+		count, err = ds.Where(goqu.JSONContains("doc", []byte(`{"name": "bob"}`))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(1), count)
+
+		count, err = ds.Where(goqu.JSONContains("doc", goqu.I("docs.doc"))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(2), count)
 	}
 }
 

@@ -13,8 +13,8 @@ func TestNewJSONExpressions(t *testing.T) {
 		name      string
 		e         exp.JSONExpression
 		function  exp.JSONFunction
-		col       interface{}
-		candidate interface{}
+		col       any
+		candidate any
 		paths     []string
 	}{
 		{"extract string column", exp.NewJSONExtractExpression("t.doc", "$.a"), exp.JSONExtractFunction, col, nil, []string{"$.a"}},
@@ -63,6 +63,10 @@ func TestJSONExpressionOperators(t *testing.T) {
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpNotLikeOp, e, "x"), e.RegexpNotLike("x"))
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpILikeOp, e, "x"), e.RegexpILike("x"))
 	assert.Equal(t, exp.NewBooleanExpression(exp.RegexpNotILikeOp, e, "x"), e.RegexpNotILike("x"))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticAddOp, e, 1), e.Add(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticSubOp, e, 1), e.Sub(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticMulOp, e, 1), e.Mul(1))
+	assert.Equal(t, exp.NewArithmeticExpression(exp.ArithmeticDivOp, e, 1), e.Div(1))
 	assert.Equal(t, exp.NewOrderedExpression(e, exp.AscDir, exp.NoNullsSortType), e.Asc())
 	assert.Equal(t, exp.NewOrderedExpression(e, exp.DescSortDir, exp.NoNullsSortType), e.Desc())
 }

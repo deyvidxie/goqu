@@ -680,7 +680,6 @@ func ExampleFIRST_as() {
 	// SELECT FIRST("a") AS "a" FROM "test"
 }
 
-// This example shows how to create custom SQL Functions
 func ExampleJSONValue() {
 	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
@@ -693,14 +692,21 @@ func ExampleJSONValue() {
 	sql, _, _ := ds.ToSQL()
 	fmt.Println(sql)
 
+	// Output:
+	// SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') AND JSON_CONTAINS(`profile`, '"admin"', '$.roles'))
+}
+
+func ExampleJSONValue_dialects() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/postgres"
+
 	_, _, err := goqu.Dialect("postgres").From("users").Where(goqu.JSONValue("profile", "$.name").Eq("bob")).ToSQL()
 	fmt.Println(err)
 
 	// Output:
-	// SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') AND JSON_CONTAINS(`profile`, '"admin"', '$.roles'))
-	// goqu: dialect does not support JSON functions [dialect=postgres]
+	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
 }
 
+// This example shows how to create custom SQL Functions
 func ExampleFunc() {
 	stragg := func(expression exp.Expression, delimiter string) exp.SQLFunctionExpression {
 		return goqu.Func("str_agg", expression, goqu.L(delimiter))

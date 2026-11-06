@@ -95,15 +95,23 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 }
 
 func errJSONFunctionsNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support JSON functions [dialect=%s]", dialect)
+	return NewUnsupportedError("dialect does not support JSONExtract, JSONValue or JSONContains [dialect=%s]", dialect)
 }
 
 func errJSONContainsPaths(n int) error {
 	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
 }
 
-func errJSONFunctionUnknown(function exp.JSONFunction) error {
-	return NewInvalidExpressionError("unknown JSON function %d", function)
+func errJSONFunctionUnknown(dialect string, function exp.JSONFunction) error {
+	return NewUnsupportedError("dialect has unknown JSONFunction %d [dialect=%s]", function, dialect)
+}
+
+func errJSONCandidate(cause error) error {
+	return NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
+}
+
+func errJSONCandidateBytes() error {
+	return NewInvalidExpressionError("JSONContains candidate []byte is not valid JSON")
 }
 
 func errLateralNotSupported(dialect string) error {
@@ -984,7 +992,7 @@ func describeCollation(collation any) string {
 }
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
-	if !esg.dialectOptions.SupportsJSONFunctions {
+	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
 		b.SetError(errJSONFunctionsNotSupported(esg.dialect))
 		return
 	}
@@ -1003,23 +1011,41 @@ func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSON
 			b.SetError(errJSONContainsPaths(len(paths)))
 			return
 		}
-		candidate, err := marshalJSONCandidate(e.Candidate())
+		candidate, err := jsonCandidate(e.Candidate())
 		if err != nil {
-			b.SetError(fmt.Errorf("goqu: JSONContains candidate: %w", err))
+			b.SetError(err)
 			return
 		}
 		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_CONTAINS", append([]interface{}{e.Col(), candidate}, paths...)...))
 	default:
-		b.SetError(errJSONFunctionUnknown(e.Function()))
+		b.SetError(errJSONFunctionUnknown(esg.dialect, e.Function()))
 	}
 }
 
-func marshalJSONCandidate(v interface{}) (string, error) {
+func jsonCandidate(v interface{}) (interface{}, error) {
+	if e, ok := v.(exp.Expression); ok {
+		return e, nil
+	}
+	if valuer, ok := v.(driver.Valuer); ok {
+		if _, marshals := v.(json.Marshaler); !marshals {
+			value, err := valuer.Value()
+			if err != nil {
+				return nil, errJSONCandidate(err)
+			}
+			v = value
+		}
+	}
+	if raw, ok := v.([]byte); ok {
+		if !json.Valid(raw) {
+			return nil, errJSONCandidateBytes()
+		}
+		return string(raw), nil
+	}
 	var buf strings.Builder
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
-		return "", err
+		return nil, errJSONCandidate(err)
 	}
 	return strings.TrimSuffix(buf.String(), "\n"), nil
 }

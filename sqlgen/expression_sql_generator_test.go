@@ -1304,7 +1304,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 	do := sqlgen.DefaultDialectOptions()
-	do.SupportsJSONFunctions = true
+	do.SupportsMySQLJSONFunctions = true
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", do),
 		expressionTestCase{val: exp.NewJSONExtractExpression("doc", "$.a"), sql: `JSON_EXTRACT("doc", '$.a')`},
@@ -1326,30 +1326,70 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		expressionTestCase{
 			val: exp.NewJSONContainsExpression("doc", math.NaN()), err: "goqu: JSONContains candidate: json: unsupported value: NaN",
 		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.NewIdentifierExpression("", "o", "doc")), sql: `JSON_CONTAINS("doc", "o"."doc")`,
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", []byte(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", json.RawMessage(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a":1}')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", []byte("{")), err: "goqu: JSONContains candidate []byte is not valid JSON",
+		},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", jsonStringValuer("x")), sql: `JSON_CONTAINS("doc", '"x"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", jsonStringValuer("")), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", jsonFailingValuer{}), err: "goqu: JSONContains candidate: value failed",
+		},
 	)
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{
-			val: exp.NewJSONValueExpression("doc", "$.a"), err: "goqu: dialect does not support JSON functions [dialect=test]",
+			val: exp.NewJSONValueExpression("doc", "$.a"),
+			err: "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=test]",
 		},
 	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
-	render := func(do *sqlgen.SQLDialectOptions, e exp.Expression) error {
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsMySQLJSONFunctions = true
+	render := func(e exp.Expression) error {
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewExpressionSQLGenerator("test", do).Generate(b, e)
 		_, _, err := b.ToSQL()
 		return err
 	}
-	esgs.True(sqlgen.IsUnsupported(render(sqlgen.DefaultDialectOptions(), exp.NewJSONExtractExpression("doc", "$"))))
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
 
-	do := sqlgen.DefaultDialectOptions()
-	do.SupportsJSONFunctions = true
-	esgs.True(sqlgen.IsInvalidExpression(render(do, exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
+	err := render(exp.NewJSONContainsExpression("doc", math.NaN()))
+	esgs.True(sqlgen.IsInvalidExpression(err))
 	var unsupportedValue *json.UnsupportedValueError
-	esgs.ErrorAs(render(do, exp.NewJSONContainsExpression("doc", math.NaN())), &unsupportedValue)
+	esgs.ErrorAs(err, &unsupportedValue)
+
+	err = render(unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
+	esgs.EqualError(err, "goqu: dialect has unknown JSONFunction 99 [dialect=test]")
+	esgs.True(sqlgen.IsUnsupported(err))
 }
+
+type (
+	jsonStringValuer      string
+	jsonFailingValuer     struct{}
+	jsonValueError        struct{}
+	unknownJSONExpression struct{ exp.JSONExpression }
+)
+
+func (jsonFailingValuer) Value() (driver.Value, error) { return nil, jsonValueError{} }
+
+func (jsonValueError) Error() string { return "value failed" }
+
+func (v jsonStringValuer) Value() (driver.Value, error) {
+	if v == "" {
+		return nil, nil
+	}
+	return string(v), nil
+}
+
+func (unknownJSONExpression) Function() exp.JSONFunction { return 99 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
 	b := sb.NewSQLBuilder(false)

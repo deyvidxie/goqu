@@ -74,15 +74,16 @@ func Excluded(col any) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
 }
 
-func JSONExtract(col interface{}, path string) exp.JSONExpression {
+func JSONExtract(col any, path string) exp.JSONExpression {
 	return exp.NewJSONExtractExpression(col, path)
 }
 
-func JSONValue(col interface{}, path string) exp.JSONExpression {
+// JSONValue renders JSON_UNQUOTE(JSON_EXTRACT(col, path)), not JSON_VALUE.
+func JSONValue(col any, path string) exp.JSONExpression {
 	return exp.NewJSONValueExpression(col, path)
 }
 
-func JSONContains(col, candidate interface{}, path ...string) exp.JSONExpression {
+func JSONContains(col, candidate any, path ...string) exp.JSONExpression {
 	return exp.NewJSONContainsExpression(col, candidate, path...)
 }
 
