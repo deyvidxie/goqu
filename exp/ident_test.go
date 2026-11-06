@@ -73,6 +73,7 @@ func (ies *identifierExpressionSuite) TestInWithNilValues() {
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, emptyList), ident.NotIn(nilIntsPtr))
 
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, &ints), ident.In(&ints))
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nil, 1}), ident.In(nil, 1))
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilInt}), ident.In(nilInt))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilBytesPtr}), ident.NotIn(nilBytesPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilJSONPtr}), ident.NotIn(nilJSONPtr))

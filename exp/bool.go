@@ -93,7 +93,7 @@ func isNilList(v interface{}) bool {
 	if v == nil {
 		return true
 	}
-	if _, ok := v.(driver.Valuer); ok || util.IsBytesValue(v) {
+	if util.IsSingleValue(v) {
 		return false
 	}
 	rv := reflect.ValueOf(v)
@@ -191,7 +191,6 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Bool:
 			op = IsOp
 		case reflect.Slice:
-			// if its a slice of bytes (or JSON) dont treat as an IN
 			if !util.IsBytesValue(rhs) {
 				op = InOp
 			}

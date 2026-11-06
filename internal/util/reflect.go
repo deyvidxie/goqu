@@ -2,6 +2,7 @@ package util
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -20,7 +21,11 @@ const (
 
 var scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
 
-// IsBytesValue returns true for values that are a single binary/JSON value rather than a list of values.
+func IsSingleValue(v any) bool {
+	_, ok := v.(driver.Valuer)
+	return ok || IsBytesValue(v)
+}
+
 func IsBytesValue(v any) bool {
 	switch v.(type) {
 	case []byte, *[]byte, json.RawMessage, *json.RawMessage:

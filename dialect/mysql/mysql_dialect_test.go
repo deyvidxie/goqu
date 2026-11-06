@@ -371,12 +371,14 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 }
 
 func TestEmptyInList(t *testing.T) {
-	ds := goqu.Dialect("mysql").From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
-	for _, prepared := range []bool{false, true} {
-		sql, args, err := ds.Prepared(prepared).ToSQL()
-		assert.NoError(t, err)
-		assert.Equal(t, "SELECT * FROM `test` WHERE ((1=0) AND (1=1))", sql)
-		assert.Empty(t, args)
+	for _, dialect := range []string{"mysql", "mysql8"} {
+		ds := goqu.Dialect(dialect).From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+		for _, prepared := range []bool{false, true} {
+			sql, args, err := ds.Prepared(prepared).ToSQL()
+			assert.NoError(t, err, dialect)
+			assert.Equal(t, "SELECT * FROM `test` WHERE ((1=0) AND (1=1))", sql, dialect)
+			assert.Empty(t, args, dialect)
+		}
 	}
 }
 
@@ -386,6 +388,7 @@ func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 		OnConflict(goqu.DoUpdate("a", goqu.Record{"b": goqu.Case().When(goqu.Excluded("b").In([]int{}), 1).Else(2)})).
 		ToSQL()
 	assert.NoError(t, err)
-	assert.Equal(t, "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON DUPLICATE KEY UPDATE `b`=CASE  WHEN (1=0) THEN 1 ELSE 2 END", sql)
+	assert.Equal(t, "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) AS `excluded` "+
+		"ON DUPLICATE KEY UPDATE `b`=CASE  WHEN (1=0) THEN 1 ELSE 2 END", sql)
 	assert.Empty(t, args)
 }

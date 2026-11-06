@@ -55,6 +55,8 @@ var (
 
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
+	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
+	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
 	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
@@ -86,13 +88,6 @@ func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
 
 func errExcludedFragmentEmpty(option string) error {
 	return NewInvalidExpressionError("Excluded requires %s", option)
-}
-
-func errEmptyListFragment(op exp.BooleanOperation) error {
-	if op == exp.NotInOp {
-		return NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
-	}
-	return NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
 }
 
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
@@ -578,7 +573,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if _, ok := rhs.(driver.Valuer); ok || util.IsBytesValue(rhs) {
+	if util.IsSingleValue(rhs) {
 		return false
 	}
 	v := reflect.Indirect(reflect.ValueOf(rhs))
@@ -586,34 +581,40 @@ func isEmptyList(rhs interface{}) bool {
 }
 
 func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
+	if !esg.lhsRenders(b, operator.LHS()) {
+		return
+	}
 	op := operator.Op()
 	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
 		b.SetError(errUnsupportedBooleanExpressionOperator(op))
 		return
 	}
-	fragment := esg.dialectOptions.EmptyInFragment
+	fragment, errMissing := esg.dialectOptions.EmptyInFragment, errEmptyInFragmentMissing
 	if op == exp.NotInOp {
-		fragment = esg.dialectOptions.EmptyNotInFragment
+		fragment, errMissing = esg.dialectOptions.EmptyNotInFragment, errEmptyNotInFragmentMissing
 	}
 	if len(fragment) == 0 {
-		b.SetError(errEmptyListFragment(op))
-		return
-	}
-	lhs := scratchBuilder(b)
-	esg.Generate(lhs, operator.LHS())
-	if err := lhs.Error(); err != nil {
-		b.SetError(err)
+		b.SetError(errMissing)
 		return
 	}
 	b.Write(fragment)
 }
 
-func scratchBuilder(b sb.SQLBuilder) sb.SQLBuilder {
+func (esg *expressionSQLGenerator) lhsRenders(b sb.SQLBuilder, lhs exp.Expression) bool {
 	scratch := sb.NewSQLBuilder(b.IsPrepared())
+	defer sb.ReleaseSQLBuilder(scratch)
 	if ub, ok := b.(*conflictUpdateBuilder); ok {
-		return &conflictUpdateBuilder{SQLBuilder: scratch, rowAlias: ub.rowAlias}
+		probe := ub.withBuilder(scratch)
+		esg.Generate(probe, lhs)
+		ub.usesExcluded = ub.usesExcluded || probe.usesExcluded
+	} else {
+		esg.Generate(scratch, lhs)
 	}
-	return scratch
+	if err := scratch.Error(); err != nil {
+		b.SetError(err)
+		return false
+	}
+	return true
 }
 
 func (esg *expressionSQLGenerator) likeEscapeSQL(b sb.SQLBuilder, operatorOp exp.BooleanOperation) {

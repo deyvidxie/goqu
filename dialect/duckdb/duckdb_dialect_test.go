@@ -6,7 +6,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -262,12 +261,10 @@ func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(duckdbDialectSuite))
 }
 
-func TestEmptyInList(t *testing.T) {
-	ds := goqu.Dialect("duckdb").From("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
-	for _, prepared := range []bool{false, true} {
-		sql, args, err := ds.Prepared(prepared).ToSQL()
-		assert.NoError(t, err)
-		assert.Equal(t, "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))", sql)
-		assert.Empty(t, args)
-	}
+func (sds *duckdbDialectSuite) TestEmptyInList() {
+	ds := sds.GetDs("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+	sds.assertSQL(
+		sqlTestCase{ds: ds, sql: "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))"},
+		sqlTestCase{ds: ds.Prepared(true), sql: "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))", isPrepared: true},
+	)
 }
