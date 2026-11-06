@@ -57,6 +57,7 @@ var (
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
 	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
 	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
+	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
 	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
@@ -102,16 +103,12 @@ func errJSONContainsPaths(n int) error {
 	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
 }
 
-func errJSONFunctionUnknown(dialect string, function exp.JSONFunction) error {
-	return NewUnsupportedError("dialect has unknown JSONFunction %d [dialect=%s]", function, dialect)
+func errJSONFunctionUnknown(function exp.JSONFunction) error {
+	return NewUnsupportedError("JSONFunction %d not supported", function)
 }
 
 func errJSONCandidate(cause error) error {
 	return NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
-}
-
-func errJSONCandidateBytes() error {
-	return NewInvalidExpressionError("JSONContains candidate []byte is not valid JSON")
 }
 
 func errLateralNotSupported(dialect string) error {
@@ -175,10 +172,7 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 
 // valuerSQL renders a driver.Valuer by generating SQL for the value it returns.
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
-	// See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
-	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr &&
-		rv.IsNil() &&
-		rv.Type().Elem().Implements(valuerReflectType) {
+	if isNilValuerPointer(v) {
 		esg.literalNil(b)
 		return
 	}
@@ -188,6 +182,12 @@ func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
 		return
 	}
 	esg.Generate(b, dVal)
+}
+
+// See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
+func isNilValuerPointer(v driver.Valuer) bool {
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerReflectType)
 }
 
 // typedSliceSQL handles the most common slice types without reflection. It returns false if val is not one of them.
@@ -1018,7 +1018,7 @@ func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSON
 		}
 		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_CONTAINS", append([]interface{}{e.Col(), candidate}, paths...)...))
 	default:
-		b.SetError(errJSONFunctionUnknown(esg.dialect, e.Function()))
+		b.SetError(errJSONFunctionUnknown(e.Function()))
 	}
 }
 
@@ -1026,20 +1026,23 @@ func jsonCandidate(v interface{}) (interface{}, error) {
 	if e, ok := v.(exp.Expression); ok {
 		return e, nil
 	}
-	if valuer, ok := v.(driver.Valuer); ok {
-		if _, marshals := v.(json.Marshaler); !marshals {
-			value, err := valuer.Value()
+	if _, marshals := v.(json.Marshaler); !marshals {
+		if valuer, ok := v.(driver.Valuer); ok {
+			value, err := jsonValuerValue(valuer)
 			if err != nil {
 				return nil, errJSONCandidate(err)
 			}
 			v = value
 		}
-	}
-	if raw, ok := v.([]byte); ok {
-		if !json.Valid(raw) {
-			return nil, errJSONCandidateBytes()
+		if raw, ok := jsonBytes(v); ok {
+			if raw == nil {
+				return "null", nil
+			}
+			if !json.Valid(raw) {
+				return nil, errJSONCandidateInvalid
+			}
+			return string(raw), nil
 		}
-		return string(raw), nil
 	}
 	var buf strings.Builder
 	enc := json.NewEncoder(&buf)
@@ -1048,6 +1051,30 @@ func jsonCandidate(v interface{}) (interface{}, error) {
 		return nil, errJSONCandidate(err)
 	}
 	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
+func jsonValuerValue(v driver.Valuer) (driver.Value, error) {
+	if isNilValuerPointer(v) {
+		return nil, nil
+	}
+	return v.Value()
+}
+
+func jsonBytes(v interface{}) ([]byte, bool) {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		if rv.Type().Elem().Kind() != reflect.Slice || rv.Type().Elem().Elem().Kind() != reflect.Uint8 {
+			return nil, false
+		}
+		if rv.IsNil() {
+			return nil, true
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Slice || rv.Type().Elem().Kind() != reflect.Uint8 {
+		return nil, false
+	}
+	return rv.Bytes(), true
 }
 
 func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {

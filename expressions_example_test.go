@@ -689,21 +689,27 @@ func ExampleJSONValue() {
 			goqu.JSONValue("profile", "$.name").Eq("bob"),
 			goqu.JSONContains("profile", "admin", "$.roles"),
 		)
-	sql, _, _ := ds.ToSQL()
-	fmt.Println(sql)
+	sql, args, _ := ds.ToSQL()
+	fmt.Println(sql, args)
+
+	sql, args, _ = ds.Prepared(true).ToSQL()
+	fmt.Println(sql, args)
 
 	// Output:
-	// SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') AND JSON_CONTAINS(`profile`, '"admin"', '$.roles'))
+	// SELECT JSON_EXTRACT(`profile`, '$.age') FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') AND JSON_CONTAINS(`profile`, '"admin"', '$.roles')) []
+	// SELECT JSON_EXTRACT(`profile`, ?) FROM `users` WHERE ((JSON_UNQUOTE(JSON_EXTRACT(`profile`, ?)) = ?) AND JSON_CONTAINS(`profile`, ?, ?)) [$.age $.name bob "admin" $.roles]
 }
 
 func ExampleJSONValue_dialects() {
-	// import _ "github.com/doug-martin/goqu/v9/dialect/postgres"
-
-	_, _, err := goqu.Dialect("postgres").From("users").Where(goqu.JSONValue("profile", "$.name").Eq("bob")).ToSQL()
-	fmt.Println(err)
+	for _, dialect := range []string{"mysql8", "postgres", "sqlite3"} {
+		sql, _, err := goqu.Dialect(dialect).From("users").Where(goqu.JSONValue("profile", "$.name").Eq("bob")).ToSQL()
+		fmt.Println(sql, err)
+	}
 
 	// Output:
-	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
+	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob') <nil>
+	//  goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
+	//  goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]
 }
 
 // This example shows how to create custom SQL Functions

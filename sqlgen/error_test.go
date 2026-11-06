@@ -28,6 +28,15 @@ func TestIsInvalidExpression(t *testing.T) {
 	assert.False(t, sqlgen.IsInvalidExpression(nil))
 }
 
+func TestNewInvalidExpressionErrorWithCause(t *testing.T) {
+	cause := sqlgen.NewUnsupportedError("cause")
+	err := sqlgen.NewInvalidExpressionErrorWithCause(cause, "bad %s", "x")
+	assert.EqualError(t, err, "goqu: bad x: goqu: cause")
+	assert.True(t, sqlgen.IsInvalidExpression(err))
+	assert.ErrorIs(t, err, cause)
+	assert.EqualError(t, sqlgen.NewInvalidExpressionErrorWithCause(nil, "bad %s", "x"), "goqu: bad x")
+}
+
 //nolint:funlen
 func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 	type sqlBuilder interface {

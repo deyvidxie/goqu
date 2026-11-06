@@ -438,7 +438,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 <a name="json"></a>
 **[`JSONExtract()`](https://godoc.org/github.com/doug-martin/goqu#JSONExtract), [`JSONValue()`](https://godoc.org/github.com/doug-martin/goqu#JSONValue) and [`JSONContains()`](https://godoc.org/github.com/doug-martin/goqu#JSONContains)**
 
-`JSON_EXTRACT(col, path)`, `JSON_UNQUOTE(JSON_EXTRACT(col, path))` and `JSON_CONTAINS(col, candidate[, path])` on the mysql dialects; other dialects return an error from `ToSQL`. A string `col` is an identifier. `JSONExtract` yields JSON text, so strings keep their quotes; compare or scan scalars through `JSONValue`. The `JSONContains` candidate is a Go value encoded with `encoding/json`; an expression is rendered as SQL, and `[]byte` or `json.RawMessage` is used as JSON text.
+`JSON_EXTRACT(col, path)`, `JSON_UNQUOTE(JSON_EXTRACT(col, path))` and `JSON_CONTAINS(col, candidate[, path])` on the mysql dialects; other dialects return an error from `ToSQL`. A string `col` is an identifier. `JSONExtract` yields JSON text, so strings keep their quotes; compare or scan scalars through `JSONValue`. The `JSONContains` candidate is a Go value encoded with `encoding/json`; an expression is rendered as SQL, a `driver.Valuer` that is not a `json.Marshaler` is resolved through `Value()` first, and byte slices (`[]byte`, `*[]byte`, named byte-slice types) or `json.RawMessage` are used as JSON text.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
