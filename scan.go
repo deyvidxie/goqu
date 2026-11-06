@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/exec"
 )
@@ -26,6 +27,7 @@ var (
 	_ ValSource    = exec.QueryExecutor{}
 
 	sqlScannerType = reflect.TypeFor[sql.Scanner]()
+	timeType       = reflect.TypeFor[time.Time]()
 	bytesType      = reflect.TypeFor[[]byte]()
 	rawBytesType   = reflect.TypeFor[sql.RawBytes]()
 )
@@ -62,7 +64,7 @@ func ScanAllVals[T any](ctx context.Context, s ValSource) ([]T, error) {
 	if err := rejectRawBytes("ScanAllVals", t); err != nil {
 		return nil, err
 	}
-	if t.Kind() == reflect.Pointer && !t.Implements(sqlScannerType) {
+	if t.Kind() == reflect.Pointer && !acceptsNull(t.Elem()) {
 		return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan NULL into %s; use sql.Null[%s]", t, t.Elem())
 	}
 	var vals []T
@@ -89,10 +91,18 @@ func requireRowType[T any](fn, valFn string) error {
 	if elem.Kind() != reflect.Struct {
 		return exec.NewUnsupportedScanTypeError("%s requires a struct or a pointer to a struct, got %s", fn, t)
 	}
-	if !hasRowFields(elem, map[reflect.Type]bool{}) || elem.PkgPath() == "database/sql" {
+	isSQLType := elem.PkgPath() == "database/sql"
+	if hasRowFields(elem, map[reflect.Type]bool{}) && !isSQLType {
+		return nil
+	}
+	if isSQLType || elem == timeType || reflect.PointerTo(elem).Implements(sqlScannerType) {
 		return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which scans as one column; use %s[%s]", fn, t, valFn, elem)
 	}
-	return nil
+	return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which has no exported fields", fn, t)
+}
+
+func acceptsNull(t reflect.Type) bool {
+	return t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) || reflect.PointerTo(t).Implements(sqlScannerType)
 }
 
 func hasRowFields(t reflect.Type, seen map[reflect.Type]bool) bool {
@@ -107,7 +117,7 @@ func hasRowFields(t reflect.Type, seen map[reflect.Type]bool) bool {
 			ft = ft.Elem()
 		}
 		if f.Anonymous && ft.Kind() == reflect.Struct {
-			if hasRowFields(ft, seen) {
+			if f.IsExported() && hasRowFields(ft, seen) {
 				return true
 			}
 			continue
