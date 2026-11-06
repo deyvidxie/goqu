@@ -1,21 +1,11 @@
 package exp
 
-type (
-	JSONFunction int
-
-	jsonExpression struct {
-		function  JSONFunction
-		col       any
-		candidate any
-		paths     []string
-	}
-)
-
-const (
-	JSONExtractFunction JSONFunction = iota
-	JSONValueFunction
-	JSONContainsFunction
-)
+type jsonExpression struct {
+	function  JSONFunction
+	col       any
+	candidate any
+	paths     []string
+}
 
 func NewJSONExtractExpression(col any, path string) JSONExpression {
 	return jsonExpression{function: JSONExtractFunction, col: jsonCol(col), paths: []string{path}}

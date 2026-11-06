@@ -465,6 +465,7 @@ type (
 	}
 
 	ArithmeticOperation  int
+	JSONFunction         int
 	ArithmeticExpression interface {
 		Expression
 		Aliaseable
@@ -694,6 +695,10 @@ const (
 	ArithmeticSubOp
 	ArithmeticMulOp
 	ArithmeticDivOp
+
+	JSONExtractFunction JSONFunction = iota
+	JSONValueFunction
+	JSONContainsFunction
 )
 
 // StraightJoinType is the STRAIGHT_JOIN join type (MySQL only).

@@ -20,6 +20,7 @@ func TestExportedEnumValuesAreStable(t *testing.T) {
 	assert.Equal(t, 30, int(exp.NeqOp))
 	assert.Equal(t, 48, int(exp.BitwiseInversionOp))
 	assert.Equal(t, 54, int(exp.ArithmeticAddOp))
+	assert.Equal(t, 58, int(exp.JSONExtractFunction))
 }
 
 func TestStraightJoinType(t *testing.T) {

@@ -1309,6 +1309,34 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 	)
 }
 
+type (
+	jsonStringValuer      string
+	jsonBytesValuer       string
+	jsonMarshalingValuer  struct{}
+	jsonFailingValuer     struct{}
+	jsonValueError        struct{}
+	unknownJSONExpression struct{ exp.JSONExpression }
+)
+
+func (jsonFailingValuer) Value() (driver.Value, error) { return nil, jsonValueError{} }
+
+func (jsonValueError) Error() string { return "value failed" }
+
+func (v jsonBytesValuer) Value() (driver.Value, error) { return []byte(v), nil }
+
+func (jsonMarshalingValuer) Value() (driver.Value, error) { return "x", nil }
+
+func (jsonMarshalingValuer) MarshalJSON() ([]byte, error) { return []byte(`{"k":1}`), nil }
+
+func (v jsonStringValuer) Value() (driver.Value, error) {
+	if v == "" {
+		return nil, nil
+	}
+	return string(v), nil
+}
+
+func (unknownJSONExpression) Function() exp.JSONFunction { return 99 }
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 	jsonDoc, name, name2 := []byte(`{"a": 1}`), "x", jsonStringValuer("y")
 	do := sqlgen.DefaultDialectOptions()
@@ -1353,11 +1381,11 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", []byte(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
 		expressionTestCase{
 			val: exp.NewJSONContainsExpression("doc", exp.Ex{"name": "bob"}),
-			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 		},
 		expressionTestCase{
 			val: exp.NewJSONContainsExpression("doc", exp.ExOr{"name": "bob"}),
-			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 		},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &jsonDoc), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*[]byte)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
@@ -1393,6 +1421,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 	}
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
+	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
 
 	err := render(exp.NewJSONContainsExpression("doc", math.NaN()))
 	esgs.True(sqlgen.IsInvalidExpression(err))
@@ -1408,34 +1437,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
 	esgs.True(sqlgen.IsInvalidExpression(err))
 }
-
-type (
-	jsonStringValuer      string
-	jsonBytesValuer       string
-	jsonMarshalingValuer  struct{}
-	jsonFailingValuer     struct{}
-	jsonValueError        struct{}
-	unknownJSONExpression struct{ exp.JSONExpression }
-)
-
-func (jsonFailingValuer) Value() (driver.Value, error) { return nil, jsonValueError{} }
-
-func (jsonValueError) Error() string { return "value failed" }
-
-func (v jsonBytesValuer) Value() (driver.Value, error) { return []byte(v), nil }
-
-func (jsonMarshalingValuer) Value() (driver.Value, error) { return "x", nil }
-
-func (jsonMarshalingValuer) MarshalJSON() ([]byte, error) { return []byte(`{"k":1}`), nil }
-
-func (v jsonStringValuer) Value() (driver.Value, error) {
-	if v == "" {
-		return nil, nil
-	}
-	return string(v), nil
-}
-
-func (unknownJSONExpression) Function() exp.JSONFunction { return 99 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
 	b := sb.NewSQLBuilder(false)

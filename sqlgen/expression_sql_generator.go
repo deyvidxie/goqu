@@ -59,7 +59,7 @@ var (
 	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
 	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
 	errJSONCandidateCondition        = NewInvalidExpressionError(
-		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 	)
 	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
@@ -171,7 +171,6 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	}
 }
 
-// valuerSQL renders a driver.Valuer by generating SQL for the value it returns.
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
 	dVal, err := valuerValue(v)
 	if err != nil {
