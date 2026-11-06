@@ -626,6 +626,19 @@ func ExampleDoUpdateExcluded() {
 }
 
 func ExampleExcluded() {
+	sql, _, _ := goqu.Insert("items").
+		Rows(goqu.Record{"name": "bob", "visits": 1}).
+		OnConflict(goqu.DoUpdate("name", goqu.Record{
+			"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
+		})).
+		ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// INSERT INTO "items" ("name", "visits") VALUES ('bob', 1) ON CONFLICT (name) DO UPDATE SET "visits"=("items"."visits" + EXCLUDED."visits")
+}
+
+func ExampleExcluded_dialects() {
 	for _, dialect := range []string{"postgres", "mysql", "mysql8"} {
 		sql, _, _ := goqu.Dialect(dialect).Insert("items").
 			Rows(goqu.Record{"name": "bob", "visits": 1}).

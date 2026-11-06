@@ -296,6 +296,15 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			sql: "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) ON DUPLICATE KEY UPDATE `b`=VALUES(`b`)",
 		},
 		{
+			name:    "mysql insert select with cols",
+			dialect: "mysql",
+			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
+				return d.Insert("test").Cols("a", "b").FromQuery(d.From("src").Select("x", "y")).
+					OnConflict(goqu.DoUpdateExcluded("", "b"))
+			},
+			sql: "INSERT INTO `test` (`a`, `b`) SELECT `x`, `y` FROM `src` ON DUPLICATE KEY UPDATE `b`=VALUES(`b`)",
+		},
+		{
 			name:    "mysql insert select",
 			dialect: "mysql",
 			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {

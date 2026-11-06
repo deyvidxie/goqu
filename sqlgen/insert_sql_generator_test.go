@@ -242,6 +242,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withFrom() {
 
 		insertTestCase{clause: icCols, sql: `INSERT INTO "test" ("a", "b") select c, d from test where a = 'b'`},
 		insertTestCase{clause: icCols, sql: `INSERT INTO "test" ("a", "b") select c, d from test where a = 'b'`, isPrepared: true},
+		insertTestCase{
+			clause: icCols.SetAlias(exp.NewIdentifierExpression("", "new", nil)).
+				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})),
+			sql: `INSERT INTO "test" ("a", "b") select c, d from test where a = 'b' AS "new" ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b"`,
+		},
 	)
 }
 
@@ -778,7 +784,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_insertSourcePrecedenceWithRowAl
 	)
 }
 
-func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasErrors() {
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQualifiedAndErrorOrder() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
 		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
@@ -927,6 +933,7 @@ func TestNumberedRowAliasInsertSelectPlaceholders(t *testing.T) {
 	opts.IncludePlaceholderNum = true
 	opts.PlaceHolderFragment = []byte("$")
 	goqu.RegisterDialect("numbered-row-alias", "db", opts)
+	defer goqu.DeregisterDialect("numbered-row-alias")
 	d := goqu.Dialect("numbered-row-alias")
 	sql, args, err := d.Insert("t").
 		With("w", d.From("x").Where(goqu.C("k").Eq(1))).

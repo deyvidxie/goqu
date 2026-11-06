@@ -432,6 +432,9 @@ To update the existing row from the row proposed for insertion, use `goqu.Exclud
 `goqu.DoUpdateExcluded(target, cols...)`.
 
 ```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/postgres"
+// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
 for _, d := range []string{"postgres", "mysql", "mysql8"} {
 	sql, _, _ := goqu.Dialect(d).Insert("item").
 		Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
@@ -469,7 +472,8 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 **NOTE** Postgres and the `mysql8` row alias reject an unqualified reference to the existing row's column next to
 `Excluded`; qualify it with the table name.
 
-**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias. It reuses the alias set with `As`. An `INSERT ... SELECT` that
+**NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias; for older servers set `ExcludedStyle` to
+`sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`. An `INSERT ... SELECT` that
 uses `Excluded` cannot reference the tables of the `SELECT` in the update.
 
 <a name="returning"></a>
