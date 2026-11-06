@@ -103,8 +103,8 @@ func errJSONContainsPaths(n int) error {
 	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
 }
 
-func errJSONFunctionUnknown(function exp.JSONFunction) error {
-	return NewUnsupportedError("JSONFunction %d not supported", function)
+func errUnknownJSONFunction(function exp.JSONFunction) error {
+	return NewInvalidExpressionError("unknown JSONFunction %d", function)
 }
 
 func errJSONCandidate(cause error) error {
@@ -122,8 +122,6 @@ func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) Expression
 func (esg *expressionSQLGenerator) Dialect() string {
 	return esg.dialect
 }
-
-var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 
 func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	if b.Error() != nil {
@@ -172,11 +170,7 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 
 // valuerSQL renders a driver.Valuer by generating SQL for the value it returns.
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
-	if isNilValuerPointer(v) {
-		esg.literalNil(b)
-		return
-	}
-	dVal, err := v.Value()
+	dVal, err := valuerValue(v)
 	if err != nil {
 		b.SetError(err)
 		return
@@ -184,10 +178,14 @@ func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
 	esg.Generate(b, dVal)
 }
 
+var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
 // See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
-func isNilValuerPointer(v driver.Valuer) bool {
-	rv := reflect.ValueOf(v)
-	return rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerReflectType)
+func valuerValue(v driver.Valuer) (driver.Value, error) {
+	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerReflectType) {
+		return nil, nil
+	}
+	return v.Value()
 }
 
 // typedSliceSQL handles the most common slice types without reflection. It returns false if val is not one of them.
@@ -1018,7 +1016,7 @@ func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSON
 		}
 		esg.Generate(b, exp.NewSQLFunctionExpression("JSON_CONTAINS", append([]interface{}{e.Col(), candidate}, paths...)...))
 	default:
-		b.SetError(errJSONFunctionUnknown(e.Function()))
+		b.SetError(errUnknownJSONFunction(e.Function()))
 	}
 }
 
@@ -1028,7 +1026,7 @@ func jsonCandidate(v interface{}) (interface{}, error) {
 	}
 	if _, marshals := v.(json.Marshaler); !marshals {
 		if valuer, ok := v.(driver.Valuer); ok {
-			value, err := jsonValuerValue(valuer)
+			value, err := valuerValue(valuer)
 			if err != nil {
 				return nil, errJSONCandidate(err)
 			}
@@ -1053,28 +1051,18 @@ func jsonCandidate(v interface{}) (interface{}, error) {
 	return strings.TrimSuffix(buf.String(), "\n"), nil
 }
 
-func jsonValuerValue(v driver.Valuer) (driver.Value, error) {
-	if isNilValuerPointer(v) {
-		return nil, nil
-	}
-	return v.Value()
-}
-
 func jsonBytes(v interface{}) ([]byte, bool) {
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		if rv.Type().Elem().Kind() != reflect.Slice || rv.Type().Elem().Elem().Kind() != reflect.Uint8 {
-			return nil, false
-		}
-		if rv.IsNil() {
+	switch b := v.(type) {
+	case []byte:
+		return b, true
+	case *[]byte:
+		if b == nil {
 			return nil, true
 		}
-		rv = rv.Elem()
-	}
-	if rv.Kind() != reflect.Slice || rv.Type().Elem().Kind() != reflect.Uint8 {
+		return *b, true
+	default:
 		return nil, false
 	}
-	return rv.Bytes(), true
 }
 
 func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {

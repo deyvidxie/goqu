@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"regexp"
 	"testing"
 	"time"
@@ -1303,6 +1304,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
+	jsonDoc, name := []byte(`{"a": 1}`), "x"
 	do := sqlgen.DefaultDialectOptions()
 	do.SupportsMySQLJSONFunctions = true
 	esgs.assertCases(
@@ -1342,7 +1344,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*jsonStringValuer)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &jsonDoc), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*[]byte)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
-		expressionTestCase{val: exp.NewJSONContainsExpression("doc", jsonBytesDoc(`{"a": 1}`)), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", net.ParseIP("1.2.3.4")), sql: `JSON_CONTAINS("doc", '"1.2.3.4"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &name), sql: `JSON_CONTAINS("doc", '"x"')`},
 		expressionTestCase{
 			val: exp.NewJSONContainsExpression("doc", jsonMarshalingValuer{}), sql: `JSON_CONTAINS("doc", '{"k":1}')`,
 		},
@@ -1385,16 +1388,13 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 	esgs.ErrorAs(err, &valueErr)
 
 	err = render(unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
-	esgs.EqualError(err, "goqu: JSONFunction 99 not supported")
-	esgs.True(sqlgen.IsUnsupported(err))
+	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
+	esgs.True(sqlgen.IsInvalidExpression(err))
 }
-
-var jsonDoc = []byte(`{"a": 1}`)
 
 type (
 	jsonStringValuer      string
 	jsonBytesValuer       string
-	jsonBytesDoc          []byte
 	jsonMarshalingValuer  struct{}
 	jsonFailingValuer     struct{}
 	jsonValueError        struct{}
