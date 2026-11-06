@@ -330,6 +330,10 @@ type (
 		ExcludedTableFragment []byte
 		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
 		ExcludedValuesFuncFragment []byte
+		// Replaces IN with an empty list, which most databases reject (Default=[]byte("(1=0)"))
+		EmptyInFragment []byte
+		// Replaces NOT IN with an empty list (Default=[]byte("(1=1)"))
+		EmptyNotInFragment []byte
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -575,6 +579,9 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		ExcludedRowAlias:           "excluded",
 		ExcludedTableFragment:      []byte("EXCLUDED"),
 		ExcludedValuesFuncFragment: []byte("VALUES"),
+
+		EmptyInFragment:    []byte("(1=0)"),
+		EmptyNotInFragment: []byte("(1=1)"),
 
 		PlaceHolderFragment: []byte("?"),
 		QuoteRune:           '"',

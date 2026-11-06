@@ -255,11 +255,19 @@ func ExampleC_inOperators() {
 	sql, _, _ = goqu.From("test").Where(goqu.C("a").NotIn([]string{"a", "b", "c"})).ToSQL()
 	fmt.Println(sql)
 
+	sql, _, _ = goqu.From("test").Where(goqu.C("a").In([]string{})).ToSQL()
+	fmt.Println(sql)
+
+	sql, _, _ = goqu.From("test").Where(goqu.C("a").NotIn([]string{})).ToSQL()
+	fmt.Println(sql)
+
 	// Output:
 	// SELECT * FROM "test" WHERE ("a" IN ('a', 'b', 'c'))
 	// SELECT * FROM "test" WHERE ("a" IN ('a', 'b', 'c'))
 	// SELECT * FROM "test" WHERE ("a" NOT IN ('a', 'b', 'c'))
 	// SELECT * FROM "test" WHERE ("a" NOT IN ('a', 'b', 'c'))
+	// SELECT * FROM "test" WHERE (1=0)
+	// SELECT * FROM "test" WHERE (1=1)
 }
 
 func ExampleC_likeComparisons() {

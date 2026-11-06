@@ -691,6 +691,75 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	)
 }
 
+type intArrayValuer []int
+
+func (v intArrayValuer) Value() (driver.Value, error) {
+	return "{}", nil
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	var nilInts []int
+	emptyStrings := []string{}
+
+	cases := []expressionTestCase{
+		{val: ident.In([]int{}), sql: `(1=0)`},
+		{val: ident.In(nilInts), sql: `(1=0)`},
+		{val: ident.In(), sql: `(1=0)`},
+		{val: ident.In([]interface{}{}), sql: `(1=0)`},
+		{val: ident.In(&emptyStrings), sql: `(1=0)`},
+		{val: ident.Eq([]int{}), sql: `(1=0)`},
+		{val: exp.Ex{"a": []string{}}, sql: `(1=0)`},
+		{val: exp.Ex{"a": nilInts}, sql: `(1=0)`},
+		{val: exp.Ex{"a": exp.Op{"in": []string{}}}, sql: `(1=0)`},
+		{val: ident.NotIn([]int{}), sql: `(1=1)`},
+		{val: ident.NotIn(), sql: `(1=1)`},
+		{val: ident.Neq(nilInts), sql: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"notIn": []string{}}}, sql: `(1=1)`},
+		{val: exp.Ex{"a": exp.Op{"neq": []int{}}}, sql: `(1=1)`},
+		{val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN '')`},
+		{val: exp.NewBooleanExpression(exp.InOp, ident, intArrayValuer{}), sql: `("a" IN '{}')`},
+		{val: exp.NewExpressionList(exp.AndType, ident.In([]int{}), ident.Eq(1)), sql: `((1=0) AND ("a" = 1))`},
+	}
+	for _, c := range cases {
+		prepared := c
+		prepared.isPrepared = true
+		if _, ok := c.val.(exp.ExpressionList); ok {
+			prepared.sql = `((1=0) AND ("a" = ?))`
+			prepared.args = []interface{}{int64(1)}
+		}
+		if be, ok := c.val.(exp.BooleanExpression); ok && be.RHS() != nil {
+			switch be.RHS().(type) {
+			case []byte:
+				prepared.sql, prepared.args = `("a" IN ?)`, []interface{}{[]byte{}}
+			case intArrayValuer:
+				prepared.sql, prepared.args = `("a" IN ?)`, []interface{}{"{}"}
+			}
+		}
+		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()), c, prepared)
+	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListWithoutFragment() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	for _, c := range []struct {
+		val       exp.Expression
+		option    string
+		configure func(*sqlgen.SQLDialectOptions)
+	}{
+		{ident.In([]int{}), "EmptyInFragment", func(o *sqlgen.SQLDialectOptions) { o.EmptyInFragment = nil }},
+		{ident.NotIn([]int{}), "EmptyNotInFragment", func(o *sqlgen.SQLDialectOptions) { o.EmptyNotInFragment = nil }},
+	} {
+		opts := sqlgen.DefaultDialectOptions()
+		c.configure(opts)
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, c.val)
+		_, _, err := b.ToSQL()
+		esgs.EqualError(err, "goqu: an empty IN list requires "+c.option)
+		esgs.True(sqlgen.IsInvalidExpression(err))
+	}
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionLikeEscape() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	re := regexp.MustCompile("[ab]")
