@@ -251,11 +251,19 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 		return nil, errors.New("cannot scan into this type: %v", t) // #nosec
 	}
 
+	return StructColumnMap(t, tagName), nil
+}
+
+func StructColumnMap(t reflect.Type, tagName string) ColumnMap {
 	structMapCacheLock.Lock()
 	defer structMapCacheLock.Unlock()
 	key := columnMapKey{t: t, tagName: tagName}
 	if _, ok := structMapCache[key]; !ok {
 		structMapCache[key] = newColumnMap(t, []int{}, []string{}, tagName)
 	}
-	return structMapCache[key], nil
+	return structMapCache[key]
+}
+
+func IsScanner(t reflect.Type) bool {
+	return reflect.PointerTo(t).Implements(scannerType)
 }

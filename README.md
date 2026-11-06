@@ -34,7 +34,7 @@ go get -u github.com/doug-martin/goqu
 
 ### Supported Go versions
 
-The `go` directive in the root `go.mod` (currently Go 1.26) is the minimum Go version for using `goqu`. CI tests against that version and the latest Go release.
+The `go` directive in the root `go.mod` (currently Go 1.27) is the minimum Go version for using `goqu`. CI tests against that version and the latest Go release.
 
 Raising that minimum is treated as a notable change: it is made deliberately, not as a side effect of a dependency update, and is called out in the release notes.
 

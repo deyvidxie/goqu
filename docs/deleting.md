@@ -344,3 +344,5 @@ Output:
 ```
 Deleted users [ids:=[1 2 3]]
 ```
+
+With [`ScanAllVals`](./selecting.md#generic-scan): `ids, err := de.ScanAllVals[int64](context.Background())`.

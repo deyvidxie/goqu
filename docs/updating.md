@@ -631,3 +631,5 @@ Output:
 ```
 Updated users with ids [1 2 3]
 ```
+
+With [`ScanAllVals`](./selecting.md#generic-scan): `ids, err := update.ScanAllVals[int64](context.Background())`.

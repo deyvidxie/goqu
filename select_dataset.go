@@ -8,6 +8,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/internal/scantype"
 )
 
 // Dataset for creating and/or executing SELECT SQL statements.
@@ -648,11 +649,7 @@ func (sd *SelectDataset) ScanStructsContext(ctx context.Context, i interface{}) 
 	if sd.queryFactory == nil {
 		return ErrQueryFactoryNotFoundError
 	}
-	ds := sd
-	if sd.GetClauses().IsDefaultSelect() {
-		ds = sd.Select(i)
-	}
-	return ds.Executor().ScanStructsContext(ctx, i)
+	return sd.selectStructColumns(i).Executor().ScanStructsContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanStruct to scan the result into a struct
@@ -675,11 +672,7 @@ func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (
 	if sd.queryFactory == nil {
 		return false, ErrQueryFactoryNotFoundError
 	}
-	ds := sd
-	if sd.GetClauses().IsDefaultSelect() {
-		ds = sd.Select(i)
-	}
-	return ds.Limit(1).Executor().ScanStructContext(ctx, i)
+	return sd.selectStructColumns(i).Limit(1).Executor().ScanStructContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVals to scan the results into a slice of primitive values
@@ -715,6 +708,47 @@ func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (boo
 		return false, ErrQueryFactoryNotFoundError
 	}
 	return sd.Limit(1).Executor().ScanValContext(ctx, i)
+}
+
+func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
+	if sd.queryFactory == nil {
+		return nil, ErrQueryFactoryNotFoundError
+	}
+	if err := scantype.Struct[T](sd.tagName); err != nil {
+		return nil, err
+	}
+	return sd.selectStructColumns(new([]T)).Executor().ScanAllStructs[T](ctx)
+}
+
+func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
+	if sd.queryFactory == nil {
+		return row, false, ErrQueryFactoryNotFoundError
+	}
+	if typeErr := scantype.Struct[T](sd.tagName); typeErr != nil {
+		return row, false, typeErr
+	}
+	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
+}
+
+func (sd *SelectDataset) ScanAllVals[T any](ctx context.Context) ([]T, error) {
+	if sd.queryFactory == nil {
+		return nil, ErrQueryFactoryNotFoundError
+	}
+	return sd.Executor().ScanAllVals[T](ctx)
+}
+
+func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
+	if sd.queryFactory == nil {
+		return val, false, ErrQueryFactoryNotFoundError
+	}
+	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
+}
+
+func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {
+	if sd.GetClauses().IsDefaultSelect() {
+		return sd.Select(target)
+	}
+	return sd
 }
 
 // Generates the SELECT COUNT(*) sql for this dataset and uses Exec#ScanVal to scan the result into an int64.

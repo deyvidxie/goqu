@@ -2,6 +2,7 @@
 package goqu_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -210,6 +211,21 @@ func ExampleInsertDataset_Executor_scanStructs() {
 	// Inserted user: [ID=6], [FirstName=Greg] [LastName=Farley]
 	// Inserted user: [ID=7], [FirstName=Jimmy] [LastName=Stewart]
 	// Inserted user: [ID=8], [FirstName=Jeff] [LastName=Jeffers]
+}
+
+func ExampleInsertDataset_Executor_scanAllVals() {
+	ds := getDB().Insert("goqu_user").
+		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley"}).
+		Returning("id")
+	ids, err := ds.Executor().ScanAllVals[int64](context.Background())
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(ids)
+
+	// Output:
+	// [5]
 }
 
 func ExampleInsertDataset_FromQuery() {

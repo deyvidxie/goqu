@@ -20,6 +20,7 @@
   * [`ScanStruct`](#scan-struct) - Scans a row into a slice a struct, returns false if a row wasnt found
   * [`ScanVals`](#scan-vals)- Scans a rows of 1 column into a slice of primitive values
   * [`ScanVal`](#scan-val) - Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
+  * [`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
   * [`Scanner`](#scanner) - Allows you to interatively scan rows into structs or values.
   * [`Count`](#count) - Returns the count for the current query
   * [`Exists`](#exists) - Reports whether the current query returns at least one row
@@ -998,7 +999,7 @@ if err := db.From("user").Select("first_name").ScanStructs(&users); err != nil{
 fmt.Printf("\n%+v", users)
 ```
 
-Fields whose type is a non-empty interface that `sql.Scanner` values can be stored in (such as `sql.Scanner` itself) can be scanned into by setting the field to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. If the field is `nil`, holds a non-pointer, or you use `ScanStructs` (which creates new structs), `ScanStruct`/`ScanStructs` return an error. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
+Fields whose type is a non-empty interface that `sql.Scanner` values can be stored in (such as `sql.Scanner` itself) can be scanned into by setting the field to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. If the field is `nil`, holds a non-pointer, or you use `ScanStructs`, `ScanAllStructs` or `ScanOneStruct` (which create new structs), these methods return an error. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
 
 **NOTE** Fields of type `interface{}` are not scanned in place: they keep receiving the value returned by the driver (even when they already hold a pointer), and a `nil` `interface{}` field is fine.
 
@@ -1257,6 +1258,21 @@ if !found{
 }else{
   fmt.Printf("\nFound id: %d", id)
 }
+```
+
+<a name="generic-scan"></a>
+**[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
+
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` for the value methods, return `exec.UnsupportedScanTypeError` (`exec.IsUnsupportedScanType`) before the query runs. An empty result is a `nil` slice.
+
+```go
+users, err := db.From("user").ScanAllStructs[User](context.Background())
+
+user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User](context.Background())
+
+ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](context.Background())
+
+id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](context.Background())
 ```
 
 <a name="scanner"></a>

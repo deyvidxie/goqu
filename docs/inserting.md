@@ -644,3 +644,5 @@ Output:
 ```
 Inserted 1 user id:=5
 ```
+
+With [`ScanOneVal`](./selecting.md#generic-scan): `id, found, err := insert.ScanOneVal[int64](context.Background())`.

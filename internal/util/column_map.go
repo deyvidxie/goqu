@@ -28,20 +28,19 @@ func newColumnMap(t reflect.Type, fieldIndex []int, prefixes []string, tagName s
 	var subColMaps []ColumnMap
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
-		if f.Anonymous && (f.Type.Kind() == reflect.Struct || f.Type.Kind() == reflect.Ptr) {
-			goquTag := tag.New(tagName, f.Tag)
-			if !goquTag.Contains("-") {
-				subColMaps = append(subColMaps, getStructColumnMap(&f, fieldIndex, goquTag.Values(), prefixes, tagName))
+		sub, follow := followedType(&f, tagName)
+		if isEmbed(&f) {
+			if follow {
+				subColMaps = append(subColMaps, getStructColumnMap(&f, sub, fieldIndex, tag.New(tagName, f.Tag).Values(), prefixes, tagName))
 			}
-		} else if f.PkgPath == "" {
+		} else if f.IsExported() {
 			dbTag := tag.New(tagName, f.Tag)
 			subqueryTag := tag.New("subquery", f.Tag)
-			// if PkgPath is empty then it is an exported field
 			columnName := getColumnName(&f, dbTag)
 			columnSubqueryKey := getSubqueryKey(subqueryTag)
 			if !shouldIgnoreField(dbTag) {
-				if !implementsScanner(f.Type) {
-					subCm := getStructColumnMap(&f, fieldIndex, []string{columnName}, prefixes, tagName)
+				if follow {
+					subCm := getStructColumnMap(&f, sub, fieldIndex, []string{columnName}, prefixes, tagName)
 					if len(subCm) != 0 {
 						subColMaps = append(subColMaps, subCm)
 						continue
@@ -81,18 +80,96 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 	return cm
 }
 
-func implementsScanner(t reflect.Type) bool {
-	if IsPointer(t.Kind()) {
+type ColumnMapIssue int
+
+const (
+	ColumnMapOK ColumnMapIssue = iota
+	ColumnMapNonStructEmbed
+	ColumnMapUnexportedPointerEmbed
+	ColumnMapCycle
+)
+
+type ColumnMapProblem struct {
+	Issue ColumnMapIssue
+	Path  string
+	Type  reflect.Type
+}
+
+func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
+	if problem := checkFollowedFields(t, tagName, "", map[reflect.Type]bool{}); problem.Issue != ColumnMapOK {
+		return problem
+	}
+	return checkUnexportedPointerEmbeds(t, StructColumnMap(t, tagName))
+}
+
+func checkFollowedFields(t reflect.Type, tagName, prefix string, ancestors map[reflect.Type]bool) ColumnMapProblem {
+	ancestors[t] = true
+	defer delete(ancestors, t)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		sub, follow := followedType(&f, tagName)
+		field := prefix + f.Name
+		switch {
+		case !follow:
+			continue
+		case !IsStruct(sub.Kind()):
+			return ColumnMapProblem{ColumnMapNonStructEmbed, field, sub}
+		case ancestors[sub]:
+			return ColumnMapProblem{ColumnMapCycle, field, sub}
+		}
+		if problem := checkFollowedFields(sub, tagName, field+".", ancestors); problem.Issue != ColumnMapOK {
+			return problem
+		}
+	}
+	return ColumnMapProblem{}
+}
+
+func checkUnexportedPointerEmbeds(t reflect.Type, cm ColumnMap) ColumnMapProblem {
+	cols, _ := cm.Cols()
+	for _, col := range cols {
+		index := cm[col].FieldIndex
+		owner, field := t, ""
+		for _, i := range index[:len(index)-1] {
+			f := owner.Field(i)
+			field, owner = field+f.Name, Deref(f.Type)
+			if isEmbed(&f) && IsPointer(f.Type.Kind()) && !f.IsExported() {
+				return ColumnMapProblem{ColumnMapUnexportedPointerEmbed, field, owner}
+			}
+			field += "."
+		}
+	}
+	return ColumnMapProblem{}
+}
+
+func followedType(f *reflect.StructField, tagName string) (reflect.Type, bool) {
+	fieldTag := tag.New(tagName, f.Tag)
+	if isEmbed(f) {
+		return Deref(f.Type), !fieldTag.Contains("-")
+	}
+	return Deref(f.Type), f.IsExported() && !shouldIgnoreField(fieldTag) && !isColumnLeaf(f.Type)
+}
+
+func isEmbed(f *reflect.StructField) bool {
+	return f.Anonymous && (IsStruct(f.Type.Kind()) || IsPointer(f.Type.Kind()))
+}
+
+func DerefAll(t reflect.Type) reflect.Type {
+	for IsPointer(t.Kind()) {
 		t = t.Elem()
 	}
-	if reflect.PointerTo(t).Implements(scannerType) {
-		return true
-	}
-	if !IsStruct(t.Kind()) {
-		return true
-	}
+	return t
+}
 
-	return false
+func Deref(t reflect.Type) reflect.Type {
+	if IsPointer(t.Kind()) {
+		return t.Elem()
+	}
+	return t
+}
+
+func isColumnLeaf(t reflect.Type) bool {
+	t = Deref(t)
+	return IsScanner(t) || !IsStruct(t.Kind())
 }
 
 func newColumnData(f *reflect.StructField, columnName, columnSubqueryKey string, fieldIndex []int, goquTag tag.Options) ColumnData {
@@ -109,14 +186,12 @@ func newColumnData(f *reflect.StructField, columnName, columnSubqueryKey string,
 	}
 }
 
-func getStructColumnMap(f *reflect.StructField, fieldIndex []int, fieldNames, prefixes []string, tagName string) ColumnMap {
-	subFieldIndexes := concatFieldIndexes(fieldIndex, f.Index)
+func getStructColumnMap(
+	f *reflect.StructField, sub reflect.Type, fieldIndex []int, fieldNames, prefixes []string, tagName string,
+) ColumnMap {
 	subPrefixes := prefixes
 	subPrefixes = append(subPrefixes, fieldNames...)
-	if f.Type.Kind() == reflect.Ptr {
-		return newColumnMap(f.Type.Elem(), subFieldIndexes, subPrefixes, tagName)
-	}
-	return newColumnMap(f.Type, subFieldIndexes, subPrefixes, tagName)
+	return newColumnMap(sub, concatFieldIndexes(fieldIndex, f.Index), subPrefixes, tagName)
 }
 
 func getColumnName(f *reflect.StructField, dbTag tag.Options) string {
