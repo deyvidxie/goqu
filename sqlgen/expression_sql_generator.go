@@ -573,7 +573,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if util.IsSingleValue(rhs) {
+	if util.IsValuerOrBytes(rhs) {
 		return false
 	}
 	v := reflect.Indirect(reflect.ValueOf(rhs))

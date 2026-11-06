@@ -57,7 +57,7 @@ func (a intArray) Value() (driver.Value, error) {
 	return []int(a), nil
 }
 
-func (ies *identifierExpressionSuite) TestInWithNilValues() {
+func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	ident := exp.ParseIdentifier("a")
 	emptyList := []interface{}{}
 	var nilIntsPtr *[]int

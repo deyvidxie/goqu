@@ -2,7 +2,6 @@ package exp
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"reflect"
 	"regexp"
 
@@ -93,7 +92,7 @@ func isNilList(v interface{}) bool {
 	if v == nil {
 		return true
 	}
-	if util.IsSingleValue(v) {
+	if util.IsValuerOrBytes(v) {
 		return false
 	}
 	rv := reflect.ValueOf(v)
@@ -219,15 +218,8 @@ func isNullValue(val interface{}) bool {
 	if rv := reflect.ValueOf(val); rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return true
 	}
-	switch t := val.(type) {
-	case []byte:
-		return t == nil
-	case *[]byte:
-		return *t == nil
-	case json.RawMessage:
-		return t == nil
-	case *json.RawMessage:
-		return *t == nil
+	if util.IsBytesValue(val) {
+		return reflect.Indirect(reflect.ValueOf(val)).IsNil()
 	}
 	if valuer, ok := val.(driver.Valuer); ok {
 		v, err := valuer.Value()

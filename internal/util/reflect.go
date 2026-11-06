@@ -21,7 +21,7 @@ const (
 
 var scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
 
-func IsSingleValue(v any) bool {
+func IsValuerOrBytes(v any) bool {
 	_, ok := v.(driver.Valuer)
 	return ok || IsBytesValue(v)
 }

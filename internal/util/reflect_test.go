@@ -390,13 +390,13 @@ func (rt *reflectTest) TestIsBytesValue() {
 	}
 }
 
-func (rt *reflectTest) TestIsSingleValue() {
+func (rt *reflectTest) TestIsValuerOrBytes() {
 	var nilArrayPtr *intArray
 	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intArray{}, nilArrayPtr, sql.NullInt64{}} {
-		rt.True(util.IsSingleValue(v), "%T", v)
+		rt.True(util.IsValuerOrBytes(v), "%T", v)
 	}
 	for _, v := range []interface{}{uint8Codes{}, []int{}, &[]int{}, "s", nil} {
-		rt.False(util.IsSingleValue(v), "%T", v)
+		rt.False(util.IsValuerOrBytes(v), "%T", v)
 	}
 }
 

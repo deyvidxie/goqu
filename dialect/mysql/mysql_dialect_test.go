@@ -382,6 +382,20 @@ func TestEmptyInList(t *testing.T) {
 	}
 }
 
+func TestInsertOnConflictExcludedBesideEmptyIn(t *testing.T) {
+	sql, args, err := goqu.Dialect("mysql8").Insert("test").
+		Rows(goqu.Record{"a": "a", "b": 1, "c": 1}).
+		OnConflict(goqu.DoUpdate("a", goqu.Record{
+			"b": goqu.Excluded("b"),
+			"c": goqu.Case().When(goqu.C("c").In([]int{}), 1).Else(2),
+		})).
+		ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO `test` (`a`, `b`, `c`) VALUES ('a', 1, 1) AS `excluded` "+
+		"ON DUPLICATE KEY UPDATE `b`=`excluded`.`b`,`c`=CASE  WHEN (1=0) THEN 1 ELSE 2 END", sql)
+	assert.Empty(t, args)
+}
+
 func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 	sql, args, err := goqu.Dialect("mysql8").Insert("test").
 		Rows(goqu.Record{"a": "a", "b": 1}).
