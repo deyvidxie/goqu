@@ -58,7 +58,10 @@ var (
 	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
 	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
 	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
-	errExcludedRowAliasUnresolved    = NewInvalidExpressionError(
+	errJSONCandidateCondition        = NewInvalidExpressionError(
+		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+	)
+	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
 )
@@ -1021,6 +1024,10 @@ func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSON
 }
 
 func jsonCandidate(v interface{}) (interface{}, error) {
+	switch v.(type) {
+	case exp.Ex, exp.ExOr:
+		return nil, errJSONCandidateCondition
+	}
 	if e, ok := v.(exp.Expression); ok {
 		return e, nil
 	}

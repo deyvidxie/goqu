@@ -351,6 +351,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_NilTypes() {
 	)
 }
 
+type pointerValuer struct{}
+
+func (*pointerValuer) Value() (driver.Value, error) { return "pointer", nil }
+
 type datasetValuerType struct {
 	int int64
 	err error
@@ -380,6 +384,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
 		expressionTestCase{
 			val: val, sql: "NULL",
 		},
+		expressionTestCase{val: &datasetValuerType{int: 10}, sql: "'Hello World 10'"},
+		expressionTestCase{val: (*pointerValuer)(nil), sql: "'pointer'"},
 	)
 }
 
@@ -1304,7 +1310,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
-	jsonDoc, name := []byte(`{"a": 1}`), "x"
+	jsonDoc, name, name2 := []byte(`{"a": 1}`), "x", jsonStringValuer("y")
 	do := sqlgen.DefaultDialectOptions()
 	do.SupportsMySQLJSONFunctions = true
 	esgs.assertCases(
@@ -1342,6 +1348,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 			val: exp.NewJSONContainsExpression("doc", jsonFailingValuer{}), err: "goqu: JSONContains candidate: value failed",
 		},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*jsonStringValuer)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &name2), sql: `JSON_CONTAINS("doc", '"y"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*pointerValuer)(nil)), sql: `JSON_CONTAINS("doc", '"pointer"')`},
+		expressionTestCase{val: exp.NewJSONContainsExpression("doc", []byte(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.Ex{"name": "bob"}),
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", exp.ExOr{"name": "bob"}),
+			err: "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; pass a map",
+		},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", &jsonDoc), sql: `JSON_CONTAINS("doc", '{"a": 1}')`},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", (*[]byte)(nil)), sql: `JSON_CONTAINS("doc", 'null')`},
 		expressionTestCase{val: exp.NewJSONContainsExpression("doc", net.ParseIP("1.2.3.4")), sql: `JSON_CONTAINS("doc", '"1.2.3.4"')`},
