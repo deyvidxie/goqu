@@ -119,6 +119,7 @@ func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
 			GetDialectWithTag("race-test", "json")
 			GetDialect("race-test")
 			registeredTagName("race-test")
+			isRegisteredDialect("race-test")
 		}()
 	}
 	wg.Wait()

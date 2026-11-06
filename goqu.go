@@ -79,6 +79,10 @@ func (dw DialectWrapper) DB(db SQLDatabase) *Database {
 	return newDatabase(dw.dialect, dw.tag, db)
 }
 
+func (dw DialectWrapper) Tx(tx SQLTx) *TxDatabase {
+	return newTxDatabase(dw.dialect, dw.tag.resolve(dw.dialect), tx)
+}
+
 func New(dialect string, db SQLDatabase) *Database {
 	return newDatabase(dialect, tagRequest{}, db)
 }

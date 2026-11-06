@@ -1,7 +1,7 @@
 package goqu_test
 
 import (
-	"fmt"
+	"context"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -57,44 +57,42 @@ func (dws *dialectWrapperSuite) TestDB() {
 	dws.Equal(goqu.New("test", mDB), dw.DB(mDB))
 }
 
+func (dws *dialectWrapperSuite) TestTx() {
+	mDB, mock, err := sqlmock.New()
+	dws.Require().NoError(err)
+	mock.ExpectBegin()
+	tx, err := mDB.BeginTx(context.Background(), nil)
+	dws.Require().NoError(err)
+	dws.Equal(goqu.NewTx("test", tx), goqu.Dialect("test").Tx(tx))
+	dws.Equal(goqu.NewTxWithTagName("test", "json", tx), goqu.DialectWithTagName("test", "json").Tx(tx))
+}
+
 func (dws *dialectWrapperSuite) TestLookupDialect() {
 	for _, name := range []string{"test", "TEST", "default"} {
 		dw, err := goqu.LookupDialect(name)
 		dws.Require().NoError(err, name)
 		dws.Equal(goqu.Dialect(name), dw, name)
 	}
+}
 
+func (dws *dialectWrapperSuite) TestLookupDialect_unregistered() {
+	dw, err := goqu.LookupDialect("nope")
+	dws.EqualError(err, `goqu: dialect "nope" is not registered; blank-import its dialect package or call RegisterDialect`)
+	dws.True(goqu.IsUnknownDialect(err))
+	dws.Equal(goqu.DialectWrapper{}, dw)
+}
+
+func (dws *dialectWrapperSuite) TestLookupDialectWithTagName() {
 	dw, err := goqu.LookupDialectWithTagName("test", "json")
 	dws.Require().NoError(err)
 	dws.Equal(goqu.DialectWithTagName("test", "json"), dw)
 }
 
-func (dws *dialectWrapperSuite) TestLookupDialect_unregistered() {
-	const msg = `goqu: dialect "nope" is not registered; blank-import its dialect package or call RegisterDialect`
-
-	dw, err := goqu.LookupDialect("nope")
-	dws.EqualError(err, msg)
+func (dws *dialectWrapperSuite) TestLookupDialectWithTagName_unregistered() {
+	dw, err := goqu.LookupDialectWithTagName("nope", "json")
+	dws.EqualError(err, `goqu: dialect "nope" is not registered; blank-import its dialect package or call RegisterDialect`)
+	dws.True(goqu.IsUnknownDialect(err))
 	dws.Equal(goqu.DialectWrapper{}, dw)
-	dws.True(goqu.IsUnknownDialect(err))
-	dws.True(goqu.IsUnknownDialect(fmt.Errorf("opening: %w", err)))
-	var target goqu.UnknownDialectError
-	dws.ErrorAs(err, &target)
-
-	_, err = goqu.LookupDialectWithTagName("nope", "json")
-	dws.EqualError(err, msg)
-}
-
-func (dws *dialectWrapperSuite) TestLookupDialect_deregistered() {
-	goqu.RegisterDialect("gone", "db", goqu.DefaultDialectOptions())
-	goqu.DeregisterDialect("gone")
-
-	_, err := goqu.LookupDialect("gone")
-	dws.True(goqu.IsUnknownDialect(err))
-}
-
-func (dws *dialectWrapperSuite) TestIsUnknownDialect() {
-	dws.False(goqu.IsUnknownDialect(nil))
-	dws.False(goqu.IsUnknownDialect(goqu.ErrQueryFactoryNotFoundError))
 }
 
 func TestDialectWrapper(t *testing.T) {

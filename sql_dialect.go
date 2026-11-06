@@ -76,17 +76,20 @@ func dropTaggedDialects(name string) {
 	}
 }
 
-func isRegisteredDialect(name string) bool {
+func registeredDialect(name string) (*sqlDialect, bool) {
 	dialectsMu.RLock()
 	defer dialectsMu.RUnlock()
-	_, ok := dialects[strings.ToLower(name)]
+	d, ok := dialects[strings.ToLower(name)]
+	return d, ok
+}
+
+func isRegisteredDialect(name string) bool {
+	_, ok := registeredDialect(name)
 	return ok
 }
 
 func GetDialect(name string) SQLDialect {
-	dialectsMu.RLock()
-	defer dialectsMu.RUnlock()
-	if d, ok := dialects[strings.ToLower(name)]; ok {
+	if d, ok := registeredDialect(name); ok {
 		return d
 	}
 	return newDialect("default", "db", DefaultDialectOptions())
@@ -113,12 +116,10 @@ func (r tagRequest) resolve(dialect string) string {
 }
 
 func registeredTagName(name string) string {
-	dialectsMu.RLock()
-	defer dialectsMu.RUnlock()
-	if d, ok := dialects[strings.ToLower(name)]; ok {
+	if d, ok := registeredDialect(name); ok {
 		return d.tagName
 	}
-	if d, ok := dialects["default"]; ok {
+	if d, ok := registeredDialect("default"); ok {
 		return d.tagName
 	}
 	return "db"
