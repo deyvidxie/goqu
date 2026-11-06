@@ -117,7 +117,7 @@ func hasRowFields(t reflect.Type, seen map[reflect.Type]bool) bool {
 			ft = ft.Elem()
 		}
 		if f.Anonymous && ft.Kind() == reflect.Struct {
-			if f.IsExported() && hasRowFields(ft, seen) {
+			if (f.Type.Kind() != reflect.Pointer || f.IsExported()) && hasRowFields(ft, seen) {
 				return true
 			}
 			continue

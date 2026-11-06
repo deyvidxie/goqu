@@ -32,6 +32,7 @@ type (
 	scanTestEmbeddedRow    struct{ ScanTestItem }
 	scanTestEmbeddedRowPtr struct{ *ScanTestItem }
 	scanTestUnexportedRow  struct{ dsTestActionItem }
+	scanTestUnexportedPtr  struct{ *dsTestActionItem }
 	scanTestOpaqueScanner  struct{ v string }
 	scanTestMixed          struct {
 		strings.Builder
@@ -284,8 +285,8 @@ func (ss *scanSuite) TestScanRejectsStructsWithoutExportedFields() {
 			_, err := goqu.ScanAllStructs[scanTestSelfRef](context.Background(), ss.db.From("items"))
 			return err
 		},
-		"goqu_test.scanTestUnexportedRow": func() error {
-			_, err := goqu.ScanAllStructs[scanTestUnexportedRow](context.Background(), ss.db.From("items"))
+		"goqu_test.scanTestUnexportedPtr": func() error {
+			_, err := goqu.ScanAllStructs[scanTestUnexportedPtr](context.Background(), ss.db.From("items"))
 			return err
 		},
 		"strings.Builder": func() error {
@@ -303,6 +304,7 @@ func (ss *scanSuite) TestScanAllStructsAcceptsEmbeddedRowFields() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("211 Test Addr,Test2"))
 	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Test3"))
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("411 Test Addr,Test4"))
 
 	embedded, err := goqu.ScanAllStructs[scanTestEmbeddedRow](context.Background(), ss.db.From("items"))
 	ss.NoError(err)
@@ -315,6 +317,10 @@ func (ss *scanSuite) TestScanAllStructsAcceptsEmbeddedRowFields() {
 	mixed, err := goqu.ScanAllStructs[scanTestMixed](context.Background(), ss.db.From("items").Select("name"))
 	ss.NoError(err)
 	ss.Equal([]scanTestMixed{{Name: "Test3"}}, mixed)
+
+	unexported, err := goqu.ScanAllStructs[scanTestUnexportedRow](context.Background(), ss.db.From("items"))
+	ss.NoError(err)
+	ss.Equal([]scanTestUnexportedRow{{dsTestActionItem{Address: "411 Test Addr", Name: "Test4"}}}, unexported)
 }
 
 func (ss *scanSuite) TestScanAllStructsTypeCheckIgnoresTagName() {
