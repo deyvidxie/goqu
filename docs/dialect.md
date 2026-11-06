@@ -9,7 +9,7 @@ Dialects allow goqu the build the correct SQL for each database. There are four 
 
 **NOTE** Dialects work like drivers in go where they are not registered until you import the package.
 
-`goqu.Dialect` falls back to the default dialect when the name is not registered. `goqu.LookupDialect` and `goqu.LookupDialectWithTagName` return an error matched by `goqu.IsUnknownDialect` instead; `DB` and `Tx` on the returned wrapper match `goqu.New`/`goqu.NewWithTagName` and `goqu.NewTx`/`goqu.NewTxWithTagName`:
+`goqu.Dialect` falls back to the default dialect when the name is not registered. `goqu.LookupDialect` and `goqu.LookupDialectWithTagName` return an error matched by `goqu.IsUnknownDialect` instead:
 
 ```go
 dialect, err := goqu.LookupDialect("mysql")

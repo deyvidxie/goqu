@@ -87,13 +87,20 @@ func (dts *dialectTestSuite) TestToTruncateSQL() {
 	tm.AssertExpectations(dts.T())
 }
 
+func (dts *dialectTestSuite) TestGetDialect() {
+	RegisterDialect("get-test", "db", DefaultDialectOptions())
+	defer DeregisterDialect("get-test")
+
+	dts.Equal("get-test", GetDialect("GET-TEST").Dialect())
+	dts.Equal("default", GetDialect("not-registered").Dialect())
+}
+
 func (dts *dialectTestSuite) TestGetDialectWithTag() {
 	RegisterDialect("tag-test", "db", DefaultDialectOptions())
 	defer DeregisterDialect("tag-test")
 
 	dbTagged := GetDialectWithTag("tag-test", "db")
 	dts.Same(GetDialect("tag-test"), dbTagged)
-	dts.Equal("default", GetDialect("not-registered").Dialect())
 	dts.Same(dbTagged, GetDialectWithTag("tag-test", ""))
 	dts.Equal("default", GetDialectWithTag("not-registered", "json").Dialect())
 
