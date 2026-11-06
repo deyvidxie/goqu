@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/internal/errors"
+	"github.com/doug-martin/goqu/v9/internal/scantype"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -251,4 +252,50 @@ func (q QueryExecutor) ScannerContext(ctx context.Context) (Scanner, error) {
 		return nil, err
 	}
 	return NewScanner(rows, q.tagName), nil
+}
+
+func (q QueryExecutor) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
+	if err := scantype.Struct[T](q.tagName); err != nil {
+		return nil, err
+	}
+	var rows []T
+	if err := q.ScanStructsContext(ctx, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
+	if typeErr := scantype.Struct[T](q.tagName); typeErr != nil {
+		return row, false, typeErr
+	}
+	t := reflect.TypeFor[T]()
+	if t.Kind() != reflect.Pointer {
+		found, err = q.ScanStructContext(ctx, &row)
+		return row, found, err
+	}
+	elem := reflect.New(t.Elem())
+	if found, err = q.ScanStructContext(ctx, elem.Interface()); found {
+		reflect.ValueOf(&row).Elem().Set(elem)
+	}
+	return row, found, err
+}
+
+func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
+	if err := scantype.AllVals[T](); err != nil {
+		return nil, err
+	}
+	var vals []T
+	if err := q.ScanValsContext(ctx, &vals); err != nil {
+		return nil, err
+	}
+	return vals, nil
+}
+
+func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
+	if typeErr := scantype.OneVal[T](); typeErr != nil {
+		return val, false, typeErr
+	}
+	found, err = q.ScanValContext(ctx, &val)
+	return val, found, err
 }

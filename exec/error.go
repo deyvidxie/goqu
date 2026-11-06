@@ -2,24 +2,14 @@ package exec
 
 import (
 	"errors"
-	"fmt"
+
+	"github.com/doug-martin/goqu/v9/internal/scantype"
 )
 
-type (
-	baseError struct {
-		msg string
-	}
-	UnsupportedScanTypeError struct {
-		baseError
-	}
-)
-
-func (e baseError) Error() string {
-	return "goqu: " + e.msg
-}
+type UnsupportedScanTypeError = scantype.UnsupportedScanTypeError
 
 func NewUnsupportedScanTypeError(format string, args ...interface{}) error {
-	return UnsupportedScanTypeError{baseError{msg: fmt.Sprintf(format, args...)}}
+	return scantype.NewUnsupportedScanTypeError(format, args...)
 }
 
 func IsUnsupportedScanType(err error) bool {

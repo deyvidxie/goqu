@@ -81,6 +81,56 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 	return cm
 }
 
+type ColumnMapIssue int
+
+const (
+	ColumnMapOK ColumnMapIssue = iota
+	ColumnMapNonStructEmbed
+	ColumnMapUnexportedPointerEmbed
+	ColumnMapCycle
+)
+
+func CheckColumnMap(t reflect.Type, tagName string) (ColumnMapIssue, reflect.Type) {
+	return checkColumnMap(t, tagName, map[reflect.Type]bool{})
+}
+
+func checkColumnMap(t reflect.Type, tagName string, path map[reflect.Type]bool) (ColumnMapIssue, reflect.Type) {
+	if path[t] {
+		return ColumnMapCycle, t
+	}
+	path[t] = true
+	defer delete(path, t)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		sub := f.Type
+		switch {
+		case f.Anonymous && (sub.Kind() == reflect.Struct || sub.Kind() == reflect.Ptr):
+			if tag.New(tagName, f.Tag).Contains("-") {
+				continue
+			}
+			if sub.Kind() == reflect.Ptr {
+				if sub.Elem().Kind() != reflect.Struct {
+					return ColumnMapNonStructEmbed, f.Type
+				}
+				if f.PkgPath != "" {
+					return ColumnMapUnexportedPointerEmbed, f.Type
+				}
+				sub = sub.Elem()
+			}
+		case f.PkgPath == "" && !shouldIgnoreField(tag.New(tagName, f.Tag)) && !implementsScanner(sub):
+			if sub.Kind() == reflect.Ptr {
+				sub = sub.Elem()
+			}
+		default:
+			continue
+		}
+		if issue, culprit := checkColumnMap(sub, tagName, path); issue != ColumnMapOK {
+			return issue, culprit
+		}
+	}
+	return ColumnMapOK, nil
+}
+
 func implementsScanner(t reflect.Type) bool {
 	if IsPointer(t.Kind()) {
 		t = t.Elem()

@@ -46,7 +46,32 @@ type (
 		Created time.Time `db:"created"`
 		Note    *string   `db:"note"`
 	}
-	scanTestBlob      []byte
+	scanTestBlob        []byte
+	scanTestScannedBlob []byte
+	scanTestJSONSkip    struct {
+		*ScanTestID `json:"-"`
+		ID          int64 `db:"id"`
+	}
+	scanTestDBSkip struct {
+		*ScanTestID `db:"-"`
+		ID          int64 `json:"id"`
+	}
+	ScanTestAudit    struct{ *ScanTestID }
+	scanTestAuditRow struct {
+		ID    int64         `db:"id"`
+		Audit ScanTestAudit `db:"audit"`
+	}
+	ScanTestPoint struct {
+		X int64 `db:"x"`
+	}
+	scanTestSegment struct {
+		From ScanTestPoint `db:"from"`
+		To   ScanTestPoint `db:"to"`
+	}
+	ScanTestNode struct {
+		ID     int64 `db:"id"`
+		Parent *ScanTestNode
+	}
 	ScanTestTime      time.Time
 	scanTestSkippedID struct {
 		*ScanTestID `db:"-"`
@@ -83,8 +108,18 @@ func (*scanTestScannerRow) Scan(interface{}) error {
 
 func (scanTestError) Error() string { return "scan failed" }
 
+func (b *scanTestScannedBlob) Scan(src interface{}) error {
+	v, ok := src.([]byte)
+	if !ok {
+		return scanTestError{}
+	}
+	*b = append(scanTestScannedBlob{}, v...)
+	return nil
+}
+
 func allStructsErr[T any](ss *scanSuite) error {
-	_, err := ss.db.From("items").ScanAllStructs[T](context.Background())
+	rows, err := ss.db.From("items").ScanAllStructs[T](context.Background())
+	ss.Nil(rows)
 	return err
 }
 
@@ -105,7 +140,7 @@ func (*scanTestOpaqueScanner) Scan(interface{}) error {
 }
 
 func (ss *scanSuite) SetupTest() {
-	mDB, mock, err := sqlmock.New()
+	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	ss.Require().NoError(err)
 	ss.db = goqu.New("mock", mDB)
 	ss.mock = mock
@@ -137,7 +172,7 @@ func (ss *scanSuite) TestScanAllStructsPointers() {
 }
 
 func (ss *scanSuite) TestScanAllStructsPrepared() {
-	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" WHERE \("name" = \?\)`).
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items" WHERE ("name" = ?)`).
 		WithArgs("Test1").
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
@@ -173,7 +208,7 @@ func (ss *scanSuite) TestScanAllStructsRowError() {
 }
 
 func (ss *scanSuite) TestScanAllStructsFromExecutor() {
-	ss.mock.ExpectQuery(`INSERT INTO "items" \("address", "name"\) VALUES \('111 Test Addr', 'Test1'\) RETURNING "address", "name"`).
+	ss.mock.ExpectQuery(`INSERT INTO "items" ("address", "name") VALUES ('111 Test Addr', 'Test1') RETURNING "address", "name"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
 	ds := ss.db.Insert("items").Rows(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}).Returning("address", "name")
@@ -309,12 +344,10 @@ func (ss *scanSuite) TestScanRejectsSingleColumnStructs() {
 
 func (ss *scanSuite) TestScanRejectsStructsWithoutRowFields() {
 	for name, err := range map[string]error{
-		"netip.Addr":                      allStructsErr[netip.Addr](ss),
-		"goqu_test.scanTestEmbedded":      allStructsErr[scanTestEmbedded](ss),
-		"goqu_test.scanTestEmbeddedPtr":   allStructsErr[scanTestEmbeddedPtr](ss),
-		"goqu_test.ScanTestSelfRef":       allStructsErr[ScanTestSelfRef](ss),
-		"goqu_test.scanTestUnexportedPtr": allStructsErr[scanTestUnexportedPtr](ss),
-		"strings.Builder":                 allStructsErr[strings.Builder](ss),
+		"netip.Addr":                    allStructsErr[netip.Addr](ss),
+		"goqu_test.scanTestEmbedded":    allStructsErr[scanTestEmbedded](ss),
+		"goqu_test.scanTestEmbeddedPtr": allStructsErr[scanTestEmbeddedPtr](ss),
+		"strings.Builder":               allStructsErr[strings.Builder](ss),
 	} {
 		ss.EqualError(err, "goqu: cannot scan rows into "+name+", which has no fields goqu can scan into", name)
 		ss.True(exec.IsUnsupportedScanType(err), name)
@@ -344,10 +377,10 @@ func (ss *scanSuite) TestScanAllStructsAcceptsEmbeddedRowFields() {
 	ss.Equal([]scanTestUnexportedRow{{dsTestActionItem{Address: "411 Test Addr", Name: "Test4"}}}, unexported)
 }
 
-func (ss *scanSuite) TestScanAllStructsTypeCheckIgnoresTagName() {
+func (ss *scanSuite) TestScanAllStructsUsesDatasetTagName() {
 	goqu.SetIgnoreUntaggedFields(true)
 	defer goqu.SetIgnoreUntaggedFields(false)
-	mDB, mock, err := sqlmock.New()
+	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	ss.Require().NoError(err)
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
 
@@ -355,6 +388,9 @@ func (ss *scanSuite) TestScanAllStructsTypeCheckIgnoresTagName() {
 	ss.NoError(err)
 	ss.Equal([]scanTestTagged{{ID: 7}}, rows)
 	ss.NoError(mock.ExpectationsWereMet())
+
+	_, err = goqu.NewWithTagName("mock", "json", mDB).From("items").ScanAllStructs[scanTestDBSkip](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip, which embeds *goqu_test.ScanTestID")
 }
 
 func (ss *scanSuite) TestScanOneStructAcceptsRowStructWithScan() {
@@ -423,7 +459,7 @@ func (ss *scanSuite) TestScanAllValsRowError() {
 }
 
 func (ss *scanSuite) TestScanAllValsFromExecutor() {
-	ss.mock.ExpectQuery(`INSERT INTO "items" \("name"\) VALUES \('Test1'\), \('Test2'\) RETURNING "id"`).
+	ss.mock.ExpectQuery(`INSERT INTO "items" ("name") VALUES ('Test1'), ('Test2') RETURNING "id"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2"))
 
 	ds := ss.db.Insert("items").Rows(goqu.Record{"name": "Test1"}, goqu.Record{"name": "Test2"}).Returning("id")
@@ -438,7 +474,7 @@ func (ss *scanSuite) TestScanAllValsWithoutDatabase() {
 }
 
 func (ss *scanSuite) TestScanOneVal() {
-	ss.mock.ExpectQuery(`SELECT COUNT\(\*\) AS "count" FROM "items" LIMIT 1`).
+	ss.mock.ExpectQuery(`SELECT COUNT(*) AS "count" FROM "items" LIMIT 1`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).FromCSVString("10"))
 
 	count, found, err := ss.db.From("items").Select(goqu.COUNT("*").As("count")).ScanOneVal[int64](context.Background())
@@ -617,7 +653,18 @@ func (ss *scanSuite) TestScanStructsRejectEmbeddedNonStructPointers() {
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedID, which embeds *goqu_test.ScanTestID")
 
 	_, _, err = ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr, which embeds *goqu_test.ScanTestID")
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr, which embeds *goqu_test.scanTestEmbeddedID")
+
+	for name, err := range map[string]error{
+		"goqu_test.scanTestUnexportedPtr, which embeds *goqu_test.dsTestActionItem":          allStructsErr[scanTestUnexportedPtr](ss),
+		"goqu_test.scanTestJSONSkip, which embeds *goqu_test.ScanTestID":                     allStructsErr[scanTestJSONSkip](ss),
+		"goqu_test.scanTestAuditRow, which embeds *goqu_test.ScanTestID":                     allStructsErr[scanTestAuditRow](ss),
+		"goqu_test.ScanTestSelfRef, which contains itself through goqu_test.ScanTestSelfRef": allStructsErr[ScanTestSelfRef](ss),
+		"goqu_test.ScanTestNode, which contains itself through goqu_test.ScanTestNode":       allStructsErr[ScanTestNode](ss),
+	} {
+		ss.EqualError(err, "goqu: cannot scan rows into "+name, name)
+		ss.True(exec.IsUnsupportedScanType(err), name)
+	}
 }
 
 func (ss *scanSuite) TestScanOneValAcceptsBytes() {
@@ -667,6 +714,34 @@ func (ss *scanSuite) TestScanOneValAcceptsSliceScanners() {
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(scanTestTags{"c"}, *tagsPtr)
+}
+
+func (ss *scanSuite) TestScanOneValAcceptsByteSliceScanners() {
+	ss.mock.ExpectQuery(`SELECT "doc" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"doc"}).AddRow([]byte("abc")))
+
+	doc, found, err := ss.db.From("items").Select("doc").ScanOneVal[scanTestScannedBlob](context.Background())
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestScannedBlob("abc"), doc)
+}
+
+func (ss *scanSuite) TestScanAllStructsAcceptsRepeatedStructFields() {
+	ss.mock.ExpectQuery(`SELECT "from"."x" AS "from.x", "to"."x" AS "to.x" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"from.x", "to.x"}).AddRow(int64(1), int64(2)))
+
+	segments, err := ss.db.From("items").ScanAllStructs[scanTestSegment](context.Background())
+	ss.NoError(err)
+	ss.Equal([]scanTestSegment{{From: ScanTestPoint{X: 1}, To: ScanTestPoint{X: 2}}}, segments)
+}
+
+func (ss *scanSuite) TestScanOneStructKeepsExplicitSelect() {
+	ss.mock.ExpectQuery(`SELECT "name" FROM "items" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Test1"))
+
+	item, found, err := ss.db.From("items").Select("name").ScanOneStruct[dsTestActionItem](context.Background())
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(dsTestActionItem{Name: "Test1"}, item)
 }
 
 func (ss *scanSuite) TestScanOneValAcceptsPointersToNamedByteSlices() {

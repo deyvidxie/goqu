@@ -8,6 +8,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/internal/scantype"
 )
 
 // Dataset for creating and/or executing SELECT SQL statements.
@@ -648,11 +649,7 @@ func (sd *SelectDataset) ScanStructsContext(ctx context.Context, i interface{}) 
 	if sd.queryFactory == nil {
 		return ErrQueryFactoryNotFoundError
 	}
-	ds := sd
-	if sd.GetClauses().IsDefaultSelect() {
-		ds = sd.Select(i)
-	}
-	return ds.Executor().ScanStructsContext(ctx, i)
+	return sd.selectStructColumns(i).Executor().ScanStructsContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanStruct to scan the result into a struct
@@ -675,11 +672,7 @@ func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (
 	if sd.queryFactory == nil {
 		return false, ErrQueryFactoryNotFoundError
 	}
-	ds := sd
-	if sd.GetClauses().IsDefaultSelect() {
-		ds = sd.Select(i)
-	}
-	return ds.Limit(1).Executor().ScanStructContext(ctx, i)
+	return sd.selectStructColumns(i).Limit(1).Executor().ScanStructContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVals to scan the results into a slice of primitive values
@@ -721,7 +714,7 @@ func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error)
 	if sd.queryFactory == nil {
 		return nil, ErrQueryFactoryNotFoundError
 	}
-	if err := exec.CheckStructScanType[T](); err != nil {
+	if err := scantype.Struct[T](sd.tagName); err != nil {
 		return nil, err
 	}
 	return sd.selectStructColumns(new([]T)).Executor().ScanAllStructs[T](ctx)
@@ -731,7 +724,7 @@ func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found
 	if sd.queryFactory == nil {
 		return row, false, ErrQueryFactoryNotFoundError
 	}
-	if typeErr := exec.CheckStructScanType[T](); typeErr != nil {
+	if typeErr := scantype.Struct[T](sd.tagName); typeErr != nil {
 		return row, false, typeErr
 	}
 	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
