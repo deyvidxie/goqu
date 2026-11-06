@@ -115,7 +115,11 @@ func acceptsNull(t reflect.Type) bool {
 
 func isPlainValue(t reflect.Type) bool {
 	k := t.Kind()
-	return (k >= reflect.Bool && k <= reflect.Float64) || k == reflect.String || t == timeType
+	return (k >= reflect.Bool && k <= reflect.Float64 && k != reflect.Uintptr) || k == reflect.String || t == timeType || isByteSlice(t)
+}
+
+func isByteSlice(t reflect.Type) bool {
+	return t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8
 }
 
 func nonStructEmbeddedPointer(t reflect.Type, seen map[reflect.Type]bool) reflect.Type {
@@ -175,10 +179,13 @@ func requireOneValType[T any]() error {
 	}
 	elem := t
 	if elem.Kind() == reflect.Pointer {
+		if isByteSlice(elem.Elem()) {
+			return nil
+		}
 		elem = elem.Elem()
 	}
 	if elem.Kind() == reflect.Slice && elem != bytesType && !reflect.PointerTo(elem).Implements(sqlScannerType) {
-		return exec.NewUnsupportedScanTypeError("ScanOneVal requires a single-column value type, got %s", t)
+		return exec.NewUnsupportedScanTypeError("ScanOneVal cannot scan into slice type %s; use []byte or a sql.Scanner", t)
 	}
 	return nil
 }
