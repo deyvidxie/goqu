@@ -79,7 +79,7 @@ func ExampleScanOneVal() {
 
 func ExampleScanAllVals_returning() {
 	ds := getDB().Insert("goqu_user").
-		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley", "created": "2020-01-01 00:00:00"}).
+		Rows(goqu.Record{"first_name": "Jed", "last_name": "Riley"}).
 		Returning("id")
 	ids, err := goqu.ScanAllVals[int64](context.Background(), ds.Executor())
 	if err != nil {

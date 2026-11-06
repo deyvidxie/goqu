@@ -65,6 +65,9 @@ func ScanAllVals[T any](ctx context.Context, s ValSource) ([]T, error) {
 		return nil, err
 	}
 	if t.Kind() == reflect.Pointer && !acceptsNull(t.Elem()) {
+		if !isPlainValue(t.Elem()) {
+			return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s", t)
+		}
 		return nil, exec.NewUnsupportedScanTypeError("ScanAllVals cannot scan NULL into %s; use sql.Null[%s]", t, t.Elem())
 	}
 	var vals []T
@@ -91,18 +94,54 @@ func requireRowType[T any](fn, valFn string) error {
 	if elem.Kind() != reflect.Struct {
 		return exec.NewUnsupportedScanTypeError("%s requires a struct or a pointer to a struct, got %s", fn, t)
 	}
-	isSQLType := elem.PkgPath() == "database/sql"
-	if hasRowFields(elem, map[reflect.Type]bool{}) && !isSQLType {
+	if embedded := nonStructEmbeddedPointer(elem, map[reflect.Type]bool{}); embedded != nil {
+		return exec.NewUnsupportedScanTypeError("%s cannot scan %s, which embeds %s", fn, t, embedded)
+	}
+	oneColumn := elem == timeType || reflect.PointerTo(elem).Implements(sqlScannerType)
+	sqlValue := oneColumn && elem.PkgPath() == "database/sql"
+	if hasRowFields(elem, map[reflect.Type]bool{}) && !sqlValue {
 		return nil
 	}
-	if isSQLType || elem == timeType || reflect.PointerTo(elem).Implements(sqlScannerType) {
+	if oneColumn {
 		return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which scans as one column; use %s[%s]", fn, t, valFn, elem)
 	}
-	return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which has no exported fields", fn, t)
+	return exec.NewUnsupportedScanTypeError("%s requires a row struct, got %s, which has no fields goqu can scan into", fn, t)
 }
 
 func acceptsNull(t reflect.Type) bool {
-	return t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) || reflect.PointerTo(t).Implements(sqlScannerType)
+	return t.Kind() == reflect.Pointer || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
+		reflect.PointerTo(t).Implements(sqlScannerType)
+}
+
+func isPlainValue(t reflect.Type) bool {
+	k := t.Kind()
+	return (k >= reflect.Bool && k <= reflect.Float64) || k == reflect.String || t == timeType
+}
+
+func nonStructEmbeddedPointer(t reflect.Type, seen map[reflect.Type]bool) reflect.Type {
+	if seen[t] {
+		return nil
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if !f.Anonymous {
+			continue
+		}
+		ft := f.Type
+		if ft.Kind() == reflect.Pointer {
+			if ft.Elem().Kind() != reflect.Struct {
+				return f.Type
+			}
+			ft = ft.Elem()
+		}
+		if ft.Kind() == reflect.Struct {
+			if embedded := nonStructEmbeddedPointer(ft, seen); embedded != nil {
+				return embedded
+			}
+		}
+	}
+	return nil
 }
 
 func hasRowFields(t reflect.Type, seen map[reflect.Type]bool) bool {
