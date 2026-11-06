@@ -2,6 +2,8 @@ package util
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"sync"
@@ -18,6 +20,20 @@ const (
 )
 
 var scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+
+func IsValuerOrBytes(v any) bool {
+	_, ok := v.(driver.Valuer)
+	return ok || IsBytesValue(v)
+}
+
+func IsBytesValue(v any) bool {
+	switch v.(type) {
+	case []byte, *[]byte, json.RawMessage, *json.RawMessage:
+		return true
+	default:
+		return false
+	}
+}
 
 func IsUint(k reflect.Kind) bool {
 	return (k == reflect.Uint) ||

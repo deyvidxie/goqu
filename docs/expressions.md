@@ -55,6 +55,19 @@ Output:
 ```sql
 SELECT * FROM "items" WHERE (("col1" != 'a') AND ("col3" IS NOT TRUE) AND ("col6" NOT IN ('a', 'b', 'c')))
 ```
+
+```go
+sql, _, _ := db.From("items").Where(goqu.Ex{
+  "col1": []string{},
+  "col2": goqu.Op{"notIn": []int{}},
+}).ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```sql
+SELECT * FROM "items" WHERE ((1=0) AND (1=1))
+```
 For a more complete examples see the [`Op`](https://godoc.org/github.com/doug-martin/goqu#Op) and [`Ex`](https://godoc.org/github.com/doug-martin/goqu#Ex) docs
 
 <a name="ex-or"></a>

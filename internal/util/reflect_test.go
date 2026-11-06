@@ -2,6 +2,8 @@ package util_test
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -369,6 +371,33 @@ func (rt *reflectTest) TestIsEmptyValue_validValues() {
 	rt.False(util.IsEmptyValue(reflect.ValueOf(ts.intr)))
 	rt.False(util.IsEmptyValue(reflect.ValueOf(&TestStruct{str: "a"})))
 	rt.False(util.IsEmptyValue(reflect.ValueOf(ts)))
+}
+
+type uint8Codes []uint8
+
+type intArray []int
+
+func (a intArray) Value() (driver.Value, error) {
+	return []int(a), nil
+}
+
+func (rt *reflectTest) TestIsBytesValue() {
+	for _, v := range []interface{}{[]byte{}, &[]byte{}, json.RawMessage{}, &json.RawMessage{}} {
+		rt.True(util.IsBytesValue(v), "%T", v)
+	}
+	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intArray{}} {
+		rt.False(util.IsBytesValue(v), "%T", v)
+	}
+}
+
+func (rt *reflectTest) TestIsValuerOrBytes() {
+	var nilArrayPtr *intArray
+	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intArray{}, nilArrayPtr, sql.NullInt64{}} {
+		rt.True(util.IsValuerOrBytes(v), "%T", v)
+	}
+	for _, v := range []interface{}{uint8Codes{}, []int{}, &[]int{}, "s", nil} {
+		rt.False(util.IsValuerOrBytes(v), "%T", v)
+	}
 }
 
 func (rt *reflectTest) TestIsNil() {

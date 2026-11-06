@@ -2,9 +2,10 @@ package exp
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"reflect"
 	"regexp"
+
+	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
 type boolean struct {
@@ -72,10 +73,12 @@ func lte(lhs Expression, rhs interface{}) BooleanExpression {
 }
 
 func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanExpression {
+	if len(vals) == 1 && isNilList(vals[0]) {
+		return NewBooleanExpression(op, lhs, []interface{}{})
+	}
 	if len(vals) == 1 {
 		valType := reflect.Indirect(reflect.ValueOf(vals[0]))
-		// a single binary/JSON value is one element of the list, not the list itself
-		if valType.Kind() == reflect.Slice && !isBytesValue(vals[0]) {
+		if valType.Kind() == reflect.Slice && !util.IsBytesValue(vals[0]) {
 			return NewBooleanExpression(op, lhs, vals[0])
 		}
 		if _, ok := vals[0].(AppendableExpression); ok {
@@ -83,6 +86,17 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 		}
 	}
 	return NewBooleanExpression(op, lhs, vals)
+}
+
+func isNilList(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	if util.IsValuerOrBytes(v) {
+		return false
+	}
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Kind() == reflect.Slice
 }
 
 // used internally to create an IN BooleanExpression
@@ -166,16 +180,6 @@ func checkLikeExp(op BooleanOperation, lhs Expression, val interface{}, invert b
 	return NewBooleanExpression(op, lhs, rhs)
 }
 
-// isBytesValue returns true for values that are a single binary/JSON value rather than a list of values.
-func isBytesValue(v any) bool {
-	switch v.(type) {
-	case []byte, *[]byte, json.RawMessage, *json.RawMessage:
-		return true
-	default:
-		return false
-	}
-}
-
 // checks a boolean operation normalizing the operation based on the RHS (e.g. "a" = true vs "a" IS TRUE
 func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, invert bool) BooleanExpression {
 	if isNullValue(rhs) {
@@ -186,8 +190,7 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Bool:
 			op = IsOp
 		case reflect.Slice:
-			// if its a slice of bytes (or JSON) dont treat as an IN
-			if !isBytesValue(rhs) {
+			if !util.IsBytesValue(rhs) {
 				op = InOp
 			}
 		case reflect.Struct:
@@ -215,15 +218,8 @@ func isNullValue(val interface{}) bool {
 	if rv := reflect.ValueOf(val); rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return true
 	}
-	switch t := val.(type) {
-	case []byte:
-		return t == nil
-	case *[]byte:
-		return *t == nil
-	case json.RawMessage:
-		return t == nil
-	case *json.RawMessage:
-		return *t == nil
+	if util.IsBytesValue(val) {
+		return reflect.Indirect(reflect.ValueOf(val)).IsNil()
 	}
 	if valuer, ok := val.(driver.Valuer); ok {
 		v, err := valuer.Value()

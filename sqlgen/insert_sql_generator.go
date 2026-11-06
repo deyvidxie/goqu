@@ -387,6 +387,10 @@ func (isg *insertSQLGenerator) onConflictDoUpdateSQL(
 	isg.conflictUpdateSQL(&conflictUpdateBuilder{SQLBuilder: b, rowAlias: rowAlias}, o)
 }
 
+func (ub *conflictUpdateBuilder) withBuilder(b sb.SQLBuilder) *conflictUpdateBuilder {
+	return &conflictUpdateBuilder{SQLBuilder: b, rowAlias: ub.rowAlias}
+}
+
 func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp.ConflictUpdateExpression) {
 	update := o.Update()
 	if update == nil {

@@ -379,6 +379,10 @@ func (st *duckdbSuite) TestQuery() {
 		entryTestCase{ds: ds.Where(goqu.C("string").IsNull()).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
 			st.Fail("Should not have returned any records")
 		}},
+		entryTestCase{ds: ds.Where(goqu.C("int").In([]int{})).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
+			st.Fail("Should not have returned any records")
+		}},
+		entryTestCase{ds: ds.Where(goqu.Ex{"int": goqu.Op{"notIn": []int{}}}).Order(goqu.C("id").Asc()), len: 10, check: func(_ entry, _ int) {}},
 	)
 }
 
@@ -430,6 +434,10 @@ func (st *duckdbSuite) TestQuery_Prepared() {
 		entryTestCase{ds: ds.Where(goqu.C("string").IsNull()).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
 			st.Fail("Should not have returned any records")
 		}},
+		entryTestCase{ds: ds.Where(goqu.C("int").In([]int{})).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
+			st.Fail("Should not have returned any records")
+		}},
+		entryTestCase{ds: ds.Where(goqu.Ex{"int": goqu.Op{"notIn": []int{}}}).Order(goqu.C("id").Asc()), len: 10, check: func(_ entry, _ int) {}},
 	)
 }
 

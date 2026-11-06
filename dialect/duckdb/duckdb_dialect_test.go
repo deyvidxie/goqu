@@ -257,6 +257,14 @@ func (sds *duckdbDialectSuite) TestUnsupportedLockStrengthsAreErrors() {
 	)
 }
 
+func (sds *duckdbDialectSuite) TestEmptyInList() {
+	ds := sds.GetDs("test").Where(goqu.C("a").In([]int{}), goqu.C("b").NotIn([]int{}))
+	sds.assertSQL(
+		sqlTestCase{ds: ds, sql: "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))"},
+		sqlTestCase{ds: ds.Prepared(true), sql: "SELECT * FROM \"test\" WHERE ((1=0) AND (1=1))", isPrepared: true},
+	)
+}
+
 func TestDatasetAdapterSuite(t *testing.T) {
 	suite.Run(t, new(duckdbDialectSuite))
 }
