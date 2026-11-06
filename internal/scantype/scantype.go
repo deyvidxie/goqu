@@ -70,7 +70,9 @@ func AllVals[T any](tagName string) error {
 			"ScanAllVals cannot scan into %s, whose element %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
 		)
 	case isRowStruct(t.Elem(), tagName):
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s, which is a row struct; use ScanAllStructs[%s]", t, t)
+		return NewUnsupportedScanTypeError(
+			"ScanAllVals cannot scan into %s, whose element %s is a row struct; use ScanAllStructs[%s]", t, t.Elem(), t,
+		)
 	default:
 		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 	}
@@ -84,7 +86,7 @@ func OneVal[T any]() error {
 	inner := derefAll(t)
 	switch {
 	case isUnscannableSlice(inner):
-		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into slice type %s; use []byte or a sql.Scanner", inner)
+		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use []byte or a sql.Scanner", t)
 	case t == inner && isByteSlice(t) && t != bytesType && !util.IsScanner(t):
 		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 	default:
@@ -108,8 +110,8 @@ func isTime(t reflect.Type) bool {
 }
 
 func isRowStruct(t reflect.Type, tagName string) bool {
-	return util.IsStruct(t.Kind()) && util.CheckColumnMap(t, tagName).Issue == util.ColumnMapOK &&
-		len(util.StructColumnMap(t, tagName)) > 0
+	return util.IsStruct(t.Kind()) &&
+		(util.CheckColumnMap(t, tagName).Issue != util.ColumnMapOK || len(util.StructColumnMap(t, tagName)) > 0)
 }
 
 func isUnscannableSlice(t reflect.Type) bool {
@@ -129,7 +131,7 @@ func derefAll(t reflect.Type) reflect.Type {
 
 func rejectRawBytes(fn string, t reflect.Type) error {
 	if derefAll(t) == rawBytesType {
-		return NewUnsupportedScanTypeError("%s cannot return sql.RawBytes, which is only valid until the next row; use []byte", fn)
+		return NewUnsupportedScanTypeError("%s cannot return sql.RawBytes, which does not outlive the query; use []byte", fn)
 	}
 	return nil
 }

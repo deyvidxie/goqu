@@ -1266,13 +1266,13 @@ if !found{
 They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` for the value methods, return `exec.UnsupportedScanTypeError` (`exec.IsUnsupportedScanType`) before the query runs. An empty result is a `nil` slice.
 
 ```go
-users, err := db.From("user").ScanAllStructs[User](ctx)
+users, err := db.From("user").ScanAllStructs[User](context.Background())
 
-user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User](ctx)
+user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User](context.Background())
 
-ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](ctx)
+ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](context.Background())
 
-id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](ctx)
+id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](context.Background())
 ```
 
 <a name="scanner"></a>

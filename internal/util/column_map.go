@@ -102,9 +102,9 @@ func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
 	return checkUnexportedPointerEmbeds(t, StructColumnMap(t, tagName))
 }
 
-func checkFollowedFields(t reflect.Type, tagName, prefix string, path map[reflect.Type]bool) ColumnMapProblem {
-	path[t] = true
-	defer delete(path, t)
+func checkFollowedFields(t reflect.Type, tagName, prefix string, ancestors map[reflect.Type]bool) ColumnMapProblem {
+	ancestors[t] = true
+	defer delete(ancestors, t)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		sub, follow := followedType(&f, tagName)
@@ -114,10 +114,10 @@ func checkFollowedFields(t reflect.Type, tagName, prefix string, path map[reflec
 			continue
 		case !IsStruct(sub.Kind()):
 			return ColumnMapProblem{ColumnMapNonStructEmbed, field, sub}
-		case path[sub]:
+		case ancestors[sub]:
 			return ColumnMapProblem{ColumnMapCycle, field, sub}
 		}
-		if problem := checkFollowedFields(sub, tagName, field+".", path); problem.Issue != ColumnMapOK {
+		if problem := checkFollowedFields(sub, tagName, field+".", ancestors); problem.Issue != ColumnMapOK {
 			return problem
 		}
 	}
@@ -131,11 +131,11 @@ func checkUnexportedPointerEmbeds(t reflect.Type, cm ColumnMap) ColumnMapProblem
 		owner, field := t, ""
 		for _, i := range index[:len(index)-1] {
 			f := owner.Field(i)
-			field += f.Name
+			field, owner = field+f.Name, Deref(f.Type)
 			if isEmbed(&f) && IsPointer(f.Type.Kind()) && !f.IsExported() {
-				return ColumnMapProblem{ColumnMapUnexportedPointerEmbed, field, f.Type.Elem()}
+				return ColumnMapProblem{ColumnMapUnexportedPointerEmbed, field, owner}
 			}
-			owner, field = Deref(f.Type), field+"."
+			field += "."
 		}
 	}
 	return ColumnMapProblem{}
