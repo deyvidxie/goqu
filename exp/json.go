@@ -28,7 +28,10 @@ func jsonCol(col any) any {
 	return col
 }
 
-func (je jsonExpression) Clone() Expression            { return je }
+func (je jsonExpression) Clone() Expression {
+	je.paths = slices.Clone(je.paths)
+	return je
+}
 func (je jsonExpression) Expression() Expression       { return je }
 func (je jsonExpression) Function() JSONFunction       { return je.function }
 func (je jsonExpression) Col() any                     { return je.col }

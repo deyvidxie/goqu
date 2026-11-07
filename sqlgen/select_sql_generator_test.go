@@ -266,7 +266,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withJoin() {
 	cj := exp.NewUnConditionedJoinExpression(exp.CustomJoinType, goqu.L("ARRAY JOIN tags").As("tag"))
 	badJoin := exp.NewConditionedJoinExpression(exp.LeftJoinType, ti, exp.NewJoinUsingCondition())
 
-	expectedRjError := "goqu: dialect does not support RightJoinType"
+	expectedRjError := "goqu: dialect does not support RightJoinType [dialect=test]"
 	expectedJoinCondError := "goqu: join condition required for conditioned join LeftJoinType"
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
@@ -767,7 +767,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_customJoinNeedsLookupEntry() {
 
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
-		selectTestCase{clause: sc, err: "goqu: dialect does not support CustomJoinType"},
-		selectTestCase{clause: sc, err: "goqu: dialect does not support CustomJoinType", isPrepared: true},
+		selectTestCase{clause: sc, err: "goqu: dialect does not support CustomJoinType [dialect=test]"},
+		selectTestCase{clause: sc, err: "goqu: dialect does not support CustomJoinType [dialect=test]", isPrepared: true},
 	)
 }

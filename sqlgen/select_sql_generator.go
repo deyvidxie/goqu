@@ -27,6 +27,10 @@ func ErrNotSupportedJoinType(j exp.JoinExpression) error {
 	return NewUnsupportedError("dialect does not support %v", j.JoinType())
 }
 
+func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
+	return NewUnsupportedError("dialect does not support %v [dialect=%s]", j.JoinType(), dialect)
+}
+
 func ErrJoinConditionRequired(j exp.JoinExpression) error {
 	return errors.New("join condition required for conditioned join %v", j.JoinType())
 }
@@ -185,7 +189,7 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 		for _, j := range joins {
 			joinType, ok := ssg.DialectOptions().JoinTypeLookup[j.JoinType()]
 			if !ok {
-				b.SetError(ErrNotSupportedJoinType(j))
+				b.SetError(errJoinTypeNotSupported(ssg.Dialect(), j))
 				return
 			}
 			b.Write(joinType)

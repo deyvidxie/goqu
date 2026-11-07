@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -83,20 +84,24 @@ func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOpera
 }
 
 func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
-	_, caseInsensitiveLike := esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp]
+	caseInsensitiveLike := bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
 	return errUnsupportedBooleanExpressionOperator(esg.dialect, op, caseInsensitiveLike)
 }
 
-func errUnsupportedBitwiseExpressionOperator(op exp.BitwiseOperation) error {
-	return NewUnsupportedError("bitwise operator '%+v' not supported", op)
+func errUnsupportedBitwiseExpressionOperator(dialect string, op exp.BitwiseOperation) error {
+	return NewUnsupportedError("bitwise operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
-func errUnsupportedArithmeticExpressionOperator(op exp.ArithmeticOperation) error {
-	return NewUnsupportedError("arithmetic operator '%+v' not supported", op)
+func errUnsupportedArithmeticExpressionOperator(dialect string, op exp.ArithmeticOperation) error {
+	return NewUnsupportedError("arithmetic operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
-func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
-	return NewUnsupportedError("range operator %+v not supported", op)
+func errUnsupportedRangeExpressionOperator(dialect string, op exp.RangeOperation) error {
+	return NewUnsupportedError("range operator '%+v' not supported [dialect=%s]", op, dialect)
+}
+
+func errBooleanDataTypeNotSupported(dialect string) error {
+	return NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
 }
 
 func errExcludedFragmentEmpty(option string) error {
@@ -630,7 +635,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	rhs := operator.RHS()
 
 	if (operatorOp == exp.IsOp || operatorOp == exp.IsNotOp) && rhs != nil && !esg.dialectOptions.BooleanDataTypeSupported {
-		b.SetError(NewUnsupportedError("boolean data type is not supported by dialect %q", esg.dialect))
+		b.SetError(errBooleanDataTypeNotSupported(esg.dialect))
 		return
 	}
 
@@ -731,7 +736,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BitwiseOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBitwiseExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedBitwiseExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 
@@ -749,7 +754,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, oper
 	if val, ok := esg.dialectOptions.ArithmeticOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedArithmeticExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedArithmeticExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -766,7 +771,7 @@ func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator 
 	if val, ok := esg.dialectOptions.RangeOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedRangeExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedRangeExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 	rhs := operator.RHS()

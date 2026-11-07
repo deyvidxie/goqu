@@ -1,11 +1,12 @@
 # Dialect
 
-Dialects allow goqu the build the correct SQL for each database. There are four dialects that come packaged with `goqu`
+Dialects allow goqu the build the correct SQL for each database. Dialects packaged with `goqu`:
 
 * [mysql](./dialect/mysql/mysql.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/mysql"`
 * [postgres](./dialect/postgres/postgres.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/postgres"`
 * [sqlite3](./dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`
 * [sqlserver](./dialect/sqlserver/sqlserver.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"`
+* [duckdb](./dialect/duckdb/duckdb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"`
 
 **NOTE** Dialects work like drivers in go where they are not registered until you import the package.
 
@@ -19,11 +20,13 @@ if err != nil {
 db := dialect.DB(sqlDB)
 ```
 
-Behaviour that differs between databases for the same goqu expression:
+Behavior that differs between databases for the same goqu expression:
 
 * `Div` renders `/`, so two integers divide with truncation on postgres, sqlite3 and sqlserver (`7 / 2` is `3`) and exactly on mysql and duckdb (`3.5`).
 * `Like` and `ILike` both render `LIKE` on sqlserver, and `ILike` renders `LIKE` on mysql, so case sensitivity there follows the column collation.
 * Regexp matching (`Like`/`ILike` with a `*regexp.Regexp`) returns an `UnsupportedError` on sqlserver and duckdb.
+* sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`, also under `PRAGMA case_sensitive_like`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` to match case-sensitively.
+* sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`: Go `regexp` and PCRE do, SQLite's `regexp.c` does not.
 
 Below are examples for each dialect. Notice how the dialect is imported and then looked up using `goqu.Dialect`
 
@@ -110,8 +113,6 @@ Output:
 ```
 SELECT * FROM `test` WHERE `id` = 10 []
 ```
-
-On sqlite3, `Like`/`NotLike` with a string pattern (and `Op{"like"}`/`Op{"notlike"}`) return an `UnsupportedError` because SQLite's `LIKE` ignores ASCII case; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` for a case-sensitive match (also under `PRAGMA case_sensitive_like`). `ILike`/`NotILike` with a `*regexp.Regexp` prefix the pattern with `(?i)`, so the registered `REGEXP` function must accept that inline flag: Go `regexp` and PCRE do, SQLite's `regexp.c` extension does not.
 
 <a name="sqlserver"></a>
 ### SQLServer

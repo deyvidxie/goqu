@@ -439,13 +439,15 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 <a name="time"></a>
 **[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
 
-`Now(fsp)` and `UTCTimestamp(fsp)` take an optional fractional seconds precision from 0 to 6. `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `n` is an integer, an expression (MySQL keeps a non-integer expression's fraction only for seconds) or, with `goqu.SecondInterval` on mysql and postgres, a finite fractional number, and `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`. `Now` is the database's current time, and a precision rounds on postgres and sqlserver but truncates on mysql and duckdb:
+* `Now(fsp)` and `UTCTimestamp(fsp)` take an optional fsp (fractional-second digits, 0 to 6); it rounds on postgres and sqlserver and truncates on mysql and duckdb.
+* `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`.
+* `n` is an integer or an expression, or a finite fraction with `goqu.SecondInterval` on mysql and postgres. MySQL keeps a non-integer expression's fraction only for seconds.
 
 | dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, goqu.DayInterval)` | scanned as |
 |---|---|---|---|---|
 | mysql, mysql8, mysql8nano | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
 | postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
-| sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` such as `2006-01-02 15:04:05`, compared as text; `Now()` is local time without an offset, so store and compare with `UTCTimestamp()` |
+| sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` (`2006-01-02 15:04:05[.000]`, no offset; `Now()` is local), compared as text |
 | sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 

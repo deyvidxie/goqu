@@ -39,7 +39,9 @@ func NewIntervalExpression(count any, unit IntervalUnit) IntervalExpression {
 	return intervalExpression{count: count, unit: unit}
 }
 
-func (te timeFunctionExpression) Clone() Expression                    { return te }
+func (te timeFunctionExpression) Clone() Expression {
+	return timeFunctionExpression{function: te.function, fsp: slices.Clone(te.fsp)}
+}
 func (te timeFunctionExpression) Expression() Expression               { return te }
 func (te timeFunctionExpression) Function() TimeFunction               { return te.function }
 func (te timeFunctionExpression) FSP() []int                           { return te.fsp }

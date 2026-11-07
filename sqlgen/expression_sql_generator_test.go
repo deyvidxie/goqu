@@ -941,12 +941,12 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BitwiseExpression() {
 	opts.BitwiseOperatorLookup = map[exp.BitwiseOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.BitwiseInversion(), err: "goqu: bitwise operator 'Inversion' not supported"},
-		expressionTestCase{val: ident.BitwiseAnd(1), err: "goqu: bitwise operator 'AND' not supported"},
-		expressionTestCase{val: ident.BitwiseOr(1), err: "goqu: bitwise operator 'OR' not supported"},
-		expressionTestCase{val: ident.BitwiseXor(1), err: "goqu: bitwise operator 'XOR' not supported"},
-		expressionTestCase{val: ident.BitwiseLeftShift(1), err: "goqu: bitwise operator 'Left Shift' not supported"},
-		expressionTestCase{val: ident.BitwiseRightShift(1), err: "goqu: bitwise operator 'Right Shift' not supported"},
+		expressionTestCase{val: ident.BitwiseInversion(), err: "goqu: bitwise operator 'Inversion' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseAnd(1), err: "goqu: bitwise operator 'AND' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseOr(1), err: "goqu: bitwise operator 'OR' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseXor(1), err: "goqu: bitwise operator 'XOR' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseLeftShift(1), err: "goqu: bitwise operator 'Left Shift' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseRightShift(1), err: "goqu: bitwise operator 'Right Shift' not supported [dialect=test]"},
 	)
 }
 
@@ -970,10 +970,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ArithmeticExpression() {
 	opts.ArithmeticOperatorLookup = map[exp.ArithmeticOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.Add(1), err: "goqu: arithmetic operator 'Addition' not supported"},
-		expressionTestCase{val: ident.Sub(1), err: "goqu: arithmetic operator 'Subtraction' not supported"},
-		expressionTestCase{val: ident.Mul(1), err: "goqu: arithmetic operator 'Multiplication' not supported"},
-		expressionTestCase{val: ident.Div(1), err: "goqu: arithmetic operator 'Division' not supported"},
+		expressionTestCase{val: ident.Add(1), err: "goqu: arithmetic operator 'Addition' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Sub(1), err: "goqu: arithmetic operator 'Subtraction' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Mul(1), err: "goqu: arithmetic operator 'Multiplication' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Div(1), err: "goqu: arithmetic operator 'Division' not supported [dialect=test]"},
 	)
 }
 
@@ -1018,17 +1018,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeExpression() {
 	opts.RangeOperatorLookup = map[exp.RangeOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: betweenNum, err: "goqu: range operator between not supported"},
-		expressionTestCase{val: betweenNum, err: "goqu: range operator between not supported"},
+		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]"},
 
-		expressionTestCase{val: notBetweenNum, err: "goqu: range operator not between not supported"},
-		expressionTestCase{val: notBetweenNum, err: "goqu: range operator not between not supported"},
+		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]"},
 
-		expressionTestCase{val: betweenStr, err: "goqu: range operator between not supported"},
-		expressionTestCase{val: betweenStr, err: "goqu: range operator between not supported"},
+		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]"},
 
-		expressionTestCase{val: notBetweenStr, err: "goqu: range operator not between not supported"},
-		expressionTestCase{val: notBetweenStr, err: "goqu: range operator not between not supported"},
+		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]"},
 	)
 }
 
@@ -1568,6 +1568,19 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionCastFragment
 	}
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_LikeHintOnlyWhenILikeIsPlainLike() {
+	like := exp.NewIdentifierExpression("", "", "a").Like("x%")
+	for ilike, want := range map[string]string{
+		"LIKE":  "goqu: boolean operator 'like' not supported, use ILike/NotILike [dialect=test]",
+		"ILIKE": "goqu: boolean operator 'like' not supported [dialect=test]",
+	} {
+		opts := sqlgen.DefaultDialectOptions()
+		delete(opts.BooleanOperatorLookup, exp.LikeOp)
+		opts.BooleanOperatorLookup[exp.ILikeOp] = []byte(ilike)
+		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", opts), expressionTestCase{val: like, err: want})
+	}
+}
+
 func timeStyleOptions(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
 	do := sqlgen.DefaultDialectOptions()
 	do.TimeStyle = style
@@ -1687,14 +1700,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 			err: "goqu: unknown JSONFunction 99",
 		},
 	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
 	b := sb.NewSQLBuilder(false)
 	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
 		Generate(b, unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
 	_, _, err := b.ToSQL()
+	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
 	esgs.True(sqlgen.IsInvalidExpression(err))
-}
 
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
 	do := sqlgen.DefaultDialectOptions()
 	do.SupportsMySQLJSONFunctions = true
 	render := func(e exp.Expression) error {
@@ -1707,7 +1722,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
 
-	err := render(exp.NewJSONContainsExpression("doc", math.NaN()))
+	err = render(exp.NewJSONContainsExpression("doc", math.NaN()))
 	esgs.True(sqlgen.IsInvalidExpression(err))
 	var unsupportedValue *json.UnsupportedValueError
 	esgs.ErrorAs(err, &unsupportedValue)

@@ -32,15 +32,22 @@ func TestInCopiesASliceArgument(t *testing.T) {
 	ids := []int{1}
 	named := idList{1}
 	pointed := []int{1}
+	namedPointed := idList{1}
+	eqIDs := []int{1}
+	neqPointed := []int{1}
 	a := exp.NewIdentifierExpression("", "", "a")
 	in, notIn, inNamed, inPointer := a.In(ids), a.NotIn(ids), a.In(named), a.In(&pointed)
+	inNamedPointer, eq, neq := a.In(&namedPointed), a.Eq(eqIDs), a.Neq(&neqPointed)
 
-	ids[0], named[0], pointed[0] = 2, 2, 2
+	ids[0], named[0], pointed[0], namedPointed[0], eqIDs[0], neqPointed[0] = 2, 2, 2, 2, 2, 2
 
 	assert.Equal(t, []int{1}, in.RHS())
 	assert.Equal(t, []int{1}, notIn.RHS())
 	assert.Equal(t, idList{1}, inNamed.RHS())
 	assert.Equal(t, &[]int{1}, inPointer.RHS())
+	assert.Equal(t, &idList{1}, inNamedPointer.RHS())
+	assert.Equal(t, []int{1}, eq.RHS())
+	assert.Equal(t, &[]int{1}, neq.RHS())
 }
 
 func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
@@ -113,6 +120,18 @@ func TestSiblingAppendsDoNotShareBackingArrays(t *testing.T) {
 	caseX := caseBase.When(4, "x")
 	caseBase.When(4, "y")
 	assert.Equal(t, exp.NewCaseWhen(4, "x"), caseX.GetWhens()[3])
+}
+
+func TestTimeAndJSONClonesDoNotShareSlices(t *testing.T) {
+	now := exp.NewNowExpression(3)
+	nowClone := now.Clone().(exp.TimeFunctionExpression)
+	now.FSP()[0] = 6
+	assert.Equal(t, []int{3}, nowClone.FSP())
+
+	contains := exp.NewJSONContainsExpression("doc", 1, "$.a")
+	containsClone := contains.Clone().(exp.JSONExpression)
+	contains.Paths()[0] = "$.b"
+	assert.Equal(t, []string{"$.a"}, containsClone.Paths())
 }
 
 func TestSQLFunctionCloneDoesNotShareArgs(t *testing.T) {

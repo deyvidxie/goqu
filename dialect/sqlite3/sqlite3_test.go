@@ -175,7 +175,7 @@ func (st *sqlite3Suite) TestCompoundQueries() {
 	st.Equal([]int64{6, 7, 8, 9}, ids)
 }
 
-func (st *sqlite3Suite) TestInterpolatedTimeMatchesPreparedBinding() {
+func (st *sqlite3Suite) TestInterpolatedTimeVersusPreparedBinding() {
 	at := time.Date(2016, 1, 2, 3, 4, 5, 123456789, time.UTC)
 	ds := st.db.From("entry")
 	for _, prepared := range []bool{false, true} {

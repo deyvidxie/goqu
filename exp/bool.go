@@ -206,6 +206,7 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Slice:
 			if !util.IsBytesValue(rhs) {
 				op = InOp
+				rhs = cloneSlice(rhs)
 			}
 		case reflect.Struct:
 			switch rhs.(type) {

@@ -1,17 +1,26 @@
 # Unreleased
 
-* [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through the new `SQLDialectOptions.TimeStyle` [#37](https://github.com/deyvidxie/goqu/issues/37), [#100](https://github.com/deyvidxie/goqu/pull/100)
-* [FIX] Expression constructors, `In`/`NotIn`, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets built from one parent no longer overwrite each other's CTEs, compounds, windows or `CASE` branches [#101](https://github.com/deyvidxie/goqu/issues/101), [#100](https://github.com/deyvidxie/goqu/pull/100)
-* [FIX] The JSON unsupported error names the function used [#101](https://github.com/deyvidxie/goqu/issues/101)
+* [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets built from one parent no longer overwrite each other's CTEs, compounds, windows or `CASE` branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] sqlite3 and mysql/mysql8 interpolate a `time.Time` the way their drivers bind it in prepared mode [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] sqlite3 rejects case-sensitive `Like`/`NotLike` and makes regexp `ILike`/`NotILike` case-insensitive [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] sqlserver rejects regexp matching instead of rendering `REGEXP BINARY` [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] Unsupported-feature errors name the dialect, and the JSON one names the function used [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 
 ## Behavior changes to be aware of
 
-* sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00`, the text go-sqlite3 binds in prepared mode (was RFC 3339, `2006-01-02T15:04:05Z`). Rows written earlier by interpolated goqu compare as text against the new literals: `Eq`/`In` never match them, and on the literal's own date every old row sorts after it, so `Gt` matches and `Lt` excludes all of that day's old rows. Normalize old rows once with `UPDATE t SET c = replace(c, 'T', ' ') WHERE c GLOB '????-??-??T*';` then `UPDATE t SET c = substr(c, 1, length(c) - 1) || '+00:00' WHERE c GLOB '*Z';`.
-* mysql and mysql8 interpolate microseconds instead of dropping the fraction. MySQL rounds them when storing into `DATETIME(0)`/`TIMESTAMP(0)` (MariaDB and `TIME_TRUNCATE_FRACTIONAL` truncate) but compares at full precision, so an `Eq` with a fractional `time.Time` no longer matches a second-precision column; truncate the value first. Upserts keyed on such a column can insert a new row for an old value with a fraction of .5 or more.
-* sqlite3 `Like`/`NotLike` with a string pattern (and `Op{"like"}`/`Op{"notlike"}`) return an `UnsupportedError`: SQLite's `LIKE` ignores ASCII case. Use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` for a case-sensitive match.
-* sqlite3 `ILike`/`NotILike` with a `*regexp.Regexp` render `REGEXP '(?i)' || pattern`; the registered `REGEXP` function must accept the `(?i)` flag (Go `regexp` and PCRE do, SQLite's `regexp.c` does not).
-* sqlserver regexp matching (`Like`/`ILike` with a `*regexp.Regexp`) returns an `UnsupportedError` instead of MySQL's `REGEXP BINARY`, which SQL Server cannot run.
-* The unsupported boolean operator error names the dialect: `boolean operator 'like' not supported, use ILike/NotILike [dialect=sqlite3]`.
+* sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
+  ```sql
+  BEGIN;
+  UPDATE t SET c = replace(c, 'T', ' ') WHERE c GLOB '????-??-??T*';
+  UPDATE t SET c = substr(c, 1, length(c) - 1) || '+00:00' WHERE c GLOB '????-??-?? *Z';
+  COMMIT;
+  ```
+* mysql and mysql8 interpolate microseconds instead of dropping the fraction, so a second-precision column stores the value rounded rather than truncated. `Eq` must reduce the value the way the row was stored, see [docs/time.md](docs/time.md#fractional-seconds); upserts keyed on such a column can insert a new row for an old value with a fraction of .5 or more.
+* sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp`.
+* sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`, see [docs/dialect.md](docs/dialect.md).
+* sqlserver regexp matching returns an `UnsupportedError`.
+* Unsupported boolean, bitwise, arithmetic and range operators, the boolean data type and join types end their error with `[dialect=…]` (`ErrNotSupportedJoinType` is unchanged).
 
 # v9.23.0
 
