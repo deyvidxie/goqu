@@ -65,6 +65,7 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"bogus": 1}})),
 		},
 		{"record from a non-struct", "goqu: cannot create a record from int, a struct is required", recordErr(1)},
+		{"record from a nil pointer", "goqu: cannot create a record from a nil *goqu_test.row", recordErr((*row)(nil))},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, sqlgen.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
@@ -81,5 +82,7 @@ func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {
 	assert.EqualError(t, err, "goqu: unable to execute query did you use goqu.Database#From to create the dataset")
 	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
 	assert.True(t, goqu.IsNoQueryExecutor(err))
+	var target goqu.NoQueryExecutorError
+	assert.ErrorAs(t, err, &target)
 	assert.False(t, sqlgen.IsInvalidExpression(err))
 }

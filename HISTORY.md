@@ -14,7 +14,7 @@
 ## Behavior changes to be aware of
 
 * The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
-* `exec.IsUnsupportedScanType` now also matches errors raised after the query has run: a wrong `ScanStructs`/`ScanVals` target, a column with no matching field, and a `sql.Scanner` interface field.
+* `exec.IsUnsupportedScanType` matches every `exec` scan-target error, including ones raised after the query has run (a wrong `ScanStructs`/`ScanVals`/`ScanStruct` target, a column with no matching field, a `sql.Scanner` interface field).
 * `exp.NewRecordFromStruct` with a non-struct fails with `goqu: cannot create a record from <type>, a struct is required` (was `goqu: cannot scan into this type: <type>`); a pointer to a struct, which used to panic, is dereferenced, and a nil pointer fails with `goqu: cannot create a record from a nil <type>`.
 * An unencodable value now fails with `goqu: unable to encode value …` (was `goqu_encode_error: Unable to encode value …`), an `InvalidExpressionError`.
 * sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
