@@ -1,7 +1,5 @@
 package exp
 
-import "slices"
-
 type (
 	sqlFunctionExpression struct {
 		name string
@@ -10,7 +8,7 @@ type (
 )
 
 func NewSQLFunctionExpression(name string, args ...interface{}) SQLFunctionExpression {
-	return sqlFunctionExpression{name: name, args: slices.Clone(args)}
+	return sqlFunctionExpression{name: name, args: cloneArgs(args)}
 }
 
 func (sfe sqlFunctionExpression) Clone() Expression {

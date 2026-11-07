@@ -28,7 +28,7 @@ func TestConstructorsCopyVariadicArgs(t *testing.T) {
 
 type idList []int
 
-func TestInCopiesASliceArgument(t *testing.T) {
+func TestSliceComparisonsCopyTheSlice(t *testing.T) {
 	ids := []int{1}
 	named := idList{1}
 	pointed := []int{1}
@@ -150,4 +150,20 @@ func TestValsCopyEachRow(t *testing.T) {
 
 	assert.Equal(t, [][]any{{1}}, set.Vals())
 	assert.Equal(t, [][]any{{1}}, appended.Vals())
+}
+
+func TestLiteralAndFunctionArgsCopySliceArguments(t *testing.T) {
+	ids := []int{1}
+	lit := exp.NewLiteralExpression("a IN ?", ids)
+	fn := exp.NewSQLFunctionExpression("f", ids)
+	insert, err := exp.NewInsertExpression("db", exp.Record{"a": 1})
+	assert.NoError(t, err)
+	row := []any{1}
+	withVals := insert.SetVals([][]any{row})
+
+	ids[0], row[0] = 2, 2
+
+	assert.Equal(t, []any{[]int{1}}, lit.Args())
+	assert.Equal(t, []any{[]int{1}}, fn.Args())
+	assert.Equal(t, [][]any{{1}}, withVals.Vals())
 }

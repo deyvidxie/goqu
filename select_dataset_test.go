@@ -662,7 +662,6 @@ func (sds *selectDatasetSuite) TestStraightJoin() {
 }
 
 func (sds *selectDatasetSuite) TestStraightJoin_unsupportedDialect() {
-	// STRAIGHT_JOIN is MySQL only; the default dialect must error rather than emit invalid SQL
 	_, _, err := goqu.From("test").StraightJoin(goqu.T("foo"), goqu.On(goqu.C("a").IsNull())).ToSQL()
 	sds.EqualError(err, "goqu: dialect does not support StraightJoinType [dialect=default]")
 }

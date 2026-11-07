@@ -227,7 +227,7 @@ func (mds *mysqlDialectSuite) TestStraightJoin() {
 			sqlTestCase{
 				// MySQL 5.7 does not accept USING for STRAIGHT_JOIN
 				ds:  ds.StraightJoin(goqu.T("foo"), goqu.Using("test_id")),
-				err: "goqu: USING is not supported for StraightJoinType, use an ON condition",
+				err: "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
 			},
 			sqlTestCase{
 				ds:         ds.Prepared(true).StraightJoin(goqu.T("foo"), goqu.On(goqu.I("test.id").Eq(5))),

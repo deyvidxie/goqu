@@ -140,12 +140,12 @@ func errIntervalUnit(unit exp.IntervalUnit) error {
 	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 
-func errIntervalCount(count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
+func errIntervalCount(dialect string, count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
 	accepted := "an integer or an expression"
 	if fractionalSeconds {
 		accepted = "an integer, an expression or, with SECOND, a finite number"
 	}
-	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s", accepted, count, value, unit)
+	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s [dialect=%s]", accepted, count, value, unit, dialect)
 }
 
 func errIntervalCountValue(cause error) error {
@@ -1088,7 +1088,7 @@ var intervalUnitNames = func() string {
 
 var durationType = reflect.TypeOf(time.Duration(0))
 
-func intervalCount(count any, unit exp.IntervalUnit, fractionalSeconds bool) (any, error) {
+func intervalCount(dialect string, count any, unit exp.IntervalUnit, fractionalSeconds bool) (any, error) {
 	value := count
 	switch v := count.(type) {
 	case exp.Ex, exp.ExOr:
@@ -1113,15 +1113,17 @@ func intervalCount(count any, unit exp.IntervalUnit, fractionalSeconds bool) (an
 		!math.IsNaN(rv.Float()) && !math.IsInf(rv.Float(), 0):
 		return value, nil
 	}
-	return nil, errIntervalCount(count, rv.Interface(), unit, fractionalSeconds)
+	return nil, errIntervalCount(dialect, count, rv.Interface(), unit, fractionalSeconds)
 }
 
-func intervalUnit(e exp.IntervalExpression, fractionalSeconds bool) (unit exp.IntervalUnit, quantity string, count any, err error) {
+func intervalUnit(
+	dialect string, e exp.IntervalExpression, fractionalSeconds bool,
+) (unit exp.IntervalUnit, quantity string, count any, err error) {
 	unit, quantity, err = lookupIntervalUnit(e.Unit())
 	if err != nil {
 		return "", "", nil, err
 	}
-	count, err = intervalCount(e.Count(), unit, fractionalSeconds)
+	count, err = intervalCount(dialect, e.Count(), unit, fractionalSeconds)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -1303,7 +1305,7 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.
 }
 
 func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
-	unit, _, count, err := intervalUnit(e, true)
+	unit, _, count, err := intervalUnit(esg.dialect, e, true)
 	if err != nil {
 		return err
 	}
@@ -1320,7 +1322,7 @@ func (esg *expressionSQLGenerator) duckDBIntervalSQL(b sb.SQLBuilder, e exp.Inte
 }
 
 func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression, fractionalSeconds bool) error {
-	_, quantity, count, err := intervalUnit(e, fractionalSeconds)
+	_, quantity, count, err := intervalUnit(esg.dialect, e, fractionalSeconds)
 	if err != nil {
 		return err
 	}

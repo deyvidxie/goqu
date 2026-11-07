@@ -89,6 +89,17 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 	return NewBooleanExpression(op, lhs, slices.Clone(vals))
 }
 
+func cloneArgs(args []interface{}) []interface{} {
+	if args == nil {
+		return nil
+	}
+	cloned := make([]interface{}, len(args))
+	for i, arg := range args {
+		cloned[i] = cloneSlice(arg)
+	}
+	return cloned
+}
+
 func cloneSlice(v interface{}) interface{} {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr && !rv.IsNil() && rv.Elem().Kind() == reflect.Slice {

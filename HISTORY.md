@@ -1,8 +1,9 @@
 # Unreleased
 
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
-* [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets built from one parent no longer overwrite each other's CTEs, compounds, windows or `CASE` branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
-* [FIX] sqlite3 and mysql/mysql8 interpolate a `time.Time` the way their drivers bind it in prepared mode [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets or `CASE` expressions built from one parent no longer overwrite each other's CTEs, compounds, windows or branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] sqlite3 interpolates a `time.Time` in go-sqlite3's prepared-mode format [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] mysql/mysql8 interpolate a `time.Time` with microseconds instead of dropping the fraction [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] sqlite3 rejects case-sensitive `Like`/`NotLike` and makes regexp `ILike`/`NotILike` case-insensitive [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] sqlserver rejects regexp matching instead of rendering `REGEXP BINARY` [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] Unsupported-feature errors name the dialect, and the JSON one names the function used [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
@@ -20,7 +21,7 @@
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp`.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`, see [docs/dialect.md](docs/dialect.md).
 * sqlserver regexp matching returns an `UnsupportedError`.
-* Unsupported boolean, bitwise, arithmetic and range operators, the boolean data type and join types end their error with `[dialect=…]` (`ErrNotSupportedJoinType` is unchanged).
+* Unsupported-feature errors end with `[dialect=…]`: boolean, bitwise, arithmetic and range operators, the boolean data type (was `by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN` and the Interval count; the range error also quotes its operator. `ErrNotSupportedJoinType` and `ErrJoinUsingNotSupported` keep the old text, are deprecated and are no longer what `ToSQL` returns; match with `sqlgen.IsUnsupported`.
 
 # v9.23.0
 

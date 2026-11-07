@@ -1,6 +1,6 @@
 # Dialect
 
-Dialects allow goqu the build the correct SQL for each database. Dialects packaged with `goqu`:
+Dialects allow goqu to build the correct SQL for each database. Dialects packaged with `goqu`:
 
 * [mysql](./dialect/mysql/mysql.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/mysql"`
 * [postgres](./dialect/postgres/postgres.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/postgres"`
@@ -28,7 +28,7 @@ Behavior that differs between databases for the same goqu expression:
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`, also under `PRAGMA case_sensitive_like`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` to match case-sensitively.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`: Go `regexp` and PCRE do, SQLite's `regexp.c` does not.
 
-Below are examples for each dialect. Notice how the dialect is imported and then looked up using `goqu.Dialect`
+Below are examples for postgres, mysql, sqlite3 and sqlserver. Notice how the dialect is imported and then looked up using `goqu.Dialect`
 
 <a name="postgres"></a>
 ### Postgres

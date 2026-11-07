@@ -1,7 +1,5 @@
 package exp
 
-import "slices"
-
 type (
 	literal struct {
 		literal string
@@ -21,7 +19,7 @@ type (
 //
 //	L("(? AND ?) OR (?)", I("a").Eq(1), I("b").Eq("b"), I("c").In([]string{"a", "b", "c"}))
 func NewLiteralExpression(sql string, args ...interface{}) LiteralExpression {
-	return literal{literal: sql, args: slices.Clone(args)}
+	return literal{literal: sql, args: cloneArgs(args)}
 }
 
 func Star() LiteralExpression {

@@ -226,7 +226,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withStraightJoin() {
 	on := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinOnCondition(exp.Ex{"a": "foo"}))
 	using := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinUsingCondition("a"))
 	empty := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinOnCondition())
-	usingErr := "goqu: USING is not supported for StraightJoinType, use an ON condition"
+	usingErr := "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=test]"
 
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),

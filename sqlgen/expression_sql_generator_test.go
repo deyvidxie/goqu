@@ -1019,16 +1019,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeExpression() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
 		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]"},
-		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]", isPrepared: true},
 
 		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]"},
-		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]", isPrepared: true},
 
 		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]"},
-		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]", isPrepared: true},
 
 		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]"},
-		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]", isPrepared: true},
 	)
 }
 
@@ -1399,7 +1399,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(1.5, exp.HourInterval),
-			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float64 1.5 for HOUR",
+			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float64 1.5 for HOUR [dialect=test]",
 		},
 		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "INTERVAL 1.5 SECOND"},
 		expressionTestCase{
@@ -1424,7 +1424,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(float32(2), exp.DayInterval),
-			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float32 2 for DAY",
+			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float32 2 for DAY [dialect=test]",
 		},
 		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "(1.5 * INTERVAL '1 SECOND')"},
 		expressionTestCase{val: exp.NewIntervalExpression(1.5, "second"), sql: "(1.5 * INTERVAL '1 SECOND')"},
@@ -1522,18 +1522,18 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
 		unit  exp.IntervalUnit
 		err   string
 	}{
-		{sqlgen.PostgresTimeStyle, intervalHours(1.5), exp.HourInterval, anyNumber + "sqlgen_test.intervalHours 1.5 for HOUR"},
-		{sqlgen.PostgresTimeStyle, &half, exp.HourInterval, anyNumber + "*float64 1.5 for HOUR"},
-		{sqlgen.PostgresTimeStyle, countValuer{1.5}, exp.HourInterval, anyNumber + "sqlgen_test.countValuer 1.5 for HOUR"},
-		{sqlgen.PostgresTimeStyle, "1.5", exp.HourInterval, anyNumber + "string 1.5 for HOUR"},
-		{sqlgen.PostgresTimeStyle, time.Second, exp.HourInterval, anyNumber + "time.Duration 1s for HOUR"},
-		{sqlgen.PostgresTimeStyle, math.NaN(), exp.SecondInterval, anyNumber + "float64 NaN for SECOND"},
-		{sqlgen.MySQLTimeStyle, math.Inf(1), exp.SecondInterval, anyNumber + "float64 +Inf for SECOND"},
+		{sqlgen.PostgresTimeStyle, intervalHours(1.5), exp.HourInterval, anyNumber + "sqlgen_test.intervalHours 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, &half, exp.HourInterval, anyNumber + "*float64 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, countValuer{1.5}, exp.HourInterval, anyNumber + "sqlgen_test.countValuer 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, "1.5", exp.HourInterval, anyNumber + "string 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, time.Second, exp.HourInterval, anyNumber + "time.Duration 1s for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, math.NaN(), exp.SecondInterval, anyNumber + "float64 NaN for SECOND [dialect=test]"},
+		{sqlgen.MySQLTimeStyle, math.Inf(1), exp.SecondInterval, anyNumber + "float64 +Inf for SECOND [dialect=test]"},
 		{sqlgen.PostgresTimeStyle, exp.Ex{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
 		{sqlgen.PostgresTimeStyle, exp.ExOr{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
 		{
 			sqlgen.DuckDBTimeStyle, 1.5, exp.SecondInterval,
-			"goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND",
+			"goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND [dialect=test]",
 		},
 		{sqlgen.PostgresTimeStyle, jsonFailingValuer{}, exp.DayInterval, "goqu: Interval count: value failed"},
 	} {

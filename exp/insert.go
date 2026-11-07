@@ -76,7 +76,7 @@ func (i *insert) Vals() [][]interface{} {
 
 func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 	ci := i.clone()
-	ci.vals = vals
+	ci.vals = cloneRows(vals)
 	return ci
 }
 
