@@ -78,7 +78,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case ReturningSQLFragment:
 			usg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(ErrNotSupportedFragment("UPDATE", f))
+			b.SetError(errNotSupportedFragment(usg.Dialect(), "UPDATE", f))
 		}
 	}
 }

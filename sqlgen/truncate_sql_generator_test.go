@@ -74,7 +74,7 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.TruncateSQLOrder = []sqlgen.SQLFragmentType{sqlgen.UpdateBeginSQLFragment}
 	tc := exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "a"))
-	expectedErr := "goqu: unsupported TRUNCATE SQL fragment UpdateBeginSQLFragment"
+	expectedErr := "goqu: unsupported TRUNCATE SQL fragment UpdateBeginSQLFragment [dialect=test]"
 	tsgs.assertCases(
 		sqlgen.NewTruncateSQLGenerator("test", "db", opts),
 		truncateTestCase{clause: tc, err: expectedErr},

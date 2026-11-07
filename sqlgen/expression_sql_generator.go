@@ -360,7 +360,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 
-		b.SetError(NewInvalidExpressionError("Unable to encode value %+v", val))
+		b.SetError(NewInvalidExpressionError("unable to encode value %+v", val))
 	}
 }
 

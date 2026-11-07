@@ -76,8 +76,8 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withUnsupportedFragment() {
 
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
-		deleteTestCase{clause: dc, err: `goqu: unsupported DELETE SQL fragment InsertBeingSQLFragment`},
-		deleteTestCase{clause: dc, err: `goqu: unsupported DELETE SQL fragment InsertBeingSQLFragment`, isPrepared: true},
+		deleteTestCase{clause: dc, err: `goqu: unsupported DELETE SQL fragment InsertBeingSQLFragment [dialect=test]`},
+		deleteTestCase{clause: dc, err: `goqu: unsupported DELETE SQL fragment InsertBeingSQLFragment [dialect=test]`, isPrepared: true},
 	)
 }
 

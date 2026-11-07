@@ -73,7 +73,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 		case ReturningSQLFragment:
 			dsg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(ErrNotSupportedFragment("DELETE", f))
+			b.SetError(errNotSupportedFragment(dsg.Dialect(), "DELETE", f))
 		}
 	}
 }

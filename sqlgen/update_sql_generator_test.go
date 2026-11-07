@@ -54,7 +54,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_unsupportedFragment() {
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b", "b": "c"})
-	expectedErr := "goqu: unsupported UPDATE SQL fragment InsertBeingSQLFragment"
+	expectedErr := "goqu: unsupported UPDATE SQL fragment InsertBeingSQLFragment [dialect=test]"
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
 		updateTestCase{clause: uc, err: expectedErr},

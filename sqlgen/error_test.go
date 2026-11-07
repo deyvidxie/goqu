@@ -225,54 +225,70 @@ func (unknownErrorTestExpression) Clone() exp.Expression      { return unknownEr
 
 func TestGeneratorErrorsAreTyped(t *testing.T) {
 	opts := sqlgen.DefaultDialectOptions()
-	expression := func(e any) error {
-		b := sb.NewSQLBuilder(false)
-		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, e)
-		_, _, err := b.ToSQL()
-		return err
-	}
 	toSQL := func(generate func(sb.SQLBuilder)) error {
 		b := sb.NewSQLBuilder(false)
 		generate(b)
 		_, _, err := b.ToSQL()
 		return err
 	}
+	expression := func(e any) error {
+		return toSQL(func(b sb.SQLBuilder) { sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, e) })
+	}
 	join := exp.NewConditionedJoinExpression(exp.LeftJoinType, exp.NewIdentifierExpression("", "t", ""), nil)
 	mismatched := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "t", "")).
 		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
 		SetVals([][]any{{1}, {1, 2}})
+	badFragment := sqlgen.DefaultDialectOptions()
+	badFragment.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}
 
-	for name, err := range map[string]error{
-		"ErrEmptyIdentifier":              sqlgen.ErrEmptyIdentifier,
-		"ErrUnexpectedNamedWindow":        sqlgen.ErrUnexpectedNamedWindow,
-		"ErrEmptyCaseWhens":               sqlgen.ErrEmptyCaseWhens,
-		"ErrNoWindowName":                 sqlgen.ErrNoWindowName,
-		"ErrInvalidCollation":             sqlgen.ErrInvalidCollation("x"),
-		"ErrJoinConditionRequired":        sqlgen.ErrJoinConditionRequired(join),
-		"ErrConflictUpdateValuesRequired": sqlgen.ErrConflictUpdateValuesRequired,
-		"ErrNoUpdatedValuesProvided":      sqlgen.ErrNoUpdatedValuesProvided,
-		"ErrNoSourceForDelete":            sqlgen.ErrNoSourceForDelete,
-		"ErrNoSourceForInsert":            sqlgen.ErrNoSourceForInsert,
-		"ErrNoSourceForUpdate":            sqlgen.ErrNoSourceForUpdate,
-		"ErrNoSetValuesForUpdate":         sqlgen.ErrNoSetValuesForUpdate,
-		"unsupported expression type":     expression(unknownErrorTestExpression{}),
-		"unsupported identifier column":   expression(exp.NewIdentifierExpression("", "", false)),
-		"unencodable value":               expression(struct{}{}),
-		"mismatched row length": toSQL(func(b sb.SQLBuilder) {
+	invalid := []struct {
+		name string
+		want string
+		err  error
+	}{
+		{"ErrEmptyIdentifier", "a empty identifier was encountered", sqlgen.ErrEmptyIdentifier},
+		{"ErrUnexpectedNamedWindow", "unexpected named window function", sqlgen.ErrUnexpectedNamedWindow},
+		{"ErrEmptyCaseWhens", "when conditions not found for case statement", sqlgen.ErrEmptyCaseWhens},
+		{"ErrNoWindowName", "window expresion has no valid name", sqlgen.ErrNoWindowName},
+		{"ErrInvalidCollation", `invalid collation name "x"`, sqlgen.ErrInvalidCollation("x")},
+		{"ErrJoinConditionRequired", "join condition required for conditioned join LeftJoinType", sqlgen.ErrJoinConditionRequired(join)},
+		{"ErrConflictUpdateValuesRequired", "values are required for on conflict update", sqlgen.ErrConflictUpdateValuesRequired},
+		{"ErrNoUpdatedValuesProvided", "no update values provided", sqlgen.ErrNoUpdatedValuesProvided},
+		{"ErrNoSourceForDelete", "no source found when generating delete sql", sqlgen.ErrNoSourceForDelete},
+		{"ErrNoSourceForInsert", "no source found when generating insert sql", sqlgen.ErrNoSourceForInsert},
+		{"ErrNoSourceForUpdate", "no source found when generating update sql", sqlgen.ErrNoSourceForUpdate},
+		{"ErrNoSetValuesForUpdate", "no set values found when generating UPDATE sql", sqlgen.ErrNoSetValuesForUpdate},
+		{"unsupported expression type", "unsupported expression type", expression(unknownErrorTestExpression{})},
+		{
+			"unsupported identifier column", "unexpected col type must be string or LiteralExpression",
+			expression(exp.NewIdentifierExpression("", "", false)),
+		},
+		{"unencodable value", "unable to encode value {}", expression(struct{}{})},
+		{"mismatched row length", "rows with different value length expected 1 got 2", toSQL(func(b sb.SQLBuilder) {
 			sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, mismatched)
-		}),
-		"truncate without source": toSQL(func(b sb.SQLBuilder) {
+		})},
+		{"truncate without source", "no source found when generating truncate sql", toSQL(func(b sb.SQLBuilder) {
 			sqlgen.NewTruncateSQLGenerator("test", "db", opts).Generate(b, exp.NewTruncateClauses())
-		}),
-	} {
-		assert.True(t, sqlgen.IsInvalidExpression(err), "%s: %v", name, err)
+		})},
 	}
-	assert.True(t, sqlgen.IsUnsupported(sqlgen.ErrNotSupportedFragment("SELECT", sqlgen.SQLFragmentType(-1))))
+	for _, c := range invalid {
+		assert.ErrorContains(t, c.err, c.want, c.name)
+		assert.True(t, sqlgen.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
+	}
 
 	err := toSQL(func(b sb.SQLBuilder) {
-		sqlgen.NewDeleteSQLGenerator("test", "db", opts).Generate(b, exp.NewDeleteClauses())
+		sqlgen.NewSelectSQLGenerator("test", "db", badFragment).Generate(b, exp.NewSelectClauses())
 	})
+	assert.EqualError(t, err, "goqu: unsupported SELECT SQL fragment InsertBeingSQLFragment [dialect=test]")
+	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, sqlgen.IsUnsupported(sqlgen.ErrNotSupportedFragment("SELECT", sqlgen.InsertBeingSQLFragment)))
+}
+
+func TestSentinelErrorsKeepIdentityAndMessage(t *testing.T) {
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()).Generate(b, exp.NewDeleteClauses())
+	_, _, err := b.ToSQL()
 	assert.ErrorIs(t, err, sqlgen.ErrNoSourceForDelete)
 	assert.EqualError(t, err, "goqu: no source found when generating delete sql")
 }

@@ -92,7 +92,7 @@ func (isg *insertSQLGenerator) Generate(
 		case ReturningSQLFragment:
 			isg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(ErrNotSupportedFragment("INSERT", f))
+			b.SetError(errNotSupportedFragment(isg.Dialect(), "INSERT", f))
 		}
 	}
 }

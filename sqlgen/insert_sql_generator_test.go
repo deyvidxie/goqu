@@ -59,7 +59,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", ""))
 	d.Generate(b, ic)
-	igs.assertErrorSQL(b, `goqu: unsupported INSERT SQL fragment UpdateBeginSQLFragment`)
+	igs.assertErrorSQL(b, `goqu: unsupported INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_empty() {
