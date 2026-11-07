@@ -1,6 +1,7 @@
 package goqu_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -102,4 +103,15 @@ func TestExecutorWithoutDatabaseFailsWithNoQueryExecutor(t *testing.T) {
 		assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError, name)
 		assert.True(t, goqu.IsNoQueryExecutor(err), name)
 	}
+}
+
+type SkippedScalar int
+
+func TestExecutorWithoutDatabaseKeepsTheDatasetTag(t *testing.T) {
+	type row struct {
+		A              int `db:"a"`
+		*SkippedScalar `db:"-"`
+	}
+	_, err := goqu.From("t").Executor().ScanAllStructs[row](context.Background())
+	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
 }

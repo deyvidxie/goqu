@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
 	"github.com/doug-martin/goqu/v9/sqlgen"
@@ -41,7 +40,7 @@ func LookupDialect(dialect string) (DialectWrapper, error) {
 
 func LookupDialectWithTagName(dialect, requestedTag string) (DialectWrapper, error) {
 	if _, ok := registeredDialect(dialect); !ok {
-		return DialectWrapper{}, errors.NewUnknownDialectError(
+		return DialectWrapper{}, newUnknownDialectError(
 			"dialect %q is not registered; blank-import its dialect package or call RegisterDialect", dialect,
 		)
 	}

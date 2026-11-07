@@ -7,18 +7,17 @@ import (
 	"sync"
 
 	"github.com/doug-martin/goqu/v9/exec"
-	goquerrors "github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrQueryFactoryNotFoundError = goquerrors.NewNoQueryExecutorError(
+var ErrQueryFactoryNotFoundError = newNoQueryExecutorError(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 
-func noDatabaseExecutor() exec.QueryExecutor {
+func noDatabaseExecutor(tagName string) exec.QueryExecutor {
 	b := sb.NewSQLBuilder(false).SetError(ErrQueryFactoryNotFoundError)
 	defer sb.ReleaseSQLBuilder(b)
-	return exec.NewQueryFactory("", nil).FromSQLBuilder(b)
+	return exec.NewQueryFactory(tagName, nil).FromSQLBuilder(b)
 }
 
 type (

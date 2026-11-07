@@ -16,8 +16,8 @@
 
 * The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
 * `exec.IsUnsupportedScanType` matches every `exec` scan-target error, including ones raised after the query has run (a wrong `ScanStructs`/`ScanVals`/`Scanner.ScanStruct` target, a column with no matching field, a `sql.Scanner` interface field).
-* `exp.NewRecordFromStruct` with a non-struct fails with `goqu: cannot create a record from <type>, a struct is required` (was `goqu: cannot scan into this type: <type>`); a pointer to a struct, which used to panic, is dereferenced, and `nil` or a nil pointer fails with `goqu: record source must not be nil, got <type>` (`nil` used to return a nil record and no error).
-* `sqlgen.UnsupportedError`, `sqlgen.InvalidExpressionError`, `goqu.UnknownDialectError` and `exec.UnsupportedScanTypeError` are now aliases of types in `internal/errors`, so `%T` prints `errors.InvalidExpressionError` and so on.
+* `exp.NewRecordFromStruct` with a non-struct fails with `goqu: cannot create a record from <type>, a struct is required` (was `goqu: cannot scan into this type: <type>`, or a panic for a slice of structs); a pointer to a struct, which used to panic, is dereferenced, and `nil` or a nil pointer fails with `goqu: record source must not be nil, got <type>` (`nil` used to return a nil record and no error).
+* `sqlgen.UnsupportedError`, `sqlgen.InvalidExpressionError` and `exec.UnsupportedScanTypeError` are now aliases of types in `internal/errors`, so `%T` prints `errors.InvalidExpressionError` and so on.
 * An unencodable value now fails with `goqu: unable to encode value …` (was `goqu_encode_error: Unable to encode value …`), an `InvalidExpressionError`.
 * sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
   ```sql
