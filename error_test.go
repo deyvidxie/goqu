@@ -66,8 +66,13 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		},
 		{"record from a non-struct", "goqu: cannot create a record from int, a struct is required", recordErr(1)},
 		{"record from a nil pointer", "goqu: cannot create a record from a nil *goqu_test.row", recordErr((*row)(nil))},
+		{"record from nil", "goqu: cannot create a record from a nil <nil>", recordErr(nil)},
 		{"nil pointer row", "goqu: insert rows must not be nil, got *goqu_test.row", toSQL(goqu.Insert("t").Rows((*row)(nil)))},
 		{"nil row", "goqu: insert rows must not be nil, got <nil>", toSQL(goqu.Insert("t").Rows(row{A: 1}, nil))},
+		{
+			"nil select dataset row", "goqu: insert rows must not be nil, got *goqu.SelectDataset",
+			toSQL(goqu.Insert("t").Rows((*goqu.SelectDataset)(nil))),
+		},
 		{"nil pointer update", "goqu: update values must not be nil, got *goqu_test.row", toSQL(goqu.Update("t").Set((*row)(nil)))},
 		{"nil update", "goqu: update values must not be nil, got <nil>", updateErr(nil)},
 	} {

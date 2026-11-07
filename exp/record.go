@@ -21,30 +21,27 @@ func (r Record) Cols() []string {
 }
 
 func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName string) (r Record, err error) {
-	value := reflect.ValueOf(i)
-	if value.IsValid() {
-		if value.Kind() == reflect.Ptr && value.IsNil() {
-			return nil, errors.NewInvalidExpressionError("cannot create a record from a nil %T", i)
-		}
-		value = reflect.Indirect(value)
-		if value.Kind() != reflect.Struct {
-			return nil, errors.NewInvalidExpressionError("cannot create a record from %T, a struct is required", i)
-		}
-		cm := util.StructColumnMap(value.Type(), tagName)
-		cols, _ := cm.Cols()
-		r = make(map[string]interface{}, len(cols))
-		for _, col := range cols {
-			f := cm[col]
-			if !shouldSkipField(&f, forInsert, forUpdate) {
-				if fieldValue, isAvailable := util.SafeGetFieldByIndex(value, f.FieldIndex); isAvailable {
-					if !shouldOmitField(fieldValue, f) {
-						r[f.ColumnName] = getRecordValue(fieldValue, f)
-					}
+	if isNilValue(i) {
+		return nil, errors.NewInvalidExpressionError("cannot create a record from a nil %T", i)
+	}
+	value := reflect.Indirect(reflect.ValueOf(i))
+	if value.Kind() != reflect.Struct {
+		return nil, errors.NewInvalidExpressionError("cannot create a record from %T, a struct is required", i)
+	}
+	cm := util.StructColumnMap(value.Type(), tagName)
+	cols, _ := cm.Cols()
+	r = make(map[string]interface{}, len(cols))
+	for _, col := range cols {
+		f := cm[col]
+		if !shouldSkipField(&f, forInsert, forUpdate) {
+			if fieldValue, isAvailable := util.SafeGetFieldByIndex(value, f.FieldIndex); isAvailable {
+				if !shouldOmitField(fieldValue, f) {
+					r[f.ColumnName] = getRecordValue(fieldValue, f)
 				}
 			}
 		}
 	}
-	return
+	return r, nil
 }
 
 func shouldSkipField(f *util.ColumnData, forInsert, forUpdate bool) bool {

@@ -29,7 +29,7 @@ func NewInsertExpression(tagName string, rows ...interface{}) (insertExpression 
 			}
 			return NewInsertExpression(tagName, vals...)
 		}
-		if ae, ok := rows[0].(AppendableExpression); ok {
+		if ae, ok := rows[0].(AppendableExpression); ok && !isNilValue(ae) {
 			return &insert{from: ae}, nil
 		}
 	}
@@ -78,12 +78,6 @@ func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 	ci := i.clone()
 	ci.vals = cloneRows(vals)
 	return ci
-}
-
-// parses the rows gathering and sorting unique columns and values for each record
-func isNilValue(v interface{}) bool {
-	rv := reflect.ValueOf(v)
-	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
 }
 
 func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {
@@ -141,6 +135,11 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 		}
 	}
 	return &insert{cols: columns, vals: vals}, nil
+}
+
+func isNilValue(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
 }
 
 func createStructSliceInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {

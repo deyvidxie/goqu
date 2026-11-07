@@ -27,6 +27,10 @@ var ErrQueryFactoryNotFoundError = errors.NewNoQueryExecutorError(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 
+func noDatabaseExecutor() exec.QueryExecutor {
+	return exec.NewQueryFactory("", nil).FromSQLBuilder(sb.NewSQLBuilder(false).SetError(ErrQueryFactoryNotFoundError))
+}
+
 func newDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *SelectDataset {
 	tagName := requestedTag.resolve(d)
 	return &SelectDataset{
@@ -610,7 +614,7 @@ func (sd *SelectDataset) ToSQL() (sql string, params []interface{}, err error) {
 
 func (sd *SelectDataset) Executor() exec.QueryExecutor {
 	if sd.queryFactory == nil {
-		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+		return noDatabaseExecutor()
 	}
 	builder := sd.selectSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)

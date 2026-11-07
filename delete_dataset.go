@@ -240,7 +240,7 @@ func (dd *DeleteDataset) ReturnsColumns() bool {
 
 func (dd *DeleteDataset) Executor() exec.QueryExecutor {
 	if dd.queryFactory == nil {
-		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+		return noDatabaseExecutor()
 	}
 	builder := dd.deleteSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)

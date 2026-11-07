@@ -28,10 +28,6 @@ var (
 	errScanValNonSlice            = errors.NewUnsupportedScanTypeError("type cannot be a pointer to a slice when scanning into val")
 )
 
-func NewFailedQueryExecutor(err error) QueryExecutor {
-	return QueryExecutor{err: err}
-}
-
 func newQueryExecutor(tagName string, de DbExecutor, err error, query string, args ...interface{}) QueryExecutor {
 	return QueryExecutor{tagName: tagName, de: de, err: err, query: query, args: args}
 }

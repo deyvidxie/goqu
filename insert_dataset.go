@@ -268,7 +268,7 @@ func (id *InsertDataset) ReturnsColumns() bool {
 //	db.Insert("test").Rows(Record{"name":"Bob"}).Executor().Exec()
 func (id *InsertDataset) Executor() exec.QueryExecutor {
 	if id.queryFactory == nil {
-		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+		return noDatabaseExecutor()
 	}
 	builder := id.insertSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)

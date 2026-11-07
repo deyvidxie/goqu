@@ -245,7 +245,7 @@ func (ud *UpdateDataset) ReturnsColumns() bool {
 //	db.Update("test").Set(Record{"name":"Bob", update: time.Now()}).Executor()
 func (ud *UpdateDataset) Executor() exec.QueryExecutor {
 	if ud.queryFactory == nil {
-		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+		return noDatabaseExecutor()
 	}
 	builder := ud.updateSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
