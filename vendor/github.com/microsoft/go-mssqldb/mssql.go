@@ -444,6 +444,7 @@ func (d *Driver) open(ctx context.Context, dsn string) (*Conn, error) {
 	return d.connect(ctx, c, params)
 }
 
+
 func failoverPartnerParams(params msdsn.Config) *msdsn.Config {
 	if params.FailOverPartner == "" {
 		return nil

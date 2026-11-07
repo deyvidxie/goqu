@@ -14,12 +14,11 @@ type AuthenticatorWithEPA interface {
 }
 
 type ChannelBindingsType uint32
-
 const (
-	ChannelBindingsTypeTLSExporter       = 0
-	ChannelBindingsTypeTLSUnique         = 1
+	ChannelBindingsTypeTLSExporter = 0
+	ChannelBindingsTypeTLSUnique   = 1
 	ChannelBindingsTypeTLSServerEndPoint = 2
-	ChannelBindingsTypeEmpty             = 3
+	ChannelBindingsTypeEmpty = 3
 )
 
 const (
@@ -35,7 +34,7 @@ const (
 // gss_channel_bindings_struct: https://docs.oracle.com/cd/E19683-01/816-1331/overview-52/index.html
 // gss_buffer_desc: https://docs.oracle.com/cd/E19683-01/816-1331/reference-21/index.html
 type ChannelBindings struct {
-	Type              ChannelBindingsType
+	Type ChannelBindingsType
 	InitiatorAddrType uint32
 	InitiatorAddress  []byte
 	AcceptorAddrType  uint32
@@ -57,7 +56,7 @@ type SEC_CHANNEL_BINDINGS struct {
 }
 
 var EmptyChannelBindings = &ChannelBindings{
-	Type:              ChannelBindingsTypeEmpty,
+	Type: ChannelBindingsTypeEmpty,
 	InitiatorAddrType: 0,
 	InitiatorAddress:  nil,
 	AcceptorAddrType:  0,
@@ -176,7 +175,7 @@ func GenerateCBTFromTLSUnique(tlsUnique []byte) (*ChannelBindings, error) {
 		return nil, fmt.Errorf("tlsUnique is empty")
 	}
 	return &ChannelBindings{
-		Type:              ChannelBindingsTypeTLSUnique,
+		Type: ChannelBindingsTypeTLSUnique,
 		InitiatorAddrType: 0,
 		InitiatorAddress:  nil,
 		AcceptorAddrType:  0,
@@ -213,7 +212,7 @@ func GenerateCBTFromTLSExporter(exporterKey []byte) (*ChannelBindings, error) {
 	}
 
 	return &ChannelBindings{
-		Type:              ChannelBindingsTypeTLSExporter,
+		Type: ChannelBindingsTypeTLSExporter,
 		InitiatorAddrType: 0,
 		InitiatorAddress:  nil,
 		AcceptorAddrType:  0,
@@ -248,7 +247,7 @@ func GenerateCBTFromServerCert(cert *x509.Certificate) *ChannelBindings {
 	_, _ = h.Write(cert.Raw)
 	certHash = h.Sum(nil)
 	return &ChannelBindings{
-		Type:              ChannelBindingsTypeTLSServerEndPoint,
+		Type: ChannelBindingsTypeTLSServerEndPoint,
 		InitiatorAddrType: 0,
 		InitiatorAddress:  nil,
 		AcceptorAddrType:  0,
