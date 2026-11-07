@@ -24,7 +24,6 @@ func NewLiteralExpression(sql string, args ...interface{}) LiteralExpression {
 	return literal{literal: sql, args: slices.Clone(args)}
 }
 
-// Returns a literal for the '*' operator
 func Star() LiteralExpression {
 	return NewLiteralExpression("*")
 }

@@ -1500,12 +1500,17 @@ func (s sequenceValuer) Value() (driver.Value, error) {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountValuerResolvedOnce() {
-	values := []driver.Value{int64(2), 1.5}
-	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle)),
-		expressionTestCase{val: exp.NewIntervalExpression(sequenceValuer{&values}, exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
-	)
-	esgs.Len(values, 1)
+	for style, sql := range map[sqlgen.TimeStyle]string{
+		sqlgen.PostgresTimeStyle: "(2 * INTERVAL '1 DAY')",
+		sqlgen.MySQLTimeStyle:    "INTERVAL 2 DAY",
+	} {
+		values := []driver.Value{int64(2), 1.5}
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(style)),
+			expressionTestCase{val: exp.NewIntervalExpression(sequenceValuer{&values}, exp.DayInterval), sql: sql},
+		)
+		esgs.Len(values, 1)
+	}
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
@@ -1524,7 +1529,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
 		{sqlgen.PostgresTimeStyle, time.Second, exp.HourInterval, anyNumber + "time.Duration 1s for HOUR"},
 		{sqlgen.PostgresTimeStyle, math.NaN(), exp.SecondInterval, anyNumber + "float64 NaN for SECOND"},
 		{sqlgen.MySQLTimeStyle, math.Inf(1), exp.SecondInterval, anyNumber + "float64 +Inf for SECOND"},
-		{sqlgen.PostgresTimeStyle, exp.Ex{"a": 1}, exp.DayInterval, anyNumber + "exp.Ex map[a:1] for DAY"},
+		{sqlgen.PostgresTimeStyle, exp.Ex{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
+		{sqlgen.PostgresTimeStyle, exp.ExOr{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
 		{
 			sqlgen.DuckDBTimeStyle, 1.5, exp.SecondInterval,
 			"goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND",
@@ -1537,6 +1543,13 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
 		esgs.EqualError(err, tc.err, "%T", tc.count)
 		esgs.True(sqlgen.IsInvalidExpression(err), "%T", tc.count)
 	}
+
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle)).
+		Generate(b, exp.NewIntervalExpression(jsonFailingValuer{}, exp.DayInterval))
+	_, _, err := b.ToSQL()
+	var cause jsonValueError
+	esgs.ErrorAs(err, &cause)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionCastFragment() {
@@ -1671,7 +1684,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		},
 		expressionTestCase{
 			val: unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")},
-			err: "goqu: dialect does not support JSONFunction 99 [dialect=test]",
+			err: "goqu: unknown JSONFunction 99",
 		},
 	)
 }

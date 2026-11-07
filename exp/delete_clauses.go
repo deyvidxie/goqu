@@ -51,7 +51,7 @@ func (dc *deleteClauses) HasFrom() bool {
 
 func (dc *deleteClauses) clone() *deleteClauses {
 	return &deleteClauses{
-		commonTables: dc.commonTables,
+		commonTables: dc.commonTables[0:len(dc.commonTables):len(dc.commonTables)],
 		from:         dc.from,
 
 		where:     dc.where,

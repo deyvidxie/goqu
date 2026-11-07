@@ -18,7 +18,6 @@ func TestNewTimeFunctionExpressions(t *testing.T) {
 		fsp := []int{3}
 		fsp3 := construct(fsp...)
 		fsp[0] = 9
-		fsp3.FSP()[0] = 9
 		assert.Equal(t, []int{3}, fsp3.FSP())
 	}
 

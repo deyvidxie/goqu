@@ -61,7 +61,7 @@ func (uc *updateClauses) HasTable() bool {
 
 func (uc *updateClauses) clone() *updateClauses {
 	return &updateClauses{
-		commonTables: uc.commonTables,
+		commonTables: uc.commonTables[0:len(uc.commonTables):len(uc.commonTables)],
 		table:        uc.table,
 		setValues:    uc.setValues,
 		from:         uc.from,

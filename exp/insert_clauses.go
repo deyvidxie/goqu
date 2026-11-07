@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type (
 	InsertClauses interface {
 		CommonTables() []CommonTableExpression
@@ -63,7 +65,7 @@ func (ic *insertClauses) HasInto() bool {
 
 func (ic *insertClauses) clone() *insertClauses {
 	return &insertClauses{
-		commonTables: ic.commonTables,
+		commonTables: ic.commonTables[0:len(ic.commonTables):len(ic.commonTables)],
 		cols:         ic.cols,
 		into:         ic.into,
 		returning:    ic.returning,
@@ -167,7 +169,7 @@ func (ic *insertClauses) HasRows() bool {
 
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
-	ret.rows = rows
+	ret.rows = slices.Clone(rows)
 	return ret
 }
 

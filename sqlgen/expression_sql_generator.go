@@ -61,6 +61,7 @@ var (
 	errJSONCandidateCondition        = NewInvalidExpressionError(
 		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 	)
+	errIntervalCountCondition     = NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
 	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
@@ -151,7 +152,7 @@ var jsonFunctionNames = map[exp.JSONFunction]string{
 func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) error {
 	name, ok := jsonFunctionNames[function]
 	if !ok {
-		name = fmt.Sprintf("JSONFunction %d", function)
+		return errUnknownJSONFunction(function)
 	}
 	return NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
 }
@@ -1078,7 +1079,7 @@ func intervalCount(count any, unit exp.IntervalUnit, fractionalSeconds bool) (an
 	value := count
 	switch v := count.(type) {
 	case exp.Ex, exp.ExOr:
-		return nil, errIntervalCount(count, count, unit, fractionalSeconds)
+		return nil, errIntervalCountCondition
 	case exp.Expression:
 		return count, nil
 	case driver.Valuer:

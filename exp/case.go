@@ -65,7 +65,7 @@ func (c caseExpression) Value(value interface{}) CaseExpression {
 }
 
 func (c caseExpression) When(condition, result interface{}) CaseExpression {
-	c.whens = append(c.whens, NewCaseWhen(condition, result))
+	c.whens = append(c.whens[0:len(c.whens):len(c.whens)], NewCaseWhen(condition, result))
 	return c
 }
 

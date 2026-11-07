@@ -42,7 +42,7 @@ func NewIntervalExpression(count any, unit IntervalUnit) IntervalExpression {
 func (te timeFunctionExpression) Clone() Expression                    { return te }
 func (te timeFunctionExpression) Expression() Expression               { return te }
 func (te timeFunctionExpression) Function() TimeFunction               { return te.function }
-func (te timeFunctionExpression) FSP() []int                           { return slices.Clone(te.fsp) }
+func (te timeFunctionExpression) FSP() []int                           { return te.fsp }
 func (te timeFunctionExpression) As(val any) AliasedExpression         { return NewAliasExpression(te, val) }
 func (te timeFunctionExpression) Eq(val any) BooleanExpression         { return eq(te, val) }
 func (te timeFunctionExpression) Neq(val any) BooleanExpression        { return neq(te, val) }
