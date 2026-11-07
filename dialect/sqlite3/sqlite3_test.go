@@ -131,6 +131,16 @@ func (st *sqlite3Suite) TestTimeFunctions() {
 		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).Count()
 		st.EqualError(err, "goqu: dialect does not support Interval [dialect=sqlite3]")
 	}
+
+	var utc, local []string
+	st.Require().NoError(st.db.Select(goqu.UTCTimestamp(3)).ScanVals(&utc))
+	st.Require().NoError(st.db.Select(goqu.Now()).ScanVals(&local))
+	utcTime, err := time.ParseInLocation("2006-01-02 15:04:05.000", utc[0], time.UTC)
+	st.Require().NoError(err)
+	localTime, err := time.ParseInLocation(time.DateTime, local[0], time.Local)
+	st.Require().NoError(err)
+	st.WithinDuration(time.Now(), utcTime, time.Minute)
+	st.WithinDuration(time.Now(), localTime, time.Minute)
 }
 
 func (st *sqlite3Suite) TestSelectSQL() {

@@ -126,8 +126,16 @@ func errIntervalUnit(unit exp.IntervalUnit) error {
 	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 
-func errIntervalCount(count any) error {
-	return NewInvalidExpressionError("Interval count must be an integer, a number of seconds or an expression, got %T %v", count, count)
+func errIntervalCount(count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
+	accepted := "an integer or an expression"
+	if fractionalSeconds {
+		accepted = "an integer, an expression or, with SECOND, a finite number"
+	}
+	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s", accepted, count, value, unit)
+}
+
+func errIntervalCountValue(cause error) error {
+	return NewInvalidExpressionErrorWithCause(cause, "Interval count")
 }
 
 func errIntervalNotSupported(dialect string) error {
@@ -1056,42 +1064,44 @@ var intervalUnitNames = func() string {
 
 var durationType = reflect.TypeOf(time.Duration(0))
 
-func checkIntervalCount(count any, unit exp.IntervalUnit) error {
+func intervalCount(count any, unit exp.IntervalUnit, fractionalSeconds bool) (any, error) {
 	value := count
 	switch v := count.(type) {
-	case nil, exp.Expression:
-		return nil
+	case exp.Ex, exp.ExOr:
+		return nil, errIntervalCount(count, count, unit, fractionalSeconds)
+	case exp.Expression:
+		return count, nil
 	case driver.Valuer:
 		resolved, err := valuerValue(v)
 		if err != nil {
-			return err
+			return nil, errIntervalCountValue(err)
 		}
 		value = resolved
 	}
 	rv := reflect.Indirect(reflect.ValueOf(value))
 	switch {
 	case !rv.IsValid():
-		return nil
+		return value, nil
 	case rv.Type() == durationType:
-		return errIntervalCount(count)
 	case util.IsInt(rv.Kind()), util.IsUint(rv.Kind()):
-		return nil
-	case util.IsFloat(rv.Kind()) && unit == exp.SecondInterval:
-		return nil
-	default:
-		return errIntervalCount(count)
+		return value, nil
+	case util.IsFloat(rv.Kind()) && fractionalSeconds && unit == exp.SecondInterval &&
+		!math.IsNaN(rv.Float()) && !math.IsInf(rv.Float(), 0):
+		return value, nil
 	}
+	return nil, errIntervalCount(count, rv.Interface(), unit, fractionalSeconds)
 }
 
-func intervalUnit(e exp.IntervalExpression) (unit exp.IntervalUnit, quantity string, err error) {
+func intervalUnit(e exp.IntervalExpression, fractionalSeconds bool) (unit exp.IntervalUnit, quantity string, count any, err error) {
 	unit, quantity, err = lookupIntervalUnit(e.Unit())
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
-	if err := checkIntervalCount(e.Count(), unit); err != nil {
-		return "", "", err
+	count, err = intervalCount(e.Count(), unit, fractionalSeconds)
+	if err != nil {
+		return "", "", nil, err
 	}
-	return unit, quantity, nil
+	return unit, quantity, count, nil
 }
 
 func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quantity string, err error) {
@@ -1123,7 +1133,7 @@ type timeRenderers struct {
 func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
 	switch esg.dialectOptions.TimeStyle {
 	case PostgresTimeStyle:
-		return timeRenderers{now: esg.postgresTimeSQL, interval: esg.multipliedIntervalSQL}, nil
+		return timeRenderers{now: esg.postgresTimeSQL, interval: esg.postgresIntervalSQL}, nil
 	case MySQLTimeStyle:
 		return timeRenderers{now: esg.mysqlTimeSQL, interval: esg.mysqlIntervalSQL}, nil
 	case SQLiteTimeStyle:
@@ -1131,7 +1141,7 @@ func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
 	case SQLServerTimeStyle:
 		return timeRenderers{now: esg.sqlServerTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
 	case DuckDBTimeStyle:
-		return timeRenderers{now: esg.duckDBTimeSQL, interval: esg.multipliedIntervalSQL}, nil
+		return timeRenderers{now: esg.duckDBTimeSQL, interval: esg.duckDBIntervalSQL}, nil
 	default:
 		return timeRenderers{}, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
 	}
@@ -1269,24 +1279,32 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.
 }
 
 func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
-	unit, _, err := intervalUnit(e)
+	unit, _, count, err := intervalUnit(e, true)
 	if err != nil {
 		return err
 	}
-	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), e.Count()))
+	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
 	return nil
 }
 
-func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
-	_, quantity, err := intervalUnit(e)
+func (esg *expressionSQLGenerator) postgresIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	return esg.multipliedIntervalSQL(b, e, true)
+}
+
+func (esg *expressionSQLGenerator) duckDBIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	return esg.multipliedIntervalSQL(b, e, false)
+}
+
+func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression, fractionalSeconds bool) error {
+	_, quantity, count, err := intervalUnit(e, fractionalSeconds)
 	if err != nil {
 		return err
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
-	if literal, isLiteral := e.Count().(exp.LiteralExpression); isLiteral {
+	if literal, isLiteral := count.(exp.LiteralExpression); isLiteral {
 		esg.parenthesizedSQL(b, literal)
 	} else {
-		esg.Generate(b, e.Count())
+		esg.Generate(b, count)
 	}
 	b.WriteStrings(" * INTERVAL '" + quantity + "'")
 	b.WriteRunes(esg.dialectOptions.RightParenRune)

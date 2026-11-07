@@ -141,6 +141,9 @@ func (st *duckdbSuite) TestTimeFunctions() {
 
 		_, err = ds.Where(goqu.C("time").Lt(goqu.Now(2))).Count()
 		st.EqualError(err, "goqu: dialect does not support fsp 2, want one of 0, 3, 6 [dialect=duckdb]")
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1.5, goqu.SecondInterval)))).Count()
+		st.EqualError(err, "goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND")
 	}
 }
 
