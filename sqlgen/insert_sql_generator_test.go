@@ -488,6 +488,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsuppor
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
 		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT (test) DO UPDATE SET "a"='b'`},
+		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT DO UPDATE SET "a"='b'`},
 	)
 
 	opts = sqlgen.DefaultDialectOptions()

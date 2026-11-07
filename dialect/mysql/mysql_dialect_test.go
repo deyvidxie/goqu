@@ -341,8 +341,10 @@ func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
 	} {
 		t.Run(dialect, func(t *testing.T) {
 			for _, ds := range upserts(goqu.Dialect(dialect)) {
-				_, _, err := ds.ToSQL()
+				sql, _, err := ds.ToSQL()
 				assert.NoError(t, err)
+				assert.Contains(t, sql, " ON DUPLICATE KEY UPDATE `b`=")
+				assert.NotContains(t, sql, "(a)")
 			}
 
 			opts := dialectOptions()
