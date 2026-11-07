@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
-
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	_ "github.com/microsoft/go-mssqldb"
@@ -111,6 +109,27 @@ func (sst *sqlserverTest) SetupTest() {
 	}
 }
 
+func (sst *sqlserverTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := sst.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(3))).Count()
+		sst.Require().NoError(err)
+		sst.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp().Gt(goqu.C("time"))).Count()
+		sst.Require().NoError(err)
+		sst.Equal(int64(10), count)
+
+		var times []time.Time
+		sst.Require().NoError(ds.Select(goqu.UTCTimestamp(3)).Order(goqu.C("id").Asc()).Limit(1).ScanVals(&times))
+		sst.Require().Len(times, 1)
+		sst.WithinDuration(time.Now().UTC(), times[0], time.Minute)
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).Count()
+		sst.EqualError(err, "goqu: dialect does not support Interval [dialect=sqlserver]")
+	}
+}
+
 func (sst *sqlserverTest) TestToSQL() {
 	ds := sst.db.From("entry")
 	s, _, err := ds.Select("id", "float", "string", "time", "bool").ToSQL()
@@ -149,7 +168,7 @@ func (sst *sqlserverTest) TestQuery() {
 		}},
 		entryTestCase{
 			ds:  ds.Where(goqu.C("bool").IsTrue()).Order(goqu.C("id").Asc()),
-			err: "goqu: boolean data type is not supported by dialect \"sqlserver\"",
+			err: "goqu: boolean data type is not supported [dialect=sqlserver]",
 		},
 		entryTestCase{ds: ds.Where(goqu.C("int").Gt(4)).Order(goqu.C("id").Asc()), len: 5, check: func(entry entry, _ int) {
 			sst.True(entry.Int > 4)
@@ -208,7 +227,7 @@ func (sst *sqlserverTest) TestQuery_Prepared() {
 		}},
 		entryTestCase{
 			ds:  ds.Where(goqu.C("bool").IsTrue()).Order(goqu.C("id").Asc()),
-			err: "goqu: boolean data type is not supported by dialect \"sqlserver\"",
+			err: "goqu: boolean data type is not supported [dialect=sqlserver]",
 		},
 		entryTestCase{ds: ds.Where(goqu.C("int").Gt(4)).Order(goqu.C("id").Asc()), len: 5, check: func(entry entry, _ int) {
 			sst.True(entry.Int > 4)
@@ -421,8 +440,8 @@ func (sst *sqlserverTest) TestInsert() {
 		sst.Equal(entries[i]["Float"], e.Float)
 		sst.Equal(entries[i]["String"], e.String)
 		sst.Equal(
-			entries[i]["Time"].(time.Time).UTC().Format(mysql.DialectOptions().TimeFormat),
-			e.Time.Format(mysql.DialectOptions().TimeFormat),
+			entries[i]["Time"].(time.Time).UTC().Format(time.DateTime),
+			e.Time.Format(time.DateTime),
 		)
 		sst.Equal(entries[i]["Bool"], e.Bool)
 		sst.Equal([]byte(entries[i]["String"].(string)), e.Bytes)

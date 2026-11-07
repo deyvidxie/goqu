@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type (
 	SelectClauses interface {
 		HasSources() bool
@@ -114,7 +116,7 @@ func (c *selectClauses) IsDefaultSelect() bool {
 
 func (c *selectClauses) clone() *selectClauses {
 	return &selectClauses{
-		commonTables:  c.commonTables,
+		commonTables:  c.commonTables[0:len(c.commonTables):len(c.commonTables)],
 		selectColumns: c.selectColumns,
 		distinct:      c.distinct,
 		from:          c.from,
@@ -126,9 +128,9 @@ func (c *selectClauses) clone() *selectClauses {
 		order:         c.order,
 		limit:         c.limit,
 		offset:        c.offset,
-		compounds:     c.compounds,
+		compounds:     c.compounds[0:len(c.compounds):len(c.compounds)],
 		lock:          c.lock,
-		windows:       c.windows,
+		windows:       c.windows[0:len(c.windows):len(c.windows)],
 		qualify:       c.qualify,
 	}
 }
@@ -391,7 +393,7 @@ func (c *selectClauses) Windows() []WindowExpression {
 
 func (c *selectClauses) SetWindows(ws []WindowExpression) SelectClauses {
 	ret := c.clone()
-	ret.windows = ws
+	ret.windows = slices.Clone(ws)
 	return ret
 }
 

@@ -95,6 +95,60 @@ func (pt *postgresTest) SetupTest() {
 	}
 }
 
+func (pt *postgresTest) TestTimeFunctionsInNonUTCSession() {
+	tx, err := pt.db.Begin()
+	pt.Require().NoError(err)
+	defer func() { pt.NoError(tx.Rollback()) }()
+	_, err = tx.Exec("SET LOCAL TIME ZONE 'Asia/Kolkata'")
+	pt.Require().NoError(err)
+
+	var utc, now []time.Time
+	pt.Require().NoError(tx.From("entry").Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&utc))
+	pt.Require().NoError(tx.From("entry").Select(goqu.Now(6)).Limit(1).ScanVals(&now))
+	pt.Require().Len(utc, 1)
+	pt.Require().Len(now, 1)
+	wall := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	}
+	pt.WithinDuration(time.Now().UTC(), wall(utc[0]), time.Minute)
+	pt.WithinDuration(time.Now(), now[0], time.Minute)
+	_, offset := now[0].Zone()
+	pt.Equal(5*60*60+30*60, offset)
+}
+
+func (pt *postgresTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := pt.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(6).Sub(goqu.Interval(1, "year")))).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		oneSecond := goqu.L("EXTRACT(EPOCH FROM ? - ?)", goqu.Now().Add(goqu.Interval(1, "second")), goqu.Now())
+		count, err = ds.Where(oneSecond.Eq(1)).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		halfSeconds := goqu.L("EXTRACT(EPOCH FROM ? - ?)", goqu.Now().Add(goqu.Interval(1.5, goqu.SecondInterval)), goqu.Now())
+		count, err = ds.Where(halfSeconds.Eq(1.5)).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.Now().Add(goqu.Interval(goqu.L("2 - 1"), goqu.DayInterval)).Eq(goqu.L("NOW() + INTERVAL '1 DAY'"))).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		quarter := goqu.L("(NOW() AT TIME ZONE 'UTC') + INTERVAL '3 MONTH'")
+		count, err = ds.Where(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")).Eq(quarter)).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
+		var times []time.Time
+		pt.Require().NoError(ds.Select(goqu.Now(3)).Limit(1).ScanVals(&times))
+		pt.Require().Len(times, 1)
+		pt.WithinDuration(time.Now(), times[0], time.Minute)
+	}
+}
+
 func (pt *postgresTest) TestToSQL() {
 	ds := pt.db.From("entry")
 	s, _, err := ds.Select("id", "float", "string", "time", "bool").ToSQL()

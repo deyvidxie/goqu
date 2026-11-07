@@ -144,7 +144,7 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 	dw := goqu.Dialect("sqlserver")
 	for _, render := range []func(exp.Expression) (string, []interface{}, error){dw.ExpressionSQL, dw.PreparedExpressionSQL} {
 		sql, args, err := render(goqu.C("a").BitwiseLeftShift(1))
-		dws.EqualError(err, "goqu: bitwise operator 'Left Shift' not supported")
+		dws.EqualError(err, "goqu: bitwise operator 'Left Shift' not supported [dialect=sqlserver]")
 		dws.True(sqlgen.IsUnsupported(err))
 		dws.Empty(sql)
 		dws.Empty(args)
@@ -153,7 +153,7 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 
 func (dws *dialectWrapperSuite) TestExpressionSQL_errorNamesDialect() {
 	_, _, err := goqu.DialectWithTagName("sqlserver", "json").ExpressionSQL(goqu.C("a").IsTrue())
-	dws.EqualError(err, `goqu: boolean data type is not supported by dialect "sqlserver"`)
+	dws.EqualError(err, "goqu: boolean data type is not supported [dialect=sqlserver]")
 }
 
 func (dws *dialectWrapperSuite) TestExpressionSQL_ignoresDefaultPrepared() {

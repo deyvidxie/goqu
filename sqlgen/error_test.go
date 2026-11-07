@@ -145,10 +145,20 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").ForUpdate(goqu.Wait, goqu.T("t"))
 		}},
-		{"JSON functions", "JSONExtract, JSONValue or JSONContains", func(o *sqlgen.SQLDialectOptions) {
+		{"JSON functions", "JSONValue", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMySQLJSONFunctions = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1))
+		}},
+		{"Interval", "Interval", func(o *sqlgen.SQLDialectOptions) {
+			o.TimeStyle = sqlgen.SQLServerTimeStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Where(goqu.C("a").Lt(goqu.Now().Sub(goqu.Interval(1, "day"))))
+		}},
+		{"fsp", "fsp 6, want one of 0, 3", func(o *sqlgen.SQLDialectOptions) {
+			o.TimeStyle = sqlgen.SQLiteTimeStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.Now(6))
 		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false

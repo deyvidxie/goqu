@@ -95,6 +95,20 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("postgres").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]")
+	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=postgres]")
 	assert.True(t, sqlgen.IsUnsupported(err))
+}
+
+func TestTimeFunctions(t *testing.T) {
+	ds := goqu.Dialect("postgres").From("t").Select(goqu.Now(6), goqu.UTCTimestamp()).
+		Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day"))))
+	sql, args, err := ds.ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CURRENT_TIMESTAMP(6), (NOW() AT TIME ZONE 'UTC') FROM "t" WHERE ("at" < (NOW() - (1 * INTERVAL '1 DAY')))`, sql)
+	assert.Empty(t, args)
+
+	sql, args, err = ds.Prepared(true).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT CURRENT_TIMESTAMP(6), (NOW() AT TIME ZONE 'UTC') FROM "t" WHERE ("at" < (NOW() - ($1 * INTERVAL '1 DAY')))`, sql)
+	assert.Equal(t, []any{int64(1)}, args)
 }

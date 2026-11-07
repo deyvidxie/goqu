@@ -8,6 +8,7 @@ import (
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.MySQLTimeStyle
 
 	opts.SupportsReturn = false
 	opts.SupportsMySQLJSONFunctions = true
@@ -32,7 +33,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.DefaultValuesFragment = []byte("")
 	opts.True = []byte("1")
 	opts.False = []byte("0")
-	opts.TimeFormat = "2006-01-02 15:04:05"
+	opts.TimeFormat = "2006-01-02 15:04:05.999999"
 	opts.ForShareFragment = []byte(" LOCK IN SHARE MODE ")
 	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForKeyShare}
 	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait, exp.SkipLocked}

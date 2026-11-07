@@ -64,9 +64,9 @@ When a `time.Time` is interpolated (non-prepared mode, `goqu`'s default) it is f
 
 | dialect | interpolated fraction |
 |---|---|
-| `mysql`, `mysql8` | none: the fraction is dropped, even for `DATETIME(6)`/`TIMESTAMP(6)` columns, and `Eq` misses rows stored with a fraction |
+| `mysql`, `mysql8` | microseconds, truncated. MySQL rounds into a lower-precision column on store but compares at full precision: `Eq` against a `DATETIME(0)` row written this way needs `t.Round(time.Second)`; rows written by older goqu, on MariaDB or with `TIME_TRUNCATE_FRACTIONAL` need `t.Truncate(time.Second)` |
 | `mysql8nano` | nanoseconds; MySQL rounds them to the column's precision, as it does for prepared values |
 | `sqlserver` | 100 nanoseconds |
-| `postgres`, `sqlite3`, `duckdb`, default | nanoseconds (`time.RFC3339Nano`) |
+| `sqlite3` | nanoseconds as `2006-01-02 15:04:05.999999999-07:00`, the text the go-sqlite3 driver binds in prepared mode; prepared mode keeps the value's own zone, so the two match only for a `time.Time` in goqu's time location (UTC unless `SetTimeLocation`) |
+| `postgres`, `duckdb`, default | nanoseconds (`time.RFC3339Nano`) |
 
-To keep fractional seconds on MySQL, use the `mysql8nano` dialect or prepared mode, where the driver sends the full value.

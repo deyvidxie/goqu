@@ -1,6 +1,7 @@
 package sqlserver_test
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -45,6 +46,21 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlserverDialectSuite) TestTimeFunctions() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql: `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`,
+		},
+		sqlTestCase{
+			ds:         sds.GetDs("t").Prepared(true).Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql:        `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`,
+			isPrepared: true,
+			args:       []interface{}{},
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestLiteralString() {
 	ds := sds.GetDs("test")
 	col := goqu.C("a")
@@ -84,8 +100,8 @@ func (sds *sqlserverDialectSuite) TestBitwiseOperations() {
 		sqlTestCase{ds: ds.Where(col.BitwiseAnd(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" & 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseOr(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" | 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" ^ 1)"},
-		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), err: "goqu: bitwise operator 'Left Shift' not supported"},
-		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), err: "goqu: bitwise operator 'Right Shift' not supported"},
+		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), err: "goqu: bitwise operator 'Left Shift' not supported [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), err: "goqu: bitwise operator 'Right Shift' not supported [dialect=sqlserver]"},
 	)
 }
 
@@ -281,6 +297,24 @@ func TestEmptyInList(t *testing.T) {
 
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlserver]")
+	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=sqlserver]")
 	assert.True(t, sqlgen.IsUnsupported(err))
+}
+
+func TestIntervalIsError(t *testing.T) {
+	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
+	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlserver]`)
+	assert.True(t, sqlgen.IsUnsupported(err))
+}
+
+func TestRegexpIsError(t *testing.T) {
+	re := regexp.MustCompile("[ab]")
+	a := goqu.C("a")
+	for op, condition := range map[string]exp.BooleanExpression{
+		"regexplike": a.Like(re), "regexpnotlike": a.NotLike(re), "regexpilike": a.ILike(re), "regexpnotilike": a.NotILike(re),
+	} {
+		_, _, err := goqu.Dialect("sqlserver").From("t").Where(condition).ToSQL()
+		assert.EqualError(t, err, "goqu: boolean operator '"+op+"' not supported [dialect=sqlserver]")
+		assert.True(t, sqlgen.IsUnsupported(err))
+	}
 }

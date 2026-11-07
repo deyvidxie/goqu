@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -61,6 +62,7 @@ var (
 	errJSONCandidateCondition        = NewInvalidExpressionError(
 		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 	)
+	errIntervalCountCondition     = NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
 	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
@@ -74,20 +76,32 @@ func errUnsupportedIdentifierExpression(t interface{}) error {
 	return errors.New("unexpected col type must be string or LiteralExpression received %T", t)
 }
 
-func errUnsupportedBooleanExpressionOperator(op exp.BooleanOperation) error {
-	return NewUnsupportedError("boolean operator '%+v' not supported", op)
+func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
+	if caseInsensitiveLike && (op == exp.LikeOp || op == exp.NotLikeOp) {
+		return NewUnsupportedError("boolean operator '%+v' not supported, use ILike/NotILike [dialect=%s]", op, dialect)
+	}
+	return NewUnsupportedError("boolean operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
-func errUnsupportedBitwiseExpressionOperator(op exp.BitwiseOperation) error {
-	return NewUnsupportedError("bitwise operator '%+v' not supported", op)
+func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
+	caseInsensitiveLike := bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
+	return errUnsupportedBooleanExpressionOperator(esg.dialect, op, caseInsensitiveLike)
 }
 
-func errUnsupportedArithmeticExpressionOperator(op exp.ArithmeticOperation) error {
-	return NewUnsupportedError("arithmetic operator '%+v' not supported", op)
+func errUnsupportedBitwiseExpressionOperator(dialect string, op exp.BitwiseOperation) error {
+	return NewUnsupportedError("bitwise operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
-func errUnsupportedRangeExpressionOperator(op exp.RangeOperation) error {
-	return NewUnsupportedError("range operator %+v not supported", op)
+func errUnsupportedArithmeticExpressionOperator(dialect string, op exp.ArithmeticOperation) error {
+	return NewUnsupportedError("arithmetic operator '%+v' not supported [dialect=%s]", op, dialect)
+}
+
+func errUnsupportedRangeExpressionOperator(dialect string, op exp.RangeOperation) error {
+	return NewUnsupportedError("range operator '%+v' not supported [dialect=%s]", op, dialect)
+}
+
+func errBooleanDataTypeNotSupported(dialect string) error {
+	return NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
 }
 
 func errExcludedFragmentEmpty(option string) error {
@@ -98,8 +112,62 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
-func errJSONFunctionsNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support JSONExtract, JSONValue or JSONContains [dialect=%s]", dialect)
+func errTimeFSPCount(n int) error {
+	return NewInvalidExpressionError("Now and UTCTimestamp take at most one fsp, got %d", n)
+}
+
+func errTimeFSPRange(fsp int) error {
+	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and %d, got %d", microsecondFSP, fsp)
+}
+
+func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
+	names := make([]string, len(supported))
+	for i, s := range supported {
+		names[i] = strconv.Itoa(s)
+	}
+	return NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
+}
+
+func errUnknownTimeFunction(function exp.TimeFunction) error {
+	return NewInvalidExpressionError("unknown TimeFunction %d", function)
+}
+
+func errUnknownTimeStyle(dialect string, style TimeStyle) error {
+	return NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
+}
+
+func errIntervalUnit(unit exp.IntervalUnit) error {
+	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
+}
+
+func errIntervalCount(dialect string, count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
+	accepted := "an integer or an expression"
+	if fractionalSeconds {
+		accepted = "an integer, an expression or, with SECOND, a finite number"
+	}
+	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s [dialect=%s]", accepted, count, value, unit, dialect)
+}
+
+func errIntervalCountValue(cause error) error {
+	return NewInvalidExpressionErrorWithCause(cause, "Interval count")
+}
+
+func errIntervalNotSupported(dialect string) error {
+	return NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
+}
+
+var jsonFunctionNames = map[exp.JSONFunction]string{
+	exp.JSONExtractFunction:  "JSONExtract",
+	exp.JSONValueFunction:    "JSONValue",
+	exp.JSONContainsFunction: "JSONContains",
+}
+
+func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) error {
+	name, ok := jsonFunctionNames[function]
+	if !ok {
+		return errUnknownJSONFunction(function)
+	}
+	return NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
 }
 
 func errJSONContainsPaths(n int) error {
@@ -338,6 +406,10 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.excludedExpressionSQL(b, e)
 	case exp.JSONExpression:
 		esg.jsonExpressionSQL(b, e)
+	case exp.TimeFunctionExpression:
+		esg.timeFunctionExpressionSQL(b, e)
+	case exp.IntervalExpression:
+		esg.intervalExpressionSQL(b, e)
 	case exp.AppendableExpression:
 		esg.appendableExpressionSQL(b, e)
 	case exp.CommonTableExpression:
@@ -557,13 +629,13 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBooleanExpressionOperator(operatorOp))
+		b.SetError(esg.errUnsupportedBooleanOperator(operatorOp))
 		return
 	}
 	rhs := operator.RHS()
 
 	if (operatorOp == exp.IsOp || operatorOp == exp.IsNotOp) && rhs != nil && !esg.dialectOptions.BooleanDataTypeSupported {
-		b.SetError(NewUnsupportedError("boolean data type is not supported by dialect %q", esg.dialect))
+		b.SetError(errBooleanDataTypeNotSupported(esg.dialect))
 		return
 	}
 
@@ -608,7 +680,7 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	}
 	op := operator.Op()
 	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
-		b.SetError(errUnsupportedBooleanExpressionOperator(op))
+		b.SetError(esg.errUnsupportedBooleanOperator(op))
 		return
 	}
 	fragment, errMissing := esg.dialectOptions.EmptyInFragment, errEmptyInFragmentMissing
@@ -664,7 +736,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BitwiseOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBitwiseExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedBitwiseExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 
@@ -682,7 +754,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, oper
 	if val, ok := esg.dialectOptions.ArithmeticOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedArithmeticExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedArithmeticExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -699,7 +771,7 @@ func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator 
 	if val, ok := esg.dialectOptions.RangeOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedRangeExpressionOperator(operatorOp))
+		b.SetError(errUnsupportedRangeExpressionOperator(esg.dialect, operatorOp))
 		return
 	}
 	rhs := operator.RHS()
@@ -991,9 +1063,287 @@ func describeCollation(collation any) string {
 	return fmt.Sprintf("%v", collation)
 }
 
+var intervalUnits = []struct {
+	unit     exp.IntervalUnit
+	quantity string
+}{
+	{exp.MicrosecondInterval, "1 MICROSECOND"},
+	{exp.SecondInterval, "1 SECOND"},
+	{exp.MinuteInterval, "1 MINUTE"},
+	{exp.HourInterval, "1 HOUR"},
+	{exp.DayInterval, "1 DAY"},
+	{exp.WeekInterval, "1 WEEK"},
+	{exp.MonthInterval, "1 MONTH"},
+	{exp.QuarterInterval, "3 MONTH"},
+	{exp.YearInterval, "1 YEAR"},
+}
+
+var intervalUnitNames = func() string {
+	names := make([]string, len(intervalUnits))
+	for i, u := range intervalUnits {
+		names[i] = string(u.unit)
+	}
+	return strings.Join(names, ", ")
+}()
+
+var durationType = reflect.TypeOf(time.Duration(0))
+
+func intervalCount(dialect string, count any, unit exp.IntervalUnit, fractionalSeconds bool) (any, error) {
+	value := count
+	switch v := count.(type) {
+	case exp.Ex, exp.ExOr:
+		return nil, errIntervalCountCondition
+	case exp.Expression:
+		return count, nil
+	case driver.Valuer:
+		resolved, err := valuerValue(v)
+		if err != nil {
+			return nil, errIntervalCountValue(err)
+		}
+		value = resolved
+	}
+	rv := reflect.Indirect(reflect.ValueOf(value))
+	switch {
+	case !rv.IsValid():
+		return value, nil
+	case rv.Type() == durationType:
+	case util.IsInt(rv.Kind()), util.IsUint(rv.Kind()):
+		return value, nil
+	case util.IsFloat(rv.Kind()) && fractionalSeconds && unit == exp.SecondInterval &&
+		!math.IsNaN(rv.Float()) && !math.IsInf(rv.Float(), 0):
+		return value, nil
+	}
+	return nil, errIntervalCount(dialect, count, rv.Interface(), unit, fractionalSeconds)
+}
+
+func intervalUnit(
+	dialect string, e exp.IntervalExpression, fractionalSeconds bool,
+) (unit exp.IntervalUnit, quantity string, count any, err error) {
+	unit, quantity, err = lookupIntervalUnit(e.Unit())
+	if err != nil {
+		return "", "", nil, err
+	}
+	count, err = intervalCount(dialect, e.Count(), unit, fractionalSeconds)
+	if err != nil {
+		return "", "", nil, err
+	}
+	return unit, quantity, count, nil
+}
+
+func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quantity string, err error) {
+	name := string(unit)
+	for i := 0; i < len(name); i++ {
+		if name[i] >= utf8.RuneSelf {
+			return "", "", errIntervalUnit(unit)
+		}
+	}
+	name = strings.ToUpper(name)
+	for _, u := range intervalUnits {
+		if string(u.unit) == name {
+			return u.unit, u.quantity, nil
+		}
+	}
+	return "", "", errIntervalUnit(unit)
+}
+
+const (
+	millisecondFSP = 3
+	microsecondFSP = 6
+)
+
+type timeRenderers struct {
+	now      func(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error
+	interval func(b sb.SQLBuilder, e exp.IntervalExpression) error
+}
+
+func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
+	switch esg.dialectOptions.TimeStyle {
+	case PostgresTimeStyle:
+		return timeRenderers{now: esg.postgresTimeSQL, interval: esg.postgresIntervalSQL}, nil
+	case MySQLTimeStyle:
+		return timeRenderers{now: esg.mysqlTimeSQL, interval: esg.mysqlIntervalSQL}, nil
+	case SQLiteTimeStyle:
+		return timeRenderers{now: esg.sqliteTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
+	case SQLServerTimeStyle:
+		return timeRenderers{now: esg.sqlServerTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
+	case DuckDBTimeStyle:
+		return timeRenderers{now: esg.duckDBTimeSQL, interval: esg.duckDBIntervalSQL}, nil
+	default:
+		return timeRenderers{}, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
+	}
+}
+
+func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e exp.TimeFunctionExpression) {
+	render, err := esg.timeRenderers()
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	fsp, hasFSP, err := timeFSP(e.FSP())
+	if err != nil {
+		b.SetError(err)
+		return
+	}
+	var utc bool
+	switch e.Function() {
+	case exp.NowFunction:
+	case exp.UTCTimestampFunction:
+		utc = true
+	default:
+		b.SetError(errUnknownTimeFunction(e.Function()))
+		return
+	}
+	if err := render.now(b, utc, fsp, hasFSP); err != nil {
+		b.SetError(err)
+	}
+}
+
+func timeFSP(fsp []int) (value int, ok bool, err error) {
+	switch len(fsp) {
+	case 0:
+		return 0, false, nil
+	case 1:
+		if fsp[0] < 0 || fsp[0] > microsecondFSP {
+			return 0, false, errTimeFSPRange(fsp[0])
+		}
+		return fsp[0], true, nil
+	default:
+		return 0, false, errTimeFSPCount(len(fsp))
+	}
+}
+
+func timeFunc(name string, fsp int, hasFSP bool) exp.SQLFunctionExpression {
+	if hasFSP {
+		return exp.NewSQLFunctionExpression(name, exp.NewLiteralExpression(strconv.Itoa(fsp)))
+	}
+	return exp.NewSQLFunctionExpression(name)
+}
+
+func (esg *expressionSQLGenerator) parenthesizedSQL(b sb.SQLBuilder, e exp.Expression) {
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	esg.Generate(b, e)
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
+}
+
+func (esg *expressionSQLGenerator) postgresTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	now := exp.NewSQLFunctionExpression("NOW")
+	if hasFSP {
+		now = timeFunc("CURRENT_TIMESTAMP", fsp, hasFSP)
+	}
+	if utc {
+		esg.parenthesizedSQL(b, exp.NewLiteralExpression("? AT TIME ZONE 'UTC'", now))
+		return nil
+	}
+	esg.Generate(b, now)
+	return nil
+}
+
+func (esg *expressionSQLGenerator) mysqlTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	name := "NOW"
+	if utc {
+		name = "UTC_TIMESTAMP"
+	}
+	esg.Generate(b, timeFunc(name, fsp, hasFSP))
+	return nil
+}
+
+func (esg *expressionSQLGenerator) sqliteTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	args := []any{exp.NewLiteralExpression("'now'")}
+	if !utc {
+		args = append(args, exp.NewLiteralExpression("'localtime'"))
+	}
+	switch {
+	case !hasFSP || fsp == 0:
+		esg.Generate(b, exp.NewSQLFunctionExpression("datetime", args...))
+	case fsp == millisecondFSP:
+		esg.Generate(b, exp.NewSQLFunctionExpression("strftime", append([]any{exp.NewLiteralExpression("'%Y-%m-%d %H:%M:%f'")}, args...)...))
+	default:
+		return errTimeFSPNotSupported(esg.dialect, fsp, 0, millisecondFSP)
+	}
+	return nil
+}
+
+func (esg *expressionSQLGenerator) sqlServerTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	now := exp.NewSQLFunctionExpression("SYSDATETIME")
+	if utc {
+		now = exp.NewSQLFunctionExpression("SYSUTCDATETIME")
+	}
+	if hasFSP {
+		esg.Generate(b, exp.NewCastExpression(now, fmt.Sprintf("DATETIME2(%d)", fsp)))
+		return nil
+	}
+	esg.Generate(b, now)
+	return nil
+}
+
+func (esg *expressionSQLGenerator) duckDBTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	var now exp.Expression = exp.NewCastExpression(exp.NewSQLFunctionExpression("now"), "TIMESTAMP")
+	if utc {
+		now = exp.NewSQLFunctionExpression("make_timestamp", exp.NewSQLFunctionExpression("epoch_us", exp.NewSQLFunctionExpression("now")))
+	}
+	switch {
+	case !hasFSP || fsp == microsecondFSP:
+		esg.Generate(b, now)
+	case fsp == 0:
+		esg.Generate(b, exp.NewCastExpression(now, "TIMESTAMP_S"))
+	case fsp == millisecondFSP:
+		esg.Generate(b, exp.NewCastExpression(now, "TIMESTAMP_MS"))
+	default:
+		return errTimeFSPNotSupported(esg.dialect, fsp, 0, millisecondFSP, microsecondFSP)
+	}
+	return nil
+}
+
+func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.IntervalExpression) {
+	render, err := esg.timeRenderers()
+	if err == nil {
+		err = render.interval(b, e)
+	}
+	if err != nil {
+		b.SetError(err)
+	}
+}
+
+func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	unit, _, count, err := intervalUnit(esg.dialect, e, true)
+	if err != nil {
+		return err
+	}
+	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
+	return nil
+}
+
+func (esg *expressionSQLGenerator) postgresIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	return esg.multipliedIntervalSQL(b, e, true)
+}
+
+func (esg *expressionSQLGenerator) duckDBIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	return esg.multipliedIntervalSQL(b, e, false)
+}
+
+func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression, fractionalSeconds bool) error {
+	_, quantity, count, err := intervalUnit(esg.dialect, e, fractionalSeconds)
+	if err != nil {
+		return err
+	}
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	if literal, isLiteral := count.(exp.LiteralExpression); isLiteral {
+		esg.parenthesizedSQL(b, literal)
+	} else {
+		esg.Generate(b, count)
+	}
+	b.WriteStrings(" * INTERVAL '" + quantity + "'")
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
+	return nil
+}
+
+func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sb.SQLBuilder, exp.IntervalExpression) error {
+	return errIntervalNotSupported(esg.dialect)
+}
+
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
 	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
-		b.SetError(errJSONFunctionsNotSupported(esg.dialect))
+		b.SetError(errJSONFunctionNotSupported(esg.dialect, e.Function()))
 		return
 	}
 	paths := make([]interface{}, len(e.Paths()))

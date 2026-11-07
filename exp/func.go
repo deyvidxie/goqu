@@ -7,13 +7,12 @@ type (
 	}
 )
 
-// Creates a new SQLFunctionExpression with the given name and arguments
 func NewSQLFunctionExpression(name string, args ...interface{}) SQLFunctionExpression {
-	return sqlFunctionExpression{name: name, args: args}
+	return sqlFunctionExpression{name: name, args: cloneArgs(args)}
 }
 
 func (sfe sqlFunctionExpression) Clone() Expression {
-	return sqlFunctionExpression{name: sfe.name, args: sfe.args}
+	return NewSQLFunctionExpression(sfe.name, sfe.args...)
 }
 
 func (sfe sqlFunctionExpression) Expression() Expression { return sfe }

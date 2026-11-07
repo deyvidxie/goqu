@@ -45,6 +45,25 @@ func (sds *sqlite3DialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlite3DialectSuite) TestTimeFunctions() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql: "SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `t`",
+		},
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(), goqu.UTCTimestamp(0)),
+			sql: "SELECT datetime('now', 'localtime'), datetime('now') FROM `t`",
+		},
+		sqlTestCase{
+			ds:         sds.GetDs("t").Prepared(true).Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql:        "SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `t`",
+			isPrepared: true,
+			args:       []interface{}{},
+		},
+	)
+}
+
 func (sds *sqlite3DialectSuite) TestIdentifiers() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(
@@ -158,14 +177,37 @@ func (sds *sqlite3DialectSuite) TestBooleanOperations() {
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNot(false)), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 0)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNotTrue()), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 1)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNotFalse()), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 0)"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Like("a%")), sql: "SELECT * FROM `test` WHERE (`a` LIKE 'a%' ESCAPE '\\')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike("a%")), sql: "SELECT * FROM `test` WHERE (`a` NOT LIKE 'a%' ESCAPE '\\')"},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Like("a%")),
+			err: "goqu: boolean operator 'like' not supported, use ILike/NotILike [dialect=sqlite3]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotLike("a%")),
+			err: "goqu: boolean operator 'notlike' not supported, use ILike/NotILike [dialect=sqlite3]",
+		},
 		sqlTestCase{ds: ds.Where(goqu.C("a").ILike("a%")), sql: "SELECT * FROM `test` WHERE (`a` LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike("a%")), sql: "SELECT * FROM `test` WHERE (`a` NOT LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '[ab]')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '[ab]')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '[ab]')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '[ab]')"},
+		sqlTestCase{
+			ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '(?i)' || '[ab]')",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))),
+			sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '(?i)' || '[ab]')",
+		},
+		sqlTestCase{
+			ds:         ds.Prepared(true).Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))),
+			sql:        "SELECT * FROM `test` WHERE (`a` REGEXP '(?i)' || ?)",
+			isPrepared: true,
+			args:       []interface{}{"[ab]"},
+		},
+		sqlTestCase{
+			ds:         ds.Prepared(true).Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))),
+			sql:        "SELECT * FROM `test` WHERE (`a` NOT REGEXP '(?i)' || ?)",
+			isPrepared: true,
+			args:       []interface{}{"[ab]"},
+		},
 	)
 }
 
@@ -173,10 +215,10 @@ func (sds *sqlite3DialectSuite) TestBitwiseOperations() {
 	col := goqu.C("a")
 	ds := sds.GetDs("test")
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Where(col.BitwiseInversion()), err: "goqu: bitwise operator 'Inversion' not supported"},
+		sqlTestCase{ds: ds.Where(col.BitwiseInversion()), err: "goqu: bitwise operator 'Inversion' not supported [dialect=sqlite3]"},
 		sqlTestCase{ds: ds.Where(col.BitwiseAnd(1)), sql: "SELECT * FROM `test` WHERE (`a` & 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseOr(1)), sql: "SELECT * FROM `test` WHERE (`a` | 1)"},
-		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), err: "goqu: bitwise operator 'XOR' not supported"},
+		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), err: "goqu: bitwise operator 'XOR' not supported [dialect=sqlite3]"},
 		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), sql: "SELECT * FROM `test` WHERE (`a` << 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), sql: "SELECT * FROM `test` WHERE (`a` >> 1)"},
 	)
@@ -254,6 +296,12 @@ func TestEmptyInList(t *testing.T) {
 
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlite3").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]")
+	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=sqlite3]")
+	assert.True(t, sqlgen.IsUnsupported(err))
+}
+
+func TestIntervalIsError(t *testing.T) {
+	_, _, err := goqu.Dialect("sqlite3").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
+	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlite3]`)
 	assert.True(t, sqlgen.IsUnsupported(err))
 }

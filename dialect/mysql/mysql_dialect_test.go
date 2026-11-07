@@ -128,6 +128,28 @@ func (mds *mysqlDialectSuite) TestArithmeticOperations() {
 	)
 }
 
+func (mds *mysqlDialectSuite) TestTimeFunctions() {
+	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(dialect).From("test")
+		mds.assertSQL(
+			sqlTestCase{
+				ds:  ds.Select(goqu.Now(), goqu.Now(6), goqu.UTCTimestamp(), goqu.UTCTimestamp(3)),
+				sql: "SELECT NOW(), NOW(6), UTC_TIMESTAMP(), UTC_TIMESTAMP(3) FROM `test`",
+			},
+			sqlTestCase{
+				ds:  ds.Where(goqu.C("at").Lt(goqu.Now(6).Add(goqu.Interval(1, "second")))),
+				sql: "SELECT * FROM `test` WHERE (`at` < (NOW(6) + INTERVAL 1 SECOND))",
+			},
+			sqlTestCase{
+				ds:         ds.Prepared(true).Where(goqu.C("at").Gt(goqu.UTCTimestamp().Sub(goqu.Interval(2, "quarter")))),
+				sql:        "SELECT * FROM `test` WHERE (`at` > (UTC_TIMESTAMP() - INTERVAL ? QUARTER))",
+				isPrepared: true,
+				args:       []interface{}{int64(2)},
+			},
+		)
+	}
+}
+
 func (mds *mysqlDialectSuite) TestJSONFunctions() {
 	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
 		ds := goqu.Dialect(dialect).From("test")
@@ -205,7 +227,7 @@ func (mds *mysqlDialectSuite) TestStraightJoin() {
 			sqlTestCase{
 				// MySQL 5.7 does not accept USING for STRAIGHT_JOIN
 				ds:  ds.StraightJoin(goqu.T("foo"), goqu.Using("test_id")),
-				err: "goqu: USING is not supported for StraightJoinType, use an ON condition",
+				err: "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
 			},
 			sqlTestCase{
 				ds:         ds.Prepared(true).StraightJoin(goqu.T("foo"), goqu.On(goqu.I("test.id").Eq(5))),
@@ -251,11 +273,11 @@ func (mds *mysqlDialectSuite) TestTimeLiteralPrecision() {
 	mds.assertSQL(
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql").From("test").Where(where),
-			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456')",
 		},
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql8").From("test").Where(where),
-			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456')",
 		},
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql8nano").From("test").Where(where),

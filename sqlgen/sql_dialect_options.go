@@ -10,6 +10,7 @@ import (
 type (
 	SQLFragmentType   int
 	ExcludedStyle     int
+	TimeStyle         int
 	SQLDialectOptions struct {
 		// Set to true if the dialect supports ORDER BY expressions in DELETE statements (DEFAULT=false)
 		SupportsOrderByOnDelete bool
@@ -338,6 +339,8 @@ type (
 		ExcludedTableFragment []byte
 		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
 		ExcludedValuesFuncFragment []byte
+		// How Now, UTCTimestamp and Interval render (Default=PostgresTimeStyle)
+		TimeStyle TimeStyle
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -488,6 +491,14 @@ const (
 	ExcludedTableStyle ExcludedStyle = iota
 	ExcludedValuesFuncStyle
 	ExcludedRowAliasStyle
+)
+
+const (
+	PostgresTimeStyle TimeStyle = iota
+	MySQLTimeStyle
+	SQLiteTimeStyle
+	SQLServerTimeStyle
+	DuckDBTimeStyle
 )
 
 //nolint:funlen

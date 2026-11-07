@@ -23,16 +23,26 @@ type (
 	}
 )
 
+// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
 func ErrNotSupportedJoinType(j exp.JoinExpression) error {
 	return NewUnsupportedError("dialect does not support %v", j.JoinType())
+}
+
+func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
+	return NewUnsupportedError("dialect does not support %v [dialect=%s]", j.JoinType(), dialect)
 }
 
 func ErrJoinConditionRequired(j exp.JoinExpression) error {
 	return errors.New("join condition required for conditioned join %v", j.JoinType())
 }
 
+// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
 func ErrJoinUsingNotSupported(j exp.JoinExpression) error {
 	return NewUnsupportedError("USING is not supported for %v, use an ON condition", j.JoinType())
+}
+
+func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
+	return NewUnsupportedError("USING is not supported for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
 }
 
 func ErrDistinctOnNotSupported(dialect string) error {
@@ -185,7 +195,7 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 		for _, j := range joins {
 			joinType, ok := ssg.DialectOptions().JoinTypeLookup[j.JoinType()]
 			if !ok {
-				b.SetError(ErrNotSupportedJoinType(j))
+				b.SetError(errJoinTypeNotSupported(ssg.Dialect(), j))
 				return
 			}
 			b.Write(joinType)
@@ -197,7 +207,7 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 				}
 				// MySQL 5.7 rejects STRAIGHT_JOIN ... USING (...); only ON is portable across supported versions
 				if _, isUsing := t.Condition().(exp.JoinUsingCondition); isUsing && j.JoinType() == exp.StraightJoinType {
-					b.SetError(ErrJoinUsingNotSupported(j))
+					b.SetError(errJoinUsingNotSupported(ssg.Dialect(), j))
 					return
 				}
 				ssg.joinConditionSQL(b, t.Condition())

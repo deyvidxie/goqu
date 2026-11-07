@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type (
 	LockStrength int
 	WaitOption   int
@@ -31,7 +33,7 @@ func NewLock(strength LockStrength, option WaitOption, of ...IdentifierExpressio
 	return lock{
 		strength:   strength,
 		waitOption: option,
-		of:         of,
+		of:         slices.Clone(of),
 	}
 }
 

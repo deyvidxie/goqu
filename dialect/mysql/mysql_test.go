@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/suite"
 )
@@ -144,6 +144,69 @@ func versionAtLeast(version, minimum [3]int) bool {
 		}
 	}
 	return true
+}
+
+func (mt *mysqlTest) TestInterpolatedFractionRoundsInDatetime0() {
+	ds := mt.db.From("entry")
+	at := time.Date(2024, 1, 2, 3, 4, 5, 600000000, time.UTC)
+	_, err := ds.Insert().Rows(entry{Int: 99, Float: 1, String: "at", Time: at, Bool: true, Bytes: []byte("at")}).Executor().Exec()
+	mt.Require().NoError(err)
+
+	var stored entry
+	found, err := ds.Where(goqu.C("int").Eq(99)).ScanStruct(&stored)
+	mt.Require().NoError(err)
+	mt.Require().True(found)
+	mt.Equal(time.Date(2024, 1, 2, 3, 4, 6, 0, time.UTC), stored.Time.UTC())
+}
+
+func (mt *mysqlTest) TestTimeFunctionsInNonUTCSession() {
+	tx, err := mt.db.Begin()
+	mt.Require().NoError(err)
+	defer func() { mt.NoError(tx.Rollback()) }()
+	var sessionZone string
+	mt.Require().NoError(tx.QueryRow("SELECT @@session.time_zone").Scan(&sessionZone))
+	defer func() {
+		_, err := tx.Exec("SET time_zone = ?", sessionZone)
+		mt.NoError(err)
+	}()
+	_, err = tx.Exec("SET time_zone = '+05:00'")
+	mt.Require().NoError(err)
+
+	var utc, local []time.Time
+	mt.Require().NoError(tx.From("entry").Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&utc))
+	mt.Require().NoError(tx.From("entry").Select(goqu.Now(6)).Limit(1).ScanVals(&local))
+	mt.Require().Len(utc, 1)
+	mt.Require().Len(local, 1)
+	mt.WithinDuration(time.Now().UTC(), utc[0], time.Minute)
+	mt.WithinDuration(time.Now().UTC().Add(5*time.Hour), local[0], time.Minute)
+}
+
+func (mt *mysqlTest) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := mt.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(6).Sub(goqu.Interval(1, "year")))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		oneSecondLater := goqu.Func("DATE_ADD", goqu.Now(6), goqu.Interval(1, "second"))
+		count, err = ds.Where(goqu.Func("TIMESTAMPDIFF", goqu.L("MICROSECOND"), goqu.Now(6), oneSecondLater).Eq(1000000)).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		halfSecondsLater := goqu.Now(6).Add(goqu.Interval(1.5, goqu.SecondInterval))
+		count, err = ds.Where(goqu.Func("TIMESTAMPDIFF", goqu.L("MICROSECOND"), goqu.Now(6), halfSecondsLater).Eq(1500000)).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")).Eq(goqu.L("UTC_TIMESTAMP() + INTERVAL 3 MONTH"))).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		var times []time.Time
+		mt.Require().NoError(ds.Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&times))
+		mt.Require().Len(times, 1)
+		mt.WithinDuration(time.Now().UTC(), times[0], time.Minute)
+	}
 }
 
 func (mt *mysqlTest) TestToSQL() {
@@ -398,7 +461,7 @@ func (mt *mysqlTest) TestInsert() {
 		mt.Equal(entries[i].Int, e.Int)
 		mt.Equal(entries[i].Float, e.Float)
 		mt.Equal(entries[i].String, e.String)
-		mt.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		mt.Equal(entries[i].Time.UTC().Round(time.Second), e.Time.UTC())
 		mt.Equal(entries[i].Bool, e.Bool)
 		mt.Equal(entries[i].Bytes, e.Bytes)
 	}
@@ -688,7 +751,7 @@ func (mt *mysqlTest) TestStraightJoin() {
 
 	// MySQL 5.7 rejects USING for STRAIGHT_JOIN, so goqu refuses to generate it
 	_, err = mt.db.From("entry").StraightJoin(goqu.T("entry").As("e2"), goqu.Using("id")).Count()
-	mt.EqualError(err, "goqu: USING is not supported for StraightJoinType, use an ON condition")
+	mt.EqualError(err, "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=mysql]")
 }
 
 func (mt *mysqlTest) TestInsertFromSelect() {

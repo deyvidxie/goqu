@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type jsonExpression struct {
 	function  JSONFunction
 	col       any
@@ -16,7 +18,7 @@ func NewJSONValueExpression(col any, path string) JSONExpression {
 }
 
 func NewJSONContainsExpression(col, candidate any, paths ...string) JSONExpression {
-	return jsonExpression{function: JSONContainsFunction, col: jsonCol(col), candidate: candidate, paths: paths}
+	return jsonExpression{function: JSONContainsFunction, col: jsonCol(col), candidate: candidate, paths: slices.Clone(paths)}
 }
 
 func jsonCol(col any) any {
@@ -26,7 +28,10 @@ func jsonCol(col any) any {
 	return col
 }
 
-func (je jsonExpression) Clone() Expression            { return je }
+func (je jsonExpression) Clone() Expression {
+	je.paths = slices.Clone(je.paths)
+	return je
+}
 func (je jsonExpression) Expression() Expression       { return je }
 func (je jsonExpression) Function() JSONFunction       { return je.function }
 func (je jsonExpression) Col() any                     { return je.col }

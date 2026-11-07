@@ -19,10 +19,9 @@ type (
 //
 //	L("(? AND ?) OR (?)", I("a").Eq(1), I("b").Eq("b"), I("c").In([]string{"a", "b", "c"}))
 func NewLiteralExpression(sql string, args ...interface{}) LiteralExpression {
-	return literal{literal: sql, args: args}
+	return literal{literal: sql, args: cloneArgs(args)}
 }
 
-// Returns a literal for the '*' operator
 func Star() LiteralExpression {
 	return NewLiteralExpression("*")
 }

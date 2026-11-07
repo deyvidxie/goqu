@@ -10,7 +10,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/dialect/duckdb"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -111,6 +110,39 @@ func (st *duckdbSuite) SetupTest() {
 	}
 	if _, err := st.db.Exec(insertDefaultRecords); err != nil {
 		panic(err)
+	}
+}
+
+func (st *duckdbSuite) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := st.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(6).Sub(goqu.Interval(1, "year")))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		oneSecond := goqu.Func("epoch_us", goqu.Now().Add(goqu.Interval(1, "second"))).Sub(goqu.Func("epoch_us", goqu.Now()))
+		count, err = ds.Where(oneSecond.Eq(1000000)).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		quarter := goqu.L("make_timestamp(epoch_us(now())) + INTERVAL 3 MONTH")
+		count, err = ds.Where(goqu.UTCTimestamp(6).Add(goqu.Interval(1, "quarter")).Eq(quarter)).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.C("time").Lt(goqu.Now(3).Sub(goqu.Interval(1, "day")))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.C("time").Lt(goqu.UTCTimestamp(0))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now(2))).Count()
+		st.EqualError(err, "goqu: dialect does not support fsp 2, want one of 0, 3, 6 [dialect=duckdb]")
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1.5, goqu.SecondInterval)))).Count()
+		st.EqualError(err, "goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND [dialect=duckdb]")
 	}
 }
 
@@ -508,7 +540,7 @@ func (st *duckdbSuite) TestInsert() {
 		st.Equal(entries[i].Int, e.Int)
 		st.Equal(entries[i].Float, e.Float)
 		st.Equal(entries[i].String, e.String)
-		st.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		st.Equal(entries[i].Time.UTC().Format(time.DateTime), e.Time.Format(time.DateTime))
 		st.Equal(entries[i].Bool, e.Bool)
 		st.Equal(entries[i].Bytes, e.Bytes)
 	}

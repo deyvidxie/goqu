@@ -14,6 +14,7 @@
 * [`Or`](#or) - OR multiple expressions together.
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
+* [`Now`, `UTCTimestamp`, `Interval`](#time) - Current time with fractional seconds and interval arithmetic.
 * [`JSONExtract`, `JSONValue`, `JSONContains`](#json) - MySQL JSON functions.
 * [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
@@ -434,6 +435,38 @@ SELECT * FROM "test" WHERE EXISTS (SELECT * FROM "other" WHERE ("test_id" = "id"
 ```
 
 To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exists) on the dataset.
+
+<a name="time"></a>
+**[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
+
+* `Now(fsp)` and `UTCTimestamp(fsp)` take an optional fsp (fractional-second digits, 0 to 6); it rounds on postgres and sqlserver and truncates on mysql and duckdb.
+* `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`.
+* `n` is an integer or an expression, or a finite fraction with `goqu.SecondInterval` on mysql and postgres. MySQL keeps a non-integer expression's fraction only for seconds.
+
+| dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, goqu.DayInterval)` | scanned as |
+|---|---|---|---|---|
+| mysql, mysql8, mysql8nano | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
+| postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
+| sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` (`2006-01-02 15:04:05[.000]`, no offset; `Now()` is local), compared as text |
+| sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
+| duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
+
+sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+sql, args, _ := goqu.Dialect("mysql").From("events").
+  Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, goqu.HourInterval)))).
+  Prepared(true).
+  ToSQL()
+fmt.Println(sql, args)
+```
+
+Output:
+```sql
+SELECT * FROM `events` WHERE (`created` > (NOW(6) - INTERVAL ? HOUR)) [1]
+```
 
 <a name="json"></a>
 **[`JSONExtract()`](https://godoc.org/github.com/doug-martin/goqu#JSONExtract), [`JSONValue()`](https://godoc.org/github.com/doug-martin/goqu#JSONValue) and [`JSONContains()`](https://godoc.org/github.com/doug-martin/goqu#JSONContains)**

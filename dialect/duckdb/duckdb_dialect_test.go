@@ -43,6 +43,24 @@ func (sds *duckdbDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *duckdbDialectSuite) TestTimeFunctions() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds: sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()).Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))),
+			sql: `SELECT CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS), make_timestamp(epoch_us(now())) FROM "t" ` +
+				`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (1 * INTERVAL '1 DAY')))`,
+		},
+		sqlTestCase{
+			ds: sds.GetDs("t").Prepared(true).Select(goqu.Now(3), goqu.UTCTimestamp()).
+				Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))),
+			sql: `SELECT CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS), make_timestamp(epoch_us(now())) FROM "t" ` +
+				`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (? * INTERVAL '1 DAY')))`,
+			isPrepared: true,
+			args:       []interface{}{int64(1)},
+		},
+	)
+}
+
 func (sds *duckdbDialectSuite) TestIdentifiers() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(
@@ -205,10 +223,22 @@ func (sds *duckdbDialectSuite) TestBooleanOperations() {
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" NOT LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").ILike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" ILIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" NOT ILIKE 'a%' ESCAPE '\\')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexplike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpnotlike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpilike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpnotilike' not supported"},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexplike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpnotlike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpilike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpnotilike' not supported [dialect=duckdb]",
+		},
 	)
 }
 
@@ -219,7 +249,7 @@ func (sds *duckdbDialectSuite) TestBitwiseOperations() {
 		sqlTestCase{ds: ds.Where(col.BitwiseInversion()), sql: "SELECT * FROM \"test\" WHERE (~ \"a\")"},
 		sqlTestCase{ds: ds.Where(col.BitwiseAnd(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" & 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseOr(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" | 1)"},
-		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), err: "goqu: bitwise operator 'XOR' not supported"},
+		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), err: "goqu: bitwise operator 'XOR' not supported [dialect=duckdb]"},
 		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" << 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" >> 1)"},
 	)

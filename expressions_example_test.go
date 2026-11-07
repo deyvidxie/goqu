@@ -680,6 +680,73 @@ func ExampleFIRST_as() {
 	// SELECT FIRST("a") AS "a" FROM "test"
 }
 
+func ExampleNow() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	ds := goqu.Dialect("mysql").From("events").Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, goqu.HourInterval))))
+	sql, args, _ := ds.ToSQL()
+	fmt.Println(sql, args)
+
+	sql, args, _ = ds.Prepared(true).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT * FROM `events` WHERE (`created` > (NOW(6) - INTERVAL 1 HOUR)) []
+	// SELECT * FROM `events` WHERE (`created` > (NOW(6) - INTERVAL ? HOUR)) [1]
+}
+
+func ExampleNow_dialects() {
+	for _, dialect := range []string{"mysql", "postgres", "sqlite3", "sqlserver"} {
+		sql, _, err := goqu.Dialect(dialect).From("events").Select(goqu.Now(3), goqu.UTCTimestamp()).ToSQL()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(sql)
+	}
+
+	// Output:
+	// SELECT NOW(3), UTC_TIMESTAMP() FROM `events`
+	// SELECT CURRENT_TIMESTAMP(3), (NOW() AT TIME ZONE 'UTC') FROM "events"
+	// SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `events`
+	// SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "events"
+}
+
+func ExampleUTCTimestamp() {
+	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
+
+	sql, _, _ := goqu.Dialect("mysql").Update("sessions").Set(goqu.Record{"expires": goqu.UTCTimestamp().Add(goqu.Interval(30, goqu.MinuteInterval))}).ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// UPDATE `sessions` SET `expires`=(UTC_TIMESTAMP() + INTERVAL 30 MINUTE)
+}
+
+func ExampleInterval() {
+	sql, args, _ := goqu.Dialect("postgres").From("sessions").Prepared(true).
+		Where(goqu.C("expires").Lt(goqu.UTCTimestamp().Sub(goqu.Interval(goqu.C("grace_days"), goqu.DayInterval)))).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT * FROM "sessions" WHERE ("expires" < ((NOW() AT TIME ZONE 'UTC') - ("grace_days" * INTERVAL '1 DAY'))) []
+}
+
+func ExampleInterval_dialects() {
+	for _, dialect := range []string{"mysql", "postgres", "sqlserver"} {
+		sql, _, err := goqu.Dialect(dialect).From("events").Where(goqu.C("created").Lt(goqu.Now().Sub(goqu.Interval(7, goqu.DayInterval)))).ToSQL()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(sql)
+	}
+
+	// Output:
+	// SELECT * FROM `events` WHERE (`created` < (NOW() - INTERVAL 7 DAY))
+	// SELECT * FROM "events" WHERE ("created" < (NOW() - (7 * INTERVAL '1 DAY')))
+	// goqu: dialect does not support Interval [dialect=sqlserver]
+}
+
 func ExampleJSONExtract() {
 	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
@@ -722,8 +789,8 @@ func ExampleJSONValue_dialects() {
 
 	// Output:
 	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob')
-	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
-	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]
+	// goqu: dialect does not support JSONValue [dialect=postgres]
+	// goqu: dialect does not support JSONValue [dialect=sqlite3]
 }
 
 func ExampleJSONContains() {

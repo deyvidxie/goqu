@@ -22,6 +22,16 @@ const (
 	Wait       = exp.Wait
 	NoWait     = exp.NoWait
 	SkipLocked = exp.SkipLocked
+
+	MicrosecondInterval = exp.MicrosecondInterval
+	SecondInterval      = exp.SecondInterval
+	MinuteInterval      = exp.MinuteInterval
+	HourInterval        = exp.HourInterval
+	DayInterval         = exp.DayInterval
+	WeekInterval        = exp.WeekInterval
+	MonthInterval       = exp.MonthInterval
+	QuarterInterval     = exp.QuarterInterval
+	YearInterval        = exp.YearInterval
 )
 
 // Applies a collation to an expression. The collation is either a name (string) or, to qualify it with a schema
@@ -72,6 +82,18 @@ func DoUpdateExcluded(target string, cols ...any) exp.ConflictUpdateExpression {
 // Only the column part of a qualified identifier is used.
 func Excluded(col any) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
+}
+
+func Now(fsp ...int) exp.TimeFunctionExpression {
+	return exp.NewNowExpression(fsp...)
+}
+
+func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
+	return exp.NewUTCTimestampExpression(fsp...)
+}
+
+func Interval(count any, unit exp.IntervalUnit) exp.IntervalExpression {
+	return exp.NewIntervalExpression(count, unit)
 }
 
 func JSONExtract(col any, path string) exp.JSONExpression {

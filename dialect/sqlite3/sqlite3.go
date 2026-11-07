@@ -1,14 +1,14 @@
 package sqlite3
 
 import (
-	"time"
-
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
 func DialectOptions() *goqu.SQLDialectOptions {
 	opts := goqu.DefaultDialectOptions()
+	opts.TimeStyle = sqlgen.SQLiteTimeStyle
 
 	opts.SupportsReturn = true
 	opts.SupportsOrderByOnUpdate = true
@@ -36,7 +36,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.DefaultValuesFragment = []byte("")
 	opts.True = []byte("1")
 	opts.False = []byte("0")
-	opts.TimeFormat = time.RFC3339Nano
+	opts.TimeFormat = "2006-01-02 15:04:05.999999999-07:00"
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{
 		exp.EqOp:             []byte("="),
 		exp.NeqOp:            []byte("!="),
@@ -48,14 +48,12 @@ func DialectOptions() *goqu.SQLDialectOptions {
 		exp.NotInOp:          []byte("NOT IN"),
 		exp.IsOp:             []byte("IS"),
 		exp.IsNotOp:          []byte("IS NOT"),
-		exp.LikeOp:           []byte("LIKE"),
-		exp.NotLikeOp:        []byte("NOT LIKE"),
 		exp.ILikeOp:          []byte("LIKE"),
 		exp.NotILikeOp:       []byte("NOT LIKE"),
 		exp.RegexpLikeOp:     []byte("REGEXP"),
 		exp.RegexpNotLikeOp:  []byte("NOT REGEXP"),
-		exp.RegexpILikeOp:    []byte("REGEXP"),
-		exp.RegexpNotILikeOp: []byte("NOT REGEXP"),
+		exp.RegexpILikeOp:    []byte("REGEXP '(?i)' ||"),
+		exp.RegexpNotILikeOp: []byte("NOT REGEXP '(?i)' ||"),
 	}
 	opts.UseLiteralIsBools = false
 	opts.BitwiseOperatorLookup = map[exp.BitwiseOperation][]byte{

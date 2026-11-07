@@ -678,24 +678,24 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.Eq(1), err: "goqu: boolean operator 'eq' not supported"},
-		expressionTestCase{val: ident.Neq(1), err: "goqu: boolean operator 'neq' not supported"},
-		expressionTestCase{val: ident.Is(true), err: "goqu: boolean operator 'is' not supported"},
-		expressionTestCase{val: ident.IsNot(true), err: "goqu: boolean operator 'isnot' not supported"},
-		expressionTestCase{val: ident.Gt(1), err: "goqu: boolean operator 'gt' not supported"},
-		expressionTestCase{val: ident.Gte(1), err: "goqu: boolean operator 'gte' not supported"},
-		expressionTestCase{val: ident.Lt(1), err: "goqu: boolean operator 'lt' not supported"},
-		expressionTestCase{val: ident.Lte(1), err: "goqu: boolean operator 'lte' not supported"},
-		expressionTestCase{val: ident.In([]int64{1, 2, 3}), err: "goqu: boolean operator 'in' not supported"},
-		expressionTestCase{val: ident.NotIn([]int64{1, 2, 3}), err: "goqu: boolean operator 'notin' not supported"},
-		expressionTestCase{val: ident.Like("a%"), err: "goqu: boolean operator 'like' not supported"},
-		expressionTestCase{val: ident.Like(re), err: "goqu: boolean operator 'regexplike' not supported"},
-		expressionTestCase{val: ident.ILike("a%"), err: "goqu: boolean operator 'ilike' not supported"},
-		expressionTestCase{val: ident.ILike(re), err: "goqu: boolean operator 'regexpilike' not supported"},
-		expressionTestCase{val: ident.NotLike("a%"), err: "goqu: boolean operator 'notlike' not supported"},
-		expressionTestCase{val: ident.NotLike(re), err: "goqu: boolean operator 'regexpnotlike' not supported"},
-		expressionTestCase{val: ident.NotILike("a%"), err: "goqu: boolean operator 'notilike' not supported"},
-		expressionTestCase{val: ident.NotILike(re), err: "goqu: boolean operator 'regexpnotilike' not supported"},
+		expressionTestCase{val: ident.Eq(1), err: "goqu: boolean operator 'eq' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Neq(1), err: "goqu: boolean operator 'neq' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Is(true), err: "goqu: boolean operator 'is' not supported [dialect=test]"},
+		expressionTestCase{val: ident.IsNot(true), err: "goqu: boolean operator 'isnot' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Gt(1), err: "goqu: boolean operator 'gt' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Gte(1), err: "goqu: boolean operator 'gte' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Lt(1), err: "goqu: boolean operator 'lt' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Lte(1), err: "goqu: boolean operator 'lte' not supported [dialect=test]"},
+		expressionTestCase{val: ident.In([]int64{1, 2, 3}), err: "goqu: boolean operator 'in' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotIn([]int64{1, 2, 3}), err: "goqu: boolean operator 'notin' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Like("a%"), err: "goqu: boolean operator 'like' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Like(re), err: "goqu: boolean operator 'regexplike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.ILike("a%"), err: "goqu: boolean operator 'ilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.ILike(re), err: "goqu: boolean operator 'regexpilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotLike("a%"), err: "goqu: boolean operator 'notlike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotLike(re), err: "goqu: boolean operator 'regexpnotlike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotILike("a%"), err: "goqu: boolean operator 'notilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotILike(re), err: "goqu: boolean operator 'regexpnotilike' not supported [dialect=test]"},
 	)
 }
 
@@ -876,9 +876,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	delete(withoutNotIn.BooleanOperatorLookup, exp.NotInOp)
 	withoutNotIn.EmptyNotInFragment = nil
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutIn),
-		expressionTestCase{val: ident.In([]int{}), err: "goqu: boolean operator 'in' not supported"})
+		expressionTestCase{val: ident.In([]int{}), err: "goqu: boolean operator 'in' not supported [dialect=test]"})
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutNotIn),
-		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: boolean operator 'notin' not supported"})
+		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: boolean operator 'notin' not supported [dialect=test]"})
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListReportsLHSError() {
@@ -941,12 +941,12 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BitwiseExpression() {
 	opts.BitwiseOperatorLookup = map[exp.BitwiseOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.BitwiseInversion(), err: "goqu: bitwise operator 'Inversion' not supported"},
-		expressionTestCase{val: ident.BitwiseAnd(1), err: "goqu: bitwise operator 'AND' not supported"},
-		expressionTestCase{val: ident.BitwiseOr(1), err: "goqu: bitwise operator 'OR' not supported"},
-		expressionTestCase{val: ident.BitwiseXor(1), err: "goqu: bitwise operator 'XOR' not supported"},
-		expressionTestCase{val: ident.BitwiseLeftShift(1), err: "goqu: bitwise operator 'Left Shift' not supported"},
-		expressionTestCase{val: ident.BitwiseRightShift(1), err: "goqu: bitwise operator 'Right Shift' not supported"},
+		expressionTestCase{val: ident.BitwiseInversion(), err: "goqu: bitwise operator 'Inversion' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseAnd(1), err: "goqu: bitwise operator 'AND' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseOr(1), err: "goqu: bitwise operator 'OR' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseXor(1), err: "goqu: bitwise operator 'XOR' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseLeftShift(1), err: "goqu: bitwise operator 'Left Shift' not supported [dialect=test]"},
+		expressionTestCase{val: ident.BitwiseRightShift(1), err: "goqu: bitwise operator 'Right Shift' not supported [dialect=test]"},
 	)
 }
 
@@ -970,10 +970,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ArithmeticExpression() {
 	opts.ArithmeticOperatorLookup = map[exp.ArithmeticOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.Add(1), err: "goqu: arithmetic operator 'Addition' not supported"},
-		expressionTestCase{val: ident.Sub(1), err: "goqu: arithmetic operator 'Subtraction' not supported"},
-		expressionTestCase{val: ident.Mul(1), err: "goqu: arithmetic operator 'Multiplication' not supported"},
-		expressionTestCase{val: ident.Div(1), err: "goqu: arithmetic operator 'Division' not supported"},
+		expressionTestCase{val: ident.Add(1), err: "goqu: arithmetic operator 'Addition' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Sub(1), err: "goqu: arithmetic operator 'Subtraction' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Mul(1), err: "goqu: arithmetic operator 'Multiplication' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Div(1), err: "goqu: arithmetic operator 'Division' not supported [dialect=test]"},
 	)
 }
 
@@ -1018,17 +1018,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeExpression() {
 	opts.RangeOperatorLookup = map[exp.RangeOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: betweenNum, err: "goqu: range operator between not supported"},
-		expressionTestCase{val: betweenNum, err: "goqu: range operator between not supported"},
+		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenNum, err: "goqu: range operator 'between' not supported [dialect=test]", isPrepared: true},
 
-		expressionTestCase{val: notBetweenNum, err: "goqu: range operator not between not supported"},
-		expressionTestCase{val: notBetweenNum, err: "goqu: range operator not between not supported"},
+		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenNum, err: "goqu: range operator 'not between' not supported [dialect=test]", isPrepared: true},
 
-		expressionTestCase{val: betweenStr, err: "goqu: range operator between not supported"},
-		expressionTestCase{val: betweenStr, err: "goqu: range operator between not supported"},
+		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]"},
+		expressionTestCase{val: betweenStr, err: "goqu: range operator 'between' not supported [dialect=test]", isPrepared: true},
 
-		expressionTestCase{val: notBetweenStr, err: "goqu: range operator not between not supported"},
-		expressionTestCase{val: notBetweenStr, err: "goqu: range operator not between not supported"},
+		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]"},
+		expressionTestCase{val: notBetweenStr, err: "goqu: range operator 'not between' not supported [dialect=test]", isPrepared: true},
 	)
 }
 
@@ -1309,6 +1309,288 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CollateExpression() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
+	now, now3, utc, utc0 := exp.NewNowExpression(), exp.NewNowExpression(3), exp.NewUTCTimestampExpression(), exp.NewUTCTimestampExpression(0)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle)),
+		expressionTestCase{val: now, sql: "NOW()"},
+		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)"},
+		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)", isPrepared: true},
+		expressionTestCase{val: utc, sql: "(NOW() AT TIME ZONE 'UTC')"},
+		expressionTestCase{val: utc0, sql: "(CURRENT_TIMESTAMP(0) AT TIME ZONE 'UTC')"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.MySQLTimeStyle)),
+		expressionTestCase{val: now, sql: "NOW()"},
+		expressionTestCase{val: now3, sql: "NOW(3)"},
+		expressionTestCase{val: utc, sql: "UTC_TIMESTAMP()"},
+		expressionTestCase{val: utc0, sql: "UTC_TIMESTAMP(0)", isPrepared: true},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.SQLiteTimeStyle)),
+		expressionTestCase{val: now, sql: "datetime('now', 'localtime')"},
+		expressionTestCase{val: now3, sql: "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"},
+		expressionTestCase{val: utc, sql: "datetime('now')"},
+		expressionTestCase{val: utc0, sql: "datetime('now')"},
+		expressionTestCase{
+			val: exp.NewNowExpression(6), err: "goqu: dialect does not support fsp 6, want one of 0, 3 [dialect=test]",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.SQLServerTimeStyle)),
+		expressionTestCase{val: now, sql: "SYSDATETIME()"},
+		expressionTestCase{val: now3, sql: "CAST(SYSDATETIME() AS DATETIME2(3))"},
+		expressionTestCase{val: utc, sql: "SYSUTCDATETIME()"},
+		expressionTestCase{val: utc0, sql: "CAST(SYSUTCDATETIME() AS DATETIME2(0))"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.DuckDBTimeStyle)),
+		expressionTestCase{val: now, sql: "CAST(now() AS TIMESTAMP)"},
+		expressionTestCase{val: exp.NewNowExpression(6), sql: "CAST(now() AS TIMESTAMP)"},
+		expressionTestCase{val: now3, sql: "CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)"},
+		expressionTestCase{val: utc, sql: "make_timestamp(epoch_us(now()))"},
+		expressionTestCase{val: utc0, sql: "CAST(make_timestamp(epoch_us(now())) AS TIMESTAMP_S)"},
+		expressionTestCase{
+			val: exp.NewNowExpression(2), err: "goqu: dialect does not support fsp 2, want one of 0, 3, 6 [dialect=test]",
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.MySQLTimeStyle)),
+		expressionTestCase{val: exp.NewNowExpression(7), err: "goqu: Now and UTCTimestamp fsp must be between 0 and 6, got 7"},
+		expressionTestCase{val: exp.NewNowExpression(-1), err: "goqu: Now and UTCTimestamp fsp must be between 0 and 6, got -1"},
+		expressionTestCase{val: exp.NewNowExpression(1, 2), err: "goqu: Now and UTCTimestamp take at most one fsp, got 2"},
+		expressionTestCase{val: unknownTimeFunction{now}, err: "goqu: unknown TimeFunction 99"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(99)),
+		expressionTestCase{val: now, err: "goqu: dialect has unknown TimeStyle 99 [dialect=test]"},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
+	mysql := sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.MySQLTimeStyle))
+	standard := sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle))
+	units := []exp.IntervalUnit{
+		exp.MicrosecondInterval, exp.SecondInterval, exp.MinuteInterval, exp.HourInterval,
+		exp.DayInterval, exp.WeekInterval, exp.MonthInterval, exp.YearInterval,
+	}
+	for _, unit := range units {
+		esgs.assertCases(mysql, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit)})
+		esgs.assertCases(standard, expressionTestCase{
+			val: exp.NewIntervalExpression(2, unit), sql: "(2 * INTERVAL '1 " + string(unit) + "')",
+		})
+	}
+	esgs.assertCases(
+		mysql,
+		expressionTestCase{val: exp.NewIntervalExpression(1, "quarter"), sql: "INTERVAL 1 QUARTER"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "INTERVAL ? SECOND", isPrepared: true, args: []any{int64(1)},
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `INTERVAL "n" DAY`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, "fortnight"),
+			err: `goqu: unknown Interval unit "fortnight", want one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, "ſecond"),
+			err: `goqu: unknown Interval unit "ſecond", want one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1.5, exp.HourInterval),
+			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float64 1.5 for HOUR [dialect=test]",
+		},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "INTERVAL 1.5 SECOND"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("? - 1", 5), exp.DayInterval),
+			sql: "INTERVAL ? - 1 DAY", isPrepared: true, args: []any{int64(5)},
+		},
+	)
+	two := 2
+	esgs.assertCases(
+		standard,
+		expressionTestCase{val: exp.NewIntervalExpression(&two, exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(1, "Quarter"), sql: "(1 * INTERVAL '3 MONTH')"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("n - 1"), exp.DayInterval), sql: "((n - 1) * INTERVAL '1 DAY')",
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `("n" * INTERVAL '1 DAY')`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("? - 1", 5), exp.DayInterval),
+			sql: "((? - 1) * INTERVAL '1 DAY')", isPrepared: true, args: []any{int64(5)},
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(float32(2), exp.DayInterval),
+			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float32 2 for DAY [dialect=test]",
+		},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "(1.5 * INTERVAL '1 SECOND')"},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, "second"), sql: "(1.5 * INTERVAL '1 SECOND')"},
+		expressionTestCase{val: exp.NewIntervalExpression(uint8(2), exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(countValuer{2}, exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(nil, exp.DayInterval), sql: "(NULL * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(countValuer{nil}, exp.DayInterval), sql: "(NULL * INTERVAL '1 DAY')"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "(? * INTERVAL '1 SECOND')", isPrepared: true, args: []any{int64(1)},
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.DuckDBTimeStyle)),
+		expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "(1 * INTERVAL '1 SECOND')"},
+	)
+	for _, style := range []sqlgen.TimeStyle{sqlgen.SQLiteTimeStyle, sqlgen.SQLServerTimeStyle} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(style)),
+			expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), err: "goqu: dialect does not support Interval [dialect=test]"},
+		)
+	}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(99)),
+		expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), err: "goqu: dialect has unknown TimeStyle 99 [dialect=test]"},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionParenRunes() {
+	do := timeStyleOptions(sqlgen.PostgresTimeStyle)
+	do.LeftParenRune, do.RightParenRune = '{', '}'
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", do),
+		expressionTestCase{val: exp.NewUTCTimestampExpression(), sql: "{NOW{} AT TIME ZONE 'UTC'}"},
+		expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "{1 * INTERVAL '1 SECOND'}"},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("n - 1"), exp.DayInterval), sql: "{{n - 1} * INTERVAL '1 DAY'}",
+		},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes() {
+	render := func(style sqlgen.TimeStyle, e exp.Expression) error {
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(style)).Generate(b, e)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(7))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(1, 2))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, unknownTimeFunction{exp.NewNowExpression()})))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewNowExpression(6))))
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLServerTimeStyle, exp.NewIntervalExpression(1, exp.SecondInterval))))
+	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression())))
+	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression(7))))
+	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
+}
+
+type (
+	intervalHours float64
+	countValuer   struct{ value driver.Value }
+)
+
+func (c countValuer) Value() (driver.Value, error) { return c.value, nil }
+
+type sequenceValuer struct{ values *[]driver.Value }
+
+func (s sequenceValuer) Value() (driver.Value, error) {
+	v := (*s.values)[0]
+	*s.values = (*s.values)[1:]
+	return v, nil
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountValuerResolvedOnce() {
+	for style, sql := range map[sqlgen.TimeStyle]string{
+		sqlgen.PostgresTimeStyle: "(2 * INTERVAL '1 DAY')",
+		sqlgen.MySQLTimeStyle:    "INTERVAL 2 DAY",
+	} {
+		values := []driver.Value{int64(2), 1.5}
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(style)),
+			expressionTestCase{val: exp.NewIntervalExpression(sequenceValuer{&values}, exp.DayInterval), sql: sql},
+		)
+		esgs.Len(values, 1)
+	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
+	const anyNumber = "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got "
+	half := 1.5
+	for _, tc := range []struct {
+		style sqlgen.TimeStyle
+		count any
+		unit  exp.IntervalUnit
+		err   string
+	}{
+		{sqlgen.PostgresTimeStyle, intervalHours(1.5), exp.HourInterval, anyNumber + "sqlgen_test.intervalHours 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, &half, exp.HourInterval, anyNumber + "*float64 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, countValuer{1.5}, exp.HourInterval, anyNumber + "sqlgen_test.countValuer 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, "1.5", exp.HourInterval, anyNumber + "string 1.5 for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, time.Second, exp.HourInterval, anyNumber + "time.Duration 1s for HOUR [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, math.NaN(), exp.SecondInterval, anyNumber + "float64 NaN for SECOND [dialect=test]"},
+		{sqlgen.MySQLTimeStyle, math.Inf(1), exp.SecondInterval, anyNumber + "float64 +Inf for SECOND [dialect=test]"},
+		{sqlgen.PostgresTimeStyle, exp.Ex{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
+		{sqlgen.PostgresTimeStyle, exp.ExOr{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
+		{
+			sqlgen.DuckDBTimeStyle, 1.5, exp.SecondInterval,
+			"goqu: Interval count must be an integer or an expression, got float64 1.5 for SECOND [dialect=test]",
+		},
+		{sqlgen.PostgresTimeStyle, jsonFailingValuer{}, exp.DayInterval, "goqu: Interval count: value failed"},
+	} {
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(tc.style)).Generate(b, exp.NewIntervalExpression(tc.count, tc.unit))
+		_, _, err := b.ToSQL()
+		esgs.EqualError(err, tc.err, "%T", tc.count)
+		esgs.True(sqlgen.IsInvalidExpression(err), "%T", tc.count)
+	}
+
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle)).
+		Generate(b, exp.NewIntervalExpression(jsonFailingValuer{}, exp.DayInterval))
+	_, _, err := b.ToSQL()
+	var cause jsonValueError
+	esgs.ErrorAs(err, &cause)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionCastFragment() {
+	for _, tc := range []struct {
+		style sqlgen.TimeStyle
+		val   exp.Expression
+		sql   string
+	}{
+		{sqlgen.SQLServerTimeStyle, exp.NewNowExpression(3), "TRY_CAST{SYSDATETIME{} AS DATETIME2(3)}"},
+		{sqlgen.DuckDBTimeStyle, exp.NewUTCTimestampExpression(0), "TRY_CAST{make_timestamp{epoch_us{now{}}} AS TIMESTAMP_S}"},
+	} {
+		do := timeStyleOptions(tc.style)
+		do.LeftParenRune, do.RightParenRune = '{', '}'
+		do.CastFragment = []byte("TRY_CAST")
+		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", do), expressionTestCase{val: tc.val, sql: tc.sql})
+	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_LikeHintOnlyWhenILikeIsPlainLike() {
+	like := exp.NewIdentifierExpression("", "", "a").Like("x%")
+	for ilike, want := range map[string]string{
+		"LIKE":  "goqu: boolean operator 'like' not supported, use ILike/NotILike [dialect=test]",
+		"ILIKE": "goqu: boolean operator 'like' not supported [dialect=test]",
+	} {
+		opts := sqlgen.DefaultDialectOptions()
+		delete(opts.BooleanOperatorLookup, exp.LikeOp)
+		opts.BooleanOperatorLookup[exp.ILikeOp] = []byte(ilike)
+		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", opts), expressionTestCase{val: like, err: want})
+	}
+}
+
+func timeStyleOptions(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
+	do := sqlgen.DefaultDialectOptions()
+	do.TimeStyle = style
+	return do
+}
+
+type unknownTimeFunction struct{ exp.TimeFunctionExpression }
+
+func (unknownTimeFunction) Function() exp.TimeFunction { return 99 }
+
 type (
 	jsonStringValuer      string
 	jsonBytesValuer       string
@@ -1405,12 +1687,29 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{
 			val: exp.NewJSONValueExpression("doc", "$.a"),
-			err: "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=test]",
+			err: "goqu: dialect does not support JSONValue [dialect=test]",
+		},
+		expressionTestCase{
+			val: exp.NewJSONExtractExpression("doc", "$.a"), err: "goqu: dialect does not support JSONExtract [dialect=test]",
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", 1), err: "goqu: dialect does not support JSONContains [dialect=test]",
+		},
+		expressionTestCase{
+			val: unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")},
+			err: "goqu: unknown JSONFunction 99",
 		},
 	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
+		Generate(b, unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
+	_, _, err := b.ToSQL()
+	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
+	esgs.True(sqlgen.IsInvalidExpression(err))
+
 	do := sqlgen.DefaultDialectOptions()
 	do.SupportsMySQLJSONFunctions = true
 	render := func(e exp.Expression) error {
@@ -1423,7 +1722,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
 	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
 
-	err := render(exp.NewJSONContainsExpression("doc", math.NaN()))
+	err = render(exp.NewJSONContainsExpression("doc", math.NaN()))
 	esgs.True(sqlgen.IsInvalidExpression(err))
 	var unsupportedValue *json.UnsupportedValueError
 	esgs.ErrorAs(err, &unsupportedValue)

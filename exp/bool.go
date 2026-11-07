@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"regexp"
+	"slices"
 
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -79,13 +80,39 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 	if len(vals) == 1 {
 		valType := reflect.Indirect(reflect.ValueOf(vals[0]))
 		if valType.Kind() == reflect.Slice && !util.IsBytesValue(vals[0]) {
-			return NewBooleanExpression(op, lhs, vals[0])
+			return NewBooleanExpression(op, lhs, cloneSlice(vals[0]))
 		}
 		if _, ok := vals[0].(AppendableExpression); ok {
 			return NewBooleanExpression(op, lhs, vals[0])
 		}
 	}
-	return NewBooleanExpression(op, lhs, vals)
+	return NewBooleanExpression(op, lhs, slices.Clone(vals))
+}
+
+func cloneArgs(args []interface{}) []interface{} {
+	if args == nil {
+		return nil
+	}
+	cloned := make([]interface{}, len(args))
+	for i, arg := range args {
+		cloned[i] = cloneSlice(arg)
+	}
+	return cloned
+}
+
+func cloneSlice(v interface{}) interface{} {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && !rv.IsNil() && rv.Elem().Kind() == reflect.Slice {
+		ptr := reflect.New(rv.Elem().Type())
+		ptr.Elem().Set(reflect.ValueOf(cloneSlice(rv.Elem().Interface())))
+		return ptr.Interface()
+	}
+	if rv.Kind() != reflect.Slice || rv.IsNil() {
+		return v
+	}
+	cp := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
+	reflect.Copy(cp, rv)
+	return cp.Interface()
 }
 
 func isNilList(v interface{}) bool {
@@ -99,12 +126,10 @@ func isNilList(v interface{}) bool {
 	return rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Kind() == reflect.Slice
 }
 
-// used internally to create an IN BooleanExpression
 func in(lhs Expression, vals ...interface{}) BooleanExpression {
 	return inNotIn(lhs, InOp, vals...)
 }
 
-// used internally to create a NOT IN BooleanExpression
 func notIn(lhs Expression, vals ...interface{}) BooleanExpression {
 	return inNotIn(lhs, NotInOp, vals...)
 }
@@ -192,6 +217,7 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Slice:
 			if !util.IsBytesValue(rhs) {
 				op = InOp
+				rhs = cloneSlice(rhs)
 			}
 		case reflect.Struct:
 			switch rhs.(type) {

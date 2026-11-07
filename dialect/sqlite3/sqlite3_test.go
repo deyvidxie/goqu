@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/doug-martin/goqu/v9/exp"
 
@@ -28,16 +27,16 @@ const (
 		"`bytes` BLOB NOT NULL" +
 		");"
 	insertDefaultRecords = "INSERT INTO `entry` (`int`, `float`, `string`, `time`, `bool`, `bytes`) VALUES" +
-		"(0, 0.000000, '0.000000', '2015-02-22T18:19:55.000000000-00:00', 1,  '0.000000')," +
-		"(1, 0.100000, '0.100000', '2015-02-22T19:19:55.000000000-00:00', 0, '0.100000')," +
-		"(2, 0.200000, '0.200000', '2015-02-22T20:19:55.000000000-00:00', 1,  '0.200000')," +
-		"(3, 0.300000, '0.300000', '2015-02-22T21:19:55.000000000-00:00', 0, '0.300000')," +
-		"(4, 0.400000, '0.400000', '2015-02-22T22:19:55.000000000-00:00', 1,  '0.400000')," +
-		"(5, 0.500000, '0.500000', '2015-02-22T23:19:55.000000000-00:00', 0, '0.500000')," +
-		"(6, 0.600000, '0.600000', '2015-02-23T00:19:55.000000000-00:00', 1,  '0.600000')," +
-		"(7, 0.700000, '0.700000', '2015-02-23T01:19:55.000000000-00:00', 0, '0.700000')," +
-		"(8, 0.800000, '0.800000', '2015-02-23T02:19:55.000000000-00:00', 1,  '0.800000')," +
-		"(9, 0.900000, '0.900000', '2015-02-23T03:19:55.000000000-00:00', 0, '0.900000');"
+		"(0, 0.000000, '0.000000', '2015-02-22 18:19:55+00:00', 1,  '0.000000')," +
+		"(1, 0.100000, '0.100000', '2015-02-22 19:19:55+00:00', 0, '0.100000')," +
+		"(2, 0.200000, '0.200000', '2015-02-22 20:19:55+00:00', 1,  '0.200000')," +
+		"(3, 0.300000, '0.300000', '2015-02-22 21:19:55+00:00', 0, '0.300000')," +
+		"(4, 0.400000, '0.400000', '2015-02-22 22:19:55+00:00', 1,  '0.400000')," +
+		"(5, 0.500000, '0.500000', '2015-02-22 23:19:55+00:00', 0, '0.500000')," +
+		"(6, 0.600000, '0.600000', '2015-02-23 00:19:55+00:00', 1,  '0.600000')," +
+		"(7, 0.700000, '0.700000', '2015-02-23 01:19:55+00:00', 0, '0.700000')," +
+		"(8, 0.800000, '0.800000', '2015-02-23 02:19:55+00:00', 1,  '0.800000')," +
+		"(9, 0.900000, '0.900000', '2015-02-23 03:19:55+00:00', 0, '0.900000');"
 )
 
 var dbURI = ":memory:"
@@ -117,6 +116,32 @@ func (st *sqlite3Suite) SetupTest() {
 	}
 }
 
+func (st *sqlite3Suite) TestTimeFunctions() {
+	for _, prepared := range []bool{false, true} {
+		ds := st.db.From("entry").Prepared(prepared)
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now())).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp(3).Gt(goqu.C("time"))).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).Count()
+		st.EqualError(err, "goqu: dialect does not support Interval [dialect=sqlite3]")
+	}
+
+	var utc, local []string
+	st.Require().NoError(st.db.Select(goqu.UTCTimestamp(3)).ScanVals(&utc))
+	st.Require().NoError(st.db.Select(goqu.Now()).ScanVals(&local))
+	utcTime, err := time.ParseInLocation("2006-01-02 15:04:05.000", utc[0], time.UTC)
+	st.Require().NoError(err)
+	localTime, err := time.ParseInLocation(time.DateTime, local[0], time.Local)
+	st.Require().NoError(err)
+	st.WithinDuration(time.Now(), utcTime, time.Minute)
+	st.WithinDuration(time.Now(), localTime, time.Minute)
+}
+
 func (st *sqlite3Suite) TestSelectSQL() {
 	ds := st.db.From("entry")
 	st.assertSQL(
@@ -150,10 +175,32 @@ func (st *sqlite3Suite) TestCompoundQueries() {
 	st.Equal([]int64{6, 7, 8, 9}, ids)
 }
 
+func (st *sqlite3Suite) TestInterpolatedTimeVersusPreparedBinding() {
+	at := time.Date(2016, 1, 2, 3, 4, 5, 123456789, time.UTC)
+	ds := st.db.From("entry")
+	for _, prepared := range []bool{false, true} {
+		_, err := ds.Prepared(prepared).Insert().
+			Rows(entry{Int: 100, Float: 1, String: "at", Time: at, Bool: true, Bytes: []byte("at")}).Executor().Exec()
+		st.Require().NoError(err)
+	}
+	for _, prepared := range []bool{false, true} {
+		count, err := ds.Prepared(prepared).Where(goqu.C("time").Eq(at)).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(2), count, "prepared=%t", prepared)
+	}
+
+	offset := at.In(time.FixedZone("", 5*60*60))
+	for _, prepared := range []bool{false, true} {
+		count, err := ds.Prepared(prepared).Where(goqu.C("time").Eq(offset)).Count()
+		st.Require().NoError(err)
+		st.Equal(map[bool]int64{false: 2, true: 0}[prepared], count, "prepared binds its own zone, prepared=%t", prepared)
+	}
+}
+
 func (st *sqlite3Suite) TestQuery() {
 	ds := st.db.From("entry")
 	floatVal := float64(0)
-	baseDate, err := time.Parse(sqlite3.DialectOptions().TimeFormat, "2015-02-22T18:19:55.000000000-00:00")
+	baseDate, err := time.Parse(sqlite3.DialectOptions().TimeFormat, "2015-02-22 18:19:55+00:00")
 	st.NoError(err)
 	st.assertEntries(
 		entryTestCase{ds: ds.Order(goqu.C("id").Asc()), len: 10, check: func(entry entry, index int) {
@@ -189,10 +236,10 @@ func (st *sqlite3Suite) TestQuery() {
 		entryTestCase{ds: ds.Where(goqu.C("string").Eq("0.100000")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
 			st.Equal(entry.String, "0.100000")
 		}},
-		entryTestCase{ds: ds.Where(goqu.C("string").Like("0.1%")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
+		entryTestCase{ds: ds.Where(goqu.C("string").ILike("0.1%")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
 			st.Equal(entry.String, "0.100000")
 		}},
-		entryTestCase{ds: ds.Where(goqu.C("string").NotLike("0.1%")).Order(goqu.C("id").Asc()), len: 9, check: func(entry entry, _ int) {
+		entryTestCase{ds: ds.Where(goqu.C("string").NotILike("0.1%")).Order(goqu.C("id").Asc()), len: 9, check: func(entry entry, _ int) {
 			st.NotEqual(entry.String, "0.100000")
 		}},
 		entryTestCase{ds: ds.Where(goqu.C("string").IsNull()).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
@@ -208,7 +255,7 @@ func (st *sqlite3Suite) TestQuery() {
 func (st *sqlite3Suite) TestQuery_Prepared() {
 	ds := st.db.From("entry").Prepared(true)
 	floatVal := float64(0)
-	baseDate, err := time.Parse(sqlite3.DialectOptions().TimeFormat, "2015-02-22T18:19:55.000000000-00:00")
+	baseDate, err := time.Parse(sqlite3.DialectOptions().TimeFormat, "2015-02-22 18:19:55+00:00")
 	st.NoError(err)
 	st.assertEntries(
 		entryTestCase{ds: ds.Order(goqu.C("id").Asc()), len: 10, check: func(entry entry, index int) {
@@ -244,10 +291,10 @@ func (st *sqlite3Suite) TestQuery_Prepared() {
 		entryTestCase{ds: ds.Where(goqu.C("string").Eq("0.100000")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
 			st.Equal(entry.String, "0.100000")
 		}},
-		entryTestCase{ds: ds.Where(goqu.C("string").Like("0.1%")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
+		entryTestCase{ds: ds.Where(goqu.C("string").ILike("0.1%")).Order(goqu.C("id").Asc()), len: 1, check: func(entry entry, _ int) {
 			st.Equal(entry.String, "0.100000")
 		}},
-		entryTestCase{ds: ds.Where(goqu.C("string").NotLike("0.1%")).Order(goqu.C("id").Asc()), len: 9, check: func(entry entry, _ int) {
+		entryTestCase{ds: ds.Where(goqu.C("string").NotILike("0.1%")).Order(goqu.C("id").Asc()), len: 9, check: func(entry entry, _ int) {
 			st.NotEqual(entry.String, "0.100000")
 		}},
 		entryTestCase{ds: ds.Where(goqu.C("string").IsNull()).Order(goqu.C("id").Asc()), len: 0, check: func(_ entry, _ int) {
@@ -323,7 +370,7 @@ func (st *sqlite3Suite) TestCount() {
 	count, err = ds.Where(goqu.C("int").Gte(4)).Count()
 	st.NoError(err)
 	st.Equal(int64(6), count)
-	count, err = ds.Where(goqu.C("string").Like("0.1%")).Count()
+	count, err = ds.Where(goqu.C("string").ILike("0.1%")).Count()
 	st.NoError(err)
 	st.Equal(int64(1), count)
 	count, err = ds.Where(goqu.C("string").IsNull()).Count()
@@ -383,7 +430,7 @@ func (st *sqlite3Suite) TestInsert() {
 		st.Equal(entries[i].Int, e.Int)
 		st.Equal(entries[i].Float, e.Float)
 		st.Equal(entries[i].String, e.String)
-		st.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		st.Equal(entries[i].Time.UTC().Format(time.DateTime), e.Time.Format(time.DateTime))
 		st.Equal(entries[i].Bool, e.Bool)
 		st.Equal(entries[i].Bytes, e.Bytes)
 	}

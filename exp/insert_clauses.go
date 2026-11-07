@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type (
 	InsertClauses interface {
 		CommonTables() []CommonTableExpression
@@ -63,7 +65,7 @@ func (ic *insertClauses) HasInto() bool {
 
 func (ic *insertClauses) clone() *insertClauses {
 	return &insertClauses{
-		commonTables: ic.commonTables,
+		commonTables: ic.commonTables[0:len(ic.commonTables):len(ic.commonTables)],
 		cols:         ic.cols,
 		into:         ic.into,
 		returning:    ic.returning,
@@ -167,7 +169,10 @@ func (ic *insertClauses) HasRows() bool {
 
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
-	ret.rows = rows
+	ret.rows = slices.Clone(rows)
+	if len(rows) == 1 {
+		ret.rows[0] = cloneSlice(rows[0])
+	}
 	return ret
 }
 
@@ -181,7 +186,7 @@ func (ic *insertClauses) HasVals() bool {
 
 func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {
 	ret := ic.clone()
-	ret.values = vals
+	ret.values = cloneRows(vals)
 	return ret
 }
 
@@ -189,9 +194,20 @@ func (ic *insertClauses) ValsAppend(vals [][]interface{}) InsertClauses {
 	ret := ic.clone()
 	newVals := make([][]interface{}, 0, len(ic.values)+len(vals))
 	newVals = append(newVals, ic.values...)
-	newVals = append(newVals, vals...)
+	newVals = append(newVals, cloneRows(vals)...)
 	ret.values = newVals
 	return ret
+}
+
+func cloneRows(rows [][]interface{}) [][]interface{} {
+	if rows == nil {
+		return nil
+	}
+	cloned := make([][]interface{}, len(rows))
+	for i, row := range rows {
+		cloned[i] = slices.Clone(row)
+	}
+	return cloned
 }
 
 func (ic *insertClauses) OnConflict() ConflictExpression {
