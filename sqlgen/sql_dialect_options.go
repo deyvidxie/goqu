@@ -40,7 +40,11 @@ type (
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
 		SupportsConflictTarget bool
-		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
+		// Set to true to return an error, instead of silently dropping the target, when DoUpdate has a target and
+		// SupportsConflictTarget is false (DEFAULT=false)
+		ErrorOnUnsupportedConflictTarget bool
+		// Set to true if the dialect supports a WHERE on DO UPDATE; when false, DoUpdate(...).Where(...) returns an error
+		// (DEFAULT=true)
 		SupportsConflictUpdateWhere bool
 		// Set to true if the dialect supports upsert (ON CONFLICT / ON DUPLICATE KEY); when false, OnConflict returns an
 		// error (DEFAULT=true)

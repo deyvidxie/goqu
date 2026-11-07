@@ -455,6 +455,60 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictConstraintTargetIgnoresCase() {
+	icDoc := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetVals([][]any{{"a1"}}).
+		SetOnConflict(exp.NewDoUpdateConflictExpression("ON CONSTRAINT test", exp.Record{"a": "b"}))
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: icDoc, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT ON CONSTRAINT test DO UPDATE SET "a"='b'`},
+		insertTestCase{
+			clause:     icDoc,
+			sql:        `INSERT INTO "test" ("a") VALUES (?) ON CONFLICT ON CONSTRAINT test DO UPDATE SET "a"=?`,
+			isPrepared: true,
+			args:       []any{"a1", "b"},
+		},
+	)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsupported() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetVals([][]any{{"a1"}})
+	icDu := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("test", exp.Record{"a": "b"}))
+	icDuNoTarget := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("", exp.Record{"a": "b"}))
+	icDuConstraint := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("ON CONSTRAINT test_a", exp.Record{"a": "b"}))
+	icDn := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
+
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ErrorOnUnsupportedConflictTarget = true
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT (test) DO UPDATE SET "a"='b'`},
+		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT DO UPDATE SET "a"='b'`},
+	)
+
+	opts = sqlgen.DefaultDialectOptions()
+	opts.SupportsInsertIgnoreSyntax = true
+	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")
+	opts.ConflictFragment = []byte("")
+	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
+	opts.ConflictDoNothingFragment = []byte("")
+	opts.SupportsConflictTarget = false
+	opts.ErrorOnUnsupportedConflictTarget = true
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]", isPrepared: true},
+		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`},
+		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).

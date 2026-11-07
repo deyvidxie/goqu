@@ -476,6 +476,15 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 `sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`. An `INSERT ... SELECT` that
 uses `Excluded` cannot reference the tables of the `SELECT` in the update.
 
+`DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set
+`ErrorOnUnsupportedConflictTarget` on the dialect options to return a Conflict Target error for a non-empty target instead:
+
+```go
+opts := mysql.DialectOptions()
+opts.ErrorOnUnsupportedConflictTarget = true
+goqu.RegisterDialect("mysql-strict", "db", opts)
+```
+
 <a name="returning"></a>
 **Returning Clause**
 

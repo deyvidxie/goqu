@@ -69,6 +69,12 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 		}},
+		{"DoUpdate target", "Conflict Target clause", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsConflictTarget = false
+			o.ErrorOnUnsupportedConflictTarget = true
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}))
+		}},
 		{"upsert", "does not support upsert [dialect=", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsOnConflict = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
