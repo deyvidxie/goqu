@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 	"github.com/stretchr/testify/suite"
 )
@@ -970,6 +971,7 @@ func (rt *reflectTest) TestGetColumnMap_withNonStruct() {
 	var v int64
 	_, err := util.GetColumnMap(&v, "db")
 	rt.EqualError(err, "goqu: cannot scan into this type: int64")
+	rt.True(errors.IsUnsupportedScanType(err))
 }
 
 func (rt *reflectTest) TestGetColumnMap_withStructWithEmbeddedStruct() {

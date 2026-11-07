@@ -87,7 +87,7 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts.TruncateSQLOrder = []sqlgen.SQLFragmentType{sqlgen.UpdateBeginSQLFragment}
 	d := sqlgen.NewTruncateSQLGenerator("test", "db", opts)
 
-	b := sb.NewSQLBuilder(true).SetError(errors.New("expected error"))
+	b := sb.NewSQLBuilder(true).SetError(errors.NewInvalidExpressionError("expected error"))
 	d.Generate(b, exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "a")))
 	tsgs.assertErrorSQL(b, `goqu: expected error`)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
+	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -239,10 +240,11 @@ func (ids *insertDatasetSuite) TestFromQueryDialectInheritance() {
 			if r == nil {
 				ids.Fail("there should be a panic")
 			}
-			ids.Require().Equal(
-				"incompatible dialects for INSERT (\"dialect\") and SELECT (\"other_dialect\")",
-				r.(error).Error(),
+			ids.Require().EqualError(
+				r.(error),
+				"goqu: incompatible dialects for INSERT (\"dialect\") and SELECT (\"other_dialect\")",
 			)
+			ids.True(sqlgen.IsInvalidExpression(r.(error)))
 		}()
 
 		otherDialect := new(mocks.SQLDialect)
@@ -563,7 +565,7 @@ func (ids *insertDatasetSuite) TestToSQL_ReturnedError() {
 	ds := goqu.Insert("test").SetDialect(md)
 	c := ds.GetClauses()
 	sqlB := sb.NewSQLBuilder(false)
-	ee := errors.New("expected error")
+	ee := errors.NewInvalidExpressionError("expected error")
 	md.On("ToInsertSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
 		args.Get(0).(sb.SQLBuilder).SetError(ee)
 	}).Once()
@@ -576,9 +578,9 @@ func (ids *insertDatasetSuite) TestToSQL_ReturnedError() {
 }
 
 func (ids *insertDatasetSuite) TestSetError() {
-	err1 := errors.New("error #1")
-	err2 := errors.New("error #2")
-	err3 := errors.New("error #3")
+	err1 := errors.NewInvalidExpressionError("error #1")
+	err2 := errors.NewInvalidExpressionError("error #2")
+	err3 := errors.NewInvalidExpressionError("error #3")
 
 	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)

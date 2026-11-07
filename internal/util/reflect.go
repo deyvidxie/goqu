@@ -248,7 +248,7 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 	val := reflect.Indirect(reflect.ValueOf(i))
 	t, valKind := GetTypeInfo(i, val)
 	if valKind != reflect.Struct {
-		return nil, errors.New("cannot scan into this type: %v", t) // #nosec
+		return nil, errors.NewUnsupportedScanTypeError("cannot scan into this type: %v", t) // #nosec
 	}
 
 	return StructColumnMap(t, tagName), nil

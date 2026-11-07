@@ -1,8 +1,6 @@
 package goqu
 
 import (
-	"fmt"
-
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
@@ -19,7 +17,7 @@ type InsertDataset struct {
 	err          error
 }
 
-var ErrUnsupportedIntoType = errors.New("unsupported table type, a string or identifier expression is required")
+var ErrUnsupportedIntoType = errors.NewInvalidExpressionError("unsupported table type, a string or identifier expression is required")
 
 func newInsertDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *InsertDataset {
 	tagName := requestedTag.resolve(d)
@@ -156,7 +154,7 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 	if sds, ok := from.(*SelectDataset); ok {
 		if sds.dialect.Dialect() != "default" && id.dialect.Dialect() != sds.dialect.Dialect() {
 			panic(
-				fmt.Errorf(
+				errors.NewInvalidExpressionError(
 					"incompatible dialects for INSERT (%q) and SELECT (%q)",
 					id.dialect.Dialect(), sds.dialect.Dialect(),
 				),

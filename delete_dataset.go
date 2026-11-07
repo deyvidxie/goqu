@@ -7,7 +7,9 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrBadFromArgument = errors.New("unsupported DeleteDataset#From argument, a string or identifier expression is required")
+var ErrBadFromArgument = errors.NewInvalidExpressionError(
+	"unsupported DeleteDataset#From argument, a string or identifier expression is required",
+)
 
 type DeleteDataset struct {
 	dialect      SQLDialect

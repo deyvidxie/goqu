@@ -1,15 +1,68 @@
 package errors
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
-type Error struct {
-	err string
+type (
+	baseError struct {
+		msg string
+	}
+	UnsupportedError struct {
+		baseError
+	}
+	InvalidExpressionError struct {
+		baseError
+		cause error
+	}
+	UnsupportedScanTypeError struct {
+		baseError
+	}
+)
+
+func (e baseError) Error() string {
+	return "goqu: " + e.msg
 }
 
-func New(message string, args ...interface{}) error {
-	return Error{err: "goqu: " + fmt.Sprintf(message, args...)}
+func NewUnsupportedError(format string, args ...interface{}) error {
+	return UnsupportedError{baseError{msg: fmt.Sprintf(format, args...)}}
 }
 
-func (e Error) Error() string {
-	return e.err
+func IsUnsupported(err error) bool {
+	var target UnsupportedError
+	return errors.As(err, &target)
+}
+
+func NewInvalidExpressionError(format string, args ...interface{}) error {
+	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func NewInvalidExpressionErrorWithCause(cause error, format string, args ...interface{}) error {
+	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}, cause: cause}
+}
+
+func (e InvalidExpressionError) Error() string {
+	if e.cause == nil {
+		return e.baseError.Error()
+	}
+	return e.baseError.Error() + ": " + e.cause.Error()
+}
+
+func (e InvalidExpressionError) Unwrap() error {
+	return e.cause
+}
+
+func IsInvalidExpression(err error) bool {
+	var target InvalidExpressionError
+	return errors.As(err, &target)
+}
+
+func NewUnsupportedScanTypeError(format string, args ...interface{}) error {
+	return UnsupportedScanTypeError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsUnsupportedScanType(err error) bool {
+	var target UnsupportedScanTypeError
+	return errors.As(err, &target)
 }

@@ -1,20 +1,9 @@
 package scantype
 
-import "fmt"
+import "github.com/doug-martin/goqu/v9/internal/errors"
 
-type (
-	baseError struct {
-		msg string
-	}
-	UnsupportedScanTypeError struct {
-		baseError
-	}
-)
-
-func (e baseError) Error() string {
-	return "goqu: " + e.msg
-}
+type UnsupportedScanTypeError = errors.UnsupportedScanTypeError
 
 func NewUnsupportedScanTypeError(format string, args ...interface{}) error {
-	return UnsupportedScanTypeError{baseError{msg: fmt.Sprintf(format, args...)}}
+	return errors.NewUnsupportedScanTypeError(format, args...)
 }

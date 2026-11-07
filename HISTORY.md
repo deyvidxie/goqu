@@ -2,6 +2,7 @@
 
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FEATURE] Add the `ErrorOnUnsupportedConflictTarget` dialect option: a `DoUpdate`/`DoUpdateExcluded` target on a dialect without conflict targets (mysql, mysql8, mysql8nano) returns `ErrConflictTargetNotSupported` instead of being dropped [deyvidxie#41](https://github.com/deyvidxie/goqu/issues/41), [deyvidxie#103](https://github.com/deyvidxie/goqu/pull/103)
+* [FIX] Errors from `exp`, the root package, `exec` and `internal/util` are typed too: bad builder input (mismatched insert rows, unsupported row or update values, unknown `Op` keys, `ErrBadFromArgument`, `ErrUnsupportedIntoType`, `ErrUnsupportedUpdateTableType`, `ErrQueryFactoryNotFoundError`) is an `InvalidExpressionError` matched by `sqlgen.IsInvalidExpression`, and scan-target errors are `UnsupportedScanTypeError`s matched by `exec.IsUnsupportedScanType`; names and messages are unchanged [deyvidxie#46](https://github.com/deyvidxie/goqu/issues/46), [deyvidxie#106](https://github.com/deyvidxie/goqu/issues/106)
 * [FIX] Every error the SQL generators create is a typed `UnsupportedError` or `InvalidExpressionError`, so `sqlgen.IsUnsupported`/`sqlgen.IsInvalidExpression` match them; exported error values keep their names and messages [deyvidxie#43](https://github.com/deyvidxie/goqu/issues/43), [deyvidxie#105](https://github.com/deyvidxie/goqu/pull/105)
 * [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets or `CASE` expressions built from one parent no longer overwrite each other's CTEs, compounds, windows or branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] sqlite3 interpolates a `time.Time` in go-sqlite3's prepared-mode format [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
@@ -12,6 +13,7 @@
 
 ## Behavior changes to be aware of
 
+* The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
 * An unencodable value now fails with `goqu: unable to encode value …` (was `goqu_encode_error: Unable to encode value …`), an `InvalidExpressionError`.
 * sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
   ```sql

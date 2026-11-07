@@ -106,7 +106,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}
 	d := sqlgen.NewSelectSQLGenerator("test", "db", opts)
 
-	b := sb.NewSQLBuilder(true).SetError(errors.New("test error"))
+	b := sb.NewSQLBuilder(true).SetError(errors.NewInvalidExpressionError("test error"))
 	c := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
 	d.Generate(b, c)
 	ssgs.assertErrorSQL(b, `goqu: test error`)

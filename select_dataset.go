@@ -23,7 +23,7 @@ type SelectDataset struct {
 	err          error
 }
 
-var ErrQueryFactoryNotFoundError = errors.New(
+var ErrQueryFactoryNotFoundError = errors.NewInvalidExpressionError(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 

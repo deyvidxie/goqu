@@ -101,7 +101,7 @@ func (esgs *expressionSQLGeneratorSuite) TestDialect() {
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ErroredBuilder() {
 	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
-	expectedErr := errors.New("test error")
+	expectedErr := errors.NewInvalidExpressionError("test error")
 	b := sb.NewSQLBuilder(false).SetError(expectedErr)
 	esg.Generate(b, 1)
 	sql, args, err := b.ToSQL()
@@ -368,7 +368,7 @@ func (j datasetValuerType) Value() (driver.Value, error) {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
-	err := errors.New("valuer error")
+	err := errors.NewInvalidExpressionError("valuer error")
 	var val *datasetValuerType
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
@@ -430,7 +430,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_AppendableExpression() {
 	a := newTestAppendableExpression(`select * from "a"`, []interface{}{}, nil, nil)
 	aliasedA := newTestAppendableExpression(`select * from "a"`, []interface{}{}, nil, ti)
 	argsA := newTestAppendableExpression(`select * from "a" where x=?`, []interface{}{true}, nil, ti)
-	ae := newTestAppendableExpression(`select * from "a"`, emptyArgs, errors.New("expected error"), nil)
+	ae := newTestAppendableExpression(`select * from "a"`, emptyArgs, errors.NewInvalidExpressionError("expected error"), nil)
 
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),

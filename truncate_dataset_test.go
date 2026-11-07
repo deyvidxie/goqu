@@ -253,7 +253,7 @@ func (tds *truncateDatasetSuite) TestToSQL_withError() {
 	md := new(mocks.SQLDialect)
 	ds := goqu.Truncate("test").SetDialect(md)
 	c := ds.GetClauses()
-	ee := errors.New("expected error")
+	ee := errors.NewInvalidExpressionError("expected error")
 	sqlB := sb.NewSQLBuilder(false)
 	md.On("ToTruncateSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
 		args.Get(0).(sb.SQLBuilder).SetError(ee)
@@ -292,9 +292,9 @@ func (tds *truncateDatasetSuite) TestExecutor() {
 }
 
 func (tds *truncateDatasetSuite) TestSetError() {
-	err1 := errors.New("error #1")
-	err2 := errors.New("error #2")
-	err3 := errors.New("error #3")
+	err1 := errors.NewInvalidExpressionError("error #1")
+	err2 := errors.NewInvalidExpressionError("error #2")
+	err3 := errors.NewInvalidExpressionError("error #3")
 
 	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)

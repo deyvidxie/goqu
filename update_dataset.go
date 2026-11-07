@@ -17,7 +17,9 @@ type UpdateDataset struct {
 	err          error
 }
 
-var ErrUnsupportedUpdateTableType = errors.New("unsupported table type, a string or identifier expression is required")
+var ErrUnsupportedUpdateTableType = errors.NewInvalidExpressionError(
+	"unsupported table type, a string or identifier expression is required",
+)
 
 func newUpdateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *UpdateDataset {
 	tagName := requestedTag.resolve(d)

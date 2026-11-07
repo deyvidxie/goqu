@@ -1245,7 +1245,7 @@ func (sds *selectDatasetSuite) TestToSQL_ReturnedError() {
 	ds := goqu.From("test").SetDialect(md)
 	c := ds.GetClauses()
 	sqlB := sb.NewSQLBuilder(false)
-	ee := errors.New("expected error")
+	ee := errors.NewInvalidExpressionError("expected error")
 	md.On("ToSelectSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
 		args.Get(0).(sb.SQLBuilder).SetError(ee)
 	}).Once()
@@ -1710,9 +1710,9 @@ func (sds *selectDatasetSuite) TestPluck_WithPreparedStatement() {
 }
 
 func (sds *selectDatasetSuite) TestSetError() {
-	err1 := errors.New("error #1")
-	err2 := errors.New("error #2")
-	err3 := errors.New("error #3")
+	err1 := errors.NewInvalidExpressionError("error #1")
+	err2 := errors.NewInvalidExpressionError("error #2")
+	err3 := errors.NewInvalidExpressionError("error #3")
 
 	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)

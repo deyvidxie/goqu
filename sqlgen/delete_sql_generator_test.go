@@ -95,11 +95,11 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withErroredBuilder() {
 	d := sqlgen.NewDeleteSQLGenerator("test", "db", opts)
 
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
-	b := sb.NewSQLBuilder(false).SetError(errors.New("expected error"))
+	b := sb.NewSQLBuilder(false).SetError(errors.NewInvalidExpressionError("expected error"))
 	d.Generate(b, dc)
 	dsgs.assertErrorSQL(b, "goqu: expected error")
 
-	b = sb.NewSQLBuilder(true).SetError(errors.New("expected error"))
+	b = sb.NewSQLBuilder(true).SetError(errors.NewInvalidExpressionError("expected error"))
 	d.Generate(b, dc)
 	dsgs.assertErrorSQL(b, "goqu: expected error")
 }
