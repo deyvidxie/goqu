@@ -164,6 +164,9 @@ func (td *TruncateDataset) ToSQL() (sql string, params []interface{}, err error)
 }
 
 func (td *TruncateDataset) Executor() exec.QueryExecutor {
+	if td.queryFactory == nil {
+		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+	}
 	builder := td.truncateSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
 	return td.queryFactory.FromSQLBuilder(builder)

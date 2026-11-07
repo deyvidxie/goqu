@@ -66,10 +66,19 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		},
 		{"record from a non-struct", "goqu: cannot create a record from int, a struct is required", recordErr(1)},
 		{"record from a nil pointer", "goqu: cannot create a record from a nil *goqu_test.row", recordErr((*row)(nil))},
+		{"nil pointer row", "goqu: insert rows must not be nil, got *goqu_test.row", toSQL(goqu.Insert("t").Rows((*row)(nil)))},
+		{"nil row", "goqu: insert rows must not be nil, got <nil>", toSQL(goqu.Insert("t").Rows(row{A: 1}, nil))},
+		{"nil pointer update", "goqu: update values must not be nil, got *goqu_test.row", toSQL(goqu.Update("t").Set((*row)(nil)))},
+		{"nil update", "goqu: update values must not be nil, got <nil>", updateErr(nil)},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, sqlgen.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
 	}
+}
+
+func updateErr(v any) error {
+	_, err := exp.NewUpdateExpressions("db", v)
+	return err
 }
 
 func recordErr(i any) error {
@@ -85,4 +94,18 @@ func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {
 	var target goqu.NoQueryExecutorError
 	assert.ErrorAs(t, err, &target)
 	assert.False(t, sqlgen.IsInvalidExpression(err))
+}
+
+func TestExecutorWithoutDatabaseFailsWithNoQueryExecutor(t *testing.T) {
+	for name, executor := range map[string]func() (any, error){
+		"select":   func() (any, error) { return goqu.From("t").Executor().Exec() },
+		"insert":   func() (any, error) { return goqu.Insert("t").Rows(goqu.Record{"a": 1}).Executor().Exec() },
+		"update":   func() (any, error) { return goqu.Update("t").Set(goqu.Record{"a": 1}).Executor().Exec() },
+		"delete":   func() (any, error) { return goqu.Delete("t").Executor().Exec() },
+		"truncate": func() (any, error) { return goqu.Truncate("t").Executor().Exec() },
+	} {
+		_, err := executor()
+		assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError, name)
+		assert.True(t, goqu.IsNoQueryExecutor(err), name)
+	}
 }

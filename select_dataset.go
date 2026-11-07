@@ -609,6 +609,9 @@ func (sd *SelectDataset) ToSQL() (sql string, params []interface{}, err error) {
 }
 
 func (sd *SelectDataset) Executor() exec.QueryExecutor {
+	if sd.queryFactory == nil {
+		return exec.NewFailedQueryExecutor(ErrQueryFactoryNotFoundError)
+	}
 	builder := sd.selectSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
 	return sd.queryFactory.FromSQLBuilder(builder)

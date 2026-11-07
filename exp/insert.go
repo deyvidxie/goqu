@@ -81,7 +81,17 @@ func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 }
 
 // parses the rows gathering and sorting unique columns and values for each record
+func isNilValue(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
+}
+
 func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {
+	for _, row := range rows {
+		if isNilValue(row) {
+			return nil, errors.NewInvalidExpressionError("insert rows must not be nil, got %T", row)
+		}
+	}
 	var mapKeys util.ValueSlice
 	rowValue := reflect.Indirect(reflect.ValueOf(rows[0]))
 	rowType := rowValue.Type()
