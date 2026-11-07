@@ -348,9 +348,7 @@ func (isg *insertSQLGenerator) onConflictSQL(
 	b.Write(isg.DialectOptions().ConflictFragment)
 	switch t := o.(type) {
 	case exp.ConflictUpdateExpression:
-		if !isg.conflictUpdateTargetSQL(b, t.TargetColumn()) {
-			return
-		}
+		isg.conflictUpdateTargetSQL(b, t.TargetColumn())
 		isg.onConflictDoUpdateSQL(b, t, rowAlias, rendered)
 	case exp.ConflictNothingExpression:
 		isg.ConflictTargetSQL(b, t.Cols())
@@ -363,7 +361,7 @@ func (isg *insertSQLGenerator) onConflictSQL(
 	}
 }
 
-func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target string) bool {
+func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target string) {
 	opts := isg.DialectOptions()
 	switch {
 	case target == "":
@@ -376,9 +374,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 		}
 	case opts.ErrorOnUnsupportedConflictTarget:
 		b.SetError(ErrConflictTargetNotSupported(isg.Dialect()))
-		return false
 	}
-	return true
 }
 
 func (isg *insertSQLGenerator) onConflictDoUpdateSQL(

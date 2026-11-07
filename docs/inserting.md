@@ -411,15 +411,6 @@ To specify the conflict target columns, use `SetCols`. This is supported by dial
 (Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error instead of silently
 ignoring the target.
 
-`DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set
-`ErrorOnUnsupportedConflictTarget` on the dialect options to return that error for a non-empty target instead:
-
-```go
-opts := mysql.DialectOptions()
-opts.ErrorOnUnsupportedConflictTarget = true
-goqu.RegisterDialect("mysql-strict", "db", opts)
-```
-
 `SetCols` only supports a list of columns. To target a named constraint (`ON CONSTRAINT name`), use
 `DoUpdate` with a constraint target instead.
 
@@ -484,6 +475,15 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 **NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias; for older servers set `ExcludedStyle` to
 `sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`. An `INSERT ... SELECT` that
 uses `Excluded` cannot reference the tables of the `SELECT` in the update.
+
+`DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set
+`ErrorOnUnsupportedConflictTarget` on the dialect options to return a Conflict Target error for a non-empty target instead:
+
+```go
+opts := mysql.DialectOptions()
+opts.ErrorOnUnsupportedConflictTarget = true
+goqu.RegisterDialect("mysql-strict", "db", opts)
+```
 
 <a name="returning"></a>
 **Returning Clause**

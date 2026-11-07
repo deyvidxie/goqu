@@ -329,34 +329,36 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 }
 
 func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
+	upserts := func(d goqu.DialectWrapper) []*goqu.InsertDataset {
+		ds := d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1})
+		return []*goqu.InsertDataset{
+			ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"b": 2})),
+			ds.OnConflict(goqu.DoUpdateExcluded("a", "b")),
+		}
+	}
 	for dialect, dialectOptions := range map[string]func() *goqu.SQLDialectOptions{
-		"mysql": goqumysql.DialectOptions, "mysql8": goqumysql.DialectOptionsV8,
+		"mysql": goqumysql.DialectOptions, "mysql8": goqumysql.DialectOptionsV8, "mysql8nano": goqumysql.DialectOptionsV8Nano,
 	} {
-		upserts := func(d goqu.DialectWrapper) []*goqu.InsertDataset {
-			ds := d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1})
-			return []*goqu.InsertDataset{
-				ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"b": 2})),
-				ds.OnConflict(goqu.DoUpdateExcluded("a", "b")),
+		t.Run(dialect, func(t *testing.T) {
+			for _, ds := range upserts(goqu.Dialect(dialect)) {
+				_, _, err := ds.ToSQL()
+				assert.NoError(t, err)
 			}
-		}
-		for _, ds := range upserts(goqu.Dialect(dialect)) {
-			_, _, err := ds.ToSQL()
-			assert.NoError(t, err, dialect)
-		}
 
-		opts := dialectOptions()
-		opts.ErrorOnUnsupportedConflictTarget = true
-		strict := dialect + "-strict-conflict-target"
-		goqu.RegisterDialect(strict, "db", opts)
-		for _, ds := range upserts(goqu.Dialect(strict)) {
-			_, _, err := ds.ToSQL()
-			assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect="+strict+"]")
-			assert.True(t, sqlgen.IsUnsupported(err))
-		}
-		_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).
-			OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
-		assert.NoError(t, err)
-		goqu.DeregisterDialect(strict)
+			opts := dialectOptions()
+			opts.ErrorOnUnsupportedConflictTarget = true
+			strict := dialect + "-strict-conflict-target"
+			goqu.RegisterDialect(strict, "db", opts)
+			t.Cleanup(func() { goqu.DeregisterDialect(strict) })
+			for _, ds := range upserts(goqu.Dialect(strict)) {
+				_, _, err := ds.ToSQL()
+				assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect="+strict+"]")
+				assert.True(t, sqlgen.IsUnsupported(err))
+			}
+			_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).
+				OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
+			assert.NoError(t, err)
+		})
 	}
 }
 
