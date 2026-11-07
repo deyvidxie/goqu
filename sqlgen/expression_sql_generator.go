@@ -118,7 +118,7 @@ func errUnknownTimeStyle(dialect string, style TimeStyle) error {
 	return NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
 }
 
-func errIntervalUnit(unit string) error {
+func errIntervalUnit(unit exp.IntervalUnit) error {
 	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 
@@ -1023,29 +1023,32 @@ func describeCollation(collation any) string {
 	return fmt.Sprintf("%v", collation)
 }
 
-var intervalUnits = []struct{ name, quantity string }{
-	{"MICROSECOND", "1 MICROSECOND"},
-	{"SECOND", "1 SECOND"},
-	{"MINUTE", "1 MINUTE"},
-	{"HOUR", "1 HOUR"},
-	{"DAY", "1 DAY"},
-	{"WEEK", "1 WEEK"},
-	{"MONTH", "1 MONTH"},
-	{"QUARTER", "3 MONTH"},
-	{"YEAR", "1 YEAR"},
+var intervalUnits = []struct {
+	unit     exp.IntervalUnit
+	quantity string
+}{
+	{exp.MicrosecondInterval, "1 MICROSECOND"},
+	{exp.SecondInterval, "1 SECOND"},
+	{exp.MinuteInterval, "1 MINUTE"},
+	{exp.HourInterval, "1 HOUR"},
+	{exp.DayInterval, "1 DAY"},
+	{exp.WeekInterval, "1 WEEK"},
+	{exp.MonthInterval, "1 MONTH"},
+	{exp.QuarterInterval, "3 MONTH"},
+	{exp.YearInterval, "1 YEAR"},
 }
 
 var intervalUnitNames = func() string {
 	names := make([]string, len(intervalUnits))
 	for i, u := range intervalUnits {
-		names[i] = u.name
+		names[i] = string(u.unit)
 	}
 	return strings.Join(names, ", ")
 }()
 
-func intervalQuantity(unit string) (string, bool) {
+func intervalQuantity(unit exp.IntervalUnit) (string, bool) {
 	for _, u := range intervalUnits {
-		if u.name == unit {
+		if u.unit == unit {
 			return u.quantity, true
 		}
 	}
@@ -1057,7 +1060,31 @@ const (
 	microsecondFSP = 6
 )
 
+type timeRenderer func(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error
+
+func (esg *expressionSQLGenerator) timeRenderer() (timeRenderer, error) {
+	switch esg.dialectOptions.TimeStyle {
+	case PostgresTimeStyle:
+		return esg.postgresTimeSQL, nil
+	case MySQLTimeStyle:
+		return esg.mysqlTimeSQL, nil
+	case SQLiteTimeStyle:
+		return esg.sqliteTimeSQL, nil
+	case SQLServerTimeStyle:
+		return esg.sqlServerTimeSQL, nil
+	case DuckDBTimeStyle:
+		return esg.duckDBTimeSQL, nil
+	default:
+		return nil, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
+	}
+}
+
 func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e exp.TimeFunctionExpression) {
+	render, err := esg.timeRenderer()
+	if err != nil {
+		b.SetError(err)
+		return
+	}
 	fsp, hasFSP, err := timeFSP(e.FSP())
 	if err != nil {
 		b.SetError(err)
@@ -1072,39 +1099,9 @@ func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e 
 		b.SetError(errUnknownTimeFunction(e.Function()))
 		return
 	}
-	var expr exp.Expression
-	switch esg.dialectOptions.TimeStyle {
-	case PostgresTimeStyle:
-		expr = postgresTime(utc, fsp, hasFSP)
-	case MySQLTimeStyle:
-		expr = mysqlTime(utc, fsp, hasFSP)
-	case SQLiteTimeStyle:
-		expr, err = sqliteTime(esg.dialect, utc, fsp, hasFSP)
-	case SQLServerTimeStyle:
-		expr = sqlServerTime(utc, fsp, hasFSP)
-	case DuckDBTimeStyle:
-		expr, err = duckDBTime(esg.dialect, utc, fsp, hasFSP)
-	default:
-		err = errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
-	}
-	if err != nil {
+	if err := render(b, utc, fsp, hasFSP); err != nil {
 		b.SetError(err)
-		return
 	}
-	esg.parenthesizedSQL(b, expr)
-}
-
-type parenthesized struct{ exp.LiteralExpression }
-
-func (esg *expressionSQLGenerator) parenthesizedSQL(b sb.SQLBuilder, e exp.Expression) {
-	p, ok := e.(parenthesized)
-	if !ok {
-		esg.Generate(b, e)
-		return
-	}
-	b.WriteRunes(esg.dialectOptions.LeftParenRune)
-	esg.Generate(b, p.LiteralExpression)
-	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
 func timeFSP(fsp []int) (value int, ok bool, err error) {
@@ -1128,84 +1125,110 @@ func timeFunc(name string, fsp int, hasFSP bool) exp.SQLFunctionExpression {
 	return exp.NewSQLFunctionExpression(name)
 }
 
-func postgresTime(utc bool, fsp int, hasFSP bool) exp.Expression {
+func (esg *expressionSQLGenerator) parenthesizedSQL(b sb.SQLBuilder, e exp.Expression) {
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	esg.Generate(b, e)
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
+}
+
+func (esg *expressionSQLGenerator) postgresTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	now := exp.NewSQLFunctionExpression("NOW")
 	if hasFSP {
 		now = timeFunc("CURRENT_TIMESTAMP", fsp, hasFSP)
 	}
 	if utc {
-		return parenthesized{exp.NewLiteralExpression("? AT TIME ZONE 'UTC'", now)}
+		esg.parenthesizedSQL(b, exp.NewLiteralExpression("? AT TIME ZONE 'UTC'", now))
+		return nil
 	}
-	return now
+	esg.Generate(b, now)
+	return nil
 }
 
-func mysqlTime(utc bool, fsp int, hasFSP bool) exp.Expression {
+func (esg *expressionSQLGenerator) mysqlTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	name := "NOW"
 	if utc {
-		return timeFunc("UTC_TIMESTAMP", fsp, hasFSP)
+		name = "UTC_TIMESTAMP"
 	}
-	return timeFunc("NOW", fsp, hasFSP)
+	esg.Generate(b, timeFunc(name, fsp, hasFSP))
+	return nil
 }
 
-func sqliteTime(dialect string, utc bool, fsp int, hasFSP bool) (exp.Expression, error) {
+func (esg *expressionSQLGenerator) sqliteTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	args := []any{exp.NewLiteralExpression("'now'")}
 	if !utc {
 		args = append(args, exp.NewLiteralExpression("'localtime'"))
 	}
 	switch {
 	case !hasFSP || fsp == 0:
-		return exp.NewSQLFunctionExpression("datetime", args...), nil
+		esg.Generate(b, exp.NewSQLFunctionExpression("datetime", args...))
 	case fsp == millisecondFSP:
-		return exp.NewSQLFunctionExpression("strftime", append([]any{exp.NewLiteralExpression("'%Y-%m-%d %H:%M:%f'")}, args...)...), nil
+		esg.Generate(b, exp.NewSQLFunctionExpression("strftime", append([]any{exp.NewLiteralExpression("'%Y-%m-%d %H:%M:%f'")}, args...)...))
 	default:
-		return nil, errTimeFSPNotSupported(dialect, fsp, "0, 3")
+		return errTimeFSPNotSupported(esg.dialect, fsp, "0, 3")
 	}
+	return nil
 }
 
-func sqlServerTime(utc bool, fsp int, hasFSP bool) exp.Expression {
+func (esg *expressionSQLGenerator) sqlServerTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	now := exp.NewSQLFunctionExpression("SYSDATETIME")
 	if utc {
 		now = exp.NewSQLFunctionExpression("SYSUTCDATETIME")
 	}
 	if hasFSP {
-		return exp.NewCastExpression(now, fmt.Sprintf("DATETIME2(%d)", fsp))
+		esg.Generate(b, exp.NewCastExpression(now, fmt.Sprintf("DATETIME2(%d)", fsp)))
+		return nil
 	}
-	return now
+	esg.Generate(b, now)
+	return nil
 }
 
-func duckDBTime(dialect string, utc bool, fsp int, hasFSP bool) (exp.Expression, error) {
+func (esg *expressionSQLGenerator) duckDBTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	var now exp.Expression = exp.NewCastExpression(exp.NewSQLFunctionExpression("now"), "TIMESTAMP")
 	if utc {
 		now = exp.NewSQLFunctionExpression("make_timestamp", exp.NewSQLFunctionExpression("epoch_us", exp.NewSQLFunctionExpression("now")))
 	}
 	switch {
 	case !hasFSP || fsp == microsecondFSP:
-		return now, nil
+		esg.Generate(b, now)
 	case fsp == 0:
-		return exp.NewCastExpression(now, "TIMESTAMP_S"), nil
+		esg.Generate(b, exp.NewCastExpression(now, "TIMESTAMP_S"))
 	case fsp == millisecondFSP:
-		return exp.NewCastExpression(now, "TIMESTAMP_MS"), nil
+		esg.Generate(b, exp.NewCastExpression(now, "TIMESTAMP_MS"))
 	default:
-		return nil, errTimeFSPNotSupported(dialect, fsp, "0, 3, 6")
+		return errTimeFSPNotSupported(esg.dialect, fsp, "0, 3, 6")
 	}
+	return nil
 }
 
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.IntervalExpression) {
-	unit := strings.ToUpper(e.Unit())
+	style := esg.dialectOptions.TimeStyle
+	switch style {
+	case MySQLTimeStyle, PostgresTimeStyle, DuckDBTimeStyle:
+	case SQLiteTimeStyle, SQLServerTimeStyle:
+		b.SetError(errIntervalNotSupported(esg.dialect))
+		return
+	default:
+		b.SetError(errUnknownTimeStyle(esg.dialect, style))
+		return
+	}
+	unit := exp.IntervalUnit(strings.ToUpper(string(e.Unit())))
 	quantity, ok := intervalQuantity(unit)
 	if !ok {
 		b.SetError(errIntervalUnit(e.Unit()))
 		return
 	}
-	switch esg.dialectOptions.TimeStyle {
-	case MySQLTimeStyle:
-		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+unit, e.Count()))
-	case PostgresTimeStyle, DuckDBTimeStyle:
-		esg.parenthesizedSQL(b, parenthesized{exp.NewLiteralExpression("? * INTERVAL '"+quantity+"'", e.Count())})
-	case SQLiteTimeStyle, SQLServerTimeStyle:
-		b.SetError(errIntervalNotSupported(esg.dialect))
-	default:
-		b.SetError(errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle))
+	if style == MySQLTimeStyle {
+		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), e.Count()))
+		return
 	}
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	if literal, isLiteral := e.Count().(exp.LiteralExpression); isLiteral {
+		esg.parenthesizedSQL(b, literal)
+	} else {
+		esg.Generate(b, e.Count())
+	}
+	b.WriteStrings(" * INTERVAL '" + quantity + "'")
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {

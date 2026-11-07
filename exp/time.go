@@ -7,7 +7,7 @@ type (
 	}
 	intervalExpression struct {
 		count any
-		unit  string
+		unit  IntervalUnit
 	}
 )
 
@@ -19,7 +19,7 @@ func NewUTCTimestampExpression(fsp ...int) TimeFunctionExpression {
 	return timeFunctionExpression{function: UTCTimestampFunction, fsp: fsp}
 }
 
-func NewIntervalExpression(count any, unit string) IntervalExpression {
+func NewIntervalExpression(count any, unit IntervalUnit) IntervalExpression {
 	return intervalExpression{count: count, unit: unit}
 }
 
@@ -58,4 +58,4 @@ func (te timeFunctionExpression) Desc() OrderedExpression             { return d
 func (ie intervalExpression) Clone() Expression      { return ie }
 func (ie intervalExpression) Expression() Expression { return ie }
 func (ie intervalExpression) Count() any             { return ie.count }
-func (ie intervalExpression) Unit() string           { return ie.unit }
+func (ie intervalExpression) Unit() IntervalUnit     { return ie.unit }

@@ -683,7 +683,7 @@ func ExampleFIRST_as() {
 func ExampleNow() {
 	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
-	ds := goqu.Dialect("mysql").From("events").Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, "hour"))))
+	ds := goqu.Dialect("mysql").From("events").Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, exp.HourInterval))))
 	sql, args, _ := ds.ToSQL()
 	fmt.Println(sql, args)
 
@@ -715,7 +715,7 @@ func ExampleNow_dialects() {
 func ExampleUTCTimestamp() {
 	// import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
-	sql, _, _ := goqu.Dialect("mysql").Update("sessions").Set(goqu.Record{"expires": goqu.UTCTimestamp().Add(goqu.Interval(30, "minute"))}).ToSQL()
+	sql, _, _ := goqu.Dialect("mysql").Update("sessions").Set(goqu.Record{"expires": goqu.UTCTimestamp().Add(goqu.Interval(30, exp.MinuteInterval))}).ToSQL()
 	fmt.Println(sql)
 
 	// Output:
@@ -724,7 +724,7 @@ func ExampleUTCTimestamp() {
 
 func ExampleInterval_dialects() {
 	for _, dialect := range []string{"mysql", "postgres", "sqlserver"} {
-		sql, _, err := goqu.Dialect(dialect).From("events").Where(goqu.C("created").Lt(goqu.Now().Sub(goqu.Interval(7, "day")))).ToSQL()
+		sql, _, err := goqu.Dialect(dialect).From("events").Where(goqu.C("created").Lt(goqu.Now().Sub(goqu.Interval(7, exp.DayInterval)))).ToSQL()
 		if err != nil {
 			fmt.Println(err)
 			continue

@@ -349,8 +349,9 @@ type (
 	IntervalExpression interface {
 		Expression
 		Count() any
-		Unit() string
+		Unit() IntervalUnit
 	}
+	IntervalUnit   string
 	JSONFunction   int
 	JSONExpression interface {
 		Expression
@@ -729,6 +730,18 @@ const (
 // (boolean/bitwise operators, sort directions, join conditions...). New join types must be added the same way
 // (CrossJoinType + n) to keep the existing exported values stable.
 const StraightJoinType = CrossJoinType + 1
+
+const (
+	MicrosecondInterval IntervalUnit = "MICROSECOND"
+	SecondInterval      IntervalUnit = "SECOND"
+	MinuteInterval      IntervalUnit = "MINUTE"
+	HourInterval        IntervalUnit = "HOUR"
+	DayInterval         IntervalUnit = "DAY"
+	WeekInterval        IntervalUnit = "WEEK"
+	MonthInterval       IntervalUnit = "MONTH"
+	QuarterInterval     IntervalUnit = "QUARTER"
+	YearInterval        IntervalUnit = "YEAR"
+)
 
 // CustomJoinType is a join whose text is entirely provided by the user (e.g. ClickHouse's ARRAY JOIN). It is declared
 // outside the iota block for the same reason as StraightJoinType.

@@ -82,8 +82,7 @@ func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
 	return exp.NewUTCTimestampExpression(fsp...)
 }
 
-// Interval's unit is one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR (case-insensitive).
-func Interval(count any, unit string) exp.IntervalExpression {
+func Interval(count any, unit exp.IntervalUnit) exp.IntervalExpression {
 	return exp.NewIntervalExpression(count, unit)
 }
 

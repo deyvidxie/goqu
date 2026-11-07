@@ -149,7 +149,11 @@ func versionAtLeast(version, minimum [3]int) bool {
 func (mt *mysqlTest) TestTimeFunctionsInNonUTCSession() {
 	tx, err := mt.db.Begin()
 	mt.Require().NoError(err)
-	defer func() { mt.NoError(tx.Rollback()) }()
+	defer func() {
+		_, err := tx.Exec("SET time_zone = DEFAULT")
+		mt.NoError(err)
+		mt.NoError(tx.Rollback())
+	}()
 	_, err = tx.Exec("SET time_zone = '+05:00'")
 	mt.Require().NoError(err)
 

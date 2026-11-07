@@ -51,6 +51,12 @@ func (sds *sqlserverDialectSuite) TestTimeFunctions() {
 			ds:  sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()),
 			sql: `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`,
 		},
+		sqlTestCase{
+			ds:         sds.GetDs("t").Prepared(true).Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql:        `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`,
+			isPrepared: true,
+			args:       []interface{}{},
+		},
 	)
 }
 
@@ -294,7 +300,7 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
 
-func TestIntervalIsUnsupported(t *testing.T) {
+func TestIntervalIsError(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlserver]`)
 	assert.True(t, sqlgen.IsUnsupported(err))

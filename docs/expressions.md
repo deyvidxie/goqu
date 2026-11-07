@@ -439,9 +439,9 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 <a name="time"></a>
 **[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
 
-`Now(fsp)` and `UTCTimestamp(fsp)` take an optional fractional seconds precision from 0 to 6. `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `n` is a value or an expression, and `unit` is one of `MICROSECOND`, `SECOND`, `MINUTE`, `HOUR`, `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR` (case-insensitive). Each dialect renders its own SQL; `Now` is the database's current time in its session or server time zone:
+`Now(fsp)` and `UTCTimestamp(fsp)` take an optional fractional seconds precision from 0 to 6. `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `n` is a value or an expression, and `unit` is an `exp.IntervalUnit` (`exp.MicrosecondInterval` through `exp.YearInterval`). Each dialect renders its own SQL; `Now` is the database's current time in its session or server time zone, and a precision rounds on postgres and sqlserver but truncates on mysql and duckdb:
 
-| dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, "day")` | scanned as |
+| dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, exp.DayInterval)` | scanned as |
 |---|---|---|---|---|
 | mysql, mysql8, mysql8nano | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
 | postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
@@ -455,7 +455,7 @@ sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6; other precisions, u
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
 sql, args, _ := goqu.Dialect("mysql").From("events").
-  Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, "hour")))).
+  Where(goqu.C("created").Gt(goqu.Now(6).Sub(goqu.Interval(1, exp.HourInterval)))).
   Prepared(true).
   ToSQL()
 fmt.Println(sql, args)

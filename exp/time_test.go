@@ -18,9 +18,9 @@ func TestNewTimeFunctionExpressions(t *testing.T) {
 	assert.Equal(t, exp.UTCTimestampFunction, utc.Function())
 	assert.Empty(t, utc.FSP())
 
-	interval := exp.NewIntervalExpression(1, "second")
+	interval := exp.NewIntervalExpression(1, exp.SecondInterval)
 	assert.Equal(t, 1, interval.Count())
-	assert.Equal(t, "second", interval.Unit())
+	assert.Equal(t, exp.SecondInterval, interval.Unit())
 	assert.Equal(t, interval, interval.Expression())
 	assert.Equal(t, interval, interval.Clone())
 }

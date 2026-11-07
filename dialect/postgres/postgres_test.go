@@ -112,6 +112,8 @@ func (pt *postgresTest) TestTimeFunctionsInNonUTCSession() {
 	}
 	pt.WithinDuration(time.Now().UTC(), wall(utc[0]), time.Minute)
 	pt.WithinDuration(time.Now(), now[0], time.Minute)
+	_, offset := now[0].Zone()
+	pt.Equal(5*60*60+30*60, offset)
 }
 
 func (pt *postgresTest) TestTimeFunctions() {
@@ -127,6 +129,10 @@ func (pt *postgresTest) TestTimeFunctions() {
 		pt.Equal(int64(10), count)
 
 		quarter := goqu.L("(NOW() AT TIME ZONE 'UTC') + INTERVAL '3 MONTH'")
+		count, err = ds.Where(goqu.Now().Add(goqu.Interval(goqu.L("2 - 1"), exp.DayInterval)).Eq(goqu.L("NOW() + INTERVAL '1 DAY'"))).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
 		count, err = ds.Where(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")).Eq(quarter)).Count()
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)

@@ -51,8 +51,10 @@ func (sds *duckdbDialectSuite) TestTimeFunctions() {
 				`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (1 * INTERVAL '1 DAY')))`,
 		},
 		sqlTestCase{
-			ds:         sds.GetDs("t").Prepared(true).Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))),
-			sql:        `SELECT * FROM "t" WHERE ("at" < (CAST(now() AS TIMESTAMP) - (? * INTERVAL '1 DAY')))`,
+			ds: sds.GetDs("t").Prepared(true).Select(goqu.Now(3), goqu.UTCTimestamp()).
+				Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))),
+			sql: `SELECT CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS), make_timestamp(epoch_us(now())) FROM "t" ` +
+				`WHERE ("at" < (CAST(now() AS TIMESTAMP) - (? * INTERVAL '1 DAY')))`,
 			isPrepared: true,
 			args:       []interface{}{int64(1)},
 		},
