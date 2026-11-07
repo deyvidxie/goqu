@@ -1,12 +1,11 @@
 package goqu
 
 import (
-	"fmt"
-
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
 type InsertDataset struct {
@@ -19,7 +18,7 @@ type InsertDataset struct {
 	err          error
 }
 
-var ErrUnsupportedIntoType = errors.New("unsupported table type, a string or identifier expression is required")
+var ErrUnsupportedIntoType = errors.NewInvalidExpressionError("unsupported table type, a string or identifier expression is required")
 
 func newInsertDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *InsertDataset {
 	tagName := requestedTag.resolve(d)
@@ -153,10 +152,13 @@ func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
 
 // Adds a subquery to the insert. See examples.
 func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset {
+	if from != nil && util.IsNilOrNilPointer(from) {
+		return id.copy(id.clauses).SetError(errors.NewInvalidExpressionError("insert source must not be nil, got %T", from))
+	}
 	if sds, ok := from.(*SelectDataset); ok {
 		if sds.dialect.Dialect() != "default" && id.dialect.Dialect() != sds.dialect.Dialect() {
 			panic(
-				fmt.Errorf(
+				errors.NewInvalidExpressionError(
 					"incompatible dialects for INSERT (%q) and SELECT (%q)",
 					id.dialect.Dialect(), sds.dialect.Dialect(),
 				),
@@ -269,6 +271,9 @@ func (id *InsertDataset) ReturnsColumns() bool {
 //
 //	db.Insert("test").Rows(Record{"name":"Bob"}).Executor().Exec()
 func (id *InsertDataset) Executor() exec.QueryExecutor {
+	if id.queryFactory == nil {
+		return noDatabaseExecutor(id.tagName)
+	}
 	builder := id.insertSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
 	return id.queryFactory.FromSQLBuilder(builder)

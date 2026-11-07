@@ -61,7 +61,7 @@ func TestReleaseSQLBuilderResetsState(t *testing.T) {
 	b.WriteStrings("SELECT ")
 	b.WriteRunes('1')
 	b.WriteArg(123)
-	b.SetError(errors.New("assert"))
+	b.SetError(newTestError("assert"))
 
 	sbImpl, ok := b.(*sqlBuilder)
 	if !ok {
@@ -144,7 +144,7 @@ func TestSQLBuilder_WriteIntAndFloat(t *testing.T) {
 	}
 
 	// once an error is set nothing is written
-	errB := newSQLBuilder(false).SetError(errors.New("boom"))
+	errB := newSQLBuilder(false).SetError(newTestError("boom"))
 	errB.WriteInt(1).WriteFloat(2)
 	if got := errB.(*sqlBuilder).buf.String(); got != "" {
 		t.Fatalf("builder with an error must not write; got %q", got)
@@ -170,7 +170,7 @@ func TestSQLBuilder_Grow(t *testing.T) {
 		t.Fatalf("GrowBuffer did not grow the buffer; cap=%d", b.buf.Cap())
 	}
 
-	errB := newSQLBuilder(true).SetError(errors.New("boom")).(*sqlBuilder)
+	errB := newSQLBuilder(true).SetError(newTestError("boom")).(*sqlBuilder)
 	errB.GrowArgs(10)
 	errB.GrowBuffer(10)
 	if cap(errB.args) != 0 {

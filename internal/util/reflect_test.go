@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 	"github.com/stretchr/testify/suite"
 )
@@ -398,6 +399,14 @@ func (rt *reflectTest) TestIsValuerOrBytes() {
 	for _, v := range []interface{}{uint8Codes{}, []int{}, &[]int{}, "s", nil} {
 		rt.False(util.IsValuerOrBytes(v), "%T", v)
 	}
+}
+
+func (rt *reflectTest) TestIsNilOrNilPointer() {
+	rt.True(util.IsNilOrNilPointer(nil))
+	rt.True(util.IsNilOrNilPointer((*TestStruct)(nil)))
+	rt.False(util.IsNilOrNilPointer(&TestStruct{}))
+	rt.False(util.IsNilOrNilPointer(map[string]interface{}(nil)))
+	rt.False(util.IsNilOrNilPointer(0))
 }
 
 func (rt *reflectTest) TestIsNil() {
@@ -970,6 +979,7 @@ func (rt *reflectTest) TestGetColumnMap_withNonStruct() {
 	var v int64
 	_, err := util.GetColumnMap(&v, "db")
 	rt.EqualError(err, "goqu: cannot scan into this type: int64")
+	rt.True(errors.IsUnsupportedScanType(err))
 }
 
 func (rt *reflectTest) TestGetColumnMap_withStructWithEmbeddedStruct() {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
 	"github.com/stretchr/testify/mock"
@@ -1245,7 +1245,7 @@ func (sds *selectDatasetSuite) TestToSQL_ReturnedError() {
 	ds := goqu.From("test").SetDialect(md)
 	c := ds.GetClauses()
 	sqlB := sb.NewSQLBuilder(false)
-	ee := errors.New("expected error")
+	ee := newTestError("expected error")
 	md.On("ToSelectSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
 		args.Get(0).(sb.SQLBuilder).SetError(ee)
 	}).Once()
@@ -1398,6 +1398,7 @@ func (sds *selectDatasetSuite) TestScanStruct() {
 	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
+	sds.True(exec.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
 	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
@@ -1464,6 +1465,7 @@ func (sds *selectDatasetSuite) TestScanStructSubqueries() {
 	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
+	sds.True(exec.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
 	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
@@ -1710,11 +1712,10 @@ func (sds *selectDatasetSuite) TestPluck_WithPreparedStatement() {
 }
 
 func (sds *selectDatasetSuite) TestSetError() {
-	err1 := errors.New("error #1")
-	err2 := errors.New("error #2")
-	err3 := errors.New("error #3")
+	err1 := newTestError("error #1")
+	err2 := newTestError("error #2")
+	err3 := newTestError("error #3")
 
-	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)
 	ds := goqu.From("test").SetDialect(md)
 	ds = ds.SetError(err1)

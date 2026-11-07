@@ -1,56 +1,28 @@
 package sqlgen
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/doug-martin/goqu/v9/internal/errors"
 
 type (
-	baseError struct {
-		msg string
-	}
-	UnsupportedError struct {
-		baseError
-	}
-	InvalidExpressionError struct {
-		baseError
-		cause error
-	}
+	UnsupportedError       = errors.UnsupportedError
+	InvalidExpressionError = errors.InvalidExpressionError
 )
 
-func (e baseError) Error() string {
-	return "goqu: " + e.msg
-}
-
 func NewUnsupportedError(format string, args ...interface{}) error {
-	return UnsupportedError{baseError{msg: fmt.Sprintf(format, args...)}}
+	return errors.NewUnsupportedError(format, args...)
 }
 
 func IsUnsupported(err error) bool {
-	var target UnsupportedError
-	return errors.As(err, &target)
+	return errors.IsUnsupported(err)
 }
 
 func NewInvalidExpressionError(format string, args ...interface{}) error {
-	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}}
+	return errors.NewInvalidExpressionError(format, args...)
 }
 
 func NewInvalidExpressionErrorWithCause(cause error, format string, args ...interface{}) error {
-	return InvalidExpressionError{baseError: baseError{msg: fmt.Sprintf(format, args...)}, cause: cause}
-}
-
-func (e InvalidExpressionError) Error() string {
-	if e.cause == nil {
-		return e.baseError.Error()
-	}
-	return e.baseError.Error() + ": " + e.cause.Error()
-}
-
-func (e InvalidExpressionError) Unwrap() error {
-	return e.cause
+	return errors.NewInvalidExpressionErrorWithCause(cause, format, args...)
 }
 
 func IsInvalidExpression(err error) bool {
-	var target InvalidExpressionError
-	return errors.As(err, &target)
+	return errors.IsInvalidExpression(err)
 }

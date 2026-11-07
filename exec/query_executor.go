@@ -21,11 +21,11 @@ type (
 )
 
 var (
-	errUnsupportedScanStructType  = errors.New("type must be a pointer to a struct when scanning into a struct")
-	errUnsupportedScanStructsType = errors.New("type must be a pointer to a slice when scanning into structs")
-	errUnsupportedScanValsType    = errors.New("type must be a pointer to a slice when scanning into vals")
-	errScanValPointer             = errors.New("type must be a pointer when scanning into val")
-	errScanValNonSlice            = errors.New("type cannot be a pointer to a slice when scanning into val")
+	errUnsupportedScanStructType  = errors.NewUnsupportedScanTypeError("type must be a pointer to a struct when scanning into a struct")
+	errUnsupportedScanStructsType = errors.NewUnsupportedScanTypeError("type must be a pointer to a slice when scanning into structs")
+	errUnsupportedScanValsType    = errors.NewUnsupportedScanTypeError("type must be a pointer to a slice when scanning into vals")
+	errScanValPointer             = errors.NewUnsupportedScanTypeError("type must be a pointer when scanning into val")
+	errScanValNonSlice            = errors.NewUnsupportedScanTypeError("type cannot be a pointer to a slice when scanning into val")
 )
 
 func newQueryExecutor(tagName string, de DbExecutor, err error, query string, args ...interface{}) QueryExecutor {

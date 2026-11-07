@@ -80,6 +80,11 @@ func IsPointer(k reflect.Kind) bool {
 	return k == reflect.Ptr
 }
 
+func IsNilOrNilPointer(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
+}
+
 func IsNil(v reflect.Value) bool {
 	if !v.IsValid() {
 		return true
@@ -248,7 +253,7 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 	val := reflect.Indirect(reflect.ValueOf(i))
 	t, valKind := GetTypeInfo(i, val)
 	if valKind != reflect.Struct {
-		return nil, errors.New("cannot scan into this type: %v", t) // #nosec
+		return nil, errors.NewUnsupportedScanTypeError("cannot scan into this type: %v", t)
 	}
 
 	return StructColumnMap(t, tagName), nil

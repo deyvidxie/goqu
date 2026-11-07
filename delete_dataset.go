@@ -7,7 +7,9 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrBadFromArgument = errors.New("unsupported DeleteDataset#From argument, a string or identifier expression is required")
+var ErrBadFromArgument = errors.NewInvalidExpressionError(
+	"unsupported DeleteDataset#From argument, a string or identifier expression is required",
+)
 
 type DeleteDataset struct {
 	dialect      SQLDialect
@@ -237,6 +239,9 @@ func (dd *DeleteDataset) ReturnsColumns() bool {
 }
 
 func (dd *DeleteDataset) Executor() exec.QueryExecutor {
+	if dd.queryFactory == nil {
+		return noDatabaseExecutor(dd.tagName)
+	}
 	builder := dd.deleteSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
 	return dd.queryFactory.FromSQLBuilder(builder)

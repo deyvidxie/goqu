@@ -6,7 +6,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/scantype"
 )
@@ -22,10 +21,6 @@ type SelectDataset struct {
 	requestedTag tagRequest
 	err          error
 }
-
-var ErrQueryFactoryNotFoundError = errors.New(
-	"unable to execute query did you use goqu.Database#From to create the dataset",
-)
 
 func newDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *SelectDataset {
 	tagName := requestedTag.resolve(d)
@@ -609,6 +604,9 @@ func (sd *SelectDataset) ToSQL() (sql string, params []interface{}, err error) {
 }
 
 func (sd *SelectDataset) Executor() exec.QueryExecutor {
+	if sd.queryFactory == nil {
+		return noDatabaseExecutor(sd.tagName)
+	}
 	builder := sd.selectSQLBuilder()
 	defer sb.ReleaseSQLBuilder(builder)
 	return sd.queryFactory.FromSQLBuilder(builder)
