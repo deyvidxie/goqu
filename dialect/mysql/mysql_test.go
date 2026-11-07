@@ -146,6 +146,22 @@ func versionAtLeast(version, minimum [3]int) bool {
 	return true
 }
 
+func (mt *mysqlTest) TestTimeFunctionsInNonUTCSession() {
+	tx, err := mt.db.Begin()
+	mt.Require().NoError(err)
+	defer func() { mt.NoError(tx.Rollback()) }()
+	_, err = tx.Exec("SET time_zone = '+05:00'")
+	mt.Require().NoError(err)
+
+	var utc, local []time.Time
+	mt.Require().NoError(tx.From("entry").Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&utc))
+	mt.Require().NoError(tx.From("entry").Select(goqu.Now(6)).Limit(1).ScanVals(&local))
+	mt.Require().Len(utc, 1)
+	mt.Require().Len(local, 1)
+	mt.WithinDuration(time.Now().UTC(), utc[0], time.Minute)
+	mt.WithinDuration(time.Now().UTC().Add(5*time.Hour), local[0], time.Minute)
+}
+
 func (mt *mysqlTest) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := mt.db.From("entry").Prepared(prepared)

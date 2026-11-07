@@ -95,6 +95,25 @@ func (pt *postgresTest) SetupTest() {
 	}
 }
 
+func (pt *postgresTest) TestTimeFunctionsInNonUTCSession() {
+	tx, err := pt.db.Begin()
+	pt.Require().NoError(err)
+	defer func() { pt.NoError(tx.Rollback()) }()
+	_, err = tx.Exec("SET LOCAL TIME ZONE 'Asia/Kolkata'")
+	pt.Require().NoError(err)
+
+	var utc, now []time.Time
+	pt.Require().NoError(tx.From("entry").Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&utc))
+	pt.Require().NoError(tx.From("entry").Select(goqu.Now(6)).Limit(1).ScanVals(&now))
+	pt.Require().Len(utc, 1)
+	pt.Require().Len(now, 1)
+	wall := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	}
+	pt.WithinDuration(time.Now().UTC(), wall(utc[0]), time.Minute)
+	pt.WithinDuration(time.Now(), now[0], time.Minute)
+}
+
 func (pt *postgresTest) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := pt.db.From("entry").Prepared(prepared)

@@ -99,7 +99,7 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
 
-func TestTimeFunctionsSQL(t *testing.T) {
+func TestTimeFunctions(t *testing.T) {
 	ds := goqu.Dialect("postgres").From("t").Select(goqu.Now(6), goqu.UTCTimestamp()).
 		Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day"))))
 	sql, args, err := ds.ToSQL()

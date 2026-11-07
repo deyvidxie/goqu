@@ -1075,11 +1075,7 @@ func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e 
 	var expr exp.Expression
 	switch esg.dialectOptions.TimeStyle {
 	case PostgresTimeStyle:
-		expr = postgresNow(fsp, hasFSP)
-		if utc {
-			esg.parenthesizedSQL(b, exp.NewLiteralExpression("? AT TIME ZONE 'UTC'", expr))
-			return
-		}
+		expr = postgresTime(utc, fsp, hasFSP)
 	case MySQLTimeStyle:
 		expr = mysqlTime(utc, fsp, hasFSP)
 	case SQLiteTimeStyle:
@@ -1095,12 +1091,19 @@ func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e 
 		b.SetError(err)
 		return
 	}
-	esg.Generate(b, expr)
+	esg.parenthesizedSQL(b, expr)
 }
 
+type parenthesized struct{ exp.LiteralExpression }
+
 func (esg *expressionSQLGenerator) parenthesizedSQL(b sb.SQLBuilder, e exp.Expression) {
+	p, ok := e.(parenthesized)
+	if !ok {
+		esg.Generate(b, e)
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
-	esg.Generate(b, e)
+	esg.Generate(b, p.LiteralExpression)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
@@ -1118,18 +1121,22 @@ func timeFSP(fsp []int) (value int, ok bool, err error) {
 	}
 }
 
-func timeFunc(name string, fsp int, hasFSP bool) exp.Expression {
+func timeFunc(name string, fsp int, hasFSP bool) exp.SQLFunctionExpression {
 	if hasFSP {
 		return exp.NewSQLFunctionExpression(name, exp.NewLiteralExpression(strconv.Itoa(fsp)))
 	}
 	return exp.NewSQLFunctionExpression(name)
 }
 
-func postgresNow(fsp int, hasFSP bool) exp.Expression {
+func postgresTime(utc bool, fsp int, hasFSP bool) exp.Expression {
+	now := exp.NewSQLFunctionExpression("NOW")
 	if hasFSP {
-		return timeFunc("CURRENT_TIMESTAMP", fsp, hasFSP)
+		now = timeFunc("CURRENT_TIMESTAMP", fsp, hasFSP)
 	}
-	return timeFunc("NOW", fsp, hasFSP)
+	if utc {
+		return parenthesized{exp.NewLiteralExpression("? AT TIME ZONE 'UTC'", now)}
+	}
+	return now
 }
 
 func mysqlTime(utc bool, fsp int, hasFSP bool) exp.Expression {
@@ -1193,7 +1200,7 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.
 	case MySQLTimeStyle:
 		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+unit, e.Count()))
 	case PostgresTimeStyle, DuckDBTimeStyle:
-		esg.parenthesizedSQL(b, exp.NewLiteralExpression("? * INTERVAL '"+quantity+"'", e.Count()))
+		esg.parenthesizedSQL(b, parenthesized{exp.NewLiteralExpression("? * INTERVAL '"+quantity+"'", e.Count())})
 	case SQLiteTimeStyle, SQLServerTimeStyle:
 		b.SetError(errIntervalNotSupported(esg.dialect))
 	default:

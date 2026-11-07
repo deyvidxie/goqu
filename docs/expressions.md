@@ -443,10 +443,10 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 
 | dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, "day")` | scanned as |
 |---|---|---|---|---|
-| mysql | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
+| mysql, mysql8, mysql8nano | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
 | postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 | sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` |
-| sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` without offset |
+| sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 
 sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6; other precisions, unknown units and `Interval` on sqlite3 and sqlserver return an error from `ToSQL`. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
