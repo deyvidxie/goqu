@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -20,26 +21,27 @@ func (r Record) Cols() []string {
 }
 
 func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName string) (r Record, err error) {
-	value := reflect.ValueOf(i)
-	if value.IsValid() {
-		cm, err := util.GetColumnMap(value.Interface(), tagName)
-		if err != nil {
-			return nil, err
-		}
-		cols, _ := cm.Cols()
-		r = make(map[string]interface{}, len(cols))
-		for _, col := range cols {
-			f := cm[col]
-			if !shouldSkipField(&f, forInsert, forUpdate) {
-				if fieldValue, isAvailable := util.SafeGetFieldByIndex(value, f.FieldIndex); isAvailable {
-					if !shouldOmitField(fieldValue, f) {
-						r[f.ColumnName] = getRecordValue(fieldValue, f)
-					}
+	if util.IsNilOrNilPointer(i) {
+		return nil, errors.NewInvalidExpressionError("record source must not be nil, got %T", i)
+	}
+	value := reflect.Indirect(reflect.ValueOf(i))
+	if value.Kind() != reflect.Struct {
+		return nil, errors.NewInvalidExpressionError("cannot create a record from %T, a struct is required", i)
+	}
+	cm := util.StructColumnMap(value.Type(), tagName)
+	cols, _ := cm.Cols()
+	r = make(map[string]interface{}, len(cols))
+	for _, col := range cols {
+		f := cm[col]
+		if !shouldSkipField(&f, forInsert, forUpdate) {
+			if fieldValue, isAvailable := util.SafeGetFieldByIndex(value, f.FieldIndex); isAvailable {
+				if !shouldOmitField(fieldValue, f) {
+					r[f.ColumnName] = getRecordValue(fieldValue, f)
 				}
 			}
 		}
 	}
-	return
+	return r, nil
 }
 
 func shouldSkipField(f *util.ColumnData, forInsert, forUpdate bool) bool {

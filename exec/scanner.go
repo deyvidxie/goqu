@@ -29,8 +29,16 @@ type (
 	}
 )
 
+func scannerFieldNeedsValueError(col string, t reflect.Type) error {
+	return errors.NewUnsupportedScanTypeError(
+		`unable to scan column "%s" into %s field: it must hold a non-nil pointer to a value that `+
+			`implements sql.Scanner (ScanStructs cannot do this)`,
+		col, t,
+	)
+}
+
 func unableToFindFieldError(col string) error {
-	return errors.New(`unable to find corresponding field to column "%s" returned by query`, col)
+	return errors.NewUnsupportedScanTypeError(`unable to find corresponding field to column "%s" returned by query`, col)
 }
 
 // NewScanner returns a scanner that can be used for scanning rows into structs.
@@ -89,11 +97,7 @@ func (s *scanner) ScanStruct(i interface{}) error {
 				continue
 			}
 			if util.IsScannerInterface(data.GoType) {
-				return errors.New(
-					`unable to scan column "%s" into %s field: it must hold a non-nil pointer to a value that `+
-						`implements sql.Scanner (ScanStructs cannot do this)`,
-					col, data.GoType,
-				)
+				return scannerFieldNeedsValueError(col, data.GoType)
 			}
 		}
 		scans = append(scans, reflect.New(data.GoType).Interface())

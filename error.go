@@ -1,28 +1,16 @@
 package goqu
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/doug-martin/goqu/v9/internal/errors"
 
 type (
-	baseError struct {
-		msg string
-	}
-	UnknownDialectError struct {
-		baseError
-	}
+	UnknownDialectError  = errors.UnknownDialectError
+	NoQueryExecutorError = errors.NoQueryExecutorError
 )
 
-func (e baseError) Error() string {
-	return "goqu: " + e.msg
-}
-
-func newUnknownDialectError(format string, args ...interface{}) error {
-	return UnknownDialectError{baseError{msg: fmt.Sprintf(format, args...)}}
-}
-
 func IsUnknownDialect(err error) bool {
-	var target UnknownDialectError
-	return errors.As(err, &target)
+	return errors.IsUnknownDialect(err)
+}
+
+func IsNoQueryExecutor(err error) bool {
+	return errors.IsNoQueryExecutor(err)
 }

@@ -1,14 +1,9 @@
 package exec
 
-import (
-	"errors"
+import "github.com/doug-martin/goqu/v9/internal/errors"
 
-	"github.com/doug-martin/goqu/v9/internal/scantype"
-)
-
-type UnsupportedScanTypeError = scantype.UnsupportedScanTypeError
+type UnsupportedScanTypeError = errors.UnsupportedScanTypeError
 
 func IsUnsupportedScanType(err error) bool {
-	var target UnsupportedScanTypeError
-	return errors.As(err, &target)
+	return errors.IsUnsupportedScanType(err)
 }

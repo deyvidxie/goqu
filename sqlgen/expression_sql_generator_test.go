@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
@@ -101,7 +100,7 @@ func (esgs *expressionSQLGeneratorSuite) TestDialect() {
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ErroredBuilder() {
 	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
-	expectedErr := errors.New("test error")
+	expectedErr := newTestError("test error")
 	b := sb.NewSQLBuilder(false).SetError(expectedErr)
 	esg.Generate(b, 1)
 	sql, args, err := b.ToSQL()
@@ -368,7 +367,7 @@ func (j datasetValuerType) Value() (driver.Value, error) {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
-	err := errors.New("valuer error")
+	err := newTestError("valuer error")
 	var val *datasetValuerType
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
@@ -377,9 +376,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
 			val: datasetValuerType{int: 10}, sql: "?", isPrepared: true, args: []interface{}{[]byte("Hello World 10")},
 		},
 
-		expressionTestCase{val: datasetValuerType{err: err}, err: "goqu: valuer error"},
+		expressionTestCase{val: datasetValuerType{err: err}, err: "valuer error"},
 		expressionTestCase{
-			val: datasetValuerType{err: err}, isPrepared: true, err: "goqu: valuer error",
+			val: datasetValuerType{err: err}, isPrepared: true, err: "valuer error",
 		},
 		expressionTestCase{
 			val: val, sql: "NULL",
@@ -430,7 +429,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_AppendableExpression() {
 	a := newTestAppendableExpression(`select * from "a"`, []interface{}{}, nil, nil)
 	aliasedA := newTestAppendableExpression(`select * from "a"`, []interface{}{}, nil, ti)
 	argsA := newTestAppendableExpression(`select * from "a" where x=?`, []interface{}{true}, nil, ti)
-	ae := newTestAppendableExpression(`select * from "a"`, emptyArgs, errors.New("expected error"), nil)
+	ae := newTestAppendableExpression(`select * from "a"`, emptyArgs, newTestError("expected error"), nil)
 
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
@@ -440,8 +439,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_AppendableExpression() {
 		expressionTestCase{val: aliasedA, sql: `(select * from "a") AS "b"`},
 		expressionTestCase{val: aliasedA, sql: `(select * from "a") AS "b"`, isPrepared: true},
 
-		expressionTestCase{val: ae, err: "goqu: expected error"},
-		expressionTestCase{val: ae, err: "goqu: expected error", isPrepared: true},
+		expressionTestCase{val: ae, err: "expected error"},
+		expressionTestCase{val: ae, err: "expected error", isPrepared: true},
 
 		expressionTestCase{val: argsA, sql: `(select * from "a" where x=?) AS "b"`, args: []interface{}{true}},
 		expressionTestCase{val: argsA, sql: `(select * from "a" where x=?) AS "b"`, isPrepared: true, args: []interface{}{true}},

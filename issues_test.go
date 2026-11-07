@@ -3,7 +3,6 @@ package goqu_test
 import (
 	"context"
 	dbsql "database/sql"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -403,7 +402,7 @@ func (gis *githubIssuesSuite) TestIssue177() {
 
 // Test for https://github.com/doug-martin/goqu/issues/183
 func (gis *githubIssuesSuite) TestIssue184() {
-	expectedErr := fmt.Errorf("an error")
+	expectedErr := newTestError("an error")
 	testCases := []struct {
 		ds exp.AppendableExpression
 	}{

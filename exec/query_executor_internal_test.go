@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +41,7 @@ func (qes *queryExecutorSuite) TestWithError() {
 	ctx := context.Background()
 	db, _, err := sqlmock.New()
 	qes.NoError(err)
-	expectedErr := fmt.Errorf("crud exec error")
+	expectedErr := newTestError("crud exec error")
 	e := newQueryExecutor("db", db, expectedErr, `SELECT * FROM "items"`)
 	var items []StructWithTags
 	qes.EqualError(e.ScanStructs(&items), expectedErr.Error())
@@ -525,7 +524,7 @@ func (qes *queryExecutorSuite) TestScanStructs_queryError() {
 	qes.NoError(err)
 
 	mock.ExpectQuery(`SELECT \* FROM "items"`).
-		WillReturnError(fmt.Errorf("queryExecutor error"))
+		WillReturnError(newTestError("queryExecutor error"))
 
 	e := newQueryExecutor("db", db, nil, `SELECT * FROM "items"`)
 
@@ -847,7 +846,7 @@ func (qes *queryExecutorSuite) TestScanStructsContext_queryError() {
 	qes.NoError(err)
 
 	mock.ExpectQuery(`SELECT \* FROM "items"`).
-		WillReturnError(fmt.Errorf("queryExecutor error"))
+		WillReturnError(newTestError("queryExecutor error"))
 
 	e := newQueryExecutor("db", db, nil, `SELECT * FROM "items"`)
 
@@ -881,7 +880,7 @@ func (qes *queryExecutorSuite) TestScanStruct() {
 	qes.NoError(err)
 
 	mock.ExpectQuery(`SELECT \* FROM "items"`).
-		WillReturnError(fmt.Errorf("queryExecutor error"))
+		WillReturnError(newTestError("queryExecutor error"))
 
 	mock.ExpectQuery(`SELECT \* FROM "items"`).
 		WithArgs().
@@ -1162,6 +1161,7 @@ func (qes *queryExecutorSuite) TestScanStruct_nilScannerInterfaceFieldIsAnError(
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.EqualError(err, `goqu: unable to scan column "val" into sql.Scanner field: `+
 		`it must hold a non-nil pointer to a value that implements sql.Scanner (ScanStructs cannot do this)`)
+	qes.True(IsUnsupportedScanType(err))
 }
 
 type valueReceiverScanner struct{}
@@ -1182,6 +1182,7 @@ func (qes *queryExecutorSuite) TestScanStruct_scannerInterfaceHoldingNonPointerI
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.Error(err)
 	qes.Contains(err.Error(), `unable to scan column "val"`)
+	qes.True(IsUnsupportedScanType(err))
 }
 
 func (qes *queryExecutorSuite) TestScanStructs_scannerInterfaceFieldIsAnError() {
@@ -1273,11 +1274,11 @@ func (qes *queryExecutorSuite) TestScanVals() {
 	var id1, id2 int64 = 1, 2
 
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WillReturnError(fmt.Errorf("queryExecutor error"))
+		WillReturnError(newTestError("queryExecutor error"))
 
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id1).RowError(0, fmt.Errorf("row error")))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id1).RowError(0, newTestError("row error")))
 
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
@@ -1346,11 +1347,11 @@ func (qes *queryExecutorSuite) TestScanVal() {
 
 	id1 := int64(1)
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WillReturnError(fmt.Errorf("queryExecutor error"))
+		WillReturnError(newTestError("queryExecutor error"))
 
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).RowError(0, fmt.Errorf("row error")).AddRow(id1))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).RowError(0, newTestError("row error")).AddRow(id1))
 
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().

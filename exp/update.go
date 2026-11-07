@@ -30,6 +30,9 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 		return updates, nil
 	}
 
+	if util.IsNilOrNilPointer(update) {
+		return nil, errors.NewInvalidExpressionError("update values must not be nil, got %T", update)
+	}
 	updateValue := reflect.Indirect(reflect.ValueOf(update))
 	switch updateValue.Kind() {
 	case reflect.Map:
@@ -41,7 +44,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 	case reflect.Struct:
 		return getUpdateExpressionsStruct(tagName, updateValue)
 	default:
-		return nil, errors.New("unsupported update interface type %+v", updateValue.Type())
+		return nil, errors.NewInvalidExpressionError("unsupported update interface type %+v", updateValue.Type())
 	}
 	return updates, nil
 }

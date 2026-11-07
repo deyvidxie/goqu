@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
@@ -95,13 +94,13 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withErroredBuilder() {
 	d := sqlgen.NewDeleteSQLGenerator("test", "db", opts)
 
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
-	b := sb.NewSQLBuilder(false).SetError(errors.New("expected error"))
+	b := sb.NewSQLBuilder(false).SetError(newTestError("expected error"))
 	d.Generate(b, dc)
-	dsgs.assertErrorSQL(b, "goqu: expected error")
+	dsgs.assertErrorSQL(b, "expected error")
 
-	b = sb.NewSQLBuilder(true).SetError(errors.New("expected error"))
+	b = sb.NewSQLBuilder(true).SetError(newTestError("expected error"))
 	d.Generate(b, dc)
-	dsgs.assertErrorSQL(b, "goqu: expected error")
+	dsgs.assertErrorSQL(b, "expected error")
 }
 
 func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withCommonTables() {

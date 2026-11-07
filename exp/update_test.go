@@ -4,11 +4,18 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/suite"
 )
 
 type updateExpressionTestSuite struct {
 	suite.Suite
+}
+
+func (uets *updateExpressionTestSuite) TestNewUpdateExpressions_withNil() {
+	_, err := exp.NewUpdateExpressions("db", nil)
+	uets.EqualError(err, "goqu: update values must not be nil, got <nil>")
+	uets.True(errors.IsInvalidExpression(err))
 }
 
 func (uets *updateExpressionTestSuite) TestNewUpdateExpressions_withInvalidValue() {

@@ -238,10 +238,7 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 }
 
 func isNullValue(val interface{}) bool {
-	if val == nil {
-		return true
-	}
-	if rv := reflect.ValueOf(val); rv.Kind() == reflect.Ptr && rv.IsNil() {
+	if util.IsNilOrNilPointer(val) {
 		return true
 	}
 	if util.IsBytesValue(val) {

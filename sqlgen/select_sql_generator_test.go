@@ -5,7 +5,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
@@ -106,10 +105,10 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}
 	d := sqlgen.NewSelectSQLGenerator("test", "db", opts)
 
-	b := sb.NewSQLBuilder(true).SetError(errors.New("test error"))
+	b := sb.NewSQLBuilder(true).SetError(newTestError("test error"))
 	c := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
 	d.Generate(b, c)
-	ssgs.assertErrorSQL(b, `goqu: test error`)
+	ssgs.assertErrorSQL(b, `test error`)
 }
 
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_withSelectedColumns() {

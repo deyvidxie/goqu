@@ -29,7 +29,7 @@ func NewInsertExpression(tagName string, rows ...interface{}) (insertExpression 
 			}
 			return NewInsertExpression(tagName, vals...)
 		}
-		if ae, ok := rows[0].(AppendableExpression); ok {
+		if ae, ok := rows[0].(AppendableExpression); ok && !util.IsNilOrNilPointer(ae) {
 			return &insert{from: ae}, nil
 		}
 	}
@@ -80,8 +80,12 @@ func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 	return ci
 }
 
-// parses the rows gathering and sorting unique columns and values for each record
 func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {
+	for _, row := range rows {
+		if util.IsNilOrNilPointer(row) {
+			return nil, errors.NewInvalidExpressionError("insert rows must not be nil, got %T", row)
+		}
+	}
 	var mapKeys util.ValueSlice
 	rowValue := reflect.Indirect(reflect.ValueOf(rows[0]))
 	rowType := rowValue.Type()
@@ -93,7 +97,7 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 	var columns ColumnListExpression
 	for _, row := range rows {
 		if rowType != reflect.Indirect(reflect.ValueOf(row)).Type() {
-			return nil, errors.New(
+			return nil, errors.NewInvalidExpressionError(
 				"rows must be all the same type expected %+v got %+v",
 				rowType,
 				reflect.Indirect(reflect.ValueOf(row)).Type(),
@@ -113,10 +117,10 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 			}
 			newMapKeys := util.ValueSlice(newRowValue.MapKeys())
 			if len(newMapKeys) != len(mapKeys) {
-				return nil, errors.New("rows with different value length expected %d got %d", len(mapKeys), len(newMapKeys))
+				return nil, errors.NewInvalidExpressionError("rows with different value length expected %d got %d", len(mapKeys), len(newMapKeys))
 			}
 			if !mapKeys.Equal(newMapKeys) {
-				return nil, errors.New("rows with different keys expected %s got %s", mapKeys.String(), newMapKeys.String())
+				return nil, errors.NewInvalidExpressionError("rows with different keys expected %s got %s", mapKeys.String(), newMapKeys.String())
 			}
 			rowVals := make([]interface{}, 0, len(mapKeys))
 			for _, key := range mapKeys {
@@ -124,7 +128,7 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 			}
 			vals = append(vals, rowVals)
 		default:
-			return nil, errors.New(
+			return nil, errors.NewInvalidExpressionError(
 				"unsupported insert must be map, goqu.Record, or struct type got: %T",
 				row,
 			)
@@ -139,7 +143,7 @@ func createStructSliceInsert(tagName string, rows ...interface{}) (insertExp Ins
 	recordRows := make([]interface{}, 0, len(rows))
 	for _, row := range rows {
 		if rowType != reflect.Indirect(reflect.ValueOf(row)).Type() {
-			return nil, errors.New(
+			return nil, errors.NewInvalidExpressionError(
 				"rows must be all the same type expected %+v got %+v",
 				rowType,
 				reflect.Indirect(reflect.ValueOf(row)).Type(),
