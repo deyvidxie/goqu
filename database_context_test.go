@@ -9,7 +9,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,7 +93,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	ds.Require().NoError(err)
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancelCause(context.Background())
-	cause := errors.NewInvalidExpressionError("request aborted")
+	cause := newTestError("request aborted")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
@@ -119,7 +118,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel(
 	ds.Require().NoError(err)
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancelCause(context.Background())
-	cause := errors.NewInvalidExpressionError("request aborted")
+	cause := newTestError("request aborted")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: context.Canceled}
@@ -137,11 +136,11 @@ func (ds *databaseSuite) TestWithTxContext_doesNotJoinCauseIntoUnrelatedError() 
 	ds.Require().NoError(err)
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancelCause(context.Background())
-	constraintErr := errors.NewInvalidExpressionError("unique constraint violated")
+	constraintErr := newTestError("unique constraint violated")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: constraintErr}
-		cancel(errors.NewInvalidExpressionError("request aborted"))
+		cancel(newTestError("request aborted"))
 		return nil
 	})
 	ds.Equal(constraintErr, err)
@@ -153,7 +152,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnRollback() {
 	ds.Require().NoError(err)
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancelCause(context.Background())
-	cause := errors.NewInvalidExpressionError("request aborted")
+	cause := newTestError("request aborted")
 
 	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
@@ -220,8 +219,8 @@ func (ds *databaseSuite) TestContextLogger_transactionBoundaries() {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	ds.EqualError(db.WithTxContext(ctx, nil, func(_ *goqu.TxDatabase) error {
-		return errors.NewInvalidExpressionError("transaction error")
-	}), "goqu: transaction error")
+		return newTestError("transaction error")
+	}), "transaction error")
 
 	ds.Equal([]ctxLogEntry{
 		{ctxValue: "request-1", message: "[goqu - transaction] BEGIN"},

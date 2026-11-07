@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,39 +27,59 @@ func TestDatasetErrorsAreInvalidExpressions(t *testing.T) {
 		_, _, err := ds.ToSQL()
 		return err
 	}
+	const tableType = "goqu: unsupported table type, a string or identifier expression is required"
 	for _, c := range []struct {
 		name string
 		want string
 		err  error
 	}{
-		{"ErrBadFromArgument", "unsupported DeleteDataset#From argument", goqu.ErrBadFromArgument},
-		{"ErrUnsupportedIntoType", "unsupported table type", goqu.ErrUnsupportedIntoType},
-		{"ErrUnsupportedUpdateTableType", "unsupported table type", goqu.ErrUnsupportedUpdateTableType},
-		{"ErrQueryFactoryNotFoundError", "unable to execute query", goqu.ErrQueryFactoryNotFoundError},
 		{
-			"rows of different lengths", "rows with different value length expected 1 got 2",
+			"ErrBadFromArgument", "goqu: unsupported DeleteDataset#From argument, a string or identifier expression is required",
+			goqu.ErrBadFromArgument,
+		},
+		{"ErrUnsupportedIntoType", tableType, goqu.ErrUnsupportedIntoType},
+		{"ErrUnsupportedUpdateTableType", tableType, goqu.ErrUnsupportedUpdateTableType},
+		{
+			"rows of different lengths", "goqu: rows with different value length expected 1 got 2",
 			toSQL(goqu.Insert("t").Rows(goqu.Record{"a": 1}, goqu.Record{"a": 1, "b": 2})),
 		},
 		{
-			"rows with different keys", "rows with different keys",
+			"rows with different keys", `goqu: rows with different keys expected ["a"] got ["b"]`,
 			toSQL(goqu.Insert("t").Rows(goqu.Record{"a": 1}, goqu.Record{"b": 1})),
 		},
 		{
-			"rows of different types", "rows must be all the same type",
+			"rows of different types", "goqu: rows must be all the same type expected exp.Record got goqu_test.row",
 			toSQL(goqu.Insert("t").Rows(goqu.Record{"a": 1}, row{A: 1})),
 		},
 		{
-			"struct rows of different types", "rows must be all the same type",
+			"struct rows of different types", "goqu: rows must be all the same type expected goqu_test.row got exp.Record",
 			toSQL(goqu.Insert("t").Rows(row{A: 1}, goqu.Record{"a": 1})),
 		},
-		{"unsupported row type", "unsupported insert must be map", toSQL(goqu.Insert("t").Rows(1))},
-		{"unsupported update value", "unsupported update interface type int", toSQL(goqu.Update("t").Set(1))},
 		{
-			"unknown Op key", "unsupported expression type bogus",
+			"unsupported row type", "goqu: unsupported insert must be map, goqu.Record, or struct type got: int",
+			toSQL(goqu.Insert("t").Rows(1)),
+		},
+		{"unsupported update value", "goqu: unsupported update interface type int", toSQL(goqu.Update("t").Set(1))},
+		{
+			"unknown Op key", "goqu: unsupported expression type bogus",
 			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"bogus": 1}})),
 		},
+		{"record from a non-struct", "goqu: cannot create a record from int, a struct is required", recordErr(1)},
 	} {
-		assert.ErrorContains(t, c.err, c.want, c.name)
+		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, sqlgen.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
 	}
+}
+
+func recordErr(i any) error {
+	_, err := exp.NewRecordFromStruct(i, true, false, "db")
+	return err
+}
+
+func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {
+	_, err := goqu.From("t").Count()
+	assert.EqualError(t, err, "goqu: unable to execute query did you use goqu.Database#From to create the dataset")
+	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
+	assert.True(t, goqu.IsNoQueryExecutor(err))
+	assert.False(t, sqlgen.IsInvalidExpression(err))
 }

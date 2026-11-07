@@ -19,6 +19,12 @@ type (
 	UnsupportedScanTypeError struct {
 		baseError
 	}
+	UnknownDialectError struct {
+		baseError
+	}
+	NoQueryExecutorError struct {
+		baseError
+	}
 )
 
 func (e baseError) Error() string {
@@ -64,5 +70,23 @@ func NewUnsupportedScanTypeError(format string, args ...interface{}) error {
 
 func IsUnsupportedScanType(err error) bool {
 	var target UnsupportedScanTypeError
+	return errors.As(err, &target)
+}
+
+func NewUnknownDialectError(format string, args ...interface{}) error {
+	return UnknownDialectError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsUnknownDialect(err error) bool {
+	var target UnknownDialectError
+	return errors.As(err, &target)
+}
+
+func NewNoQueryExecutorError(format string, args ...interface{}) error {
+	return NoQueryExecutorError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsNoQueryExecutor(err error) bool {
+	var target NoQueryExecutorError
 	return errors.As(err, &target)
 }

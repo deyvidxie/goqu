@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
@@ -87,9 +86,9 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts.TruncateSQLOrder = []sqlgen.SQLFragmentType{sqlgen.UpdateBeginSQLFragment}
 	d := sqlgen.NewTruncateSQLGenerator("test", "db", opts)
 
-	b := sb.NewSQLBuilder(true).SetError(errors.NewInvalidExpressionError("expected error"))
+	b := sb.NewSQLBuilder(true).SetError(newTestError("expected error"))
 	d.Generate(b, exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "a")))
-	tsgs.assertErrorSQL(b, `goqu: expected error`)
+	tsgs.assertErrorSQL(b, `expected error`)
 }
 
 func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithCascade() {

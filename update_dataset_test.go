@@ -6,7 +6,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
 	"github.com/stretchr/testify/mock"
@@ -439,7 +438,7 @@ func (uds *updateDatasetSuite) TestToSQL_WithError() {
 	r := goqu.Record{"c": "a"}
 	c := ds.GetClauses().SetSetValues(r)
 	sqlB := sb.NewSQLBuilder(false)
-	ee := errors.NewInvalidExpressionError("expected error")
+	ee := newTestError("expected error")
 	md.On("ToUpdateSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
 		args.Get(0).(sb.SQLBuilder).SetError(ee)
 	}).Once()
@@ -479,9 +478,9 @@ func (uds *updateDatasetSuite) TestExecutor() {
 }
 
 func (uds *updateDatasetSuite) TestSetError() {
-	err1 := errors.NewInvalidExpressionError("error #1")
-	err2 := errors.NewInvalidExpressionError("error #2")
-	err3 := errors.NewInvalidExpressionError("error #3")
+	err1 := newTestError("error #1")
+	err2 := newTestError("error #2")
+	err3 := newTestError("error #3")
 
 	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)
