@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
@@ -64,31 +63,21 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			"unknown Op key", "goqu: unsupported expression type bogus",
 			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"bogus": 1}})),
 		},
-		{"record from a non-struct", "goqu: cannot create a record from int, a struct is required", recordErr(1)},
-		{"record from a nil pointer", "goqu: cannot create a record from a nil *goqu_test.row", recordErr((*row)(nil))},
-		{"record from nil", "goqu: cannot create a record from a nil <nil>", recordErr(nil)},
 		{"nil pointer row", "goqu: insert rows must not be nil, got *goqu_test.row", toSQL(goqu.Insert("t").Rows((*row)(nil)))},
 		{"nil row", "goqu: insert rows must not be nil, got <nil>", toSQL(goqu.Insert("t").Rows(row{A: 1}, nil))},
 		{
 			"nil select dataset row", "goqu: insert rows must not be nil, got *goqu.SelectDataset",
 			toSQL(goqu.Insert("t").Rows((*goqu.SelectDataset)(nil))),
 		},
+		{
+			"nil FromQuery source", "goqu: insert source must not be nil, got *goqu.SelectDataset",
+			toSQL(goqu.Insert("t").FromQuery((*goqu.SelectDataset)(nil))),
+		},
 		{"nil pointer update", "goqu: update values must not be nil, got *goqu_test.row", toSQL(goqu.Update("t").Set((*row)(nil)))},
-		{"nil update", "goqu: update values must not be nil, got <nil>", updateErr(nil)},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, sqlgen.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
 	}
-}
-
-func updateErr(v any) error {
-	_, err := exp.NewUpdateExpressions("db", v)
-	return err
-}
-
-func recordErr(i any) error {
-	_, err := exp.NewRecordFromStruct(i, true, false, "db")
-	return err
 }
 
 func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,6 +20,16 @@ func TestNewRecordFromStruct(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, exp.Record{"a": 2}, r)
 
-	_, err = exp.NewRecordFromStruct((*row)(nil), true, false, "db")
-	assert.EqualError(t, err, "goqu: cannot create a record from a nil *exp_test.row")
+	for _, c := range []struct {
+		in   interface{}
+		want string
+	}{
+		{(*row)(nil), "goqu: cannot create a record from nil, got *exp_test.row"},
+		{nil, "goqu: cannot create a record from nil, got <nil>"},
+		{1, "goqu: cannot create a record from int, a struct is required"},
+	} {
+		_, err = exp.NewRecordFromStruct(c.in, true, false, "db")
+		assert.EqualError(t, err, c.want)
+		assert.True(t, errors.IsInvalidExpression(err), "%v", err)
+	}
 }

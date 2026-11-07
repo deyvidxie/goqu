@@ -80,6 +80,11 @@ func IsPointer(k reflect.Kind) bool {
 	return k == reflect.Ptr
 }
 
+func IsNilOrNilPointer(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
+}
+
 func IsNil(v reflect.Value) bool {
 	if !v.IsValid() {
 		return true

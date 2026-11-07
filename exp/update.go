@@ -30,7 +30,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 		return updates, nil
 	}
 
-	if isNilValue(update) {
+	if util.IsNilOrNilPointer(update) {
 		return nil, errors.NewInvalidExpressionError("update values must not be nil, got %T", update)
 	}
 	updateValue := reflect.Indirect(reflect.ValueOf(update))

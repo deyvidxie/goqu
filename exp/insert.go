@@ -29,7 +29,7 @@ func NewInsertExpression(tagName string, rows ...interface{}) (insertExpression 
 			}
 			return NewInsertExpression(tagName, vals...)
 		}
-		if ae, ok := rows[0].(AppendableExpression); ok && !isNilValue(ae) {
+		if ae, ok := rows[0].(AppendableExpression); ok && !util.IsNilOrNilPointer(ae) {
 			return &insert{from: ae}, nil
 		}
 	}
@@ -82,7 +82,7 @@ func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 
 func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {
 	for _, row := range rows {
-		if isNilValue(row) {
+		if util.IsNilOrNilPointer(row) {
 			return nil, errors.NewInvalidExpressionError("insert rows must not be nil, got %T", row)
 		}
 	}
@@ -135,11 +135,6 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 		}
 	}
 	return &insert{cols: columns, vals: vals}, nil
-}
-
-func isNilValue(v interface{}) bool {
-	rv := reflect.ValueOf(v)
-	return !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil())
 }
 
 func createStructSliceInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {

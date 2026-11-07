@@ -401,6 +401,14 @@ func (rt *reflectTest) TestIsValuerOrBytes() {
 	}
 }
 
+func (rt *reflectTest) TestIsNilOrNilPointer() {
+	rt.True(util.IsNilOrNilPointer(nil))
+	rt.True(util.IsNilOrNilPointer((*TestStruct)(nil)))
+	rt.False(util.IsNilOrNilPointer(&TestStruct{}))
+	rt.False(util.IsNilOrNilPointer(map[string]interface{}(nil)))
+	rt.False(util.IsNilOrNilPointer(0))
+}
+
 func (rt *reflectTest) TestIsNil() {
 	ts := TestStruct{}
 	rt.False(util.IsNil(reflect.ValueOf(ts.arr)))

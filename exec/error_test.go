@@ -16,4 +16,6 @@ func TestIsUnsupportedScanType(t *testing.T) {
 	assert.True(t, exec.IsUnsupportedScanType(fmt.Errorf("scanning: %w", err)))
 	assert.False(t, exec.IsUnsupportedScanType(fmt.Errorf("scanning: %w", assert.AnError)))
 	assert.False(t, exec.IsUnsupportedScanType(nil))
+	var target exec.UnsupportedScanTypeError
+	assert.ErrorAs(t, err, &target)
 }

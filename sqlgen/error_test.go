@@ -18,6 +18,8 @@ func TestIsUnsupported(t *testing.T) {
 	assert.True(t, sqlgen.IsUnsupported(fmt.Errorf("building query: %w", err)))
 	assert.False(t, sqlgen.IsUnsupported(sqlgen.ErrInvalidCollation("x")))
 	assert.False(t, sqlgen.IsUnsupported(nil))
+	var target sqlgen.UnsupportedError
+	assert.ErrorAs(t, err, &target)
 }
 
 func TestIsInvalidExpression(t *testing.T) {
@@ -27,6 +29,8 @@ func TestIsInvalidExpression(t *testing.T) {
 	assert.True(t, sqlgen.IsInvalidExpression(fmt.Errorf("building query: %w", err)))
 	assert.False(t, sqlgen.IsInvalidExpression(sqlgen.NewUnsupportedError("x")))
 	assert.False(t, sqlgen.IsInvalidExpression(nil))
+	var target sqlgen.InvalidExpressionError
+	assert.ErrorAs(t, err, &target)
 }
 
 func TestNewInvalidExpressionErrorWithCause(t *testing.T) {
