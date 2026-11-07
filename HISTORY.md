@@ -1,6 +1,7 @@
 # Unreleased
 
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FEATURE] Add the `ErrorOnUnsupportedConflictTarget` dialect option: a `DoUpdate`/`DoUpdateExcluded` target on a dialect without conflict targets (mysql, mysql8) returns `ErrConflictTargetNotSupported` instead of being dropped [deyvidxie#41](https://github.com/deyvidxie/goqu/issues/41)
 * [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets or `CASE` expressions built from one parent no longer overwrite each other's CTEs, compounds, windows or branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] sqlite3 interpolates a `time.Time` in go-sqlite3's prepared-mode format [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] mysql/mysql8 interpolate a `time.Time` with microseconds instead of dropping the fraction [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)

@@ -195,6 +195,12 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").FullOuterJoin(goqu.T("u"), goqu.On(goqu.V(true)))
 		}},
+		{"DoUpdate target", "Conflict Target clause", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsConflictTarget = false
+			o.ErrorOnUnsupportedConflictTarget = true
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}))
+		}},
 		{"STRAIGHT_JOIN USING", "USING is not supported", func(o *sqlgen.SQLDialectOptions) {
 			o.JoinTypeLookup[exp.StraightJoinType] = []byte(" STRAIGHT_JOIN ")
 		}, func(d goqu.DialectWrapper) sqlBuilder {

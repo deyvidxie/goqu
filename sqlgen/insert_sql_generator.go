@@ -348,18 +348,8 @@ func (isg *insertSQLGenerator) onConflictSQL(
 	b.Write(isg.DialectOptions().ConflictFragment)
 	switch t := o.(type) {
 	case exp.ConflictUpdateExpression:
-		target := t.TargetColumn()
-		if isg.DialectOptions().SupportsConflictTarget && target != "" {
-			wrapParens := !strings.HasPrefix(strings.ToLower(target), "on constraint")
-
-			b.WriteRunes(isg.DialectOptions().SpaceRune)
-			if wrapParens {
-				b.WriteRunes(isg.DialectOptions().LeftParenRune).
-					WriteStrings(target).
-					WriteRunes(isg.DialectOptions().RightParenRune)
-			} else {
-				b.Write([]byte(target))
-			}
+		if !isg.conflictUpdateTargetSQL(b, t.TargetColumn()) {
+			return
 		}
 		isg.onConflictDoUpdateSQL(b, t, rowAlias, rendered)
 	case exp.ConflictNothingExpression:
@@ -371,6 +361,24 @@ func (isg *insertSQLGenerator) onConflictSQL(
 	default:
 		b.Write(isg.DialectOptions().ConflictDoNothingFragment)
 	}
+}
+
+func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target string) bool {
+	opts := isg.DialectOptions()
+	switch {
+	case target == "":
+	case opts.SupportsConflictTarget:
+		b.WriteRunes(opts.SpaceRune)
+		if strings.HasPrefix(strings.ToLower(target), "on constraint") {
+			b.Write([]byte(target))
+		} else {
+			b.WriteRunes(opts.LeftParenRune).WriteStrings(target).WriteRunes(opts.RightParenRune)
+		}
+	case opts.ErrorOnUnsupportedConflictTarget:
+		b.SetError(ErrConflictTargetNotSupported(isg.Dialect()))
+		return false
+	}
+	return true
 }
 
 func (isg *insertSQLGenerator) onConflictDoUpdateSQL(

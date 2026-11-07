@@ -411,6 +411,15 @@ To specify the conflict target columns, use `SetCols`. This is supported by dial
 (Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error instead of silently
 ignoring the target.
 
+`DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set
+`ErrorOnUnsupportedConflictTarget` on the dialect options to return that error for a non-empty target instead:
+
+```go
+opts := mysql.DialectOptions()
+opts.ErrorOnUnsupportedConflictTarget = true
+goqu.RegisterDialect("mysql-strict", "db", opts)
+```
+
 `SetCols` only supports a list of columns. To target a named constraint (`ON CONSTRAINT name`), use
 `DoUpdate` with a constraint target instead.
 

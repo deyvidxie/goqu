@@ -453,6 +453,18 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 			sql:    `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`,
 		},
 	)
+
+	opts.ErrorOnUnsupportedConflictTarget = true
+	icDuNoTarget := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("", exp.Record{"a": "b"}))
+	icDuConstraint := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("ON CONSTRAINT test_a", exp.Record{"a": "b"}))
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]", isPrepared: true},
+		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`},
+		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
+	)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcluded() {
