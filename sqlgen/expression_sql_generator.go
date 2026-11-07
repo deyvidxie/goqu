@@ -98,8 +98,18 @@ func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
 	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
-func errJSONFunctionsNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support JSONExtract, JSONValue or JSONContains [dialect=%s]", dialect)
+var jsonFunctionNames = map[exp.JSONFunction]string{
+	exp.JSONExtractFunction:  "JSONExtract",
+	exp.JSONValueFunction:    "JSONValue",
+	exp.JSONContainsFunction: "JSONContains",
+}
+
+func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) error {
+	name, ok := jsonFunctionNames[function]
+	if !ok {
+		name = fmt.Sprintf("JSONFunction %d", function)
+	}
+	return NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
 }
 
 func errJSONContainsPaths(n int) error {
@@ -993,7 +1003,7 @@ func describeCollation(collation any) string {
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
 	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
-		b.SetError(errJSONFunctionsNotSupported(esg.dialect))
+		b.SetError(errJSONFunctionNotSupported(esg.dialect, e.Function()))
 		return
 	}
 	paths := make([]interface{}, len(e.Paths()))

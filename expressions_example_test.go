@@ -722,8 +722,8 @@ func ExampleJSONValue_dialects() {
 
 	// Output:
 	// SELECT * FROM `users` WHERE (JSON_UNQUOTE(JSON_EXTRACT(`profile`, '$.name')) = 'bob')
-	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=postgres]
-	// goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlite3]
+	// goqu: dialect does not support JSONValue [dialect=postgres]
+	// goqu: dialect does not support JSONValue [dialect=sqlite3]
 }
 
 func ExampleJSONContains() {
