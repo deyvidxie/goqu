@@ -722,6 +722,15 @@ func ExampleUTCTimestamp() {
 	// UPDATE `sessions` SET `expires`=(UTC_TIMESTAMP() + INTERVAL 30 MINUTE)
 }
 
+func ExampleInterval() {
+	sql, args, _ := goqu.Dialect("postgres").From("sessions").Prepared(true).
+		Where(goqu.C("expires").Lt(goqu.UTCTimestamp().Sub(goqu.Interval(goqu.C("grace_days"), goqu.DayInterval)))).ToSQL()
+	fmt.Println(sql, args)
+
+	// Output:
+	// SELECT * FROM "sessions" WHERE ("expires" < ((NOW() AT TIME ZONE 'UTC') - ("grace_days" * INTERVAL '1 DAY'))) []
+}
+
 func ExampleInterval_dialects() {
 	for _, dialect := range []string{"mysql", "postgres", "sqlserver"} {
 		sql, _, err := goqu.Dialect(dialect).From("events").Where(goqu.C("created").Lt(goqu.Now().Sub(goqu.Interval(7, goqu.DayInterval)))).ToSQL()

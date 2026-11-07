@@ -439,7 +439,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 <a name="time"></a>
 **[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
 
-`Now(fsp)` and `UTCTimestamp(fsp)` take an optional fractional seconds precision from 0 to 6. `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `n` is an integer or an expression (MySQL rounds a non-integer expression to whole units), and `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`. Each dialect renders its own SQL; `Now` is the database's current time, and a precision rounds on postgres and sqlserver but truncates on mysql and duckdb:
+`Now(fsp)` and `UTCTimestamp(fsp)` take an optional fractional seconds precision from 0 to 6. `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `n` is an integer, a fractional number of seconds with `goqu.SecondInterval`, or an expression (MySQL keeps a non-integer expression's fraction only for seconds), and `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`. `Now` is the database's current time, and a precision rounds on postgres and sqlserver but truncates on mysql and duckdb:
 
 | dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, goqu.DayInterval)` | scanned as |
 |---|---|---|---|---|
@@ -449,7 +449,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 | sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 
-sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6; other precisions, unknown units and float counts return an error from `ToSQL`. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
+sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"

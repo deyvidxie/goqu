@@ -149,12 +149,12 @@ func versionAtLeast(version, minimum [3]int) bool {
 func (mt *mysqlTest) TestTimeFunctionsInNonUTCSession() {
 	tx, err := mt.db.Begin()
 	mt.Require().NoError(err)
+	defer func() { mt.NoError(tx.Rollback()) }()
 	var sessionZone string
 	mt.Require().NoError(tx.QueryRow("SELECT @@session.time_zone").Scan(&sessionZone))
 	defer func() {
 		_, err := tx.Exec("SET time_zone = ?", sessionZone)
 		mt.NoError(err)
-		mt.NoError(tx.Rollback())
 	}()
 	_, err = tx.Exec("SET time_zone = '+05:00'")
 	mt.Require().NoError(err)
@@ -177,6 +177,11 @@ func (mt *mysqlTest) TestTimeFunctions() {
 
 		oneSecondLater := goqu.Func("DATE_ADD", goqu.Now(6), goqu.Interval(1, "second"))
 		count, err = ds.Where(goqu.Func("TIMESTAMPDIFF", goqu.L("MICROSECOND"), goqu.Now(6), oneSecondLater).Eq(1000000)).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		halfSecondsLater := goqu.Now(6).Add(goqu.Interval(1.5, goqu.SecondInterval))
+		count, err = ds.Where(goqu.Func("TIMESTAMPDIFF", goqu.L("MICROSECOND"), goqu.Now(6), halfSecondsLater).Eq(1500000)).Count()
 		mt.Require().NoError(err)
 		mt.Equal(int64(10), count)
 

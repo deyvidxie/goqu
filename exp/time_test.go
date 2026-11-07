@@ -14,10 +14,13 @@ func TestNewTimeFunctionExpressions(t *testing.T) {
 	assert.Equal(t, now, now.Expression())
 	assert.Equal(t, now, now.Clone())
 
-	fsp := []int{3}
-	shared := exp.NewUTCTimestampExpression(fsp...)
-	fsp[0] = 9
-	assert.Equal(t, []int{3}, shared.FSP())
+	for _, construct := range []func(...int) exp.TimeFunctionExpression{exp.NewNowExpression, exp.NewUTCTimestampExpression} {
+		fsp := []int{3}
+		fsp3 := construct(fsp...)
+		fsp[0] = 9
+		fsp3.FSP()[0] = 9
+		assert.Equal(t, []int{3}, fsp3.FSP())
+	}
 
 	utc := exp.NewUTCTimestampExpression()
 	assert.Equal(t, exp.UTCTimestampFunction, utc.Function())
@@ -47,8 +50,8 @@ func TestTimeFunctionExpressionOperators(t *testing.T) {
 	assert.Equal(t, exp.NewRangeExpression(exp.NotBetweenOp, e, exp.NewRangeVal(1, 2)), e.NotBetween(exp.NewRangeVal(1, 2)))
 	assert.Equal(t, exp.NewBooleanExpression(exp.InOp, e, []any{1, 2}), e.In(1, 2))
 	assert.Equal(t, exp.NewBooleanExpression(exp.NotInOp, e, []any{1, 2}), e.NotIn(1, 2))
-	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, nil), e.Is(nil))
-	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, nil), e.IsNot(nil))
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, 1), e.Is(1))
+	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, 1), e.IsNot(1))
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, nil), e.IsNull())
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsNotOp, e, nil), e.IsNotNull())
 	assert.Equal(t, exp.NewBooleanExpression(exp.IsOp, e, true), e.IsTrue())

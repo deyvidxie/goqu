@@ -128,6 +128,11 @@ func (pt *postgresTest) TestTimeFunctions() {
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)
 
+		halfSeconds := goqu.L("EXTRACT(EPOCH FROM ? - ?)", goqu.Now().Add(goqu.Interval(1.5, goqu.SecondInterval)), goqu.Now())
+		count, err = ds.Where(halfSeconds.Eq(1.5)).Count()
+		pt.Require().NoError(err)
+		pt.Equal(int64(10), count)
+
 		count, err = ds.Where(goqu.Now().Add(goqu.Interval(goqu.L("2 - 1"), goqu.DayInterval)).Eq(goqu.L("NOW() + INTERVAL '1 DAY'"))).Count()
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)

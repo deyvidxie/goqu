@@ -1399,15 +1399,18 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(1.5, exp.HourInterval),
-			err: "goqu: Interval count must be an integer or an expression, got 1.5",
+			err: "goqu: Interval count must be an integer, a number of seconds or an expression, got float64 1.5",
 		},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "INTERVAL 1.5 SECOND"},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(exp.NewLiteralExpression("? - 1", 5), exp.DayInterval),
 			sql: "INTERVAL ? - 1 DAY", isPrepared: true, args: []any{int64(5)},
 		},
 	)
+	two := 2
 	esgs.assertCases(
 		standard,
+		expressionTestCase{val: exp.NewIntervalExpression(&two, exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
 		expressionTestCase{val: exp.NewIntervalExpression(1, "Quarter"), sql: "(1 * INTERVAL '3 MONTH')"},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(exp.NewLiteralExpression("n - 1"), exp.DayInterval), sql: "((n - 1) * INTERVAL '1 DAY')",
@@ -1421,8 +1424,13 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(float32(2), exp.DayInterval),
-			err: "goqu: Interval count must be an integer or an expression, got 2",
+			err: "goqu: Interval count must be an integer, a number of seconds or an expression, got float32 2",
 		},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "(1.5 * INTERVAL '1 SECOND')"},
+		expressionTestCase{val: exp.NewIntervalExpression(uint8(2), exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(countValuer{2}, exp.DayInterval), sql: "(2 * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(nil, exp.DayInterval), sql: "(NULL * INTERVAL '1 DAY')"},
+		expressionTestCase{val: exp.NewIntervalExpression(countValuer{nil}, exp.DayInterval), sql: "(NULL * INTERVAL '1 DAY')"},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "(? * INTERVAL '1 SECOND')", isPrepared: true, args: []any{int64(1)},
 		},
@@ -1473,6 +1481,34 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression(7))))
 	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
 	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
+}
+
+type (
+	intervalHours float64
+	countValuer   struct{ value driver.Value }
+)
+
+func (c countValuer) Value() (driver.Value, error) { return c.value, nil }
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountMustBeInteger() {
+	half := 1.5
+	standard := sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(sqlgen.PostgresTimeStyle))
+	for _, tc := range []struct {
+		count any
+		got   string
+	}{
+		{intervalHours(1.5), "sqlgen_test.intervalHours 1.5"},
+		{&half, "*float64 "},
+		{countValuer{1.5}, "sqlgen_test.countValuer {1.5}"},
+		{"1.5", "string 1.5"},
+		{time.Second, "time.Duration 1s"},
+	} {
+		b := sb.NewSQLBuilder(false)
+		standard.Generate(b, exp.NewIntervalExpression(tc.count, exp.HourInterval))
+		_, _, err := b.ToSQL()
+		esgs.True(sqlgen.IsInvalidExpression(err), "%T", tc.count)
+		esgs.Contains(err.Error(), "got "+tc.got)
+	}
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionCastFragment() {

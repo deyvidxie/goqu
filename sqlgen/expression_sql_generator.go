@@ -103,7 +103,7 @@ func errTimeFSPCount(n int) error {
 }
 
 func errTimeFSPRange(fsp int) error {
-	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and 6, got %d", fsp)
+	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and %d, got %d", microsecondFSP, fsp)
 }
 
 func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
@@ -126,8 +126,8 @@ func errIntervalUnit(unit exp.IntervalUnit) error {
 	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 
-func errIntervalFractionalCount(count any) error {
-	return NewInvalidExpressionError("Interval count must be an integer or an expression, got %v", count)
+func errIntervalCount(count any) error {
+	return NewInvalidExpressionError("Interval count must be an integer, a number of seconds or an expression, got %T %v", count, count)
 }
 
 func errIntervalNotSupported(dialect string) error {
@@ -1054,15 +1054,51 @@ var intervalUnitNames = func() string {
 	return strings.Join(names, ", ")
 }()
 
-func intervalUnit(e exp.IntervalExpression) (unit exp.IntervalUnit, quantity string, err error) {
-	switch count := e.Count().(type) {
-	case float32, float64:
-		return "", "", errIntervalFractionalCount(count)
+var durationType = reflect.TypeOf(time.Duration(0))
+
+func checkIntervalCount(count any, unit exp.IntervalUnit) error {
+	value := count
+	switch v := count.(type) {
+	case nil, exp.Expression:
+		return nil
+	case driver.Valuer:
+		resolved, err := valuerValue(v)
+		if err != nil {
+			return err
+		}
+		value = resolved
 	}
-	name := string(e.Unit())
+	rv := reflect.Indirect(reflect.ValueOf(value))
+	switch {
+	case !rv.IsValid():
+		return nil
+	case rv.Type() == durationType:
+		return errIntervalCount(count)
+	case util.IsInt(rv.Kind()), util.IsUint(rv.Kind()):
+		return nil
+	case util.IsFloat(rv.Kind()) && unit == exp.SecondInterval:
+		return nil
+	default:
+		return errIntervalCount(count)
+	}
+}
+
+func intervalUnit(e exp.IntervalExpression) (unit exp.IntervalUnit, quantity string, err error) {
+	unit, quantity, err = lookupIntervalUnit(e.Unit())
+	if err != nil {
+		return "", "", err
+	}
+	if err := checkIntervalCount(e.Count(), unit); err != nil {
+		return "", "", err
+	}
+	return unit, quantity, nil
+}
+
+func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quantity string, err error) {
+	name := string(unit)
 	for i := 0; i < len(name); i++ {
 		if name[i] >= utf8.RuneSelf {
-			return "", "", errIntervalUnit(e.Unit())
+			return "", "", errIntervalUnit(unit)
 		}
 	}
 	name = strings.ToUpper(name)
@@ -1071,7 +1107,7 @@ func intervalUnit(e exp.IntervalExpression) (unit exp.IntervalUnit, quantity str
 			return u.unit, u.quantity, nil
 		}
 	}
-	return "", "", errIntervalUnit(e.Unit())
+	return "", "", errIntervalUnit(unit)
 }
 
 const (
