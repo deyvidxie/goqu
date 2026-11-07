@@ -149,17 +149,23 @@ func versionAtLeast(version, minimum [3]int) bool {
 func (mt *mysqlTest) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := mt.db.From("entry").Prepared(prepared)
-		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(6).Sub(goqu.Interval(1, "year")))).Count()
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(6).Sub(goqu.Interval(1, "year")))).Count()
 		mt.Require().NoError(err)
 		mt.Equal(int64(10), count)
 
-		count, err = ds.Where(goqu.UTCTimestamp(3).Lt(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")))).Count()
+		oneSecondLater := goqu.Func("DATE_ADD", goqu.Now(6), goqu.Interval(1, "second"))
+		count, err = ds.Where(goqu.Func("TIMESTAMPDIFF", goqu.L("MICROSECOND"), goqu.Now(6), oneSecondLater).Eq(1000000)).Count()
+		mt.Require().NoError(err)
+		mt.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")).Eq(goqu.L("UTC_TIMESTAMP() + INTERVAL 3 MONTH"))).Count()
 		mt.Require().NoError(err)
 		mt.Equal(int64(10), count)
 
 		var times []time.Time
 		mt.Require().NoError(ds.Select(goqu.UTCTimestamp(6)).Limit(1).ScanVals(&times))
-		mt.Len(times, 1)
+		mt.Require().Len(times, 1)
+		mt.WithinDuration(time.Now().UTC(), times[0], time.Minute)
 	}
 }
 

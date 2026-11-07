@@ -45,6 +45,15 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlserverDialectSuite) TestTimeFunctions() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql: `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`,
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestLiteralString() {
 	ds := sds.GetDs("test")
 	col := goqu.C("a")
@@ -285,12 +294,8 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
 
-func TestTimeFunctionsSQL(t *testing.T) {
-	sql, _, err := goqu.Dialect("sqlserver").From("t").Select(goqu.NOW(3), goqu.UTCTimestamp()).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, `SELECT CAST(SYSDATETIME() AS DATETIME2(3)), SYSUTCDATETIME() FROM "t"`, sql)
-
-	_, _, err = goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day")))).ToSQL()
+func TestIntervalIsUnsupported(t *testing.T) {
+	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlserver]`)
 	assert.True(t, sqlgen.IsUnsupported(err))
 }

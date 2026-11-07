@@ -133,11 +133,11 @@ func (mds *mysqlDialectSuite) TestTimeFunctions() {
 		ds := goqu.Dialect(dialect).From("test")
 		mds.assertSQL(
 			sqlTestCase{
-				ds:  ds.Select(goqu.NOW(), goqu.NOW(6), goqu.UTCTimestamp(), goqu.UTCTimestamp(3)),
+				ds:  ds.Select(goqu.Now(), goqu.Now(6), goqu.UTCTimestamp(), goqu.UTCTimestamp(3)),
 				sql: "SELECT NOW(), NOW(6), UTC_TIMESTAMP(), UTC_TIMESTAMP(3) FROM `test`",
 			},
 			sqlTestCase{
-				ds:  ds.Where(goqu.C("at").Lt(goqu.NOW(6).Add(goqu.Interval(1, "second")))),
+				ds:  ds.Where(goqu.C("at").Lt(goqu.Now(6).Add(goqu.Interval(1, "second")))),
 				sql: "SELECT * FROM `test` WHERE (`at` < (NOW(6) + INTERVAL 1 SECOND))",
 			},
 			sqlTestCase{

@@ -117,15 +117,21 @@ func (st *duckdbSuite) SetupTest() {
 func (st *duckdbSuite) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := st.db.From("entry").Prepared(prepared)
-		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW(6).Sub(goqu.Interval(1, "year")))).Count()
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now(6).Sub(goqu.Interval(1, "year")))).Count()
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
-		count, err = ds.Where(goqu.UTCTimestamp(6).Lt(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")))).Count()
+		oneSecond := goqu.Func("epoch_us", goqu.Now().Add(goqu.Interval(1, "second"))).Sub(goqu.Func("epoch_us", goqu.Now()))
+		count, err = ds.Where(oneSecond.Eq(1000000)).Count()
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
-		count, err = ds.Where(goqu.C("time").Lt(goqu.NOW(3).Sub(goqu.Interval(1, "day")))).Count()
+		quarter := goqu.L("make_timestamp(epoch_us(now())) + INTERVAL 3 MONTH")
+		count, err = ds.Where(goqu.UTCTimestamp(6).Add(goqu.Interval(1, "quarter")).Eq(quarter)).Count()
+		st.Require().NoError(err)
+		st.Equal(int64(10), count)
+
+		count, err = ds.Where(goqu.C("time").Lt(goqu.Now(3).Sub(goqu.Interval(1, "day")))).Count()
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
@@ -133,8 +139,8 @@ func (st *duckdbSuite) TestTimeFunctions() {
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
-		_, err = ds.Where(goqu.C("time").Lt(goqu.NOW(2))).Count()
-		st.EqualError(err, "goqu: dialect does not support fractional seconds precision 2 [dialect=duckdb]")
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now(2))).Count()
+		st.EqualError(err, "goqu: dialect does not support fsp 2, want one of 0, 3, 6 [dialect=duckdb]")
 	}
 }
 

@@ -1317,7 +1317,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 	}
 	now, now3, utc, utc0 := exp.NewNowExpression(), exp.NewNowExpression(3), exp.NewUTCTimestampExpression(), exp.NewUTCTimestampExpression(0)
 	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.StandardTimeStyle)),
+		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.PostgresTimeStyle)),
 		expressionTestCase{val: now, sql: "NOW()"},
 		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)"},
 		expressionTestCase{val: now3, sql: "CURRENT_TIMESTAMP(3)", isPrepared: true},
@@ -1338,7 +1338,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 		expressionTestCase{val: utc, sql: "datetime('now')"},
 		expressionTestCase{val: utc0, sql: "datetime('now')"},
 		expressionTestCase{
-			val: exp.NewNowExpression(6), err: "goqu: dialect does not support fractional seconds precision 6 [dialect=test]",
+			val: exp.NewNowExpression(6), err: "goqu: dialect does not support fsp 6, want one of 0, 3 [dialect=test]",
 		},
 	)
 	esgs.assertCases(
@@ -1356,14 +1356,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 		expressionTestCase{val: utc, sql: "make_timestamp(epoch_us(now()))"},
 		expressionTestCase{val: utc0, sql: "CAST(make_timestamp(epoch_us(now())) AS TIMESTAMP_S)"},
 		expressionTestCase{
-			val: exp.NewNowExpression(2), err: "goqu: dialect does not support fractional seconds precision 2 [dialect=test]",
+			val: exp.NewNowExpression(2), err: "goqu: dialect does not support fsp 2, want one of 0, 3, 6 [dialect=test]",
 		},
 	)
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.MySQLTimeStyle)),
-		expressionTestCase{val: exp.NewNowExpression(7), err: "goqu: fsp must be between 0 and 6, got 7"},
-		expressionTestCase{val: exp.NewNowExpression(-1), err: "goqu: fsp must be between 0 and 6, got -1"},
-		expressionTestCase{val: exp.NewNowExpression(1, 2), err: "goqu: NOW and UTCTimestamp take at most one fsp, got 2"},
+		expressionTestCase{val: exp.NewNowExpression(7), err: "goqu: Now and UTCTimestamp fsp must be between 0 and 6, got 7"},
+		expressionTestCase{val: exp.NewNowExpression(-1), err: "goqu: Now and UTCTimestamp fsp must be between 0 and 6, got -1"},
+		expressionTestCase{val: exp.NewNowExpression(1, 2), err: "goqu: Now and UTCTimestamp take at most one fsp, got 2"},
 		expressionTestCase{val: unknownTimeFunction{now}, err: "goqu: unknown TimeFunction 99"},
 	)
 	esgs.assertCases(
@@ -1379,7 +1379,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		return do
 	}
 	mysql := sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.MySQLTimeStyle))
-	standard := sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.StandardTimeStyle))
+	standard := sqlgen.NewExpressionSQLGenerator("test", opts(sqlgen.PostgresTimeStyle))
 	for _, unit := range []string{"MICROSECOND", "SECOND", "MINUTE", "HOUR", "DAY", "WEEK", "MONTH", "YEAR"} {
 		esgs.assertCases(mysql, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + unit})
 		esgs.assertCases(standard, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "(2 * INTERVAL '1 " + unit + "')"})
@@ -1391,7 +1391,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		expressionTestCase{
 			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), "day"), sql: `INTERVAL "n" DAY`,
 		},
-		expressionTestCase{val: exp.NewIntervalExpression(1, "fortnight"), err: `goqu: unknown INTERVAL unit "fortnight"`},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, "fortnight"),
+			err: `goqu: unknown Interval unit "fortnight", want one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR`,
+		},
 	)
 	esgs.assertCases(
 		standard,

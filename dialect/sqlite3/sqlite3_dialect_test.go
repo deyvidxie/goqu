@@ -45,6 +45,19 @@ func (sds *sqlite3DialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlite3DialectSuite) TestTimeFunctions() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(3), goqu.UTCTimestamp()),
+			sql: "SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `t`",
+		},
+		sqlTestCase{
+			ds:  sds.GetDs("t").Select(goqu.Now(), goqu.UTCTimestamp(0)),
+			sql: "SELECT datetime('now', 'localtime'), datetime('now') FROM `t`",
+		},
+	)
+}
+
 func (sds *sqlite3DialectSuite) TestIdentifiers() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(
@@ -258,12 +271,8 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
 
-func TestTimeFunctionsSQL(t *testing.T) {
-	sql, _, err := goqu.Dialect("sqlite3").From("t").Select(goqu.NOW(3), goqu.UTCTimestamp()).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, "SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'), datetime('now') FROM `t`", sql)
-
-	_, _, err = goqu.Dialect("sqlite3").From("t").Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day")))).ToSQL()
+func TestIntervalIsUnsupported(t *testing.T) {
+	_, _, err := goqu.Dialect("sqlite3").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlite3]`)
 	assert.True(t, sqlgen.IsUnsupported(err))
 }

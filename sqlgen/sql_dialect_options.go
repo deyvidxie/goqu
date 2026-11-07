@@ -333,14 +333,14 @@ type (
 		ConflictDoUpdateFragment []byte
 		// How goqu.Excluded references the row proposed for insertion (Default=ExcludedTableStyle)
 		ExcludedStyle ExcludedStyle
-		// How NOW, UTCTimestamp and Interval render (Default=StandardTimeStyle)
-		TimeStyle TimeStyle
 		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
 		ExcludedRowAlias string
 		// The table ExcludedTableStyle qualifies the column with (Default=[]byte("EXCLUDED"))
 		ExcludedTableFragment []byte
 		// The function ExcludedValuesFuncStyle wraps the column in (Default=[]byte("VALUES"))
 		ExcludedValuesFuncFragment []byte
+		// How Now, UTCTimestamp and Interval render (Default=PostgresTimeStyle)
+		TimeStyle TimeStyle
 
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
@@ -494,7 +494,7 @@ const (
 )
 
 const (
-	StandardTimeStyle TimeStyle = iota
+	PostgresTimeStyle TimeStyle = iota
 	MySQLTimeStyle
 	SQLiteTimeStyle
 	SQLServerTimeStyle

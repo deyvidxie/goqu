@@ -100,8 +100,8 @@ func TestJSONFunctionsAreErrors(t *testing.T) {
 }
 
 func TestTimeFunctionsSQL(t *testing.T) {
-	ds := goqu.Dialect("postgres").From("t").Select(goqu.NOW(6), goqu.UTCTimestamp()).
-		Where(goqu.C("at").Lt(goqu.NOW().Sub(goqu.Interval(1, "day"))))
+	ds := goqu.Dialect("postgres").From("t").Select(goqu.Now(6), goqu.UTCTimestamp()).
+		Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day"))))
 	sql, args, err := ds.ToSQL()
 	assert.NoError(t, err)
 	assert.Equal(t, `SELECT CURRENT_TIMESTAMP(6), (NOW() AT TIME ZONE 'UTC') FROM "t" WHERE ("at" < (NOW() - (1 * INTERVAL '1 DAY')))`, sql)

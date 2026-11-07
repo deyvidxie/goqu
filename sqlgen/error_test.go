@@ -153,12 +153,12 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		{"Interval", "Interval", func(o *sqlgen.SQLDialectOptions) {
 			o.TimeStyle = sqlgen.SQLServerTimeStyle
 		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Where(goqu.C("a").Lt(goqu.NOW().Sub(goqu.Interval(1, "day"))))
+			return d.From("t").Where(goqu.C("a").Lt(goqu.Now().Sub(goqu.Interval(1, "day"))))
 		}},
-		{"fractional seconds precision", "fractional seconds precision 6", func(o *sqlgen.SQLDialectOptions) {
+		{"fsp", "fsp 6, want one of 0, 3", func(o *sqlgen.SQLDialectOptions) {
 			o.TimeStyle = sqlgen.SQLiteTimeStyle
 		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Select(goqu.NOW(6))
+			return d.From("t").Select(goqu.Now(6))
 		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false

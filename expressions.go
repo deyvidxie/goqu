@@ -74,7 +74,7 @@ func Excluded(col any) exp.ExcludedExpression {
 	return exp.NewExcludedExpression(col)
 }
 
-func NOW(fsp ...int) exp.TimeFunctionExpression {
+func Now(fsp ...int) exp.TimeFunctionExpression {
 	return exp.NewNowExpression(fsp...)
 }
 
@@ -82,6 +82,7 @@ func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
 	return exp.NewUTCTimestampExpression(fsp...)
 }
 
+// Interval's unit is one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR (case-insensitive).
 func Interval(count any, unit string) exp.IntervalExpression {
 	return exp.NewIntervalExpression(count, unit)
 }

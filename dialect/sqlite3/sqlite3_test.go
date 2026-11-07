@@ -120,7 +120,7 @@ func (st *sqlite3Suite) SetupTest() {
 func (st *sqlite3Suite) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := st.db.From("entry").Prepared(prepared)
-		count, err := ds.Where(goqu.C("time").Lt(goqu.NOW())).Count()
+		count, err := ds.Where(goqu.C("time").Lt(goqu.Now())).Count()
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
@@ -128,7 +128,7 @@ func (st *sqlite3Suite) TestTimeFunctions() {
 		st.Require().NoError(err)
 		st.Equal(int64(10), count)
 
-		_, err = ds.Where(goqu.C("time").Lt(goqu.NOW().Sub(goqu.Interval(1, "day")))).Count()
+		_, err = ds.Where(goqu.C("time").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).Count()
 		st.EqualError(err, "goqu: dialect does not support Interval [dialect=sqlite3]")
 	}
 }
