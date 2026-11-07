@@ -296,7 +296,7 @@ func TestEmptyInList(t *testing.T) {
 
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=sqlserver]")
+	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=sqlserver]")
 	assert.True(t, sqlgen.IsUnsupported(err))
 }
 

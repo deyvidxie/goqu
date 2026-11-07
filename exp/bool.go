@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"regexp"
+	"slices"
 
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -85,7 +86,7 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 			return NewBooleanExpression(op, lhs, vals[0])
 		}
 	}
-	return NewBooleanExpression(op, lhs, vals)
+	return NewBooleanExpression(op, lhs, slices.Clone(vals))
 }
 
 func isNilList(v interface{}) bool {

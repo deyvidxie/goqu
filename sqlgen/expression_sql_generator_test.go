@@ -1661,7 +1661,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{
 			val: exp.NewJSONValueExpression("doc", "$.a"),
-			err: "goqu: dialect does not support JSONExtract, JSONValue or JSONContains [dialect=test]",
+			err: "goqu: dialect does not support JSONValue [dialect=test]",
+		},
+		expressionTestCase{
+			val: exp.NewJSONExtractExpression("doc", "$.a"), err: "goqu: dialect does not support JSONExtract [dialect=test]",
+		},
+		expressionTestCase{
+			val: exp.NewJSONContainsExpression("doc", 1), err: "goqu: dialect does not support JSONContains [dialect=test]",
+		},
+		expressionTestCase{
+			val: unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")},
+			err: "goqu: dialect does not support JSONFunction 99 [dialect=test]",
 		},
 	)
 }
