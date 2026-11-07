@@ -116,3 +116,14 @@ func TestSQLFunctionCloneDoesNotShareArgs(t *testing.T) {
 	fn.Args()[0] = 2
 	assert.Equal(t, []any{1}, clone.Args())
 }
+
+func TestValsCopyEachRow(t *testing.T) {
+	row := []any{1}
+	set := exp.NewInsertClauses().SetVals([][]any{row})
+	appended := exp.NewInsertClauses().ValsAppend([][]any{row})
+
+	row[0] = 2
+
+	assert.Equal(t, [][]any{{1}}, set.Vals())
+	assert.Equal(t, [][]any{{1}}, appended.Vals())
+}

@@ -183,7 +183,7 @@ func (ic *insertClauses) HasVals() bool {
 
 func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {
 	ret := ic.clone()
-	ret.values = vals
+	ret.values = cloneRows(vals)
 	return ret
 }
 
@@ -191,9 +191,20 @@ func (ic *insertClauses) ValsAppend(vals [][]interface{}) InsertClauses {
 	ret := ic.clone()
 	newVals := make([][]interface{}, 0, len(ic.values)+len(vals))
 	newVals = append(newVals, ic.values...)
-	newVals = append(newVals, vals...)
+	newVals = append(newVals, cloneRows(vals)...)
 	ret.values = newVals
 	return ret
+}
+
+func cloneRows(rows [][]interface{}) [][]interface{} {
+	if rows == nil {
+		return nil
+	}
+	cloned := make([][]interface{}, len(rows))
+	for i, row := range rows {
+		cloned[i] = slices.Clone(row)
+	}
+	return cloned
 }
 
 func (ic *insertClauses) OnConflict() ConflictExpression {

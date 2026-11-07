@@ -273,11 +273,11 @@ func (mds *mysqlDialectSuite) TestTimeLiteralPrecision() {
 	mds.assertSQL(
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql").From("test").Where(where),
-			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456')",
 		},
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql8").From("test").Where(where),
-			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05')",
+			sql: "SELECT * FROM `test` WHERE (`t` = '2024-01-02 03:04:05.123456')",
 		},
 		sqlTestCase{
 			ds:  goqu.Dialect("mysql8nano").From("test").Where(where),

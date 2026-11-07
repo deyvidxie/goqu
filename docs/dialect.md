@@ -105,6 +105,8 @@ Output:
 SELECT * FROM `test` WHERE `id` = 10 []
 ```
 
+`Like`/`NotLike` return an `UnsupportedError` on sqlite3 because SQLite's `LIKE` ignores ASCII case; use `ILike`/`NotILike`. `ILike` with a `*regexp.Regexp` prefixes the pattern with `(?i)`.
+
 <a name="sqlserver"></a>
 ### SQLServer
 ```go
@@ -162,6 +164,8 @@ if count, err := db.From("user").Count(); err != nil {
   fmt.Printf("User count = %d", count)
 }
 ```
+
+`Div` renders `/` on every dialect, so two integers divide with truncation on postgres, sqlite3 and sqlserver (`7 / 2` is `3`) and exactly on mysql and duckdb (`3.5`).
 
 <a name="custom-dialects"></a>
 ## Custom Dialects

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/suite"
 )
@@ -448,7 +448,7 @@ func (mt *mysqlTest) TestInsert() {
 		mt.Equal(entries[i].Int, e.Int)
 		mt.Equal(entries[i].Float, e.Float)
 		mt.Equal(entries[i].String, e.String)
-		mt.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		mt.Equal(entries[i].Time.UTC().Round(time.Second), e.Time.UTC())
 		mt.Equal(entries[i].Bool, e.Bool)
 		mt.Equal(entries[i].Bytes, e.Bytes)
 	}

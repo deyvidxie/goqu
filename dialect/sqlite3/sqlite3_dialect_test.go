@@ -177,14 +177,19 @@ func (sds *sqlite3DialectSuite) TestBooleanOperations() {
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNot(false)), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 0)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNotTrue()), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 1)"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").IsNotFalse()), sql: "SELECT * FROM `test` WHERE (`a` IS NOT 0)"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Like("a%")), sql: "SELECT * FROM `test` WHERE (`a` LIKE 'a%' ESCAPE '\\')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike("a%")), sql: "SELECT * FROM `test` WHERE (`a` NOT LIKE 'a%' ESCAPE '\\')"},
+		sqlTestCase{ds: ds.Where(goqu.C("a").Like("a%")), err: "goqu: boolean operator 'like' not supported"},
+		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike("a%")), err: "goqu: boolean operator 'notlike' not supported"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").ILike("a%")), sql: "SELECT * FROM `test` WHERE (`a` LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike("a%")), sql: "SELECT * FROM `test` WHERE (`a` NOT LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '[ab]')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '[ab]')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '[ab]')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '[ab]')"},
+		sqlTestCase{
+			ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), sql: "SELECT * FROM `test` WHERE (`a` REGEXP '(?i)' || '[ab]')",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))),
+			sql: "SELECT * FROM `test` WHERE (`a` NOT REGEXP '(?i)' || '[ab]')",
+		},
 	)
 }
 
