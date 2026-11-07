@@ -286,9 +286,30 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 }
 
 func TestSentinelErrorsKeepIdentityAndMessage(t *testing.T) {
-	b := sb.NewSQLBuilder(false)
-	sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()).Generate(b, exp.NewDeleteClauses())
-	_, _, err := b.ToSQL()
-	assert.ErrorIs(t, err, sqlgen.ErrNoSourceForDelete)
-	assert.EqualError(t, err, "goqu: no source found when generating delete sql")
+	opts := sqlgen.DefaultDialectOptions()
+	for _, c := range []struct {
+		sentinel error
+		want     string
+		generate func(sb.SQLBuilder)
+	}{
+		{sqlgen.ErrNoSourceForDelete, "goqu: no source found when generating delete sql", func(b sb.SQLBuilder) {
+			sqlgen.NewDeleteSQLGenerator("test", "db", opts).Generate(b, exp.NewDeleteClauses())
+		}},
+		{sqlgen.ErrNoSourceForInsert, "goqu: no source found when generating insert sql", func(b sb.SQLBuilder) {
+			sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, exp.NewInsertClauses())
+		}},
+		{sqlgen.ErrNoSourceForUpdate, "goqu: no source found when generating update sql", func(b sb.SQLBuilder) {
+			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, exp.NewUpdateClauses())
+		}},
+		{sqlgen.ErrNoSetValuesForUpdate, "goqu: no set values found when generating UPDATE sql", func(b sb.SQLBuilder) {
+			uc := exp.NewUpdateClauses().SetTable(exp.NewIdentifierExpression("", "t", ""))
+			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, uc)
+		}},
+	} {
+		b := sb.NewSQLBuilder(false)
+		c.generate(b)
+		_, _, err := b.ToSQL()
+		assert.ErrorIs(t, err, c.sentinel)
+		assert.EqualError(t, err, c.want)
+	}
 }

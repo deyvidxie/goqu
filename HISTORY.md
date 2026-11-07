@@ -13,7 +13,6 @@
 ## Behavior changes to be aware of
 
 * An unencodable value now fails with `goqu: unable to encode value …` (was `goqu_encode_error: Unable to encode value …`), an `InvalidExpressionError`.
-* The unsupported SQL fragment error ends with `[dialect=…]`; `ErrNotSupportedFragment` keeps the old text, is deprecated and is no longer what `ToSQL` returns.
 * sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
   ```sql
   BEGIN;
@@ -25,7 +24,7 @@
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp`.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`, see [docs/dialect.md](docs/dialect.md).
 * sqlserver regexp matching returns an `UnsupportedError`.
-* Unsupported-feature errors end with `[dialect=…]`: boolean, bitwise, arithmetic and range operators, the boolean data type (was `by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN` and the Interval count; the range error also quotes its operator. `ErrNotSupportedJoinType` and `ErrJoinUsingNotSupported` keep the old text, are deprecated and are no longer what `ToSQL` returns; match with `sqlgen.IsUnsupported`.
+* Unsupported-feature errors end with `[dialect=…]`: boolean, bitwise, arithmetic and range operators, the boolean data type (was `by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN`, unsupported SQL fragments and the Interval count; the range error also quotes its operator. `ErrNotSupportedJoinType`, `ErrJoinUsingNotSupported` and `ErrNotSupportedFragment` keep the old text, are deprecated and are no longer what `ToSQL` returns; match with `sqlgen.IsUnsupported`.
 
 # v9.23.0
 
