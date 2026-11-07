@@ -75,8 +75,16 @@ func errUnsupportedIdentifierExpression(t interface{}) error {
 	return errors.New("unexpected col type must be string or LiteralExpression received %T", t)
 }
 
-func errUnsupportedBooleanExpressionOperator(op exp.BooleanOperation) error {
-	return NewUnsupportedError("boolean operator '%+v' not supported", op)
+func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
+	if caseInsensitiveLike && (op == exp.LikeOp || op == exp.NotLikeOp) {
+		return NewUnsupportedError("boolean operator '%+v' not supported, use ILike/NotILike [dialect=%s]", op, dialect)
+	}
+	return NewUnsupportedError("boolean operator '%+v' not supported [dialect=%s]", op, dialect)
+}
+
+func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
+	_, caseInsensitiveLike := esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp]
+	return errUnsupportedBooleanExpressionOperator(esg.dialect, op, caseInsensitiveLike)
 }
 
 func errUnsupportedBitwiseExpressionOperator(op exp.BitwiseOperation) error {
@@ -616,7 +624,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBooleanExpressionOperator(operatorOp))
+		b.SetError(esg.errUnsupportedBooleanOperator(operatorOp))
 		return
 	}
 	rhs := operator.RHS()
@@ -667,7 +675,7 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	}
 	op := operator.Op()
 	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
-		b.SetError(errUnsupportedBooleanExpressionOperator(op))
+		b.SetError(esg.errUnsupportedBooleanOperator(op))
 		return
 	}
 	fragment, errMissing := esg.dialectOptions.EmptyInFragment, errEmptyInFragmentMissing

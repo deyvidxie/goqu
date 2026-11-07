@@ -445,7 +445,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 |---|---|---|---|---|
 | mysql, mysql8, mysql8nano | `NOW()` / `NOW(3)` | `UTC_TIMESTAMP()` | `INTERVAL 1 DAY` | `time.Time` with `parseTime=true` |
 | postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
-| sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` such as `2006-01-02 15:04:05`, compared as text |
+| sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` such as `2006-01-02 15:04:05`, compared as text; `Now()` is local time without an offset, so store and compare with `UTCTimestamp()` |
 | sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 

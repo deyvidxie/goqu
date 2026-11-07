@@ -223,10 +223,22 @@ func (sds *duckdbDialectSuite) TestBooleanOperations() {
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" NOT LIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").ILike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" ILIKE 'a%' ESCAPE '\\')"},
 		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike("a%")), sql: "SELECT * FROM \"test\" WHERE (\"a\" NOT ILIKE 'a%' ESCAPE '\\')"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexplike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpnotlike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpilike' not supported"},
-		sqlTestCase{ds: ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))), err: "goqu: boolean operator 'regexpnotilike' not supported"},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").Like(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexplike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotLike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpnotlike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").ILike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpilike' not supported [dialect=duckdb]",
+		},
+		sqlTestCase{
+			ds:  ds.Where(goqu.C("a").NotILike(regexp.MustCompile("[ab]"))),
+			err: "goqu: boolean operator 'regexpnotilike' not supported [dialect=duckdb]",
+		},
 	)
 }
 

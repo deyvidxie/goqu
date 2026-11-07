@@ -146,6 +146,19 @@ func versionAtLeast(version, minimum [3]int) bool {
 	return true
 }
 
+func (mt *mysqlTest) TestInterpolatedFractionRoundsInDatetime0() {
+	ds := mt.db.From("entry")
+	at := time.Date(2024, 1, 2, 3, 4, 5, 600000000, time.UTC)
+	_, err := ds.Insert().Rows(entry{Int: 99, Float: 1, String: "at", Time: at, Bool: true, Bytes: []byte("at")}).Executor().Exec()
+	mt.Require().NoError(err)
+
+	var stored entry
+	found, err := ds.Where(goqu.C("int").Eq(99)).ScanStruct(&stored)
+	mt.Require().NoError(err)
+	mt.Require().True(found)
+	mt.Equal(time.Date(2024, 1, 2, 3, 4, 6, 0, time.UTC), stored.Time.UTC())
+}
+
 func (mt *mysqlTest) TestTimeFunctionsInNonUTCSession() {
 	tx, err := mt.db.Begin()
 	mt.Require().NoError(err)

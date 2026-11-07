@@ -10,7 +10,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/dialect/duckdb"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -541,7 +540,7 @@ func (st *duckdbSuite) TestInsert() {
 		st.Equal(entries[i].Int, e.Int)
 		st.Equal(entries[i].Float, e.Float)
 		st.Equal(entries[i].String, e.String)
-		st.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		st.Equal(entries[i].Time.UTC().Format(time.DateTime), e.Time.Format(time.DateTime))
 		st.Equal(entries[i].Bool, e.Bool)
 		st.Equal(entries[i].Bytes, e.Bytes)
 	}

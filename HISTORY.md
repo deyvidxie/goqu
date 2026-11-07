@@ -1,3 +1,18 @@
+# Unreleased
+
+* [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through the new `SQLDialectOptions.TimeStyle` [#37](https://github.com/deyvidxie/goqu/issues/37), [#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] Expression constructors, `In`/`NotIn`, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets built from one parent no longer overwrite each other's CTEs, compounds, windows or `CASE` branches [#101](https://github.com/deyvidxie/goqu/issues/101), [#100](https://github.com/deyvidxie/goqu/pull/100)
+* [FIX] The JSON unsupported error names the function used [#101](https://github.com/deyvidxie/goqu/issues/101)
+
+## Behavior changes to be aware of
+
+* sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00`, the text go-sqlite3 binds in prepared mode (was RFC 3339, `2006-01-02T15:04:05Z`). Rows written earlier by interpolated goqu compare as text against the new literals: `Eq`/`In` never match them, and on the literal's own date every old row sorts after it, so `Gt` matches and `Lt` excludes all of that day's old rows. Normalize old rows once with `UPDATE t SET c = replace(c, 'T', ' ') WHERE c GLOB '????-??-??T*';` then `UPDATE t SET c = substr(c, 1, length(c) - 1) || '+00:00' WHERE c GLOB '*Z';`.
+* mysql and mysql8 interpolate microseconds instead of dropping the fraction. MySQL rounds them when storing into `DATETIME(0)`/`TIMESTAMP(0)` (MariaDB and `TIME_TRUNCATE_FRACTIONAL` truncate) but compares at full precision, so an `Eq` with a fractional `time.Time` no longer matches a second-precision column; truncate the value first. Upserts keyed on such a column can insert a new row for an old value with a fraction of .5 or more.
+* sqlite3 `Like`/`NotLike` with a string pattern (and `Op{"like"}`/`Op{"notlike"}`) return an `UnsupportedError`: SQLite's `LIKE` ignores ASCII case. Use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` for a case-sensitive match.
+* sqlite3 `ILike`/`NotILike` with a `*regexp.Regexp` render `REGEXP '(?i)' || pattern`; the registered `REGEXP` function must accept the `(?i)` flag (Go `regexp` and PCRE do, SQLite's `regexp.c` does not).
+* sqlserver regexp matching (`Like`/`ILike` with a `*regexp.Regexp`) returns an `UnsupportedError` instead of MySQL's `REGEXP BINARY`, which SQL Server cannot run.
+* The unsupported boolean operator error names the dialect: `boolean operator 'like' not supported, use ILike/NotILike [dialect=sqlite3]`.
+
 # v9.23.0
 
 * [FEATURE] Add `SelectDataset.Qualify` and the `SupportsQualify` dialect option for the `QUALIFY` clause (Teradata, Snowflake, BigQuery, ...). Off by default for all built in dialects [#343](https://github.com/doug-martin/goqu/issues/343), [#401](https://github.com/doug-martin/goqu/pull/401) - [@slessard](https://github.com/slessard)

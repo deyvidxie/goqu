@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
-
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	_ "github.com/microsoft/go-mssqldb"
@@ -442,8 +440,8 @@ func (sst *sqlserverTest) TestInsert() {
 		sst.Equal(entries[i]["Float"], e.Float)
 		sst.Equal(entries[i]["String"], e.String)
 		sst.Equal(
-			entries[i]["Time"].(time.Time).UTC().Format(mysql.DialectOptions().TimeFormat),
-			e.Time.Format(mysql.DialectOptions().TimeFormat),
+			entries[i]["Time"].(time.Time).UTC().Format(time.DateTime),
+			e.Time.Format(time.DateTime),
 		)
 		sst.Equal(entries[i]["Bool"], e.Bool)
 		sst.Equal([]byte(entries[i]["String"].(string)), e.Bytes)

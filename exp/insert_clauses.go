@@ -1,6 +1,10 @@
 package exp
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/doug-martin/goqu/v9/internal/util"
+)
 
 type (
 	InsertClauses interface {
@@ -170,6 +174,9 @@ func (ic *insertClauses) HasRows() bool {
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
 	ret.rows = slices.Clone(rows)
+	if len(rows) == 1 && !util.IsBytesValue(rows[0]) {
+		ret.rows[0] = cloneSlice(rows[0])
+	}
 	return ret
 }
 

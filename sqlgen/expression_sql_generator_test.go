@@ -678,24 +678,24 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	opts.BooleanOperatorLookup = map[exp.BooleanOperation][]byte{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: ident.Eq(1), err: "goqu: boolean operator 'eq' not supported"},
-		expressionTestCase{val: ident.Neq(1), err: "goqu: boolean operator 'neq' not supported"},
-		expressionTestCase{val: ident.Is(true), err: "goqu: boolean operator 'is' not supported"},
-		expressionTestCase{val: ident.IsNot(true), err: "goqu: boolean operator 'isnot' not supported"},
-		expressionTestCase{val: ident.Gt(1), err: "goqu: boolean operator 'gt' not supported"},
-		expressionTestCase{val: ident.Gte(1), err: "goqu: boolean operator 'gte' not supported"},
-		expressionTestCase{val: ident.Lt(1), err: "goqu: boolean operator 'lt' not supported"},
-		expressionTestCase{val: ident.Lte(1), err: "goqu: boolean operator 'lte' not supported"},
-		expressionTestCase{val: ident.In([]int64{1, 2, 3}), err: "goqu: boolean operator 'in' not supported"},
-		expressionTestCase{val: ident.NotIn([]int64{1, 2, 3}), err: "goqu: boolean operator 'notin' not supported"},
-		expressionTestCase{val: ident.Like("a%"), err: "goqu: boolean operator 'like' not supported"},
-		expressionTestCase{val: ident.Like(re), err: "goqu: boolean operator 'regexplike' not supported"},
-		expressionTestCase{val: ident.ILike("a%"), err: "goqu: boolean operator 'ilike' not supported"},
-		expressionTestCase{val: ident.ILike(re), err: "goqu: boolean operator 'regexpilike' not supported"},
-		expressionTestCase{val: ident.NotLike("a%"), err: "goqu: boolean operator 'notlike' not supported"},
-		expressionTestCase{val: ident.NotLike(re), err: "goqu: boolean operator 'regexpnotlike' not supported"},
-		expressionTestCase{val: ident.NotILike("a%"), err: "goqu: boolean operator 'notilike' not supported"},
-		expressionTestCase{val: ident.NotILike(re), err: "goqu: boolean operator 'regexpnotilike' not supported"},
+		expressionTestCase{val: ident.Eq(1), err: "goqu: boolean operator 'eq' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Neq(1), err: "goqu: boolean operator 'neq' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Is(true), err: "goqu: boolean operator 'is' not supported [dialect=test]"},
+		expressionTestCase{val: ident.IsNot(true), err: "goqu: boolean operator 'isnot' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Gt(1), err: "goqu: boolean operator 'gt' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Gte(1), err: "goqu: boolean operator 'gte' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Lt(1), err: "goqu: boolean operator 'lt' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Lte(1), err: "goqu: boolean operator 'lte' not supported [dialect=test]"},
+		expressionTestCase{val: ident.In([]int64{1, 2, 3}), err: "goqu: boolean operator 'in' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotIn([]int64{1, 2, 3}), err: "goqu: boolean operator 'notin' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Like("a%"), err: "goqu: boolean operator 'like' not supported [dialect=test]"},
+		expressionTestCase{val: ident.Like(re), err: "goqu: boolean operator 'regexplike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.ILike("a%"), err: "goqu: boolean operator 'ilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.ILike(re), err: "goqu: boolean operator 'regexpilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotLike("a%"), err: "goqu: boolean operator 'notlike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotLike(re), err: "goqu: boolean operator 'regexpnotlike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotILike("a%"), err: "goqu: boolean operator 'notilike' not supported [dialect=test]"},
+		expressionTestCase{val: ident.NotILike(re), err: "goqu: boolean operator 'regexpnotilike' not supported [dialect=test]"},
 	)
 }
 
@@ -876,9 +876,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	delete(withoutNotIn.BooleanOperatorLookup, exp.NotInOp)
 	withoutNotIn.EmptyNotInFragment = nil
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutIn),
-		expressionTestCase{val: ident.In([]int{}), err: "goqu: boolean operator 'in' not supported"})
+		expressionTestCase{val: ident.In([]int{}), err: "goqu: boolean operator 'in' not supported [dialect=test]"})
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutNotIn),
-		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: boolean operator 'notin' not supported"})
+		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: boolean operator 'notin' not supported [dialect=test]"})
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListReportsLHSError() {
@@ -1687,6 +1687,11 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpression() {
 			err: "goqu: unknown JSONFunction 99",
 		},
 	)
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).
+		Generate(b, unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
+	_, _, err := b.ToSQL()
+	esgs.True(sqlgen.IsInvalidExpression(err))
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes() {

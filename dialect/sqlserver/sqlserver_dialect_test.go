@@ -1,6 +1,7 @@
 package sqlserver_test
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -304,4 +305,16 @@ func TestIntervalIsError(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlserver]`)
 	assert.True(t, sqlgen.IsUnsupported(err))
+}
+
+func TestRegexpIsError(t *testing.T) {
+	re := regexp.MustCompile("[ab]")
+	a := goqu.C("a")
+	for op, condition := range map[string]exp.BooleanExpression{
+		"regexplike": a.Like(re), "regexpnotlike": a.NotLike(re), "regexpilike": a.ILike(re), "regexpnotilike": a.NotILike(re),
+	} {
+		_, _, err := goqu.Dialect("sqlserver").From("t").Where(condition).ToSQL()
+		assert.EqualError(t, err, "goqu: boolean operator '"+op+"' not supported [dialect=sqlserver]")
+		assert.True(t, sqlgen.IsUnsupported(err))
+	}
 }

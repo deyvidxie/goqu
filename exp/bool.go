@@ -91,6 +91,11 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 
 func cloneSlice(v interface{}) interface{} {
 	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && !rv.IsNil() && rv.Elem().Kind() == reflect.Slice {
+		ptr := reflect.New(rv.Elem().Type())
+		ptr.Elem().Set(reflect.ValueOf(cloneSlice(rv.Elem().Interface())))
+		return ptr.Interface()
+	}
 	if rv.Kind() != reflect.Slice || rv.IsNil() {
 		return v
 	}

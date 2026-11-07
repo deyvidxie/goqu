@@ -31,14 +31,16 @@ type idList []int
 func TestInCopiesASliceArgument(t *testing.T) {
 	ids := []int{1}
 	named := idList{1}
+	pointed := []int{1}
 	a := exp.NewIdentifierExpression("", "", "a")
-	in, notIn, inNamed := a.In(ids), a.NotIn(ids), a.In(named)
+	in, notIn, inNamed, inPointer := a.In(ids), a.NotIn(ids), a.In(named), a.In(&pointed)
 
-	ids[0], named[0] = 2, 2
+	ids[0], named[0], pointed[0] = 2, 2, 2
 
 	assert.Equal(t, []int{1}, in.RHS())
 	assert.Equal(t, []int{1}, notIn.RHS())
 	assert.Equal(t, idList{1}, inNamed.RHS())
+	assert.Equal(t, &[]int{1}, inPointer.RHS())
 }
 
 func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
@@ -46,14 +48,17 @@ func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
 		return exp.NewWindowExpression("db", exp.ParseIdentifier(name), nil, nil, nil)
 	}
 	ws := []exp.WindowExpression{window("w1")}
-	rows := []any{1}
+	rows := []any{1, 2}
+	records := []exp.Record{{"a": 1}}
 	sc := exp.NewSelectClauses().SetWindows(ws)
 	ic := exp.NewInsertClauses().SetRows(rows)
+	single := exp.NewInsertClauses().SetRows([]any{records})
 
-	ws[0], rows[0] = window("w2"), 2
+	ws[0], rows[0], records[0] = window("w2"), 3, exp.Record{"a": 2}
 
 	assert.Equal(t, []exp.WindowExpression{window("w1")}, sc.Windows())
-	assert.Equal(t, []any{1}, ic.Rows())
+	assert.Equal(t, []any{1, 2}, ic.Rows())
+	assert.Equal(t, []any{[]exp.Record{{"a": 1}}}, single.Rows())
 }
 
 func TestSiblingAppendsDoNotShareBackingArrays(t *testing.T) {

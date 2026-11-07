@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/doug-martin/goqu/v9/exp"
 
@@ -188,6 +187,13 @@ func (st *sqlite3Suite) TestInterpolatedTimeMatchesPreparedBinding() {
 		count, err := ds.Prepared(prepared).Where(goqu.C("time").Eq(at)).Count()
 		st.Require().NoError(err)
 		st.Equal(int64(2), count, "prepared=%t", prepared)
+	}
+
+	offset := at.In(time.FixedZone("", 5*60*60))
+	for _, prepared := range []bool{false, true} {
+		count, err := ds.Prepared(prepared).Where(goqu.C("time").Eq(offset)).Count()
+		st.Require().NoError(err)
+		st.Equal(map[bool]int64{false: 2, true: 0}[prepared], count, "prepared binds its own zone, prepared=%t", prepared)
 	}
 }
 
@@ -424,7 +430,7 @@ func (st *sqlite3Suite) TestInsert() {
 		st.Equal(entries[i].Int, e.Int)
 		st.Equal(entries[i].Float, e.Float)
 		st.Equal(entries[i].String, e.String)
-		st.Equal(entries[i].Time.UTC().Format(mysql.DialectOptions().TimeFormat), e.Time.Format(mysql.DialectOptions().TimeFormat))
+		st.Equal(entries[i].Time.UTC().Format(time.DateTime), e.Time.Format(time.DateTime))
 		st.Equal(entries[i].Bool, e.Bool)
 		st.Equal(entries[i].Bytes, e.Bytes)
 	}

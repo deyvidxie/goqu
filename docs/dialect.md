@@ -19,6 +19,12 @@ if err != nil {
 db := dialect.DB(sqlDB)
 ```
 
+Behaviour that differs between databases for the same goqu expression:
+
+* `Div` renders `/`, so two integers divide with truncation on postgres, sqlite3 and sqlserver (`7 / 2` is `3`) and exactly on mysql and duckdb (`3.5`).
+* `Like` and `ILike` both render `LIKE` on sqlserver, and `ILike` renders `LIKE` on mysql, so case sensitivity there follows the column collation.
+* Regexp matching (`Like`/`ILike` with a `*regexp.Regexp`) returns an `UnsupportedError` on sqlserver and duckdb.
+
 Below are examples for each dialect. Notice how the dialect is imported and then looked up using `goqu.Dialect`
 
 <a name="postgres"></a>
@@ -105,7 +111,7 @@ Output:
 SELECT * FROM `test` WHERE `id` = 10 []
 ```
 
-`Like`/`NotLike` return an `UnsupportedError` on sqlite3 because SQLite's `LIKE` ignores ASCII case; use `ILike`/`NotILike`. `ILike` with a `*regexp.Regexp` prefixes the pattern with `(?i)`.
+On sqlite3, `Like`/`NotLike` with a string pattern (and `Op{"like"}`/`Op{"notlike"}`) return an `UnsupportedError` because SQLite's `LIKE` ignores ASCII case; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` for a case-sensitive match (also under `PRAGMA case_sensitive_like`). `ILike`/`NotILike` with a `*regexp.Regexp` prefix the pattern with `(?i)`, so the registered `REGEXP` function must accept that inline flag: Go `regexp` and PCRE do, SQLite's `regexp.c` extension does not.
 
 <a name="sqlserver"></a>
 ### SQLServer
@@ -164,8 +170,6 @@ if count, err := db.From("user").Count(); err != nil {
   fmt.Printf("User count = %d", count)
 }
 ```
-
-`Div` renders `/` on every dialect, so two integers divide with truncation on postgres, sqlite3 and sqlserver (`7 / 2` is `3`) and exactly on mysql and duckdb (`3.5`).
 
 <a name="custom-dialects"></a>
 ## Custom Dialects
