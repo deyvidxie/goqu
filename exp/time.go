@@ -1,5 +1,21 @@
 package exp
 
+import "slices"
+
+type IntervalUnit string
+
+const (
+	MicrosecondInterval IntervalUnit = "MICROSECOND"
+	SecondInterval      IntervalUnit = "SECOND"
+	MinuteInterval      IntervalUnit = "MINUTE"
+	HourInterval        IntervalUnit = "HOUR"
+	DayInterval         IntervalUnit = "DAY"
+	WeekInterval        IntervalUnit = "WEEK"
+	MonthInterval       IntervalUnit = "MONTH"
+	QuarterInterval     IntervalUnit = "QUARTER"
+	YearInterval        IntervalUnit = "YEAR"
+)
+
 type (
 	timeFunctionExpression struct {
 		function TimeFunction
@@ -12,11 +28,11 @@ type (
 )
 
 func NewNowExpression(fsp ...int) TimeFunctionExpression {
-	return timeFunctionExpression{function: NowFunction, fsp: fsp}
+	return timeFunctionExpression{function: NowFunction, fsp: slices.Clone(fsp)}
 }
 
 func NewUTCTimestampExpression(fsp ...int) TimeFunctionExpression {
-	return timeFunctionExpression{function: UTCTimestampFunction, fsp: fsp}
+	return timeFunctionExpression{function: UTCTimestampFunction, fsp: slices.Clone(fsp)}
 }
 
 func NewIntervalExpression(count any, unit IntervalUnit) IntervalExpression {

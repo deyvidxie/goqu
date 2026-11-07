@@ -128,11 +128,11 @@ func (pt *postgresTest) TestTimeFunctions() {
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)
 
-		quarter := goqu.L("(NOW() AT TIME ZONE 'UTC') + INTERVAL '3 MONTH'")
-		count, err = ds.Where(goqu.Now().Add(goqu.Interval(goqu.L("2 - 1"), exp.DayInterval)).Eq(goqu.L("NOW() + INTERVAL '1 DAY'"))).Count()
+		count, err = ds.Where(goqu.Now().Add(goqu.Interval(goqu.L("2 - 1"), goqu.DayInterval)).Eq(goqu.L("NOW() + INTERVAL '1 DAY'"))).Count()
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)
 
+		quarter := goqu.L("(NOW() AT TIME ZONE 'UTC') + INTERVAL '3 MONTH'")
 		count, err = ds.Where(goqu.UTCTimestamp().Add(goqu.Interval(1, "quarter")).Eq(quarter)).Count()
 		pt.Require().NoError(err)
 		pt.Equal(int64(10), count)

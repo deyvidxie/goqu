@@ -22,6 +22,16 @@ const (
 	Wait       = exp.Wait
 	NoWait     = exp.NoWait
 	SkipLocked = exp.SkipLocked
+
+	MicrosecondInterval = exp.MicrosecondInterval
+	SecondInterval      = exp.SecondInterval
+	MinuteInterval      = exp.MinuteInterval
+	HourInterval        = exp.HourInterval
+	DayInterval         = exp.DayInterval
+	WeekInterval        = exp.WeekInterval
+	MonthInterval       = exp.MonthInterval
+	QuarterInterval     = exp.QuarterInterval
+	YearInterval        = exp.YearInterval
 )
 
 // Applies a collation to an expression. The collation is either a name (string) or, to qualify it with a schema

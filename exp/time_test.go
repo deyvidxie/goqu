@@ -14,6 +14,11 @@ func TestNewTimeFunctionExpressions(t *testing.T) {
 	assert.Equal(t, now, now.Expression())
 	assert.Equal(t, now, now.Clone())
 
+	fsp := []int{3}
+	shared := exp.NewUTCTimestampExpression(fsp...)
+	fsp[0] = 9
+	assert.Equal(t, []int{3}, shared.FSP())
+
 	utc := exp.NewUTCTimestampExpression()
 	assert.Equal(t, exp.UTCTimestampFunction, utc.Function())
 	assert.Empty(t, utc.FSP())

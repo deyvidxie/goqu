@@ -106,8 +106,12 @@ func errTimeFSPRange(fsp int) error {
 	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and 6, got %d", fsp)
 }
 
-func errTimeFSPNotSupported(dialect string, fsp int, supported string) error {
-	return NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, supported, dialect)
+func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
+	names := make([]string, len(supported))
+	for i, s := range supported {
+		names[i] = strconv.Itoa(s)
+	}
+	return NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
 }
 
 func errUnknownTimeFunction(function exp.TimeFunction) error {
@@ -120,6 +124,10 @@ func errUnknownTimeStyle(dialect string, style TimeStyle) error {
 
 func errIntervalUnit(unit exp.IntervalUnit) error {
 	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
+}
+
+func errIntervalFractionalCount(count any) error {
+	return NewInvalidExpressionError("Interval count must be an integer or an expression, got %v", count)
 }
 
 func errIntervalNotSupported(dialect string) error {
@@ -1046,13 +1054,24 @@ var intervalUnitNames = func() string {
 	return strings.Join(names, ", ")
 }()
 
-func intervalQuantity(unit exp.IntervalUnit) (string, bool) {
-	for _, u := range intervalUnits {
-		if u.unit == unit {
-			return u.quantity, true
+func intervalUnit(e exp.IntervalExpression) (unit exp.IntervalUnit, quantity string, err error) {
+	switch count := e.Count().(type) {
+	case float32, float64:
+		return "", "", errIntervalFractionalCount(count)
+	}
+	name := string(e.Unit())
+	for i := 0; i < len(name); i++ {
+		if name[i] >= utf8.RuneSelf {
+			return "", "", errIntervalUnit(e.Unit())
 		}
 	}
-	return "", false
+	name = strings.ToUpper(name)
+	for _, u := range intervalUnits {
+		if string(u.unit) == name {
+			return u.unit, u.quantity, nil
+		}
+	}
+	return "", "", errIntervalUnit(e.Unit())
 }
 
 const (
@@ -1060,27 +1079,30 @@ const (
 	microsecondFSP = 6
 )
 
-type timeRenderer func(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error
+type timeRenderers struct {
+	now      func(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error
+	interval func(b sb.SQLBuilder, e exp.IntervalExpression) error
+}
 
-func (esg *expressionSQLGenerator) timeRenderer() (timeRenderer, error) {
+func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
 	switch esg.dialectOptions.TimeStyle {
 	case PostgresTimeStyle:
-		return esg.postgresTimeSQL, nil
+		return timeRenderers{now: esg.postgresTimeSQL, interval: esg.multipliedIntervalSQL}, nil
 	case MySQLTimeStyle:
-		return esg.mysqlTimeSQL, nil
+		return timeRenderers{now: esg.mysqlTimeSQL, interval: esg.mysqlIntervalSQL}, nil
 	case SQLiteTimeStyle:
-		return esg.sqliteTimeSQL, nil
+		return timeRenderers{now: esg.sqliteTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
 	case SQLServerTimeStyle:
-		return esg.sqlServerTimeSQL, nil
+		return timeRenderers{now: esg.sqlServerTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
 	case DuckDBTimeStyle:
-		return esg.duckDBTimeSQL, nil
+		return timeRenderers{now: esg.duckDBTimeSQL, interval: esg.multipliedIntervalSQL}, nil
 	default:
-		return nil, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
+		return timeRenderers{}, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
 	}
 }
 
 func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e exp.TimeFunctionExpression) {
-	render, err := esg.timeRenderer()
+	render, err := esg.timeRenderers()
 	if err != nil {
 		b.SetError(err)
 		return
@@ -1099,7 +1121,7 @@ func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e 
 		b.SetError(errUnknownTimeFunction(e.Function()))
 		return
 	}
-	if err := render(b, utc, fsp, hasFSP); err != nil {
+	if err := render.now(b, utc, fsp, hasFSP); err != nil {
 		b.SetError(err)
 	}
 }
@@ -1164,7 +1186,7 @@ func (esg *expressionSQLGenerator) sqliteTimeSQL(b sb.SQLBuilder, utc bool, fsp 
 	case fsp == millisecondFSP:
 		esg.Generate(b, exp.NewSQLFunctionExpression("strftime", append([]any{exp.NewLiteralExpression("'%Y-%m-%d %H:%M:%f'")}, args...)...))
 	default:
-		return errTimeFSPNotSupported(esg.dialect, fsp, "0, 3")
+		return errTimeFSPNotSupported(esg.dialect, fsp, 0, millisecondFSP)
 	}
 	return nil
 }
@@ -1195,31 +1217,34 @@ func (esg *expressionSQLGenerator) duckDBTimeSQL(b sb.SQLBuilder, utc bool, fsp 
 	case fsp == millisecondFSP:
 		esg.Generate(b, exp.NewCastExpression(now, "TIMESTAMP_MS"))
 	default:
-		return errTimeFSPNotSupported(esg.dialect, fsp, "0, 3, 6")
+		return errTimeFSPNotSupported(esg.dialect, fsp, 0, millisecondFSP, microsecondFSP)
 	}
 	return nil
 }
 
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.IntervalExpression) {
-	style := esg.dialectOptions.TimeStyle
-	switch style {
-	case MySQLTimeStyle, PostgresTimeStyle, DuckDBTimeStyle:
-	case SQLiteTimeStyle, SQLServerTimeStyle:
-		b.SetError(errIntervalNotSupported(esg.dialect))
-		return
-	default:
-		b.SetError(errUnknownTimeStyle(esg.dialect, style))
-		return
+	render, err := esg.timeRenderers()
+	if err == nil {
+		err = render.interval(b, e)
 	}
-	unit := exp.IntervalUnit(strings.ToUpper(string(e.Unit())))
-	quantity, ok := intervalQuantity(unit)
-	if !ok {
-		b.SetError(errIntervalUnit(e.Unit()))
-		return
+	if err != nil {
+		b.SetError(err)
 	}
-	if style == MySQLTimeStyle {
-		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), e.Count()))
-		return
+}
+
+func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	unit, _, err := intervalUnit(e)
+	if err != nil {
+		return err
+	}
+	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), e.Count()))
+	return nil
+}
+
+func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+	_, quantity, err := intervalUnit(e)
+	if err != nil {
+		return err
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	if literal, isLiteral := e.Count().(exp.LiteralExpression); isLiteral {
@@ -1229,6 +1254,11 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.
 	}
 	b.WriteStrings(" * INTERVAL '" + quantity + "'")
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
+	return nil
+}
+
+func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sb.SQLBuilder, exp.IntervalExpression) error {
+	return errIntervalNotSupported(esg.dialect)
 }
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {

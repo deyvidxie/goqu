@@ -1393,6 +1393,18 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 			val: exp.NewIntervalExpression(1, "fortnight"),
 			err: `goqu: unknown Interval unit "fortnight", want one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR`,
 		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, "ſecond"),
+			err: `goqu: unknown Interval unit "ſecond", want one of MICROSECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1.5, exp.HourInterval),
+			err: "goqu: Interval count must be an integer or an expression, got 1.5",
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("? - 1", 5), exp.DayInterval),
+			sql: "INTERVAL ? - 1 DAY", isPrepared: true, args: []any{int64(5)},
+		},
 	)
 	esgs.assertCases(
 		standard,
@@ -1402,6 +1414,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `("n" * INTERVAL '1 DAY')`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewLiteralExpression("? - 1", 5), exp.DayInterval),
+			sql: "((? - 1) * INTERVAL '1 DAY')", isPrepared: true, args: []any{int64(5)},
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(float32(2), exp.DayInterval),
+			err: "goqu: Interval count must be an integer or an expression, got 2",
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "(? * INTERVAL '1 SECOND')", isPrepared: true, args: []any{int64(1)},
@@ -1452,6 +1472,23 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression())))
 	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression(7))))
 	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionCastFragment() {
+	for _, tc := range []struct {
+		style sqlgen.TimeStyle
+		val   exp.Expression
+		sql   string
+	}{
+		{sqlgen.SQLServerTimeStyle, exp.NewNowExpression(3), "TRY_CAST{SYSDATETIME{} AS DATETIME2(3)}"},
+		{sqlgen.DuckDBTimeStyle, exp.NewUTCTimestampExpression(0), "TRY_CAST{make_timestamp{epoch_us{now{}}} AS TIMESTAMP_S}"},
+	} {
+		do := timeStyleOptions(tc.style)
+		do.LeftParenRune, do.RightParenRune = '{', '}'
+		do.CastFragment = []byte("TRY_CAST")
+		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", do), expressionTestCase{val: tc.val, sql: tc.sql})
+	}
 }
 
 func timeStyleOptions(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
