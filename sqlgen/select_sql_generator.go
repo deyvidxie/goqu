@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -33,7 +32,7 @@ func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
 }
 
 func ErrJoinConditionRequired(j exp.JoinExpression) error {
-	return errors.New("join condition required for conditioned join %v", j.JoinType())
+	return NewInvalidExpressionError("join condition required for conditioned join %v", j.JoinType())
 }
 
 // Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
@@ -81,7 +80,7 @@ func ErrQualifyNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
 }
 
-var ErrNoWindowName = errors.New("window expresion has no valid name")
+var ErrNoWindowName = NewInvalidExpressionError("window expresion has no valid name")
 
 func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) SelectSQLGenerator {
 	return &selectSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
@@ -126,7 +125,7 @@ func (ssg *selectSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.SelectClaus
 		case ForSQLFragment:
 			ssg.ForSQL(b, clauses.Lock())
 		default:
-			b.SetError(ErrNotSupportedFragment("SELECT", f))
+			b.SetError(errNotSupportedFragment(ssg.Dialect(), "SELECT", f))
 		}
 	}
 }

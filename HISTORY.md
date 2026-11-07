@@ -2,6 +2,7 @@
 
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FEATURE] Add the `ErrorOnUnsupportedConflictTarget` dialect option: a `DoUpdate`/`DoUpdateExcluded` target on a dialect without conflict targets (mysql, mysql8, mysql8nano) returns `ErrConflictTargetNotSupported` instead of being dropped [deyvidxie#41](https://github.com/deyvidxie/goqu/issues/41), [deyvidxie#103](https://github.com/deyvidxie/goqu/pull/103)
+* [FIX] Every error the SQL generators create is a typed `UnsupportedError` or `InvalidExpressionError`, so `sqlgen.IsUnsupported`/`sqlgen.IsInvalidExpression` match them; exported error values keep their names and messages [deyvidxie#43](https://github.com/deyvidxie/goqu/issues/43), [deyvidxie#105](https://github.com/deyvidxie/goqu/pull/105)
 * [FIX] Expression constructors, `In`/`NotIn`, `Eq`/`Neq` with a slice, `Window`, `Rows` and `Vals` copy the caller's slices, and datasets or `CASE` expressions built from one parent no longer overwrite each other's CTEs, compounds, windows or branches [deyvidxie#101](https://github.com/deyvidxie/goqu/issues/101), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] sqlite3 interpolates a `time.Time` in go-sqlite3's prepared-mode format [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FIX] mysql/mysql8 interpolate a `time.Time` with microseconds instead of dropping the fraction [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
@@ -11,6 +12,7 @@
 
 ## Behavior changes to be aware of
 
+* An unencodable value now fails with `goqu: unable to encode value …` (was `goqu_encode_error: Unable to encode value …`), an `InvalidExpressionError`.
 * sqlite3 interpolates a `time.Time` as `2006-01-02 15:04:05.999999999-07:00` (was `time.RFC3339Nano`). Comparisons against rows stored in the old format are wrong: `Eq`/`In` never match and same-day ranges misorder. Normalize once:
   ```sql
   BEGIN;
@@ -22,7 +24,7 @@
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp`.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`, see [docs/dialect.md](docs/dialect.md).
 * sqlserver regexp matching returns an `UnsupportedError`.
-* Unsupported-feature errors end with `[dialect=…]`: boolean, bitwise, arithmetic and range operators, the boolean data type (was `by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN` and the Interval count; the range error also quotes its operator. `ErrNotSupportedJoinType` and `ErrJoinUsingNotSupported` keep the old text, are deprecated and are no longer what `ToSQL` returns; match with `sqlgen.IsUnsupported`.
+* Unsupported-feature errors end with `[dialect=…]`: boolean, bitwise, arithmetic and range operators, the boolean data type (was `by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN`, unsupported SQL fragments and the Interval count; the range error also quotes its operator. `ErrNotSupportedJoinType`, `ErrJoinUsingNotSupported` and `ErrNotSupportedFragment` keep the old text, are deprecated and are no longer what `ToSQL` returns; match with `sqlgen.IsUnsupported`.
 
 # v9.23.0
 

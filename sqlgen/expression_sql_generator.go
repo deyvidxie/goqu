@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -48,11 +47,11 @@ var (
 	TrueLiteral     = exp.NewLiteralExpression("TRUE")
 	FalseLiteral    = exp.NewLiteralExpression("FALSE")
 
-	ErrEmptyIdentifier = errors.New(
+	ErrEmptyIdentifier = NewInvalidExpressionError(
 		`a empty identifier was encountered, please specify a "schema", "table" or "column"`,
 	)
-	ErrUnexpectedNamedWindow = errors.New(`unexpected named window function`)
-	ErrEmptyCaseWhens        = errors.New(`when conditions not found for case statement`)
+	ErrUnexpectedNamedWindow = NewInvalidExpressionError(`unexpected named window function`)
+	ErrEmptyCaseWhens        = NewInvalidExpressionError(`when conditions not found for case statement`)
 
 	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
@@ -69,11 +68,11 @@ var (
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
-	return errors.New("unsupported expression type %T", e)
+	return NewInvalidExpressionError("unsupported expression type %T", e)
 }
 
 func errUnsupportedIdentifierExpression(t interface{}) error {
-	return errors.New("unexpected col type must be string or LiteralExpression received %T", t)
+	return NewInvalidExpressionError("unexpected col type must be string or LiteralExpression received %T", t)
 }
 
 func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
@@ -361,7 +360,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 
-		b.SetError(errors.NewEncodeError(val))
+		b.SetError(NewInvalidExpressionError("unable to encode value %+v", val))
 	}
 }
 

@@ -2,14 +2,13 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrNoUpdatedValuesProvided = errors.New("no update values provided")
+var ErrNoUpdatedValuesProvided = NewInvalidExpressionError("no update values provided")
 
 func ErrInvalidCollation(collation string) error {
-	return errors.New("invalid collation name %q", collation)
+	return NewInvalidExpressionError("invalid collation name %q", collation)
 }
 
 func ErrCTENotSupported(dialect string) error {
@@ -28,8 +27,13 @@ func ErrConflictTargetNotSupported(dialect string) error {
 	return NewUnsupportedError("dialect does not support Conflict Target clause [dialect=%s]", dialect)
 }
 
+// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
 func ErrNotSupportedFragment(sqlType string, f SQLFragmentType) error {
-	return errors.New("unsupported %s SQL fragment %s", sqlType, f)
+	return NewUnsupportedError("unsupported %s SQL fragment %s", sqlType, f)
+}
+
+func errNotSupportedFragment(dialect, sqlType string, f SQLFragmentType) error {
+	return NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
 }
 
 type (
