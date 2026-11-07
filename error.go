@@ -7,10 +7,6 @@ type (
 	NoQueryExecutorError = errors.NoQueryExecutorError
 )
 
-func newUnknownDialectError(format string, args ...interface{}) error {
-	return errors.NewUnknownDialectError(format, args...)
-}
-
 func IsUnknownDialect(err error) bool {
 	return errors.IsUnknownDialect(err)
 }

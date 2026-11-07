@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -19,21 +20,21 @@ func Struct[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
 	elem := util.Deref(t)
 	if !util.IsStruct(elem.Kind()) {
-		return NewUnsupportedScanTypeError("cannot scan rows into %s: requires a struct or a pointer to a struct", t)
+		return errors.NewUnsupportedScanTypeError("cannot scan rows into %s: requires a struct or a pointer to a struct", t)
 	}
 	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
 	case util.ColumnMapNonStructEmbed:
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"cannot scan rows into %s: embedded field %s is a pointer to non-struct %s; tag it `%s:\"-\"`",
 			t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapUnexportedPointerEmbed:
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"cannot scan rows into %s: embedded field %s is a pointer to unexported %s; embed it by value or tag it `%s:\"-\"`",
 			t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapCycle:
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"cannot scan rows into %s: field %s leads back to %s; tag it `%s:\"-\"`", t, problem.Path, problem.Type, tagName,
 		)
 	case util.ColumnMapOK:
@@ -45,11 +46,11 @@ func Struct[T any](tagName string) error {
 	case len(columns) > 0 && !sqlValue:
 		return nil
 	case oneColumn:
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"cannot scan rows into %s, which scans as one column; use ScanAllVals[%s] or ScanOneVal[%s]", t, elem, elem,
 		)
 	default:
-		return NewUnsupportedScanTypeError("cannot scan rows into %s, which has no fields goqu can scan into", t)
+		return errors.NewUnsupportedScanTypeError("cannot scan rows into %s, which has no fields goqu can scan into", t)
 	}
 }
 
@@ -63,19 +64,19 @@ func AllVals[T any](tagName string) error {
 	}
 	switch {
 	case isUnscannableSlice(util.DerefAll(t)):
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use []byte or a sql.Scanner", t)
+		return errors.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use []byte or a sql.Scanner", t)
 	case acceptsNull(t.Elem()):
 		return nil
 	case isPlainValue(t.Elem()):
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"ScanAllVals cannot scan into %s, whose element %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
 		)
 	case isRowStruct(t.Elem(), tagName):
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"ScanAllVals cannot scan into %s, whose element %s is a row struct; use ScanAllStructs[%s]", t, t.Elem(), t,
 		)
 	default:
-		return NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
+		return errors.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 	}
 }
 
@@ -87,9 +88,9 @@ func OneVal[T any]() error {
 	inner := util.DerefAll(t)
 	switch {
 	case isUnscannableSlice(inner):
-		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use []byte or a sql.Scanner", t)
+		return errors.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use []byte or a sql.Scanner", t)
 	case t == inner && isByteSlice(t) && t != bytesType && !util.IsScanner(t):
-		return NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
+		return errors.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 	default:
 		return nil
 	}
@@ -125,7 +126,7 @@ func isByteSlice(t reflect.Type) bool {
 
 func rejectRawBytes(fn string, t reflect.Type) error {
 	if util.DerefAll(t) == rawBytesType {
-		return NewUnsupportedScanTypeError(
+		return errors.NewUnsupportedScanTypeError(
 			"%s cannot return sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte", fn,
 		)
 	}

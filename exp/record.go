@@ -23,7 +23,8 @@ func (r Record) Cols() []string {
 func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName string) (r Record, err error) {
 	value := reflect.ValueOf(i)
 	if value.IsValid() {
-		if reflect.Indirect(value).Kind() != reflect.Struct {
+		value = reflect.Indirect(value)
+		if value.Kind() != reflect.Struct {
 			return nil, errors.NewInvalidExpressionError("cannot create a record from %T, a struct is required", i)
 		}
 		cm, err := util.GetColumnMap(value.Interface(), tagName)

@@ -21,7 +21,7 @@ func TestIsUnknownDialect(t *testing.T) {
 	assert.ErrorAs(t, err, &target)
 }
 
-func TestDatasetErrorsAreInvalidExpressions(t *testing.T) {
+func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 	type row struct{ A int }
 	toSQL := func(ds interface{ ToSQL() (string, []any, error) }) error {
 		_, _, err := ds.ToSQL()
@@ -82,4 +82,20 @@ func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {
 	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
 	assert.True(t, goqu.IsNoQueryExecutor(err))
 	assert.False(t, sqlgen.IsInvalidExpression(err))
+}
+
+func TestNewRecordFromStructDereferencesPointers(t *testing.T) {
+	type row struct {
+		A int `db:"a"`
+	}
+	r, err := exp.NewRecordFromStruct(&row{A: 1}, true, false, "db")
+	assert.NoError(t, err)
+	assert.Equal(t, exp.Record{"a": 1}, r)
+
+	_, err = exp.NewRecordFromStruct((*row)(nil), true, false, "db")
+	assert.EqualError(t, err, "goqu: cannot create a record from *goqu_test.row, a struct is required")
+
+	r, err = exp.NewRecordFromStruct(nil, true, false, "db")
+	assert.NoError(t, err)
+	assert.Nil(t, r)
 }

@@ -1716,7 +1716,6 @@ func (sds *selectDatasetSuite) TestSetError() {
 	err2 := newTestError("error #2")
 	err3 := newTestError("error #3")
 
-	// Verify initial error set/get works properly
 	md := new(mocks.SQLDialect)
 	ds := goqu.From("test").SetDialect(md)
 	ds = ds.SetError(err1)
