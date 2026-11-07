@@ -22,7 +22,7 @@ func (r Record) Cols() []string {
 
 func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName string) (r Record, err error) {
 	if util.IsNilOrNilPointer(i) {
-		return nil, errors.NewInvalidExpressionError("cannot create a record from nil, got %T", i)
+		return nil, errors.NewInvalidExpressionError("record source must not be nil, got %T", i)
 	}
 	value := reflect.Indirect(reflect.ValueOf(i))
 	if value.Kind() != reflect.Struct {

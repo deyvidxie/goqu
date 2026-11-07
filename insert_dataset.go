@@ -152,7 +152,7 @@ func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
 
 // Adds a subquery to the insert. See examples.
 func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset {
-	if util.IsNilOrNilPointer(from) {
+	if from != nil && util.IsNilOrNilPointer(from) {
 		return id.copy(id.clauses).SetError(errors.NewInvalidExpressionError("insert source must not be nil, got %T", from))
 	}
 	if sds, ok := from.(*SelectDataset); ok {

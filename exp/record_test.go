@@ -24,8 +24,8 @@ func TestNewRecordFromStruct(t *testing.T) {
 		in   interface{}
 		want string
 	}{
-		{(*row)(nil), "goqu: cannot create a record from nil, got *exp_test.row"},
-		{nil, "goqu: cannot create a record from nil, got <nil>"},
+		{(*row)(nil), "goqu: record source must not be nil, got *exp_test.row"},
+		{nil, "goqu: record source must not be nil, got <nil>"},
 		{1, "goqu: cannot create a record from int, a struct is required"},
 	} {
 		_, err = exp.NewRecordFromStruct(c.in, true, false, "db")

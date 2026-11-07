@@ -208,6 +208,10 @@ func (ids *insertDatasetSuite) TestFromQuery() {
 				SetFrom(goqu.From("other_items").Where(goqu.C("b").Gt(10))),
 		},
 		insertTestCase{
+			ds:      bd.FromQuery(goqu.From("other_items")).FromQuery(nil),
+			clauses: exp.NewInsertClauses().SetInto(goqu.C("items")),
+		},
+		insertTestCase{
 			ds:      bd,
 			clauses: exp.NewInsertClauses().SetInto(goqu.C("items")),
 		},
