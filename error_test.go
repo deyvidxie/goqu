@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
@@ -117,9 +118,18 @@ type SkippedScalar int
 
 func TestExecutorWithoutDatabaseKeepsTheDatasetTag(t *testing.T) {
 	type row struct {
-		A              int `db:"a"`
-		*SkippedScalar `db:"-"`
+		A              int `goqu:"a"`
+		*SkippedScalar `goqu:"-"`
 	}
-	_, err := goqu.From("t").Executor().ScanAllStructs[row](context.Background())
-	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
+	dw := goqu.DialectWithTagName("default", "goqu")
+	for name, executor := range map[string]exec.QueryExecutor{
+		"select":   dw.From("t").Executor(),
+		"insert":   dw.Insert("t").Rows(goqu.Record{"a": 1}).Executor(),
+		"update":   dw.Update("t").Set(goqu.Record{"a": 1}).Executor(),
+		"delete":   dw.Delete("t").Executor(),
+		"truncate": dw.Truncate("t").Executor(),
+	} {
+		_, err := executor.ScanAllStructs[row](context.Background())
+		assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError, name)
+	}
 }
