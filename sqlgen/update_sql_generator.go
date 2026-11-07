@@ -2,7 +2,6 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -22,8 +21,8 @@ type (
 )
 
 var (
-	ErrNoSourceForUpdate    = errors.New("no source found when generating update sql")
-	ErrNoSetValuesForUpdate = errors.New("no set values found when generating UPDATE sql")
+	ErrNoSourceForUpdate    = NewInvalidExpressionError("no source found when generating update sql")
+	ErrNoSetValuesForUpdate = NewInvalidExpressionError("no set values found when generating UPDATE sql")
 )
 
 func ErrOrderByOnUpdateNotSupported(dialect string) error {

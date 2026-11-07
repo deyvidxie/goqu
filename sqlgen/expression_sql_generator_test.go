@@ -130,13 +130,13 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_OtherType() {
 	type strct struct{}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: strct{}, err: "goqu_encode_error: Unable to encode value {}"},
+		expressionTestCase{val: strct{}, err: "goqu: Unable to encode value {}"},
 		expressionTestCase{val: strct{}, sql: "?", isPrepared: true, args: []interface{}{strct{}}},
-		expressionTestCase{val: map[string]int{"a": 1}, err: "goqu_encode_error: Unable to encode value map[a:1]"},
+		expressionTestCase{val: map[string]int{"a": 1}, err: "goqu: Unable to encode value map[a:1]"},
 		expressionTestCase{
 			val: map[string]int{"a": 1}, sql: "?", isPrepared: true, args: []interface{}{map[string]int{"a": 1}},
 		},
-		expressionTestCase{val: [2]byte{1, 2}, err: "goqu_encode_error: Unable to encode value [1 2]"},
+		expressionTestCase{val: [2]byte{1, 2}, err: "goqu: Unable to encode value [1 2]"},
 		expressionTestCase{val: [2]byte{1, 2}, sql: "?", isPrepared: true, args: []interface{}{[2]byte{1, 2}}},
 	)
 }
@@ -146,7 +146,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_UnbindableType() {
 	for _, val := range []interface{}{func() {}, make(chan int), complex(1, 2)} {
 		esgs.assertCases(
 			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-			expressionTestCase{val: val, err: fmt.Sprintf("goqu_encode_error: Unable to encode value %+v", val), isPrepared: true},
+			expressionTestCase{val: val, err: fmt.Sprintf("goqu: Unable to encode value %+v", val), isPrepared: true},
 		)
 	}
 }
@@ -769,7 +769,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	lhs := exp.NewLiteralExpression("?", [2]byte{1, 2})
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: lhs.In([]int{}), err: "goqu_encode_error: Unable to encode value [1 2]"},
+		expressionTestCase{val: lhs.In([]int{}), err: "goqu: Unable to encode value [1 2]"},
 		expressionTestCase{val: lhs.In([]int{}), sql: `(1=0)`, isPrepared: true},
 	)
 }

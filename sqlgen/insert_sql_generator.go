@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -44,12 +43,12 @@ var (
 	errExcludedRowAliasEmpty     = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
 	errExcludedRowAliasQualified = NewInvalidExpressionError("Excluded requires an unqualified insert alias")
 
-	ErrConflictUpdateValuesRequired = errors.New("values are required for on conflict update expression")
-	ErrNoSourceForInsert            = errors.New("no source found when generating insert sql")
+	ErrConflictUpdateValuesRequired = NewInvalidExpressionError("values are required for on conflict update expression")
+	ErrNoSourceForInsert            = NewInvalidExpressionError("no source found when generating insert sql")
 )
 
 func errMisMatchedRowLength(expectedL, actualL int) error {
-	return errors.New("rows with different value length expected %d got %d", expectedL, actualL)
+	return NewInvalidExpressionError("rows with different value length expected %d got %d", expectedL, actualL)
 }
 
 func errUpsertWithWhereNotSupported(dialect string) error {

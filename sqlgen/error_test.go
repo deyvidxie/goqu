@@ -6,6 +6,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
@@ -215,4 +216,63 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		assert.ErrorContains(t, err, c.want, c.name)
 		assert.True(t, sqlgen.IsUnsupported(err), "%s: %v", c.name, err)
 	}
+}
+
+type unknownErrorTestExpression struct{}
+
+func (unknownErrorTestExpression) Expression() exp.Expression { return unknownErrorTestExpression{} }
+func (unknownErrorTestExpression) Clone() exp.Expression      { return unknownErrorTestExpression{} }
+
+func TestGeneratorErrorsAreTyped(t *testing.T) {
+	opts := sqlgen.DefaultDialectOptions()
+	expression := func(e any) error {
+		b := sb.NewSQLBuilder(false)
+		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, e)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	toSQL := func(generate func(sb.SQLBuilder)) error {
+		b := sb.NewSQLBuilder(false)
+		generate(b)
+		_, _, err := b.ToSQL()
+		return err
+	}
+	join := exp.NewConditionedJoinExpression(exp.LeftJoinType, exp.NewIdentifierExpression("", "t", ""), nil)
+	mismatched := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "t", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetVals([][]any{{1}, {1, 2}})
+
+	for name, err := range map[string]error{
+		"ErrEmptyIdentifier":              sqlgen.ErrEmptyIdentifier,
+		"ErrUnexpectedNamedWindow":        sqlgen.ErrUnexpectedNamedWindow,
+		"ErrEmptyCaseWhens":               sqlgen.ErrEmptyCaseWhens,
+		"ErrNoWindowName":                 sqlgen.ErrNoWindowName,
+		"ErrInvalidCollation":             sqlgen.ErrInvalidCollation("x"),
+		"ErrJoinConditionRequired":        sqlgen.ErrJoinConditionRequired(join),
+		"ErrConflictUpdateValuesRequired": sqlgen.ErrConflictUpdateValuesRequired,
+		"ErrNoUpdatedValuesProvided":      sqlgen.ErrNoUpdatedValuesProvided,
+		"ErrNoSourceForDelete":            sqlgen.ErrNoSourceForDelete,
+		"ErrNoSourceForInsert":            sqlgen.ErrNoSourceForInsert,
+		"ErrNoSourceForUpdate":            sqlgen.ErrNoSourceForUpdate,
+		"ErrNoSetValuesForUpdate":         sqlgen.ErrNoSetValuesForUpdate,
+		"unsupported expression type":     expression(unknownErrorTestExpression{}),
+		"unsupported identifier column":   expression(exp.NewIdentifierExpression("", "", false)),
+		"unencodable value":               expression(struct{}{}),
+		"mismatched row length": toSQL(func(b sb.SQLBuilder) {
+			sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, mismatched)
+		}),
+		"truncate without source": toSQL(func(b sb.SQLBuilder) {
+			sqlgen.NewTruncateSQLGenerator("test", "db", opts).Generate(b, exp.NewTruncateClauses())
+		}),
+	} {
+		assert.True(t, sqlgen.IsInvalidExpression(err), "%s: %v", name, err)
+	}
+	assert.True(t, sqlgen.IsUnsupported(sqlgen.ErrNotSupportedFragment("SELECT", sqlgen.SQLFragmentType(-1))))
+
+	err := toSQL(func(b sb.SQLBuilder) {
+		sqlgen.NewDeleteSQLGenerator("test", "db", opts).Generate(b, exp.NewDeleteClauses())
+	})
+	assert.ErrorIs(t, err, sqlgen.ErrNoSourceForDelete)
+	assert.EqualError(t, err, "goqu: no source found when generating delete sql")
 }
