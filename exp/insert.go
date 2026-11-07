@@ -149,19 +149,11 @@ func createStructSliceInsert(tagName string, rows ...interface{}) (insertExp Ins
 				reflect.Indirect(reflect.ValueOf(row)).Type(),
 			)
 		}
-		newRowValue := reflect.Indirect(reflect.ValueOf(row))
-		record, err := getFieldsValuesFromStruct(tagName, newRowValue)
+		record, err := NewRecordFromStruct(row, true, false, tagName)
 		if err != nil {
 			return nil, err
 		}
 		recordRows = append(recordRows, record)
 	}
 	return newInsert(tagName, recordRows...)
-}
-
-func getFieldsValuesFromStruct(tagName string, value reflect.Value) (row Record, err error) {
-	if value.IsValid() {
-		return NewRecordFromStruct(value.Interface(), true, false, tagName)
-	}
-	return
 }

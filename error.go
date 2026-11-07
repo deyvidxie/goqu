@@ -12,7 +12,7 @@ type (
 	UnknownDialectError struct {
 		baseError
 	}
-	NoQueryExecutorError struct {
+	NoDatabaseError struct {
 		baseError
 	}
 )
@@ -30,11 +30,11 @@ func IsUnknownDialect(err error) bool {
 	return errors.As(err, &target)
 }
 
-func newNoQueryExecutorError(format string, args ...interface{}) error {
-	return NoQueryExecutorError{baseError{msg: fmt.Sprintf(format, args...)}}
+func newNoDatabaseError(format string, args ...interface{}) error {
+	return NoDatabaseError{baseError{msg: fmt.Sprintf(format, args...)}}
 }
 
-func IsNoQueryExecutor(err error) bool {
-	var target NoQueryExecutorError
+func IsNoDatabase(err error) bool {
+	var target NoDatabaseError
 	return errors.As(err, &target)
 }

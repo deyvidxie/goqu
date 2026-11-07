@@ -10,7 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrQueryFactoryNotFoundError = newNoQueryExecutorError(
+var ErrQueryFactoryNotFoundError = newNoDatabaseError(
 	"unable to execute query did you use goqu.Database#From to create the dataset",
 )
 

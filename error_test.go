@@ -81,17 +81,25 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 	}
 }
 
-func TestQueryFactoryNotFoundIsNoQueryExecutor(t *testing.T) {
+func TestIsNoDatabase(t *testing.T) {
+	assert.True(t, goqu.IsNoDatabase(fmt.Errorf("x: %w", goqu.ErrQueryFactoryNotFoundError)))
+	_, dialectErr := goqu.LookupDialect("nope")
+	assert.False(t, goqu.IsNoDatabase(dialectErr))
+	assert.False(t, goqu.IsNoDatabase(sqlgen.NewInvalidExpressionError("x")))
+	assert.False(t, goqu.IsNoDatabase(nil))
+}
+
+func TestQueryFactoryNotFoundIsNoDatabase(t *testing.T) {
 	_, err := goqu.From("t").Count()
 	assert.EqualError(t, err, "goqu: unable to execute query did you use goqu.Database#From to create the dataset")
 	assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError)
-	assert.True(t, goqu.IsNoQueryExecutor(err))
-	var target goqu.NoQueryExecutorError
+	assert.True(t, goqu.IsNoDatabase(err))
+	var target goqu.NoDatabaseError
 	assert.ErrorAs(t, err, &target)
 	assert.False(t, sqlgen.IsInvalidExpression(err))
 }
 
-func TestExecutorWithoutDatabaseFailsWithNoQueryExecutor(t *testing.T) {
+func TestExecutorWithoutDatabaseFailsWithNoDatabase(t *testing.T) {
 	for name, executor := range map[string]func() (any, error){
 		"select":   func() (any, error) { return goqu.From("t").Executor().Exec() },
 		"insert":   func() (any, error) { return goqu.Insert("t").Rows(goqu.Record{"a": 1}).Executor().Exec() },
@@ -101,7 +109,7 @@ func TestExecutorWithoutDatabaseFailsWithNoQueryExecutor(t *testing.T) {
 	} {
 		_, err := executor()
 		assert.ErrorIs(t, err, goqu.ErrQueryFactoryNotFoundError, name)
-		assert.True(t, goqu.IsNoQueryExecutor(err), name)
+		assert.True(t, goqu.IsNoDatabase(err), name)
 	}
 }
 
