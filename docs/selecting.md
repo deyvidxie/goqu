@@ -21,6 +21,7 @@
   * [`ScanVals`](#scan-vals)- Scans a rows of 1 column into a slice of primitive values
   * [`ScanVal`](#scan-val) - Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
   * [`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
+  * [`IterStructs`, `IterVals`](#iter) - Generic iterators that scan one row at a time
   * [`Scanner`](#scanner) - Allows you to interatively scan rows into structs or values.
   * [`Count`](#count) - Returns the count for the current query
   * [`Exists`](#exists) - Reports whether the current query returns at least one row
@@ -1275,6 +1276,27 @@ user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User
 ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](context.Background())
 
 id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](context.Background())
+```
+
+<a name="iter"></a>
+**[`IterStructs`, `IterVals`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.IterStructs)**
+
+Range over the rows one at a time, for result sets too large to load with `ScanAllStructs`/`ScanAllVals`. They are methods of `*SelectDataset` and of `exec.QueryExecutor` and return an `iter.Seq2[T, error]`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error (from the type check, the query, a row's scan or the rows) is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`; `IterVals` takes the same types as `ScanOneVal`, so a pointer such as `*int64` receives `nil` for `NULL`.
+
+```go
+for user, err := range db.From("user").IterStructs[User](ctx) {
+	if err != nil {
+		return err
+	}
+	// use user
+}
+
+for id, err := range db.From("user").Select("id").IterVals[int64](ctx) {
+	if err != nil {
+		return err
+	}
+	// use id
+}
 ```
 
 <a name="scanner"></a>

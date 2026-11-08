@@ -61,8 +61,8 @@ func errElementNotScannable(t reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 }
 
-func errNamedByteSliceValue(t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
+func errNamedByteSliceValue(fn string, t reflect.Type) error {
+	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use *%s", fn, t, t)
 }
 
 func errRawBytes(fn string) error {

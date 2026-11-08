@@ -1679,6 +1679,45 @@ func ExampleSelectDataset_ScanOneVal() {
 	// No id found for user Zeb
 }
 
+func ExampleSelectDataset_IterStructs() {
+	type User struct {
+		FirstName string `db:"first_name"`
+		LastName  string `db:"last_name"`
+	}
+	ds := getDB().From("goqu_user").Order(goqu.C("id").Asc())
+	for user, err := range ds.IterStructs[User](context.Background()) {
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		fmt.Printf("%+v\n", user)
+	}
+
+	// Output:
+	// {FirstName:Bob LastName:Yukon}
+	// {FirstName:Sally LastName:Yukon}
+	// {FirstName:Vinita LastName:Yukon}
+	// {FirstName:John LastName:Doe}
+}
+
+func ExampleSelectDataset_IterVals() {
+	ds := getDB().From("goqu_user").Select("id").Order(goqu.C("id").Asc())
+	for id, err := range ds.IterVals[int64](context.Background()) {
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		if id > 2 {
+			break
+		}
+		fmt.Printf("UserId = %d\n", id)
+	}
+
+	// Output:
+	// UserId = 1
+	// UserId = 2
+}
+
 func ExampleSelectDataset_Count() {
 	count, err := getDB().From("goqu_user").Count()
 	if err != nil {

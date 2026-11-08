@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	gsql "database/sql"
+	"iter"
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/internal/scantype"
@@ -265,6 +266,62 @@ func (q QueryExecutor) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
 	return rows, nil
 }
 
+func (q QueryExecutor) IterStructs[T any](ctx context.Context) iter.Seq2[T, error] {
+	return iterRows(ctx, q, scantype.Struct[T](q.tagName), scanStructRow[T])
+}
+
+func (q QueryExecutor) IterVals[T any](ctx context.Context) iter.Seq2[T, error] {
+	return iterRows(ctx, q, scantype.OneVal[T]("IterVals"), func(s Scanner) (val T, err error) {
+		err = s.ScanVal(&val)
+		return val, err
+	})
+}
+
+func iterRows[T any](
+	ctx context.Context, q QueryExecutor, typeErr error, scanRow func(Scanner) (T, error),
+) iter.Seq2[T, error] {
+	return func(yield func(T, error) bool) {
+		var zero T
+		if typeErr != nil {
+			yield(zero, typeErr)
+			return
+		}
+		scanner, err := q.ScannerContext(ctx)
+		if err != nil {
+			yield(zero, err)
+			return
+		}
+		defer func() { _ = scanner.Close() }()
+		for scanner.Next() {
+			row, err := scanRow(scanner)
+			if err != nil {
+				yield(zero, err)
+				return
+			}
+			if !yield(row, nil) {
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			yield(zero, err)
+		}
+	}
+}
+
+func scanStructRow[T any](s Scanner) (T, error) {
+	var row T
+	t := reflect.TypeFor[T]()
+	if !util.IsPointer(t.Kind()) {
+		err := s.ScanStruct(&row)
+		return row, err
+	}
+	elem := reflect.New(t.Elem())
+	if err := s.ScanStruct(elem.Interface()); err != nil {
+		return row, err
+	}
+	return elem.Interface().(T), nil
+}
+
 func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
 	if typeErr := scantype.Struct[T](q.tagName); typeErr != nil {
 		return row, false, typeErr
@@ -293,7 +350,7 @@ func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 }
 
 func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
-	if typeErr := scantype.OneVal[T](); typeErr != nil {
+	if typeErr := scantype.OneVal[T]("ScanOneVal"); typeErr != nil {
 		return val, false, typeErr
 	}
 	found, err = q.ScanValContext(ctx, &val)
