@@ -1,9 +1,11 @@
 package exp_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -74,6 +76,12 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowLists() {
 	ie, err := exp.NewInsertExpression("db", [0]testRecord{})
 	iets.NoError(err)
 	iets.True(ie.IsEmpty())
+
+	for _, rows := range []interface{}{(*[2]testRecord)(nil), (*[]testRecord)(nil)} {
+		_, err = exp.NewInsertExpression("db", rows)
+		iets.EqualError(err, fmt.Sprintf("goqu: insert rows must not be nil, got %T", rows))
+		iets.True(errors.IsInvalidExpression(err))
+	}
 
 	_, err = exp.NewInsertExpression("db", []byte{1})
 	iets.EqualError(err, "goqu: unsupported insert row type []uint8, a map, goqu.Record or struct is required")
