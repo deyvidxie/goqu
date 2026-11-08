@@ -1136,6 +1136,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`},
 		insertTestCase{clause: emptyRows, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
 		insertTestCase{clause: targeted, err: unsupported},
+		insertTestCase{
+			clause: doNothing.SetAlias(exp.NewIdentifierExpression("", "new", nil)),
+			sql:    `INSERT IGNORE INTO "test" DEFAULT VALUES AS "new"`,
+		},
 	)
 
 	noUpsertOpts := sqlgen.DefaultDialectOptions()

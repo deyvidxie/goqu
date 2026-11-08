@@ -103,7 +103,9 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	if source == insertSourceDefaults && ic.OnConflict() != nil && opts.SupportsOnConflict && !opts.SupportsConflictWithDefaultValues {
 		if !isg.rendersInsertIgnore(ic.OnConflict()) {
 			b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
+			return
 		}
+		isg.insertAliasAndConflictSQL(b, ic.SetOnConflict(nil), nil, renderedConflictUpdate{})
 		return
 	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
