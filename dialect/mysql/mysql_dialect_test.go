@@ -501,4 +501,13 @@ func TestInsertWithoutRows(t *testing.T) {
 		assert.NoError(t, err, d)
 		assert.Equal(t, "INSERT INTO `test` () VALUES () ON DUPLICATE KEY UPDATE `a`='b'", sql, d)
 	}
+	for d, want := range map[string]string{
+		"mysql":      "INSERT INTO `test` () VALUES () ON DUPLICATE KEY UPDATE `a`=VALUES(`a`)",
+		"mysql8":     "INSERT INTO `test` () VALUES () AS `excluded` ON DUPLICATE KEY UPDATE `a`=`excluded`.`a`",
+		"mysql8nano": "INSERT INTO `test` () VALUES () AS `excluded` ON DUPLICATE KEY UPDATE `a`=`excluded`.`a`",
+	} {
+		sql, _, err := goqu.Dialect(d).Insert("test").OnConflict(goqu.DoUpdateExcluded("", "a")).ToSQL()
+		assert.NoError(t, err, d)
+		assert.Equal(t, want, sql, d)
+	}
 }

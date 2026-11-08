@@ -1137,6 +1137,15 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 		insertTestCase{clause: emptyRows, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
 		insertTestCase{clause: targeted, err: unsupported},
 	)
+
+	noUpsertOpts := sqlgen.DefaultDialectOptions()
+	noUpsertOpts.SupportsConflictWithDefaultValues = false
+	noUpsertOpts.SupportsInsertIgnoreSyntax = true
+	noUpsertOpts.SupportsOnConflict = false
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", noUpsertOpts),
+		insertTestCase{clause: doNothing, err: "goqu: dialect does not support upsert [dialect=test]"},
+	)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictNotSupported() {

@@ -16,7 +16,7 @@
 
 ## Behavior changes to be aware of
 
-* `Insert().Rows(...)` with more than one row and no columns (e.g. `Rows(goqu.Record{}, goqu.Record{})`, or structs whose fields are all `skipinsert`) fails with `goqu: N insert rows have no columns, only one row of defaults can be inserted`, an `InvalidExpressionError` (was a single `DEFAULT VALUES` row on postgres and duckdb, and invalid SQL elsewhere).
+* `Insert().Rows(...)` with more than one row and no columns (e.g. `Rows(goqu.Record{}, goqu.Record{})`, or structs whose fields are all `skipinsert`) fails with `goqu: N insert rows have no columns, only one row of defaults can be inserted`, an `InvalidExpressionError` (was a single `DEFAULT VALUES` row on postgres, duckdb and the default dialect, and `INSERT INTO t` with nothing after it on mysql, sqlite3 and sqlserver).
 * The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
 * `exp.NewRecordFromStruct` with a non-struct fails with `goqu: cannot create a record from <type>, a struct is required` (was `goqu: cannot scan into this type: <type>`, or a panic for a slice of structs); a pointer to a struct, which used to panic, is dereferenced, and `nil` or a nil pointer fails with `goqu: record source must not be nil, got <type>` (`nil` used to return a nil record and no error).
 * `goqu.ErrBadFromArgument`, `ErrUnsupportedIntoType`, `ErrUnsupportedUpdateTableType`, `ErrQueryFactoryNotFoundError` and every exported `sqlgen.Err*` value and constructor are removed; match errors with the `goqu.Is*` helpers or `errors.As` on the `goqu` error types.
