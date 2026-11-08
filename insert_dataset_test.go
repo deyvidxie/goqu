@@ -349,6 +349,29 @@ func (ids *insertDatasetSuite) TestClearRows() {
 	)
 }
 
+func (ids *insertDatasetSuite) TestRows_withRowLists() {
+	type row struct {
+		A int `db:"a"`
+	}
+	want, _, err := goqu.Insert("t").Rows([]row{{A: 1}, {A: 2}}).ToSQL()
+	ids.Require().NoError(err)
+	wantEmpty, _, err := goqu.Insert("t").Rows([]row{}).ToSQL()
+	ids.Require().NoError(err)
+	for name, c := range map[string]struct {
+		rows interface{}
+		want string
+	}{
+		"array":            {rows: [2]row{{A: 1}, {A: 2}}, want: want},
+		"pointer to array": {rows: &[2]row{{A: 1}, {A: 2}}, want: want},
+		"pointer to slice": {rows: &[]row{{A: 1}, {A: 2}}, want: want},
+		"empty array":      {rows: [0]row{}, want: wantEmpty},
+	} {
+		sql, _, err := goqu.Insert("t").Rows(c.rows).ToSQL()
+		ids.NoError(err, name)
+		ids.Equal(c.want, sql, name)
+	}
+}
+
 func (ids *insertDatasetSuite) TestOnConflict() {
 	du := goqu.DoUpdate("other_items", goqu.Record{"a": 1})
 

@@ -78,6 +78,11 @@ func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
 	assert.Equal(t, []exp.WindowExpression{window("w1")}, sc.Windows())
 	assert.Equal(t, []any{1, 2}, ic.Rows())
 	assert.Equal(t, []any{[]exp.Record{{"a": 1}}}, single.Rows())
+
+	pointedRows := [2]exp.Record{{"a": 1}, {"a": 2}}
+	pointed := exp.NewInsertClauses().SetRows([]any{&pointedRows})
+	pointedRows[0] = exp.Record{"a": 9}
+	assert.Equal(t, []any{&[2]exp.Record{{"a": 1}, {"a": 2}}}, pointed.Rows())
 }
 
 func TestSiblingAppendsDoNotShareBackingArrays(t *testing.T) {

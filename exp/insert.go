@@ -20,8 +20,8 @@ func NewInsertExpression(tagName string, rows ...interface{}) (insertExpression 
 	case 0:
 		return new(insert), nil
 	case 1:
-		val := reflect.ValueOf(rows[0])
-		if val.Kind() == reflect.Slice {
+		if util.IsListValue(rows[0]) {
+			val := reflect.Indirect(reflect.ValueOf(rows[0]))
 			vals := make([]interface{}, 0, val.Len())
 			for i := 0; i < val.Len(); i++ {
 				vals = append(vals, val.Index(i).Interface())
