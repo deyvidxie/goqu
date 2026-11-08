@@ -33,7 +33,6 @@ func TestInvalidExpressionErrors(t *testing.T) {
 		{"errNoSourceForTruncate", "goqu: no source found when generating truncate sql", errNoSourceForTruncate},
 		{"errExcludedOutsideConflictUpdate", "goqu: Excluded is only valid in an OnConflict DoUpdate", errExcludedOutsideConflictUpdate},
 		{"errExcludedWithoutColumn", "goqu: Excluded requires a column name", errExcludedWithoutColumn},
-		{"errExcludedRowAliasEmpty", "goqu: Excluded requires ExcludedRowAlias or an insert alias", errExcludedRowAliasEmpty},
 		{"errExcludedRowAliasQualified", "goqu: Excluded requires an unqualified insert alias", errExcludedRowAliasQualified},
 		{
 			"errExcludedRowAliasUnresolved",

@@ -27,7 +27,6 @@ var (
 
 	errExcludedOutsideConflictUpdate = errors.NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = errors.NewInvalidExpressionError("Excluded requires a column name")
-	errExcludedRowAliasEmpty         = errors.NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
 	errExcludedRowAliasQualified     = errors.NewInvalidExpressionError("Excluded requires an unqualified insert alias")
 	errExcludedRowAliasUnresolved    = errors.NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
@@ -92,12 +91,8 @@ func errFragmentNotSupported(dialect, sqlType string, f SQLFragmentType) error {
 	return errors.NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
 }
 
-func errBooleanDataTypeNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
-}
-
-func errEmptyListFragmentMissing(dialect, fragment, list string) error {
-	return errors.NewUnsupportedError("dialect has no %s for an empty %s list [dialect=%s]", fragment, list, dialect)
+func errRowLengthMismatch(expected, actual int) error {
+	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
 }
 
 func errOnConflictNotSupported(dialect string) error {
@@ -118,6 +113,10 @@ func errExcludedRequiresInsertCols(dialect string) error {
 
 func errExcludedFragmentMissing(dialect, fragment string) error {
 	return errors.NewUnsupportedError("dialect has no %s for Excluded [dialect=%s]", fragment, dialect)
+}
+
+func errExcludedRowAliasMissing(dialect string) error {
+	return errors.NewUnsupportedError("dialect has no ExcludedRowAlias for Excluded; set an insert alias with As [dialect=%s]", dialect)
 }
 
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
@@ -148,30 +147,38 @@ func errLockOfNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support OF in a locking clause [dialect=%s]", dialect)
 }
 
+func errBooleanDataTypeNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support the boolean data type [dialect=%s]", dialect)
+}
+
+func errEmptyListFragmentMissing(dialect, fragment, list string) error {
+	return errors.NewUnsupportedError("dialect has no %s for an empty %s list [dialect=%s]", fragment, list, dialect)
+}
+
 func errBooleanOperatorNotSupported(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
 	if caseInsensitiveLike && (op == exp.LikeOp || op == exp.NotLikeOp) {
-		return errors.NewUnsupportedError("boolean operator %q not supported, use ILike/NotILike [dialect=%s]", op, dialect)
+		return errors.NewUnsupportedError("dialect does not support boolean operator %q, use ILike/NotILike [dialect=%s]", op, dialect)
 	}
-	return errors.NewUnsupportedError("boolean operator %q not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("dialect does not support boolean operator %q [dialect=%s]", op, dialect)
 }
 
 func errBitwiseOperatorNotSupported(dialect string, op exp.BitwiseOperation) error {
-	return errors.NewUnsupportedError("bitwise operator %q not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("dialect does not support bitwise operator %q [dialect=%s]", op, dialect)
 }
 
 func errArithmeticOperatorNotSupported(dialect string, op exp.ArithmeticOperation) error {
-	return errors.NewUnsupportedError("arithmetic operator %q not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("dialect does not support arithmetic operator %q [dialect=%s]", op, dialect)
 }
 
 func errRangeOperatorNotSupported(dialect string, op exp.RangeOperation) error {
-	return errors.NewUnsupportedError("range operator %q not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("dialect does not support range operator %q [dialect=%s]", op, dialect)
 }
 
 func errUnsupportedExpressionType(e exp.Expression) error {
 	return errors.NewInvalidExpressionError("unsupported expression type %T", e)
 }
 
-func errUnsupportedIdentifierExpression(t interface{}) error {
+func errUnsupportedColumnType(t interface{}) error {
 	return errors.NewInvalidExpressionError("unsupported column type %T, a string or LiteralExpression is required", t)
 }
 
@@ -185,10 +192,6 @@ func errValuerValue(v driver.Valuer, cause error) error {
 
 func errInvalidCollation(collation string) error {
 	return errors.NewInvalidExpressionError("invalid collation name %q", collation)
-}
-
-func errMismatchedRowLength(expectedL, actualL int) error {
-	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expectedL, actualL)
 }
 
 func errTimeFSPCount(n int) error {
@@ -235,12 +238,8 @@ func errIntervalNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
 }
 
-func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) error {
-	name, ok := jsonFunctionNames[function]
-	if !ok {
-		return errUnknownJSONFunction(function)
-	}
-	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
+func errJSONFunctionNotSupported(dialect, function string) error {
+	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", function, dialect)
 }
 
 func errJSONContainsPaths(n int) error {

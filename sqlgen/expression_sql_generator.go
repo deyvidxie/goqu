@@ -351,7 +351,7 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 		}
 		esg.Generate(b, t)
 	default:
-		b.SetError(errUnsupportedIdentifierExpression(col))
+		b.SetError(errUnsupportedColumnType(col))
 	}
 }
 
@@ -1215,7 +1215,12 @@ func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sb.SQLBuilder, exp.Int
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
 	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
-		b.SetError(errJSONFunctionNotSupported(esg.dialect, e.Function()))
+		name, ok := jsonFunctionNames[e.Function()]
+		if !ok {
+			b.SetError(errUnknownJSONFunction(e.Function()))
+			return
+		}
+		b.SetError(errJSONFunctionNotSupported(esg.dialect, name))
 		return
 	}
 	paths := make([]interface{}, len(e.Paths()))

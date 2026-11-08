@@ -249,7 +249,7 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]inter
 	valueLen := len(values)
 	for i, row := range values {
 		if len(row) != rowLen {
-			b.SetError(errMismatchedRowLength(rowLen, len(row)))
+			b.SetError(errRowLengthMismatch(rowLen, len(row)))
 			return
 		}
 		isg.ExpressionSQLGenerator().Generate(b, row)
@@ -287,7 +287,7 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 		return nil, rendered, nil
 	}
 	if alias.IsEmpty() {
-		return nil, renderedConflictUpdate{}, errExcludedRowAliasEmpty
+		return nil, renderedConflictUpdate{}, errExcludedRowAliasMissing(isg.Dialect())
 	}
 	if col := alias.GetCol(); alias.GetSchema() != "" || (col != nil && col != "") {
 		return nil, renderedConflictUpdate{}, errExcludedRowAliasQualified

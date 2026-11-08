@@ -1054,7 +1054,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		sqlgen.NewInsertSQLGenerator("test", "db", emptyAliasOpts),
 		insertTestCase{
 			clause: ic.SetOnConflict(excludedB),
-			err:    "goqu: Excluded requires ExcludedRowAlias or an insert alias",
+			err:    "goqu: dialect has no ExcludedRowAlias for Excluded; set an insert alias with As [dialect=test]",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
@@ -1070,7 +1070,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	b = sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", emptyAliasOpts).Generate(b, ic.SetOnConflict(excludedB))
 	_, _, err = b.ToSQL()
-	igs.True(goqu.IsInvalidExpression(err))
+	igs.True(goqu.IsUnsupported(err))
 
 	columnAliasIc := ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(excludedB)
 	igs.assertCases(

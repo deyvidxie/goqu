@@ -144,12 +144,12 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Join(goqu.Lateral(d.From("x")), goqu.On(goqu.V(true)))
 		}},
-		{"boolean data type", "boolean data type is not supported", func(o *sqlgen.SQLDialectOptions) {
+		{"boolean data type", "dialect does not support the boolean data type", func(o *sqlgen.SQLDialectOptions) {
 			o.BooleanDataTypeSupported = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Where(goqu.C("a").Is(true))
 		}},
-		{"boolean operator", "boolean operator \"like\" not supported", func(o *sqlgen.SQLDialectOptions) {
+		{"boolean operator", "dialect does not support boolean operator \"like\"", func(o *sqlgen.SQLDialectOptions) {
 			delete(o.BooleanOperatorLookup, exp.LikeOp)
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Where(goqu.C("a").Like("x%"))

@@ -129,7 +129,7 @@ func (dd *DeleteDataset) From(table interface{}) *DeleteDataset {
 	case string:
 		return dd.copy(dd.clauses.SetFrom(exp.ParseIdentifier(t)))
 	default:
-		panic(errBadFromArgument(table))
+		panic(errUnsupportedFromArgument(table))
 	}
 }
 
