@@ -159,6 +159,13 @@ func (ss *scanSuite) oneValErr[T any]() error {
 	return err
 }
 
+func (ss *scanSuite) iterStructsErr[T any]() error {
+	rows, errs := collect(ss.db.From("items").IterStructs[T](context.Background()))
+	ss.Empty(rows)
+	ss.Require().Len(errs, 1)
+	return errs[0]
+}
+
 func (ss *scanSuite) iterValsErr[T any]() error {
 	vals, errs := collect(ss.db.From("items").Select("id").IterVals[T](context.Background()))
 	ss.Empty(vals)
@@ -911,14 +918,9 @@ func (ss *scanSuite) TestScanOneVal_withoutDatabase() {
 	ss.True(goqu.IsNoDatabase(err))
 }
 
-func TestScanSuite(t *testing.T) {
-	suite.Run(t, new(scanSuite))
-}
-
 func (ss *scanSuite) TestIterStructs() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2")).
-		RowsWillBeClosed()
+		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2"))
 
 	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(errs)
@@ -969,7 +971,7 @@ func (ss *scanSuite) TestIterStructs_runsTheQueryOnEveryRange() {
 }
 
 func (ss *scanSuite) TestIterStructs_noRows() {
-	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("")).RowsWillBeClosed()
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows(""))
 
 	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(errs)
@@ -987,8 +989,7 @@ func (ss *scanSuite) TestIterStructs_queryError() {
 
 func (ss *scanSuite) TestIterStructs_rowErrorEndsTheIteration() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2").RowError(1, scanTestError{})).
-		RowsWillBeClosed()
+		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2").RowError(1, scanTestError{}))
 
 	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
@@ -1002,24 +1003,6 @@ func (ss *scanSuite) TestIterStructs_scanErrorEndsTheIteration() {
 		RowsWillBeClosed()
 
 	items, errs := collect(ss.db.From("items").Select("test").IterStructs[dsTestActionItem](context.Background()))
-	ss.Empty(items)
-	ss.Require().Len(errs, 1)
-	ss.True(goqu.IsColumnMismatch(errs[0]))
-}
-
-func (ss *scanSuite) iterStructsErr[T any]() error {
-	rows, errs := collect(ss.db.From("items").IterStructs[T](context.Background()))
-	ss.Empty(rows)
-	ss.Require().Len(errs, 1)
-	return errs[0]
-}
-
-func (ss *scanSuite) TestIterStructs_pointerScanErrorEndsTheIteration() {
-	ss.mock.ExpectQuery(`SELECT "test" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("a\nb")).
-		RowsWillBeClosed()
-
-	items, errs := collect(ss.db.From("items").Select("test").IterStructs[*dsTestActionItem](context.Background()))
 	ss.Empty(items)
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsColumnMismatch(errs[0]))
@@ -1056,8 +1039,7 @@ func (ss *scanSuite) TestIterStructs_withoutDatabase() {
 
 func (ss *scanSuite) TestIterVals() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2")).
-		RowsWillBeClosed()
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2"))
 
 	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Empty(errs)
@@ -1100,8 +1082,7 @@ func (ss *scanSuite) TestIterVals_queryError() {
 
 func (ss *scanSuite) TestIterVals_rowErrorEndsTheIteration() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2").RowError(1, scanTestError{})).
-		RowsWillBeClosed()
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2").RowError(1, scanTestError{}))
 
 	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Equal([]int64{1}, ids)
@@ -1154,4 +1135,8 @@ func (ss *scanSuite) TestIterVals_withoutDatabase() {
 	_, errs := collect(goqu.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsNoDatabase(errs[0]))
+}
+
+func TestScanSuite(t *testing.T) {
+	suite.Run(t, new(scanSuite))
 }

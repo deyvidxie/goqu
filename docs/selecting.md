@@ -1281,7 +1281,7 @@ id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bo
 <a name="iter"></a>
 **[`IterStructs`, `IterVals`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.IterStructs)**
 
-They are methods of `*SelectDataset` and of `exec.QueryExecutor`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`. `IterVals` scans each row straight into a `T`, so a pointer such as `*int64` receives `nil` for `NULL`.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`. `IterVals[*int64]` yields `nil` for `NULL`.
 
 ```go
 for user, err := range db.From("user").IterStructs[User](context.Background()) {
