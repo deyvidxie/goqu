@@ -39,7 +39,7 @@ func (tsg *truncateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.TruncateC
 		case TruncateSQLFragment:
 			tsg.TruncateSQL(b, clauses.Table(), clauses.Options())
 		default:
-			b.SetError(errNotSupportedFragment(tsg.Dialect(), "TRUNCATE", f))
+			b.SetError(errFragmentNotSupported(tsg.Dialect(), "TRUNCATE", f))
 		}
 	}
 }

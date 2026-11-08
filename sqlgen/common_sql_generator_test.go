@@ -116,8 +116,8 @@ func (csgs *commonSQLGeneratorSuite) TestConflictTargetSQL() {
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``},
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support Conflict Target clause [dialect=test]`},
-		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support Conflict Target clause [dialect=test]`},
+		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support conflict target clause [dialect=test]`},
+		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support conflict target clause [dialect=test]`},
 	)
 }
 

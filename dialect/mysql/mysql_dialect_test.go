@@ -317,7 +317,7 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		Rows(goqu.Record{"a": "a"}).
 		OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a"))).
 		ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect=mysql]")
+	assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect=mysql]")
 
 	// no target is still fine
 	_, _, err = goqu.Dialect("mysql").Insert("test").
@@ -353,7 +353,7 @@ func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
 			t.Cleanup(func() { goqu.DeregisterDialect(strict) })
 			for _, ds := range upserts(goqu.Dialect(strict)) {
 				_, _, err := ds.ToSQL()
-				assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect="+strict+"]")
+				assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect="+strict+"]")
 				assert.True(t, goqu.IsUnsupported(err))
 			}
 			_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).

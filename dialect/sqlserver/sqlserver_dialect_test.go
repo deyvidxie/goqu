@@ -99,8 +99,8 @@ func (sds *sqlserverDialectSuite) TestBitwiseOperations() {
 		sqlTestCase{ds: ds.Where(col.BitwiseAnd(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" & 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseOr(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" | 1)"},
 		sqlTestCase{ds: ds.Where(col.BitwiseXor(1)), sql: "SELECT * FROM \"test\" WHERE (\"a\" ^ 1)"},
-		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), err: "goqu: bitwise operator 'Left Shift' not supported [dialect=sqlserver]"},
-		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), err: "goqu: bitwise operator 'Right Shift' not supported [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.Where(col.BitwiseLeftShift(1)), err: "goqu: bitwise operator \"Left Shift\" not supported [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.Where(col.BitwiseRightShift(1)), err: "goqu: bitwise operator \"Right Shift\" not supported [dialect=sqlserver]"},
 	)
 }
 
@@ -313,7 +313,7 @@ func TestRegexpIsError(t *testing.T) {
 		"regexplike": a.Like(re), "regexpnotlike": a.NotLike(re), "regexpilike": a.ILike(re), "regexpnotilike": a.NotILike(re),
 	} {
 		_, _, err := goqu.Dialect("sqlserver").From("t").Where(condition).ToSQL()
-		assert.EqualError(t, err, "goqu: boolean operator '"+op+"' not supported [dialect=sqlserver]")
+		assert.EqualError(t, err, "goqu: boolean operator \""+op+"\" not supported [dialect=sqlserver]")
 		assert.True(t, goqu.IsUnsupported(err))
 	}
 }

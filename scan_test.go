@@ -242,7 +242,7 @@ func (ss *scanSuite) TestScanAllStructs_fromExecutor() {
 
 func (ss *scanSuite) TestScanAllStructs_requiresStruct() {
 	items, err := ss.db.From("items").ScanAllStructs[string](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
+	ss.EqualError(err, "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Nil(items)
 }
@@ -251,12 +251,12 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 	executor := ss.db.Insert("items").Rows(goqu.Record{"name": "Test1"}).Returning("name").Executor()
 
 	names, err := executor.ScanAllStructs[string](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
+	ss.EqualError(err, "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Nil(names)
 
 	_, found, err := executor.ScanOneStruct[string](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
+	ss.EqualError(err, "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 	ss.False(found)
 
 	ids, err := executor.ScanAllVals[*int64](context.Background())
@@ -340,12 +340,12 @@ func (ss *scanSuite) TestScanOneStruct_fromExecutor() {
 
 func (ss *scanSuite) TestScanOneStruct_requiresStruct() {
 	_, found, err := ss.db.From("items").ScanOneStruct[string](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
+	ss.EqualError(err, "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.False(found)
 
 	row, found, err := ss.db.From("items").ScanOneStruct[**dsTestActionItem](context.Background())
-	ss.EqualError(err, "goqu: cannot scan rows into **goqu_test.dsTestActionItem: requires a struct or a pointer to a struct")
+	ss.EqualError(err, "goqu: cannot scan rows into **goqu_test.dsTestActionItem, a struct or a pointer to a struct is required")
 	ss.False(found)
 	ss.Nil(row)
 }

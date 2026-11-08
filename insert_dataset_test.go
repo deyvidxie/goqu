@@ -135,7 +135,7 @@ func (ids *insertDatasetSuite) TestInto() {
 		},
 	)
 
-	ids.PanicsWithError("goqu: unsupported table type bool, a string or identifier expression is required", func() {
+	ids.PanicsWithError("goqu: unsupported table type bool, a string or expression is required", func() {
 		bd.Into(true)
 	})
 }

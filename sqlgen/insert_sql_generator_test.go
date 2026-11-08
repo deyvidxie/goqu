@@ -325,8 +325,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression"},
 		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression", isPrepared: true},
 
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool"},
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool", isPrepared: true},
+		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required"},
+		insertTestCase{
+			clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required", isPrepared: true,
+		},
 	)
 	opts.SupportsInsertIgnoreSyntax = true
 	opts.InsertIgnoreClause = []byte("insert ignore into")
@@ -376,8 +378,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression"},
 		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression", isPrepared: true},
 
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool"},
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool", isPrepared: true},
+		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required"},
+		insertTestCase{
+			clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required", isPrepared: true,
+		},
 	)
 
 	opts.SupportsConflictUpdateWhere = false
@@ -440,7 +444,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
 		insertTestCase{
 			clause: icDnCols,
-			err:    "goqu: dialect does not support Conflict Target clause [dialect=test]",
+			err:    "goqu: dialect does not support conflict target clause [dialect=test]",
 		},
 		insertTestCase{
 			clause:     icDu,
@@ -501,9 +505,9 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsuppor
 	opts.ErrorOnUnsupportedConflictTarget = true
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
-		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]", isPrepared: true},
-		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]", isPrepared: true},
+		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support conflict target clause [dialect=test]"},
 		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`},
 		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
 	)

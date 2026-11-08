@@ -143,7 +143,7 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 	dw := goqu.Dialect("sqlserver")
 	for _, render := range []func(exp.Expression) (string, []interface{}, error){dw.ExpressionSQL, dw.PreparedExpressionSQL} {
 		sql, args, err := render(goqu.C("a").BitwiseLeftShift(1))
-		dws.EqualError(err, "goqu: bitwise operator 'Left Shift' not supported [dialect=sqlserver]")
+		dws.EqualError(err, "goqu: bitwise operator \"Left Shift\" not supported [dialect=sqlserver]")
 		dws.True(goqu.IsUnsupported(err))
 		dws.Empty(sql)
 		dws.Empty(args)

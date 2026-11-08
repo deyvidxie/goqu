@@ -2,7 +2,6 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -35,7 +34,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		return
 	}
 	if !usg.DialectOptions().SupportsMultipleUpdateTables && clauses.HasFrom() {
-		b.SetError(errors.NewUnsupportedError("dialect does not support multiple tables in UPDATE [dialect=%s]", usg.Dialect()))
+		b.SetError(errMultipleUpdateTablesNotSupported(usg.Dialect()))
 	}
 	updates, err := exp.NewUpdateExpressions(usg.TagName(), clauses.SetValues())
 	if err != nil {
@@ -66,7 +65,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case ReturningSQLFragment:
 			usg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(errNotSupportedFragment(usg.Dialect(), "UPDATE", f))
+			b.SetError(errFragmentNotSupported(usg.Dialect(), "UPDATE", f))
 		}
 	}
 }

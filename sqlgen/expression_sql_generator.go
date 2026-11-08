@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -49,9 +48,8 @@ var (
 	FalseLiteral    = exp.NewLiteralExpression("FALSE")
 )
 
-func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
-	caseInsensitiveLike := bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
-	return errUnsupportedBooleanExpressionOperator(esg.dialect, op, caseInsensitiveLike)
+func (esg *expressionSQLGenerator) likeIsCaseInsensitive() bool {
+	return bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
 }
 
 var jsonFunctionNames = map[exp.JSONFunction]string{
@@ -235,7 +233,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 
-		b.SetError(errors.NewInvalidExpressionError("unable to encode value %+v", val))
+		b.SetError(errUnencodableValue(val))
 	}
 }
 
@@ -503,7 +501,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(esg.errUnsupportedBooleanOperator(operatorOp))
+		b.SetError(errBooleanOperatorNotSupported(esg.dialect, operatorOp, esg.likeIsCaseInsensitive()))
 		return
 	}
 	rhs := operator.RHS()
@@ -554,7 +552,7 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	}
 	op := operator.Op()
 	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
-		b.SetError(esg.errUnsupportedBooleanOperator(op))
+		b.SetError(errBooleanOperatorNotSupported(esg.dialect, op, esg.likeIsCaseInsensitive()))
 		return
 	}
 	fragment, fragmentName, list := esg.dialectOptions.EmptyInFragment, "EmptyInFragment", "IN"
@@ -610,7 +608,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BitwiseOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBitwiseExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errBitwiseOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 
@@ -628,7 +626,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, oper
 	if val, ok := esg.dialectOptions.ArithmeticOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedArithmeticExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errArithmeticOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -645,7 +643,7 @@ func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator 
 	if val, ok := esg.dialectOptions.RangeOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedRangeExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errRangeOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 	rhs := operator.RHS()

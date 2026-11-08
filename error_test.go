@@ -72,7 +72,7 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		return err
 	}
 	const (
-		tableType = "goqu: unsupported table type bool, a string or identifier expression is required"
+		tableType = "goqu: unsupported table type bool, a string or expression is required"
 		badFrom   = "goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required"
 	)
 	for _, c := range []struct {
@@ -103,7 +103,10 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			"unsupported row type", "goqu: unsupported insert row type int, a map, goqu.Record or struct is required",
 			toSQL(goqu.Insert("t").Rows(1)),
 		},
-		{"unsupported update value", "goqu: unsupported update value type int", toSQL(goqu.Update("t").Set(1))},
+		{
+			"unsupported update value", "goqu: unsupported update value type int, a map, goqu.Record or struct is required",
+			toSQL(goqu.Update("t").Set(1)),
+		},
 		{
 			"unknown Op key", `goqu: unsupported Op key "bogus"`,
 			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"bogus": 1}})),

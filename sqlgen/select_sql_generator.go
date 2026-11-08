@@ -77,7 +77,7 @@ func (ssg *selectSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.SelectClaus
 		case ForSQLFragment:
 			ssg.ForSQL(b, clauses.Lock())
 		default:
-			b.SetError(errNotSupportedFragment(ssg.Dialect(), "SELECT", f))
+			b.SetError(errFragmentNotSupported(ssg.Dialect(), "SELECT", f))
 		}
 	}
 }

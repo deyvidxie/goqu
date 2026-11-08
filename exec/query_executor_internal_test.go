@@ -1370,7 +1370,7 @@ func (qes *queryExecutorSuite) TestScanVal() {
 	qes.Equal(errScanValTarget(id), err)
 	qes.False(found)
 	found, err = e.ScanVal(&ids)
-	qes.Equal(errScanValSliceTarget(&ids), err)
+	qes.EqualError(err, "goqu: cannot scan one value into *[]int64, use ScanVals for a slice")
 	qes.False(found)
 	found, err = e.ScanVal(&id)
 	qes.EqualError(err, "queryExecutor error")

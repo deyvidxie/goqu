@@ -24,12 +24,12 @@ func errScanValSliceTarget(i interface{}) error {
 
 func errScannerFieldNeedsValue(col string, t reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
-		`unable to scan column "%s" into %s field: it must hold a non-nil pointer to a value that `+
+		`unable to scan column %q into %s field: it must hold a non-nil pointer to a value that `+
 			`implements sql.Scanner (ScanStructs cannot do this)`,
 		col, t,
 	)
 }
 
 func errNoFieldForColumn(col string) error {
-	return errors.NewUnsupportedScanTypeError(`unable to find corresponding field to column "%s" returned by query`, col)
+	return errors.NewUnsupportedScanTypeError("unable to find corresponding field to column %q returned by query", col)
 }

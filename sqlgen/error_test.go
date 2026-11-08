@@ -36,13 +36,13 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).Returning("a")
 		}},
-		{"conflict target", "Conflict Target clause", func(o *sqlgen.SQLDialectOptions) {
+		{"conflict target", "conflict target clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictTarget = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).
 				OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 		}},
-		{"DoUpdate target", "Conflict Target clause", func(o *sqlgen.SQLDialectOptions) {
+		{"DoUpdate target", "conflict target clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictTarget = false
 			o.ErrorOnUnsupportedConflictTarget = true
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -149,7 +149,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Where(goqu.C("a").Is(true))
 		}},
-		{"boolean operator", "boolean operator 'like' not supported", func(o *sqlgen.SQLDialectOptions) {
+		{"boolean operator", "boolean operator \"like\" not supported", func(o *sqlgen.SQLDialectOptions) {
 			delete(o.BooleanOperatorLookup, exp.LikeOp)
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Where(goqu.C("a").Like("x%"))

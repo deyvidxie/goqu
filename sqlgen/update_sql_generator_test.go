@@ -76,7 +76,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withBadUpdateValues() {
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(true)
 
-	expectedErr := "goqu: unsupported update value type bool"
+	expectedErr := "goqu: unsupported update value type bool, a map, goqu.Record or struct is required"
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		updateTestCase{clause: uc, err: expectedErr},

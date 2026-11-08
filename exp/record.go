@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -22,11 +21,11 @@ func (r Record) Cols() []string {
 
 func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName string) (r Record, err error) {
 	if util.IsNilOrNilPointer(i) {
-		return nil, errors.NewInvalidExpressionError("record source must not be nil, got %T", i)
+		return nil, errNilRecordSource(i)
 	}
 	value := reflect.Indirect(reflect.ValueOf(i))
 	if value.Kind() != reflect.Struct {
-		return nil, errors.NewInvalidExpressionError("cannot create a record from %T, a struct is required", i)
+		return nil, errRecordNotStruct(i)
 	}
 	cm := util.StructColumnMap(value.Type(), tagName)
 	cols, _ := cm.Cols()

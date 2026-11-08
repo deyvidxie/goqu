@@ -41,5 +41,19 @@ func errBadFromArgument(from interface{}) error {
 }
 
 func errUnsupportedTableType(table interface{}) error {
-	return errors.NewInvalidExpressionError("unsupported table type %T, a string or identifier expression is required", table)
+	return errors.NewInvalidExpressionError("unsupported table type %T, a string or expression is required", table)
+}
+
+func errUnknownDialect(dialect string) error {
+	return errors.NewUnknownDialectError(
+		"dialect %q is not registered; blank-import its dialect package or call RegisterDialect", dialect,
+	)
+}
+
+func errNilInsertSource(from interface{}) error {
+	return errors.NewInvalidExpressionError("insert source must not be nil, got %T", from)
+}
+
+func errIncompatibleInsertDialects(insertDialect, selectDialect string) error {
+	return errors.NewInvalidExpressionError("incompatible dialects for INSERT (%q) and SELECT (%q)", insertDialect, selectDialect)
 }
