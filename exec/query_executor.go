@@ -111,6 +111,9 @@ func (q QueryExecutor) ScanStruct(i interface{}) (bool, error) {
 //
 // i: A pointer to a struct
 func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bool, error) {
+	if util.IsNilOrNilPointer(i) {
+		return false, errNilScanTarget(i)
+	}
 	val := reflect.ValueOf(i)
 	if !util.IsPointer(val.Kind()) {
 		return false, errScanStructTarget(i)

@@ -6,6 +6,10 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/errors"
 )
 
+func errNilScanTarget(target interface{}) error {
+	return errors.NewUnsupportedScanTypeError("scan target must not be nil, got %T", target)
+}
+
 func errScanStructTarget(target interface{}) error {
 	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer to a struct is required", target)
 }

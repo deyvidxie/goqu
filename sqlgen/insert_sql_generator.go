@@ -286,6 +286,9 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	if !probe.usesExcluded {
 		return nil, rendered, nil
 	}
+	if alias.IsEmpty() && ic.HasAlias() {
+		return nil, renderedConflictUpdate{}, errEmptyInsertAlias
+	}
 	if alias.IsEmpty() {
 		return nil, renderedConflictUpdate{}, errExcludedRowAliasMissing(isg.Dialect())
 	}

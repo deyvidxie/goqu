@@ -28,6 +28,7 @@ var (
 	errExcludedOutsideConflictUpdate = errors.NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
 	errExcludedWithoutColumn         = errors.NewInvalidExpressionError("Excluded requires a column name")
 	errExcludedRowAliasQualified     = errors.NewInvalidExpressionError("Excluded requires an unqualified insert alias")
+	errEmptyInsertAlias              = errors.NewInvalidExpressionError("Excluded requires a non-empty insert alias")
 	errExcludedRowAliasUnresolved    = errors.NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)

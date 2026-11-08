@@ -30,8 +30,8 @@ func errNilUpdateValues(update interface{}) error {
 	return errors.NewInvalidExpressionError("update values must not be nil, got %T", update)
 }
 
-func errUnsupportedUpdateValueType(t reflect.Type) error {
-	return errors.NewInvalidExpressionError("unsupported update value type %s, a map, goqu.Record or struct is required", t)
+func errUnsupportedUpdateValueType(update interface{}) error {
+	return errors.NewInvalidExpressionError("unsupported update value type %T, a map, goqu.Record or struct is required", update)
 }
 
 func errNilRecordSource(source interface{}) error {

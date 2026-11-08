@@ -43,7 +43,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 	case reflect.Struct:
 		return getUpdateExpressionsStruct(tagName, updateValue)
 	default:
-		return nil, errUnsupportedUpdateValueType(updateValue.Type())
+		return nil, errUnsupportedUpdateValueType(update)
 	}
 	return updates, nil
 }

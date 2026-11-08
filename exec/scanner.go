@@ -159,6 +159,9 @@ func (s *scanner) scanIntoSlice(val reflect.Value, it func(i interface{}) error)
 
 func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
+	if util.IsNilOrNilPointer(i) {
+		return val, errNilScanTarget(i)
+	}
 	if !util.IsPointer(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}
@@ -171,6 +174,9 @@ func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
 
 func checkScanValsTarget(i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
+	if util.IsNilOrNilPointer(i) {
+		return val, errNilScanTarget(i)
+	}
 	if !util.IsPointer(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}

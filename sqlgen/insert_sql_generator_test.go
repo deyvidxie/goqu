@@ -1047,6 +1047,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		},
 	)
 
+	b = sb.NewSQLBuilder(false)
+	sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts).Generate(b, ic.
+		SetAlias(exp.NewIdentifierExpression("", "", nil)).SetOnConflict(excludedB))
+	_, _, err = b.ToSQL()
+	igs.EqualError(err, "goqu: Excluded requires a non-empty insert alias")
+	igs.True(goqu.IsInvalidExpression(err))
+
 	emptyAliasOpts := sqlgen.DefaultDialectOptions()
 	emptyAliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 	emptyAliasOpts.ExcludedRowAlias = ""

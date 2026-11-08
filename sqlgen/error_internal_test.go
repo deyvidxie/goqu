@@ -45,6 +45,7 @@ func TestInvalidExpressionErrors(t *testing.T) {
 			"errJSONCandidateCondition", "goqu: JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 			errJSONCandidateCondition,
 		},
+		{"errEmptyInsertAlias", "goqu: Excluded requires a non-empty insert alias", errEmptyInsertAlias},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, errors.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
