@@ -30,7 +30,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.PlaceHolderFragment = []byte("?")
 	opts.IncludePlaceholderNum = false
 	opts.QuoteRune = '`'
-	opts.DefaultValuesFragment = []byte("")
+	opts.DefaultValuesFragment = []byte(" () VALUES ()")
 	opts.True = []byte("1")
 	opts.False = []byte("0")
 	opts.TimeFormat = "2006-01-02 15:04:05.999999"

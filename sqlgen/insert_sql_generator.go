@@ -35,6 +35,7 @@ type (
 
 const (
 	insertSourceValues insertSource = iota
+	insertSourceDefaults
 	insertSourceQuery
 	insertSourceComplete
 )
@@ -75,6 +76,14 @@ func (isg *insertSQLGenerator) Generate(
 
 // Adds the correct fragment to being an INSERT statement
 func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExpression) {
+	if isg.rendersInsertIgnore(o) {
+		b.Write(isg.DialectOptions().InsertIgnoreClause)
+	} else {
+		b.Write(isg.DialectOptions().InsertClause)
+	}
+}
+
+func (isg *insertSQLGenerator) rendersInsertIgnore(o exp.ConflictExpression) bool {
 	_, isNotDoNothingConflictExpression := o.(exp.ConflictUpdateExpression)
 	// A conflict target requires a real ON CONFLICT clause: INSERT IGNORE / INSERT OR IGNORE would swallow
 	// violations of every constraint, not just the targeted one.
@@ -82,16 +91,21 @@ func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExp
 	if dn, ok := o.(exp.ConflictNothingExpression); ok {
 		hasTarget = dn.Cols() != nil && len(dn.Cols().Columns()) > 0
 	}
-	if isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget {
-		b.Write(isg.DialectOptions().InsertIgnoreClause)
-	} else {
-		b.Write(isg.DialectOptions().InsertClause)
-	}
+	return isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget
 }
 
 func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
 	source := isg.insertSourceSQL(b, ic)
 	if source == insertSourceComplete || b.Error() != nil {
+		return
+	}
+	opts := isg.DialectOptions()
+	if source == insertSourceDefaults && ic.OnConflict() != nil && opts.SupportsOnConflict && !opts.SupportsConflictWithDefaultValues {
+		if !isg.rendersInsertIgnore(ic.OnConflict()) {
+			b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
+			return
+		}
+		isg.insertAliasAndConflictSQL(b, ic.SetOnConflict(nil), nil, renderedConflictUpdate{})
 		return
 	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
@@ -118,6 +132,9 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		if ie.IsInsertFrom() {
 			return insertSourceQuery
 		}
+		if ie.IsEmpty() {
+			return insertSourceDefaults
+		}
 	case ic.HasCols() && ic.HasVals():
 		isg.insertColumnsSQL(b, ic.Cols())
 		isg.insertValuesSQL(b, ic.Vals())
@@ -129,6 +146,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		return insertSourceQuery
 	default:
 		isg.defaultValuesSQL(b)
+		return insertSourceDefaults
 	}
 	return insertSourceValues
 }

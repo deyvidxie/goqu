@@ -323,3 +323,9 @@ func TestRegexpIsError(t *testing.T) {
 		assert.True(t, goqu.IsUnsupported(err))
 	}
 }
+
+func TestInsertWithoutRows(t *testing.T) {
+	sql, _, err := goqu.Dialect("sqlserver").Insert("test").ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "test" DEFAULT VALUES`, sql)
+}

@@ -480,6 +480,22 @@ func (sst *sqlserverTest) TestInsertReturningProducesError() {
 	sst.Error(err)
 }
 
+func (sst *sqlserverTest) TestInsert_withoutRows() {
+	_, err := sst.db.Exec("CREATE TABLE empty_insert (id INT IDENTITY PRIMARY KEY, a VARCHAR(5) NOT NULL DEFAULT 'x')")
+	sst.Require().NoError(err)
+	sst.T().Cleanup(func() {
+		_, err := sst.db.Exec("DROP TABLE empty_insert")
+		sst.NoError(err)
+	})
+	for _, prepared := range []bool{false, true} {
+		_, err = sst.db.Insert("empty_insert").Prepared(prepared).Executor().Exec()
+		sst.Require().NoError(err, "prepared=%v", prepared)
+	}
+	var as []string
+	sst.Require().NoError(sst.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
+	sst.Equal([]string{"x", "x"}, as)
+}
+
 func (sst *sqlserverTest) TestInterpolatedInsertKeepsTimeFraction() {
 	t := time.Date(2024, 1, 2, 3, 4, 5, 123456700, time.UTC)
 	sst.insertEntryAt(sst.db.From("entry"), t)

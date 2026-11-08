@@ -17,6 +17,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsLimitOnDelete = true
 	opts.SupportsConflictUpdateWhere = true
 	opts.SupportsInsertIgnoreSyntax = true
+	opts.SupportsConflictWithDefaultValues = false
 	opts.SupportsConflictTarget = true
 	opts.SupportsMultipleUpdateTables = true
 	opts.WrapCompoundsInParens = false
@@ -33,7 +34,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.PlaceHolderFragment = []byte("?")
 	opts.IncludePlaceholderNum = false
 	opts.QuoteRune = '`'
-	opts.DefaultValuesFragment = []byte("")
 	opts.True = []byte("1")
 	opts.False = []byte("0")
 	opts.TimeFormat = "2006-01-02 15:04:05.999999999-07:00"
