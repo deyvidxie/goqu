@@ -107,7 +107,7 @@ func errUpsertWithWhereNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
 }
 
-func errExcludedRequiresInsertCols(dialect string) error {
+func errExcludedInsertSelectNotSupported(dialect string) error {
 	return errors.NewUnsupportedError(
 		"dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]", dialect,
 	)
@@ -118,7 +118,7 @@ func errExcludedFragmentMissing(dialect, fragment string) error {
 }
 
 func errExcludedRowAliasMissing(dialect string) error {
-	return errors.NewUnsupportedError("dialect has no ExcludedRowAlias for Excluded; set an insert alias with As [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect has no ExcludedRowAlias for Excluded, set an insert alias with As [dialect=%s]", dialect)
 }
 
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {

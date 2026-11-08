@@ -100,7 +100,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 		return
 	}
 	if rowAlias != nil && source == insertSourceQuery {
-		b.SetError(errExcludedRequiresInsertCols(isg.Dialect()))
+		b.SetError(errExcludedInsertSelectNotSupported(isg.Dialect()))
 		return
 	}
 	isg.insertAliasAndConflictSQL(b, ic, rowAlias, rendered)
