@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
@@ -160,22 +161,23 @@ func (ss *scanSuite) oneValErr[T any]() error {
 }
 
 func (ss *scanSuite) iterStructsErr[T any]() error {
-	rows, errs := collect(ss.db.From("items").IterStructs[T](context.Background()))
+	rows, errs := ss.collect(ss.db.From("items").IterStructs[T](context.Background()))
 	ss.Empty(rows)
 	ss.Require().Len(errs, 1)
 	return errs[0]
 }
 
 func (ss *scanSuite) iterValsErr[T any]() error {
-	vals, errs := collect(ss.db.From("items").Select("id").IterVals[T](context.Background()))
+	vals, errs := ss.collect(ss.db.From("items").Select("id").IterVals[T](context.Background()))
 	ss.Empty(vals)
 	ss.Require().Len(errs, 1)
 	return errs[0]
 }
 
-func collect[T any](seq iter.Seq2[T, error]) (rows []T, errs []error) {
+func (ss *scanSuite) collect[T any](seq iter.Seq2[T, error]) (rows []T, errs []error) {
 	for row, err := range seq {
 		if err != nil {
+			ss.Zero(row)
 			errs = append(errs, err)
 			continue
 		}
@@ -293,12 +295,12 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 	ss.EqualError(err, "goqu: ScanOneVal cannot scan into []int64; use []byte or a sql.Scanner")
 	ss.False(found)
 
-	names, errs := collect(executor.IterStructs[string](context.Background()))
+	names, errs := ss.collect(executor.IterStructs[string](context.Background()))
 	ss.Empty(names)
 	ss.Require().Len(errs, 1)
 	ss.EqualError(errs[0], "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 
-	idLists, errs := collect(executor.IterVals[[]int64](context.Background()))
+	idLists, errs := ss.collect(executor.IterVals[[]int64](context.Background()))
 	ss.Empty(idLists)
 	ss.Require().Len(errs, 1)
 	ss.EqualError(errs[0], "goqu: IterVals cannot scan into []int64; use []byte or a sql.Scanner")
@@ -470,14 +472,27 @@ func (ss *scanSuite) TestGenericScans_useDatasetTagName() {
 	ss.True(found)
 	ss.Equal(scanTestTagged{ID: 8}, row)
 
-	iterated, errs := collect(db.From("items").IterStructs[scanTestTagged](context.Background()))
+	iterated, errs := ss.collect(db.From("items").IterStructs[scanTestTagged](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]scanTestTagged{{ID: 9}}, iterated)
 	ss.NoError(mock.ExpectationsWereMet())
 
 	_, err = db.From("items").ScanAllVals[*scanTestTagged](context.Background())
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *goqu_test.scanTestTagged, "+
-		"whose element goqu_test.scanTestTagged is a row struct; use ScanAllStructs[*goqu_test.scanTestTagged]")
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *goqu_test.scanTestTagged: "+
+		"goqu_test.scanTestTagged is a row struct; use ScanAllStructs[*goqu_test.scanTestTagged]")
+
+	_, iterErrs := ss.collect(db.From("items").IterVals[scanTestTagged](context.Background()))
+	ss.Require().Len(iterErrs, 1)
+	_, _, oneErr := db.From("items").ScanOneVal[scanTestTagged](context.Background())
+	_, allErr := db.From("items").ScanAllVals[scanTestTagged](context.Background())
+	const tagged = "goqu_test.scanTestTagged"
+	for want, err := range map[string]error{
+		"IterVals cannot scan into " + tagged + ": " + tagged + " is a row struct; use IterStructs[" + tagged + "]":       iterErrs[0],
+		"ScanOneVal cannot scan into " + tagged + ": " + tagged + " is a row struct; use ScanOneStruct[" + tagged + "]":   oneErr,
+		"ScanAllVals cannot scan into " + tagged + ": " + tagged + " is a row struct; use ScanAllStructs[" + tagged + "]": allErr,
+	} {
+		ss.EqualError(err, "goqu: "+want)
+	}
 
 	_, err = db.From("items").ScanAllStructs[scanTestDBSkip](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestDBSkip: embedded field ScanTestID is a pointer to "+
@@ -704,10 +719,10 @@ func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 
 func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 	for msg, err := range map[string]error{
-		"*fmt.Stringer; use a sql.Scanner":                       ss.allValsErr[*fmt.Stringer](),
-		"*uintptr; use a sql.Scanner":                            ss.allValsErr[*uintptr](),
-		"*complex128; use a sql.Scanner":                         ss.allValsErr[*complex128](),
-		"*netip.Addr; use a sql.Scanner":                         ss.allValsErr[*netip.Addr](),
+		"*fmt.Stringer; use a concrete sql.Scanner":              ss.allValsErr[*fmt.Stringer](),
+		"*uintptr; use a concrete sql.Scanner":                   ss.allValsErr[*uintptr](),
+		"*complex128; use a concrete sql.Scanner":                ss.allValsErr[*complex128](),
+		"*netip.Addr; use a concrete sql.Scanner":                ss.allValsErr[*netip.Addr](),
 		"*[]int64; use []byte or a sql.Scanner":                  ss.allValsErr[*[]int64](),
 		"**[]int64; use []byte or a sql.Scanner":                 ss.allValsErr[**[]int64](),
 		"*[]goqu_test.scanTestByte; use []byte or a sql.Scanner": ss.allValsErr[*[]scanTestByte](),
@@ -725,7 +740,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 		"goqu_test.scanTestUnexportedPtr": ss.allValsErr[*scanTestUnexportedPtr](),
 		"sql.TxOptions":                   ss.allValsErr[*sql.TxOptions](),
 	} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+", whose element "+elem+
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+": "+elem+
 			" is a row struct; use ScanAllStructs[*"+elem+"]", elem)
 	}
 }
@@ -922,7 +937,7 @@ func (ss *scanSuite) TestIterStructs() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2"))
 
-	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}, {Address: "211 Test Addr", Name: "Test2"}}, items)
 }
@@ -931,7 +946,7 @@ func (ss *scanSuite) TestIterStructs_pointers() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2"))
 
-	items, errs := collect(ss.db.From("items").IterStructs[*dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[*dsTestActionItem](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]*dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}, {Address: "211 Test Addr", Name: "Test2"}}, items)
 }
@@ -939,7 +954,7 @@ func (ss *scanSuite) TestIterStructs_pointers() {
 func (ss *scanSuite) TestIterStructs_namedPointer() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
-	items, errs := collect(ss.db.From("items").IterStructs[scanTestItemRef](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[scanTestItemRef](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]scanTestItemRef{&dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}}, items)
 }
@@ -963,8 +978,8 @@ func (ss *scanSuite) TestIterStructs_runsTheQueryOnEveryRange() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("211 Test Addr,Test2"))
 
 	seq := ss.db.From("items").IterStructs[dsTestActionItem](context.Background())
-	first, firstErrs := collect(seq)
-	second, secondErrs := collect(seq)
+	first, firstErrs := ss.collect(seq)
+	second, secondErrs := ss.collect(seq)
 	ss.Empty(append(firstErrs, secondErrs...))
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, first)
 	ss.Equal([]dsTestActionItem{{Address: "211 Test Addr", Name: "Test2"}}, second)
@@ -973,7 +988,7 @@ func (ss *scanSuite) TestIterStructs_runsTheQueryOnEveryRange() {
 func (ss *scanSuite) TestIterStructs_noRows() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows(""))
 
-	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(errs)
 	ss.Empty(items)
 }
@@ -981,7 +996,7 @@ func (ss *scanSuite) TestIterStructs_noRows() {
 func (ss *scanSuite) TestIterStructs_queryError() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnError(scanTestError{})
 
-	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(items)
 	ss.Require().Len(errs, 1)
 	ss.ErrorIs(errs[0], scanTestError{})
@@ -991,7 +1006,7 @@ func (ss *scanSuite) TestIterStructs_rowErrorEndsTheIteration() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1\n211 Test Addr,Test2").RowError(1, scanTestError{}))
 
-	items, errs := collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
 	ss.Require().Len(errs, 1)
 	ss.ErrorIs(errs[0], scanTestError{})
@@ -1002,7 +1017,7 @@ func (ss *scanSuite) TestIterStructs_scanErrorEndsTheIteration() {
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("a\nb")).
 		RowsWillBeClosed()
 
-	items, errs := collect(ss.db.From("items").Select("test").IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ss.db.From("items").Select("test").IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(items)
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsColumnMismatch(errs[0]))
@@ -1026,13 +1041,13 @@ func (ss *scanSuite) TestIterStructs_fromExecutor() {
 		WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 
 	ds := ss.db.Insert("items").Rows(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}).Returning("address", "name")
-	items, errs := collect(ds.Executor().IterStructs[dsTestActionItem](context.Background()))
+	items, errs := ss.collect(ds.Executor().IterStructs[dsTestActionItem](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]dsTestActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
 }
 
 func (ss *scanSuite) TestIterStructs_withoutDatabase() {
-	_, errs := collect(goqu.From("items").IterStructs[dsTestActionItem](context.Background()))
+	_, errs := ss.collect(goqu.From("items").IterStructs[dsTestActionItem](context.Background()))
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsNoDatabase(errs[0]))
 }
@@ -1041,7 +1056,7 @@ func (ss *scanSuite) TestIterVals() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2"))
 
-	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]int64{1, 2}, ids)
 }
@@ -1050,7 +1065,7 @@ func (ss *scanSuite) TestIterVals_nullablePointers() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(nil))
 
-	ids, errs := collect(ss.db.From("items").Select("id").IterVals[*int64](context.Background()))
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[*int64](context.Background()))
 	ss.Empty(errs)
 	ss.Require().Len(ids, 2)
 	ss.Equal(int64(1), *ids[0])
@@ -1074,7 +1089,7 @@ func (ss *scanSuite) TestIterVals_breakClosesRows() {
 func (ss *scanSuite) TestIterVals_queryError() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnError(scanTestError{})
 
-	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Empty(ids)
 	ss.Require().Len(errs, 1)
 	ss.ErrorIs(errs[0], scanTestError{})
@@ -1084,7 +1099,7 @@ func (ss *scanSuite) TestIterVals_rowErrorEndsTheIteration() {
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2").RowError(1, scanTestError{}))
 
-	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Equal([]int64{1}, ids)
 	ss.Require().Len(errs, 1)
 	ss.ErrorIs(errs[0], scanTestError{})
@@ -1095,7 +1110,7 @@ func (ss *scanSuite) TestIterVals_scanErrorEndsTheIteration() {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\nb")).
 		RowsWillBeClosed()
 
-	ids, errs := collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Equal([]int64{1}, ids)
 	ss.Require().Len(errs, 1)
 	ss.ErrorContains(errs[0], `sql: Scan error on column index 0, name "id"`)
@@ -1116,7 +1131,7 @@ func (ss *scanSuite) TestIterVals_acceptsNamedByteSlices() {
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte(`{"a":1}`)))
 
-	docs, errs := collect(ss.db.From("items").Select("data").IterVals[json.RawMessage](context.Background()))
+	docs, errs := ss.collect(ss.db.From("items").Select("data").IterVals[json.RawMessage](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]json.RawMessage{json.RawMessage(`{"a":1}`)}, docs)
 }
@@ -1126,42 +1141,55 @@ func (ss *scanSuite) TestIterVals_fromExecutor() {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2"))
 
 	ds := ss.db.Insert("items").Rows(goqu.Record{"name": "Test1"}, goqu.Record{"name": "Test2"}).Returning("id")
-	ids, errs := collect(ds.Executor().IterVals[int64](context.Background()))
+	ids, errs := ss.collect(ds.Executor().IterVals[int64](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]int64{1, 2}, ids)
 }
 
 func (ss *scanSuite) TestIterVals_withoutDatabase() {
-	_, errs := collect(goqu.From("items").Select("id").IterVals[int64](context.Background()))
+	_, errs := ss.collect(goqu.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsNoDatabase(errs[0]))
 }
 
 func (ss *scanSuite) TestValueScans_rejectRowStructs() {
-	for want, err := range map[string]error{
-		"goqu: IterVals cannot scan into goqu_test.dsTestActionItem, a row struct; " +
-			"use IterStructs[goqu_test.dsTestActionItem]": ss.iterValsErr[dsTestActionItem](),
-		"goqu: IterVals cannot scan into *goqu_test.dsTestActionItem, a row struct; " +
-			"use IterStructs[*goqu_test.dsTestActionItem]": ss.iterValsErr[*dsTestActionItem](),
-		"goqu: ScanOneVal cannot scan into goqu_test.dsTestActionItem, a row struct; " +
-			"use ScanOneStruct[goqu_test.dsTestActionItem]": ss.oneValErr[dsTestActionItem](),
-		"goqu: ScanAllVals cannot scan into goqu_test.dsTestActionItem, a row struct; " +
-			"use ScanAllStructs[goqu_test.dsTestActionItem]": ss.allValsErr[dsTestActionItem](),
+	const row = "goqu_test.dsTestActionItem"
+	for _, c := range []struct {
+		fn, target, suggestion string
+		err                    error
+	}{
+		{"IterVals", row, "IterStructs[" + row + "]", ss.iterValsErr[dsTestActionItem]()},
+		{"IterVals", "*" + row, "IterStructs[*" + row + "]", ss.iterValsErr[*dsTestActionItem]()},
+		{"IterVals", "**" + row, "IterStructs[*" + row + "]", ss.iterValsErr[**dsTestActionItem]()},
+		{"ScanOneVal", row, "ScanOneStruct[" + row + "]", ss.oneValErr[dsTestActionItem]()},
+		{"ScanOneVal", "*" + row, "ScanOneStruct[*" + row + "]", ss.oneValErr[*dsTestActionItem]()},
+		{"ScanAllVals", row, "ScanAllStructs[" + row + "]", ss.allValsErr[dsTestActionItem]()},
+		{"ScanAllVals", "**" + row, "ScanAllStructs[*" + row + "]", ss.allValsErr[**dsTestActionItem]()},
 	} {
-		ss.EqualError(err, want)
+		ss.EqualError(c.err, "goqu: "+c.fn+" cannot scan into "+c.target+": "+row+" is a row struct; use "+c.suggestion)
+		ss.True(goqu.IsUnsupportedScanType(c.err))
+	}
+}
+
+func (ss *scanSuite) TestValueScans_rejectNonDriverValueKinds() {
+	for want, err := range map[string]error{
+		"IterVals cannot scan into map[string]int": ss.iterValsErr[map[string]int](),
+		"IterVals cannot scan into unsafe.Pointer": ss.iterValsErr[unsafe.Pointer](),
+		"IterVals cannot scan into sql.Scanner":    ss.iterValsErr[sql.Scanner](),
+		"ScanOneVal cannot scan into func()":       ss.oneValErr[func()](),
+		"ScanOneVal cannot scan into *sql.Scanner": ss.oneValErr[*sql.Scanner](),
+		"ScanAllVals cannot scan into chan int":    ss.allValsErr[chan int](),
+		"ScanAllVals cannot scan into **func()":    ss.allValsErr[**func()](),
+	} {
+		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
 		ss.True(goqu.IsUnsupportedScanType(err))
 	}
 }
 
-func (ss *scanSuite) TestValueScans_rejectTypesNoDriverValueFits() {
-	for want, err := range map[string]error{
-		"goqu: IterVals cannot scan into map[string]int; use a sql.Scanner": ss.iterValsErr[map[string]int](),
-		"goqu: ScanOneVal cannot scan into func(); use a sql.Scanner":       ss.oneValErr[func()](),
-		"goqu: ScanAllVals cannot scan into chan int; use a sql.Scanner":    ss.allValsErr[chan int](),
-	} {
-		ss.EqualError(err, want)
-		ss.True(goqu.IsUnsupportedScanType(err))
-	}
+func (ss *scanSuite) TestScanAllVals_rejectsSliceElements() {
+	err := ss.allValsErr[[]int64]()
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into []int64; use []byte or a sql.Scanner")
+	ss.True(goqu.IsUnsupportedScanType(err))
 }
 
 func (ss *scanSuite) TestIterVals_acceptsScannerAndTimeStructs() {
@@ -1169,11 +1197,11 @@ func (ss *scanSuite) TestIterVals_acceptsScannerAndTimeStructs() {
 	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Test1"))
 	ss.mock.ExpectQuery(`SELECT "created" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"created"}).AddRow(created))
 
-	names, errs := collect(ss.db.From("items").Select("name").IterVals[sql.NullString](context.Background()))
+	names, errs := ss.collect(ss.db.From("items").Select("name").IterVals[sql.NullString](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]sql.NullString{{String: "Test1", Valid: true}}, names)
 
-	times, errs := collect(ss.db.From("items").Select("created").IterVals[time.Time](context.Background()))
+	times, errs := ss.collect(ss.db.From("items").Select("created").IterVals[time.Time](context.Background()))
 	ss.Empty(errs)
 	ss.Equal([]time.Time{created}, times)
 }

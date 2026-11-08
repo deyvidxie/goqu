@@ -58,21 +58,17 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 
 func AllVals[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
-	if err := rejectRawBytes("ScanAllVals", t); err != nil {
+	if err := scannableVal("ScanAllVals", "ScanAllStructs", t, tagName); err != nil {
 		return err
 	}
 	if !util.IsPointer(t.Kind()) {
-		return driverValueTarget("ScanAllVals", "ScanAllStructs", t, tagName)
+		return nil
 	}
 	switch {
-	case isUnscannableSlice(util.DerefAll(t)):
-		return errUnscannableSlice("ScanAllVals", t)
 	case acceptsNull(t.Elem()):
 		return nil
 	case isPlainValue(t.Elem()):
 		return errElementNotNullable(t)
-	case isRowStruct(t.Elem(), tagName):
-		return errElementIsRowStruct(t)
 	default:
 		return errNotScannable("ScanAllVals", t)
 	}
@@ -109,8 +105,8 @@ func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) err
 	case util.IsScanner(inner):
 		return nil
 	case isRowStruct(inner, tagName):
-		return errRowStructValue(fn, structsFn, t)
-	case isNeverADriverValue(inner.Kind()):
+		return errRowStructValue(fn, structsFn, t, inner)
+	case util.IsScannerInterface(inner), isNeverADriverValue(inner.Kind()):
 		return errNotScannable(fn, t)
 	default:
 		return nil

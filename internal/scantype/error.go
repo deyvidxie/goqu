@@ -52,18 +52,18 @@ func errElementNotNullable(t reflect.Type) error {
 	)
 }
 
-func errElementIsRowStruct(t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError(
-		"ScanAllVals cannot scan into %s, whose element %s is a row struct; use ScanAllStructs[%s]", t, t.Elem(), t,
-	)
-}
-
 func errNotScannable(fn string, t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use a sql.Scanner", fn, t)
+	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use a concrete sql.Scanner", fn, t)
 }
 
-func errRowStructValue(fn, structsFn string, t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s, a row struct; use %s[%s]", fn, t, structsFn, t)
+func errRowStructValue(fn, structsFn string, t, row reflect.Type) error {
+	structsT := t
+	if util.Deref(t) != row {
+		structsT = reflect.PointerTo(row)
+	}
+	return errors.NewUnsupportedScanTypeError(
+		"%s cannot scan into %s: %s is a row struct; use %s[%s]", fn, t, row, structsFn, structsT,
+	)
 }
 
 func errNamedByteSliceValue(t reflect.Type) error {
