@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"iter"
 	"net/netip"
 	"strings"
@@ -38,6 +39,7 @@ type (
 	scanTestUnexportedPtr  struct{ *dsTestActionItem }
 	scanTestOpaqueScanner  struct{}
 	ScanTestID             int
+	ScanTestUUID           uuid.UUID
 	ScanTestName           string
 	scanTestEmbeddedID     struct {
 		*ScanTestID
@@ -293,7 +295,7 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 	ss.Nil(ids)
 
 	_, found, err = executor.ScanOneVal[[]int64](context.Background())
-	ss.EqualError(err, "goqu: ScanOneVal cannot scan into []int64; use []byte or a sql.Scanner")
+	ss.EqualError(err, "goqu: ScanOneVal cannot scan into []int64; use []byte or a concrete sql.Scanner")
 	ss.False(found)
 
 	names, errs := ss.collect(executor.IterStructs[string](context.Background()))
@@ -304,7 +306,7 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 	idLists, errs := ss.collect(executor.IterVals[[]int64](context.Background()))
 	ss.Empty(idLists)
 	ss.Require().Len(errs, 1)
-	ss.EqualError(errs[0], "goqu: IterVals cannot scan into []int64; use []byte or a sql.Scanner")
+	ss.EqualError(errs[0], "goqu: IterVals cannot scan into []int64; use []byte or a concrete sql.Scanner")
 }
 
 func (ss *scanSuite) TestScanAllStructs_withoutDatabase() {
@@ -634,7 +636,7 @@ func (ss *scanSuite) TestScanOneVal_rejectsSlices() {
 		"[]goqu_test.scanTestByte":  ss.oneValErr[[]scanTestByte](),
 		"*[]goqu_test.scanTestByte": ss.oneValErr[*[]scanTestByte](),
 	} {
-		ss.EqualError(err, "goqu: ScanOneVal cannot scan into "+name+"; use []byte or a sql.Scanner", name)
+		ss.EqualError(err, "goqu: ScanOneVal cannot scan into "+name+"; use []byte or a concrete sql.Scanner", name)
 		ss.True(goqu.IsUnsupportedScanType(err), name)
 	}
 }
@@ -713,6 +715,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 		"time.Time":              ss.allValsErr[*time.Time](),
 		"goqu_test.ScanTestTime": ss.allValsErr[*ScanTestTime](),
 		"goqu_test.scanTestBlob": ss.allValsErr[*scanTestBlob](),
+		"fmt.Stringer":           ss.allValsErr[*fmt.Stringer](),
 		"uuid.UUID":              ss.allValsErr[*uuid.UUID](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+": "+name+" cannot hold NULL; use sql.Null["+name+"]", name)
@@ -721,13 +724,12 @@ func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 
 func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 	for msg, err := range map[string]error{
-		"*fmt.Stringer; use a concrete sql.Scanner":              ss.allValsErr[*fmt.Stringer](),
-		"*uintptr; use a concrete sql.Scanner":                   ss.allValsErr[*uintptr](),
-		"*complex128; use a concrete sql.Scanner":                ss.allValsErr[*complex128](),
-		"*netip.Addr; use a concrete sql.Scanner":                ss.allValsErr[*netip.Addr](),
-		"*[]int64; use []byte or a sql.Scanner":                  ss.allValsErr[*[]int64](),
-		"**[]int64; use []byte or a sql.Scanner":                 ss.allValsErr[**[]int64](),
-		"*[]goqu_test.scanTestByte; use []byte or a sql.Scanner": ss.allValsErr[*[]scanTestByte](),
+		"*uintptr; use a concrete sql.Scanner":                            ss.allValsErr[*uintptr](),
+		"*complex128; use a concrete sql.Scanner":                         ss.allValsErr[*complex128](),
+		"*netip.Addr; use a concrete sql.Scanner":                         ss.allValsErr[*netip.Addr](),
+		"*[]int64; use []byte or a concrete sql.Scanner":                  ss.allValsErr[*[]int64](),
+		"**[]int64; use []byte or a concrete sql.Scanner":                 ss.allValsErr[**[]int64](),
+		"*[]goqu_test.scanTestByte; use []byte or a concrete sql.Scanner": ss.allValsErr[*[]scanTestByte](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+msg, msg)
 		ss.True(goqu.IsUnsupportedScanType(err), msg)
@@ -1122,7 +1124,7 @@ func (ss *scanSuite) TestIterVals_rejectsUnscannableTypes() {
 	for want, err := range map[string]error{
 		"goqu: IterVals cannot return sql.RawBytes, which is only valid until the next row is read " +
 			"or the rows are closed; use []byte": ss.iterValsErr[sql.RawBytes](),
-		"goqu: IterVals cannot scan into []string; use []byte or a sql.Scanner": ss.iterValsErr[[]string](),
+		"goqu: IterVals cannot scan into []string; use []byte or a concrete sql.Scanner": ss.iterValsErr[[]string](),
 	} {
 		ss.EqualError(err, want)
 		ss.True(goqu.IsUnsupportedScanType(err))
@@ -1173,41 +1175,39 @@ func (ss *scanSuite) TestValueScans_rejectRowStructs() {
 	}
 }
 
-func (ss *scanSuite) TestValueScans_rejectNonDriverValueKinds() {
+func (ss *scanSuite) TestValueScans_rejectTypesDatabaseSQLCannotFill() {
 	for want, err := range map[string]error{
-		"IterVals cannot scan into map[string]int": ss.iterValsErr[map[string]int](),
-		"IterVals cannot scan into unsafe.Pointer": ss.iterValsErr[unsafe.Pointer](),
-		"ScanOneVal cannot scan into func()":       ss.oneValErr[func()](),
-		"ScanAllVals cannot scan into chan int":    ss.allValsErr[chan int](),
-		"ScanAllVals cannot scan into **func()":    ss.allValsErr[**func()](),
-		"IterVals cannot scan into uintptr":        ss.iterValsErr[uintptr](),
-		"ScanOneVal cannot scan into complex128":   ss.oneValErr[complex128](),
-		"ScanAllVals cannot scan into complex64":   ss.allValsErr[complex64](),
+		"IterVals cannot scan into map[string]int":            ss.iterValsErr[map[string]int](),
+		"IterVals cannot scan into unsafe.Pointer":            ss.iterValsErr[unsafe.Pointer](),
+		"IterVals cannot scan into uintptr":                   ss.iterValsErr[uintptr](),
+		"IterVals cannot scan into sql.Scanner":               ss.iterValsErr[sql.Scanner](),
+		"IterVals cannot scan into netip.Addr":                ss.iterValsErr[netip.Addr](),
+		"IterVals cannot scan into [4]int":                    ss.iterValsErr[[4]int](),
+		"ScanOneVal cannot scan into func()":                  ss.oneValErr[func()](),
+		"ScanOneVal cannot scan into complex128":              ss.oneValErr[complex128](),
+		"ScanOneVal cannot scan into *sql.Scanner":            ss.oneValErr[*sql.Scanner](),
+		"ScanOneVal cannot scan into struct {}":               ss.oneValErr[struct{}](),
+		"ScanOneVal cannot scan into io.Reader":               ss.oneValErr[io.Reader](),
+		"ScanOneVal cannot scan into [16]uint8":               ss.oneValErr[[16]byte](),
+		"ScanAllVals cannot scan into chan int":               ss.allValsErr[chan int](),
+		"ScanAllVals cannot scan into **func()":               ss.allValsErr[**func()](),
+		"ScanAllVals cannot scan into complex64":              ss.allValsErr[complex64](),
+		"ScanAllVals cannot scan into netip.Addr":             ss.allValsErr[netip.Addr](),
+		"ScanAllVals cannot scan into goqu_test.ScanTestUUID": ss.allValsErr[ScanTestUUID](),
+		"ScanAllVals cannot scan into **error":                ss.allValsErr[**error](),
 	} {
 		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
 		ss.True(goqu.IsUnsupportedScanType(err))
 	}
 }
 
-func (ss *scanSuite) TestValueScans_rejectScannerInterface() {
-	for want, err := range map[string]error{
-		"IterVals cannot scan into sql.Scanner":    ss.iterValsErr[sql.Scanner](),
-		"ScanOneVal cannot scan into *sql.Scanner": ss.oneValErr[*sql.Scanner](),
-	} {
-		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
-		ss.True(goqu.IsUnsupportedScanType(err))
-	}
-}
+func (ss *scanSuite) TestIterVals_acceptsInterfacesADriverValueImplements() {
+	created := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	ss.mock.ExpectQuery(`SELECT "created" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"created"}).AddRow(created))
 
-func (ss *scanSuite) TestValueScans_rejectStructsThatAreNeitherRowsNorScanners() {
-	for want, err := range map[string]error{
-		"IterVals cannot scan into netip.Addr":    ss.iterValsErr[netip.Addr](),
-		"ScanOneVal cannot scan into struct {}":   ss.oneValErr[struct{}](),
-		"ScanAllVals cannot scan into netip.Addr": ss.allValsErr[netip.Addr](),
-	} {
-		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
-		ss.True(goqu.IsUnsupportedScanType(err))
-	}
+	vals, errs := ss.collect(ss.db.From("items").Select("created").IterVals[fmt.Stringer](context.Background()))
+	ss.Empty(errs)
+	ss.Equal([]fmt.Stringer{created}, vals)
 }
 
 func (ss *scanSuite) TestIterVals_acceptsUUIDs() {
@@ -1221,7 +1221,7 @@ func (ss *scanSuite) TestIterVals_acceptsUUIDs() {
 
 func (ss *scanSuite) TestScanAllVals_rejectsSliceElements() {
 	err := ss.allValsErr[[]int64]()
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into []int64; use []byte or a sql.Scanner")
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into []int64; use []byte or a concrete sql.Scanner")
 	ss.True(goqu.IsUnsupportedScanType(err))
 }
 

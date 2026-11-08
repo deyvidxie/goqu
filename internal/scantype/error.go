@@ -43,7 +43,7 @@ func errNoScannableFields(t reflect.Type) error {
 }
 
 func errUnscannableSlice(fn string, t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use []byte or a sql.Scanner", fn, t)
+	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use []byte or a concrete sql.Scanner", fn, t)
 }
 
 func errElementNotNullable(t reflect.Type) error {
