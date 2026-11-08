@@ -1263,7 +1263,7 @@ if !found{
 <a name="generic-scan"></a>
 **[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
 
-They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a column with no matching field, or a `sql.Scanner` interface field, fails with the same type after the query has run. An empty result is a `nil` slice.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice.
 
 ```go
 users, err := db.From("user").ScanAllStructs[User](context.Background())

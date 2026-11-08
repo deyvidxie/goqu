@@ -19,6 +19,9 @@ type (
 	UnsupportedScanTypeError struct {
 		baseError
 	}
+	ColumnMismatchError struct {
+		baseError
+	}
 	UnknownDialectError struct {
 		baseError
 	}
@@ -70,6 +73,15 @@ func NewUnsupportedScanTypeError(format string, args ...interface{}) error {
 
 func IsUnsupportedScanType(err error) bool {
 	var target UnsupportedScanTypeError
+	return errors.As(err, &target)
+}
+
+func NewColumnMismatchError(format string, args ...interface{}) error {
+	return ColumnMismatchError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsColumnMismatch(err error) bool {
+	var target ColumnMismatchError
 	return errors.As(err, &target)
 }
 

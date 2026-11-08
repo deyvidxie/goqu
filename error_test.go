@@ -16,6 +16,7 @@ func TestErrorKinds(t *testing.T) {
 		"InvalidExpression":   goqu.IsInvalidExpression,
 		"Unsupported":         goqu.IsUnsupported,
 		"UnsupportedScanType": goqu.IsUnsupportedScanType,
+		"ColumnMismatch":      goqu.IsColumnMismatch,
 		"UnknownDialect":      goqu.IsUnknownDialect,
 		"NoDatabase":          goqu.IsNoDatabase,
 	}
@@ -23,6 +24,7 @@ func TestErrorKinds(t *testing.T) {
 		"InvalidExpression":   errors.NewInvalidExpressionError("bad %s", "x"),
 		"Unsupported":         errors.NewUnsupportedError("bad %s", "x"),
 		"UnsupportedScanType": errors.NewUnsupportedScanTypeError("bad %s", "x"),
+		"ColumnMismatch":      errors.NewColumnMismatchError("bad %s", "x"),
 		"UnknownDialect":      errors.NewUnknownDialectError("bad %s", "x"),
 		"NoDatabase":          errors.NewNoDatabaseError("bad %s", "x"),
 	}
@@ -44,6 +46,8 @@ func TestErrorKinds(t *testing.T) {
 	assert.ErrorAs(t, kinds["Unsupported"], &unsupported)
 	var unsupportedScanType goqu.UnsupportedScanTypeError
 	assert.ErrorAs(t, kinds["UnsupportedScanType"], &unsupportedScanType)
+	var columnMismatch goqu.ColumnMismatchError
+	assert.ErrorAs(t, kinds["ColumnMismatch"], &columnMismatch)
 	var unknownDialect goqu.UnknownDialectError
 	assert.ErrorAs(t, kinds["UnknownDialect"], &unknownDialect)
 	var noDatabase goqu.NoDatabaseError
