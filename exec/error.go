@@ -35,5 +35,5 @@ func errScannerFieldNeedsValue(col string, t reflect.Type) error {
 }
 
 func errNoFieldForColumn(col string) error {
-	return errors.NewUnsupportedScanTypeError("unable to find corresponding field to column %q returned by query", col)
+	return errors.NewColumnMismatchError("unable to find corresponding field to column %q returned by query", col)
 }

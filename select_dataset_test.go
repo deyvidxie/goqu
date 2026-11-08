@@ -1354,11 +1354,14 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 		"goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a slice is required")
 	sds.EqualError(db.From("items").ScanStructs(&dsTestActionItem{}),
 		"goqu: cannot scan into *goqu_test.dsTestActionItem, a pointer to a slice is required")
-	sds.EqualError(db.From("items").
+	unmappedErr := db.From("items").
 		Prepared(true).
 		Select("test").
 		Where(goqu.Ex{"name": []string{"Bob", "Sally", "Billy"}, "address": "111 Test Addr"}).
-		ScanStructs(&items), `goqu: unable to find corresponding field to column "test" returned by query`)
+		ScanStructs(&items)
+	sds.EqualError(unmappedErr, `goqu: unable to find corresponding field to column "test" returned by query`)
+	sds.True(goqu.IsColumnMismatch(unmappedErr))
+	sds.False(goqu.IsUnsupportedScanType(unmappedErr))
 }
 
 func (sds *selectDatasetSuite) TestScanStruct() {
@@ -1397,7 +1400,8 @@ func (sds *selectDatasetSuite) TestScanStruct() {
 	sds.EqualError(err, "goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
-	sds.True(goqu.IsUnsupportedScanType(err))
+	sds.True(goqu.IsColumnMismatch(err))
+	sds.False(goqu.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
 	sds.True(goqu.IsNoDatabase(err))
@@ -1464,7 +1468,8 @@ func (sds *selectDatasetSuite) TestScanStructSubqueries() {
 	sds.EqualError(err, "goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
-	sds.True(goqu.IsUnsupportedScanType(err))
+	sds.True(goqu.IsColumnMismatch(err))
+	sds.False(goqu.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
 	sds.True(goqu.IsNoDatabase(err))

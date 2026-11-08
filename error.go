@@ -6,6 +6,7 @@ type (
 	InvalidExpressionError   = errors.InvalidExpressionError
 	UnsupportedError         = errors.UnsupportedError
 	UnsupportedScanTypeError = errors.UnsupportedScanTypeError
+	ColumnMismatchError      = errors.ColumnMismatchError
 	UnknownDialectError      = errors.UnknownDialectError
 	NoDatabaseError          = errors.NoDatabaseError
 )
@@ -20,6 +21,10 @@ func IsUnsupported(err error) bool {
 
 func IsUnsupportedScanType(err error) bool {
 	return errors.IsUnsupportedScanType(err)
+}
+
+func IsColumnMismatch(err error) bool {
+	return errors.IsColumnMismatch(err)
 }
 
 func IsUnknownDialect(err error) bool {

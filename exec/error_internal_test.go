@@ -25,9 +25,15 @@ func TestScanErrorsAreUnsupportedScanType(t *testing.T) {
 		errScanSliceTarget(1),
 		errScanValTarget(1),
 		errScanValSliceTarget(&[]int{}),
-		errNoFieldForColumn("c"),
 		errScannerFieldNeedsValue("c", reflect.TypeFor[int]()),
 	} {
 		assert.True(t, errors.IsUnsupportedScanType(err), "%v", err)
 	}
+}
+
+func TestUnmappedColumnIsColumnMismatch(t *testing.T) {
+	err := errNoFieldForColumn("c")
+	assert.EqualError(t, err, `goqu: unable to find corresponding field to column "c" returned by query`)
+	assert.True(t, errors.IsColumnMismatch(err))
+	assert.False(t, errors.IsUnsupportedScanType(err))
 }
