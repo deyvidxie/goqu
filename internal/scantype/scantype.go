@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 	"time"
+	"uuid"
 
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -13,6 +14,7 @@ var (
 	byteType     = reflect.TypeFor[byte]()
 	bytesType    = reflect.TypeFor[[]byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
+	uuidType     = reflect.TypeFor[uuid.UUID]()
 )
 
 func Struct[T any](tagName string) error {
@@ -106,7 +108,7 @@ func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) err
 		return nil
 	case isRowStruct(inner, tagName):
 		return errRowStructValue(fn, structsFn, t, inner)
-	case util.IsScannerInterface(inner), isNeverADriverValue(inner.Kind()):
+	case util.IsScannerInterface(inner), isNeverADriverValue(inner.Kind()), util.IsStruct(inner.Kind()) && !isTime(inner):
 		return errNotScannable(fn, t)
 	default:
 		return nil
@@ -114,7 +116,12 @@ func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) err
 }
 
 func isNeverADriverValue(k reflect.Kind) bool {
-	return k == reflect.Map || k == reflect.Chan || k == reflect.Func || k == reflect.UnsafePointer
+	switch k {
+	case reflect.Map, reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+		return true
+	default:
+		return false
+	}
 }
 
 func acceptsNull(t reflect.Type) bool {
@@ -125,7 +132,7 @@ func acceptsNull(t reflect.Type) bool {
 func isPlainValue(t reflect.Type) bool {
 	k := t.Kind()
 	return util.IsBool(k) || util.IsInt(k) || util.IsUint(k) || util.IsFloat(k) || util.IsString(k) ||
-		isTime(t) || isByteSlice(t)
+		isTime(t) || isByteSlice(t) || t == uuidType
 }
 
 func isTime(t reflect.Type) bool {

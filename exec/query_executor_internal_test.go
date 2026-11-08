@@ -1157,12 +1157,11 @@ func (qes *queryExecutorSuite) TestScanStruct_nilScannerInterfaceFieldIsAnError(
 	mock.ExpectQuery(`SELECT \* FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"val"}).AddRow(testName1))
 
-	// there is nothing to scan into: this is the same error as before the field value was taken into account
 	var item TestStruct
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.EqualError(err, `goqu: unable to scan column "val" into sql.Scanner field: `+
 		`it must hold a non-nil pointer to a value that implements sql.Scanner `+
-		`(rows that ScanStructs, ScanAllStructs, ScanOneStruct or IterStructs allocate cannot)`)
+		`(the rows that ScanStructs, ScanAllStructs, ScanOneStruct and IterStructs allocate leave it nil)`)
 	qes.True(errors.IsUnsupportedScanType(err))
 }
 

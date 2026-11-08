@@ -48,7 +48,7 @@ func errUnscannableSlice(fn string, t reflect.Type) error {
 
 func errElementNotNullable(t reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
-		"ScanAllVals cannot scan into %s, whose element %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
+		"ScanAllVals cannot scan into %s: %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
 	)
 }
 
