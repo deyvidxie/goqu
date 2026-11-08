@@ -36,6 +36,13 @@ type (
 	selectDatasetSuite struct {
 		suite.Suite
 	}
+	dsHiddenColumns struct {
+		X int `db:"x"`
+	}
+	dsUnexportedEmbedRow struct {
+		*dsHiddenColumns
+		ID int `db:"id"`
+	}
 )
 
 func (sds *selectDatasetSuite) assertCases(cases ...selectTestCase) {
@@ -1282,12 +1289,6 @@ func (sds *selectDatasetSuite) TestScanStructs() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"address", "name"}).
 			FromCSVString("111 Test Addr,Test1\n211 Test Addr,Test2"))
-	sqlMock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
-	sqlMock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 	sqlMock.ExpectQuery(`SELECT "test" FROM "items"`).
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
@@ -1328,13 +1329,6 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 		WillReturnRows(sqlmock.NewRows([]string{"address", "name"}).
 			FromCSVString("111 Test Addr,Test1\n211 Test Addr,Test2"))
 
-	sqlMock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
-	sqlMock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
-
 	sqlMock.ExpectQuery(
 		`SELECT "test" FROM "items" WHERE \(\("address" = \?\) AND \("name" IN \(\?, \?, \?\)\)\)`,
 	).
@@ -1367,15 +1361,6 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 	sds.False(goqu.IsUnsupportedScanType(unmappedErr))
 }
 
-type dsHiddenColumns struct {
-	X int `db:"x"`
-}
-
-type dsUnexportedEmbedRow struct {
-	*dsHiddenColumns
-	ID int `db:"id"`
-}
-
 func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
 	mDB, _, err := sqlmock.New()
 	sds.Require().NoError(err)
@@ -1387,6 +1372,7 @@ func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
 	var addr netip.Addr
 	var user *dsTestActionItem
 	var embedRows []dsUnexportedEmbedRow
+	var count int
 	for name, scan := range map[string]func() error{
 		"[]sql.NullString":       func() error { return db.From("items").ScanStructs(&nullStrings) },
 		"[]time.Time":            func() error { return db.From("items").ScanStructs(&times) },
@@ -1397,6 +1383,8 @@ func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
 		"**T":                    func() error { _, err := db.From("items").ScanStruct(&user); return err },
 		"struct value":           func() error { _, err := db.From("items").ScanStruct(dsTestActionItem{}); return err },
 		"auto-selected embed []": func() error { return db.From("items").ScanStructs(&embedRows) },
+		"*int ScanStructs":       func() error { return db.From("items").ScanStructs(&count) },
+		"nil ScanStructs":        func() error { return db.From("items").ScanStructs(nil) },
 	} {
 		var scanErr error
 		sds.NotPanics(func() { scanErr = scan() }, name)
@@ -1421,7 +1409,7 @@ func (sds *selectDatasetSuite) TestStructScans_rejectedTargetLeavesTheDatasetUsa
 	sds.Len(items, 1)
 }
 
-func (sds *selectDatasetSuite) TestStructScans_acceptCallerFilledUnexportedEmbeds() {
+func (sds *selectDatasetSuite) TestStructScans_acceptsCallerFilledUnexportedEmbeds() {
 	mDB, sqlMock, err := sqlmock.New()
 	sds.Require().NoError(err)
 	db := goqu.New("mock", mDB)

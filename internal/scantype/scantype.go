@@ -16,14 +16,14 @@ var (
 )
 
 func Struct[T any](tagName string) error {
-	return StructType(reflect.TypeFor[T](), tagName)
+	return AllocatedStruct(reflect.TypeFor[T](), tagName)
 }
 
-func StructType(t reflect.Type, tagName string) error {
+func AllocatedStruct(t reflect.Type, tagName string) error {
 	return structType(t, tagName, false)
 }
 
-func StructTarget(t reflect.Type, tagName string) error {
+func SuppliedStruct(t reflect.Type, tagName string) error {
 	return structType(t, tagName, true)
 }
 
