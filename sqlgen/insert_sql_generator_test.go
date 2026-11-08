@@ -59,7 +59,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", ""))
 	d.Generate(b, ic)
-	igs.assertErrorSQL(b, `goqu: unsupported INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
+	igs.assertErrorSQL(b, `goqu: dialect does not support INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_empty() {
@@ -698,14 +698,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 		},
 		insertTestCase{
 			clause: fromIc.SetOnConflict(excludedB),
-			err:    "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=test]",
+			err:    "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
 		},
 		insertTestCase{
 			clause: exp.NewInsertClauses().
 				SetInto(exp.NewIdentifierExpression("", "test", "")).
 				SetRows([]interface{}{newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)}).
 				SetOnConflict(excludedB),
-			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=test]",
+			err: "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{

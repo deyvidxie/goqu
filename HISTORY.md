@@ -30,7 +30,7 @@
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp`.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`, see [docs/dialect.md](docs/dialect.md).
 * sqlserver regexp matching returns an `UnsupportedError`.
-* Unsupported-feature errors end with `[dialect=…]` and read `dialect does not support …`: boolean, bitwise, arithmetic and range operators (`dialect does not support boolean operator "…"`, was `boolean operator '…' not supported`; range was unquoted), the boolean data type (`dialect does not support the boolean data type`, was `boolean data type is not supported by dialect "x"`), join types, `USING` on `STRAIGHT_JOIN`, and unsupported SQL fragments.
+* Unsupported-feature errors end with `[dialect=…]` and read `dialect does not support …`: operators (`dialect does not support <kind> operator "…"`, was `<kind> operator '…' not supported` for boolean, bitwise and arithmetic and `range operator … not supported` for range), the boolean data type (was `boolean data type is not supported by dialect "x"`), join types (was without the `[dialect=…]` suffix), `USING` on `STRAIGHT_JOIN` (`dialect does not support USING for <JoinType>, use an ON condition`, was `USING is not supported for <JoinType>, use an ON condition`) and SQL fragments (`dialect does not support <type> SQL fragment <fragment>`, was `unsupported <type> SQL fragment <fragment>`).
 
 # v9.23.0
 

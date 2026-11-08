@@ -6,20 +6,20 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/errors"
 )
 
-func errScanStructTarget(i interface{}) error {
-	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer to a struct is required", i)
+func errScanStructTarget(target interface{}) error {
+	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer to a struct is required", target)
 }
 
-func errScanSliceTarget(i interface{}) error {
-	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer to a slice is required", i)
+func errScanSliceTarget(target interface{}) error {
+	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer to a slice is required", target)
 }
 
-func errScanValTarget(i interface{}) error {
-	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer is required", i)
+func errScanValTarget(target interface{}) error {
+	return errors.NewUnsupportedScanTypeError("cannot scan into %T, a pointer is required", target)
 }
 
-func errScanValSliceTarget(i interface{}) error {
-	return errors.NewUnsupportedScanTypeError("cannot scan one value into %T, use ScanVals for a slice", i)
+func errScanValSliceTarget(target interface{}) error {
+	return errors.NewUnsupportedScanTypeError("cannot scan one value into %T, use ScanVals for a slice", target)
 }
 
 func errScannerFieldNeedsValue(col string, t reflect.Type) error {

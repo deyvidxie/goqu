@@ -88,7 +88,7 @@ func errMultipleUpdateTablesNotSupported(dialect string) error {
 }
 
 func errFragmentNotSupported(dialect, sqlType string, f SQLFragmentType) error {
-	return errors.NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
+	return errors.NewUnsupportedError("dialect does not support %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
 }
 
 func errRowLengthMismatch(expected, actual int) error {
@@ -108,7 +108,9 @@ func errUpsertWithWhereNotSupported(dialect string) error {
 }
 
 func errExcludedRequiresInsertCols(dialect string) error {
-	return errors.NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
+	return errors.NewUnsupportedError(
+		"dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]", dialect,
+	)
 }
 
 func errExcludedFragmentMissing(dialect, fragment string) error {
@@ -128,7 +130,7 @@ func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
 }
 
 func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
-	return errors.NewUnsupportedError("USING is not supported for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
+	return errors.NewUnsupportedError("dialect does not support USING for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
 }
 
 func errJoinConditionRequired(j exp.JoinExpression) error {
@@ -178,8 +180,8 @@ func errUnsupportedExpressionType(e exp.Expression) error {
 	return errors.NewInvalidExpressionError("unsupported expression type %T", e)
 }
 
-func errUnsupportedColumnType(t interface{}) error {
-	return errors.NewInvalidExpressionError("unsupported column type %T, a string or LiteralExpression is required", t)
+func errUnsupportedColumnType(col interface{}) error {
+	return errors.NewInvalidExpressionError("unsupported column type %T, a string or LiteralExpression is required", col)
 }
 
 func errUnencodableValue(val interface{}) error {
@@ -218,7 +220,7 @@ func errUnknownTimeStyle(dialect string, style TimeStyle) error {
 	return errors.NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
 }
 
-func errIntervalUnit(unit exp.IntervalUnit) error {
+func errUnknownIntervalUnit(unit exp.IntervalUnit) error {
 	return errors.NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 

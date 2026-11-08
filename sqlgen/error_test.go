@@ -64,7 +64,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
-		{"Excluded with INSERT SELECT without Cols", "requires Cols(...).FromQuery(...) to use Excluded", func(o *sqlgen.SQLDialectOptions) {
+		{"Excluded with INSERT SELECT without Cols", "Excluded with INSERT ... SELECT without Cols", func(o *sqlgen.SQLDialectOptions) {
 			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
@@ -174,7 +174,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").FullOuterJoin(goqu.T("u"), goqu.On(goqu.V(true)))
 		}},
-		{"STRAIGHT_JOIN USING", "USING is not supported", func(o *sqlgen.SQLDialectOptions) {
+		{"STRAIGHT_JOIN USING", "does not support USING", func(o *sqlgen.SQLDialectOptions) {
 			o.JoinTypeLookup[exp.StraightJoinType] = []byte(" STRAIGHT_JOIN ")
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").StraightJoin(goqu.T("u"), goqu.Using("a"))
@@ -239,6 +239,6 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 	err := toSQL(func(b sb.SQLBuilder) {
 		sqlgen.NewSelectSQLGenerator("test", "db", badFragment).Generate(b, exp.NewSelectClauses())
 	})
-	assert.EqualError(t, err, "goqu: unsupported SELECT SQL fragment InsertBeingSQLFragment [dialect=test]")
+	assert.EqualError(t, err, "goqu: dialect does not support SELECT SQL fragment InsertBeingSQLFragment [dialect=test]")
 	assert.True(t, goqu.IsUnsupported(err))
 }

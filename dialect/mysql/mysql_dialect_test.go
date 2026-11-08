@@ -227,7 +227,7 @@ func (mds *mysqlDialectSuite) TestStraightJoin() {
 			sqlTestCase{
 				// MySQL 5.7 does not accept USING for STRAIGHT_JOIN
 				ds:  ds.StraightJoin(goqu.T("foo"), goqu.Using("test_id")),
-				err: "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
+				err: "goqu: dialect does not support USING for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
 			},
 			sqlTestCase{
 				ds:         ds.Prepared(true).StraightJoin(goqu.T("foo"), goqu.On(goqu.I("test.id").Eq(5))),
@@ -437,7 +437,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
 				return d.Insert("test").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
 			},
-			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=mysql8]",
+			err: "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=mysql8]",
 		},
 	}
 	for _, tc := range cases {

@@ -1006,7 +1006,7 @@ func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quan
 	name := string(unit)
 	for i := 0; i < len(name); i++ {
 		if name[i] >= utf8.RuneSelf {
-			return "", "", errIntervalUnit(unit)
+			return "", "", errUnknownIntervalUnit(unit)
 		}
 	}
 	name = strings.ToUpper(name)
@@ -1015,7 +1015,7 @@ func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quan
 			return u.unit, u.quantity, nil
 		}
 	}
-	return "", "", errIntervalUnit(unit)
+	return "", "", errUnknownIntervalUnit(unit)
 }
 
 const (
