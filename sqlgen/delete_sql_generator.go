@@ -20,23 +20,13 @@ type (
 	}
 )
 
-var ErrNoSourceForDelete = NewInvalidExpressionError("no source found when generating delete sql")
-
-func ErrOrderByOnDeleteNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support ORDER BY on DELETE [dialect=%s]", dialect)
-}
-
-func ErrLimitOnDeleteNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support LIMIT on DELETE [dialect=%s]", dialect)
-}
-
 func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) DeleteSQLGenerator {
 	return &deleteSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
 func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClauses) {
 	if !clauses.HasFrom() {
-		b.SetError(ErrNoSourceForDelete)
+		b.SetError(errNoSourceForDelete)
 		return
 	}
 	for _, f := range dsg.DialectOptions().DeleteSQLOrder {
@@ -59,7 +49,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 			case dsg.DialectOptions().SupportsOrderByOnDelete:
 				dsg.OrderSQL(b, clauses.Order())
 			case clauses.HasOrder() && dsg.DialectOptions().ErrorOnUnsupportedOrderByOnDelete:
-				b.SetError(ErrOrderByOnDeleteNotSupported(dsg.Dialect()))
+				b.SetError(errOrderByOnDeleteNotSupported(dsg.Dialect()))
 				return
 			}
 		case LimitSQLFragment:
@@ -67,13 +57,13 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 			case dsg.DialectOptions().SupportsLimitOnDelete:
 				dsg.LimitSQL(b, clauses.Limit())
 			case hasRealLimit(clauses.Limit()) && dsg.DialectOptions().ErrorOnUnsupportedLimitOnDelete:
-				b.SetError(ErrLimitOnDeleteNotSupported(dsg.Dialect()))
+				b.SetError(errLimitOnDeleteNotSupported(dsg.Dialect()))
 				return
 			}
 		case ReturningSQLFragment:
 			dsg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(errNotSupportedFragment(dsg.Dialect(), "DELETE", f))
+			b.SetError(errFragmentNotSupported(dsg.Dialect(), "DELETE", f))
 		}
 	}
 }

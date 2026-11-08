@@ -59,7 +59,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", ""))
 	d.Generate(b, ic)
-	igs.assertErrorSQL(b, `goqu: unsupported INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
+	igs.assertErrorSQL(b, `goqu: dialect does not support INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_empty() {
@@ -130,8 +130,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_colsAndVals() {
 			"a1", "b1", "a2", "b2", "a3", "b3",
 		}},
 
-		insertTestCase{clause: bic, err: `goqu: rows with different value length expected 1 got 2`},
-		insertTestCase{clause: bic, err: `goqu: rows with different value length expected 1 got 2`, isPrepared: true},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`, isPrepared: true},
 	)
 }
 
@@ -191,8 +191,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withRows() {
 			"a1", "b1", "a2", "b2", "a3", "b3",
 		}},
 
-		insertTestCase{clause: bic, err: `goqu: rows with different value length expected 1 got 2`},
-		insertTestCase{clause: bic, err: `goqu: rows with different value length expected 1 got 2`, isPrepared: true},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`, isPrepared: true},
 	)
 }
 
@@ -322,11 +322,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 			args:       []interface{}{"a1", "b"},
 		},
 
-		insertTestCase{clause: icDuNil, err: sqlgen.ErrConflictUpdateValuesRequired.Error()},
-		insertTestCase{clause: icDuNil, err: sqlgen.ErrConflictUpdateValuesRequired.Error(), isPrepared: true},
+		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression"},
+		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression", isPrepared: true},
 
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update interface type bool"},
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update interface type bool", isPrepared: true},
+		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required"},
+		insertTestCase{
+			clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required", isPrepared: true,
+		},
 	)
 	opts.SupportsInsertIgnoreSyntax = true
 	opts.InsertIgnoreClause = []byte("insert ignore into")
@@ -373,11 +375,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 			args:       []interface{}{"a1", "b"},
 		},
 
-		insertTestCase{clause: icDuNil, err: sqlgen.ErrConflictUpdateValuesRequired.Error()},
-		insertTestCase{clause: icDuNil, err: sqlgen.ErrConflictUpdateValuesRequired.Error(), isPrepared: true},
+		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression"},
+		insertTestCase{clause: icDuNil, err: "goqu: values are required for on conflict update expression", isPrepared: true},
 
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update interface type bool"},
-		insertTestCase{clause: icDuBad, err: "goqu: unsupported update interface type bool", isPrepared: true},
+		insertTestCase{clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required"},
+		insertTestCase{
+			clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required", isPrepared: true,
+		},
 	)
 
 	opts.SupportsConflictUpdateWhere = false
@@ -440,7 +444,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
 		insertTestCase{
 			clause: icDnCols,
-			err:    "goqu: dialect does not support Conflict Target clause [dialect=test]",
+			err:    "goqu: dialect does not support conflict target clause [dialect=test]",
 		},
 		insertTestCase{
 			clause:     icDu,
@@ -501,9 +505,9 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsuppor
 	opts.ErrorOnUnsupportedConflictTarget = true
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
-		insertTestCase{clause: icDu, err: "goqu: dialect does not support Conflict Target clause [dialect=test]", isPrepared: true},
-		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support Conflict Target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]"},
+		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]", isPrepared: true},
+		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support conflict target clause [dialect=test]"},
 		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`},
 		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
 	)
@@ -694,14 +698,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 		},
 		insertTestCase{
 			clause: fromIc.SetOnConflict(excludedB),
-			err:    "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=test]",
+			err:    "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
 		},
 		insertTestCase{
 			clause: exp.NewInsertClauses().
 				SetInto(exp.NewIdentifierExpression("", "test", "")).
 				SetRows([]interface{}{newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)}).
 				SetOnConflict(excludedB),
-			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=test]",
+			err: "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
@@ -725,7 +729,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 				"a": &secondCallValuer{firstErr: errValuerFailed},
 				"b": exp.NewExcludedExpression("b"),
 			})),
-			err: "valuer failed",
+			err: "goqu: driver.Valuer *sqlgen_test.secondCallValuer: valuer failed",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{
@@ -809,8 +813,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewInsertSQLGenerator("test", "db", emptyOpts).Generate(b, ic.SetOnConflict(excludedB))
 		_, _, err := b.ToSQL()
-		igs.EqualError(err, "goqu: Excluded requires "+tc.option)
-		igs.True(sqlgen.IsInvalidExpression(err))
+		igs.EqualError(err, "goqu: dialect has no "+tc.option+" for Excluded [dialect=test]")
+		igs.True(goqu.IsUnsupported(err))
 	}
 }
 
@@ -883,7 +887,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQuali
 	b := sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, ic.SetAlias(exp.ParseIdentifier("t.new")).SetOnConflict(excludedB))
 	_, _, err := b.ToSQL()
-	igs.True(sqlgen.IsInvalidExpression(err))
+	igs.True(goqu.IsInvalidExpression(err))
 
 	conflictValuer := &secondCallValuer{firstErr: errValuerFailed}
 	b = sb.NewSQLBuilder(false)
@@ -891,7 +895,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQuali
 		SetVals([][]interface{}{{&secondCallValuer{firstErr: valuerError{"row valuer failed"}}, "b1"}}).
 		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
 	_, _, err = b.ToSQL()
-	igs.EqualError(err, "row valuer failed")
+	igs.EqualError(err, "goqu: driver.Valuer *sqlgen_test.secondCallValuer: row valuer failed")
 	igs.False(conflictValuer.called)
 
 	numberedOpts := sqlgen.DefaultDialectOptions()
@@ -907,7 +911,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQuali
 		{opts: opts, err: "select failed"},
 		{opts: opts, isPrepared: true, err: "select failed"},
 		{opts: numberedOpts, err: "select failed"},
-		{opts: numberedOpts, isPrepared: true, err: "valuer failed", conflictCalled: true},
+		{opts: numberedOpts, isPrepared: true, err: "goqu: driver.Valuer *sqlgen_test.secondCallValuer: valuer failed", conflictCalled: true},
 	} {
 		conflictValuer = &secondCallValuer{firstErr: errValuerFailed}
 		b = sb.NewSQLBuilder(tc.isPrepared)
@@ -929,7 +933,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQuali
 		SetFrom(newTestAppendableExpression(`select c from test2`, nil, nil, nil)).
 		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"a": conflictValuer})))
 	_, _, err = b.ToSQL()
-	igs.ErrorIs(err, sqlgen.ErrEmptyIdentifier)
+	igs.ErrorContains(err, "an empty identifier was encountered")
+	igs.True(goqu.IsInvalidExpression(err))
 	igs.False(conflictValuer.called)
 }
 
@@ -1021,7 +1026,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	_, _, err := b.ToSQL()
 	igs.EqualError(err, "goqu: Excluded rendered differently on a second pass; "+
 		"Valuers and expressions in DoUpdate must render deterministically")
-	igs.True(sqlgen.IsInvalidExpression(err))
+	igs.True(goqu.IsInvalidExpression(err))
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts),
 		insertTestCase{
@@ -1042,6 +1047,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		},
 	)
 
+	b = sb.NewSQLBuilder(false)
+	sqlgen.NewInsertSQLGenerator("test", "db", numberedOpts).Generate(b, ic.
+		SetAlias(exp.NewIdentifierExpression("", "", nil)).SetOnConflict(excludedB))
+	_, _, err = b.ToSQL()
+	igs.EqualError(err, "goqu: Excluded requires a non-empty insert alias")
+	igs.True(goqu.IsInvalidExpression(err))
+
 	emptyAliasOpts := sqlgen.DefaultDialectOptions()
 	emptyAliasOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
 	emptyAliasOpts.ExcludedRowAlias = ""
@@ -1049,7 +1061,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 		sqlgen.NewInsertSQLGenerator("test", "db", emptyAliasOpts),
 		insertTestCase{
 			clause: ic.SetOnConflict(excludedB),
-			err:    "goqu: Excluded requires ExcludedRowAlias or an insert alias",
+			err:    "goqu: dialect has no ExcludedRowAlias for Excluded, set an insert alias with As [dialect=test]",
 		},
 		insertTestCase{
 			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": "x"})),
@@ -1065,7 +1077,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	b = sb.NewSQLBuilder(false)
 	sqlgen.NewInsertSQLGenerator("test", "db", emptyAliasOpts).Generate(b, ic.SetOnConflict(excludedB))
 	_, _, err = b.ToSQL()
-	igs.True(sqlgen.IsInvalidExpression(err))
+	igs.True(goqu.IsUnsupported(err))
 
 	columnAliasIc := ic.SetAlias(exp.ParseIdentifier("new")).SetOnConflict(excludedB)
 	igs.assertCases(

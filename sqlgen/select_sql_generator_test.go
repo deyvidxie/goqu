@@ -92,7 +92,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}
 
 	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
-	expectedErr := "goqu: unsupported SELECT SQL fragment InsertBeingSQLFragment [dialect=test]"
+	expectedErr := "goqu: dialect does not support SELECT SQL fragment InsertBeingSQLFragment [dialect=test]"
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
 		selectTestCase{clause: sc, err: expectedErr},
@@ -225,7 +225,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withStraightJoin() {
 	on := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinOnCondition(exp.Ex{"a": "foo"}))
 	using := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinUsingCondition("a"))
 	empty := exp.NewConditionedJoinExpression(exp.StraightJoinType, ti, exp.NewJoinOnCondition())
-	usingErr := "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=test]"
+	usingErr := "goqu: dialect does not support USING for StraightJoinType, use an ON condition [dialect=test]"
 
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
@@ -420,8 +420,8 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
 
-		selectTestCase{clause: scNoName, err: sqlgen.ErrNoWindowName.Error()},
-		selectTestCase{clause: scNoName, err: sqlgen.ErrNoWindowName.Error(), isPrepared: true},
+		selectTestCase{clause: scNoName, err: "goqu: window expression has no valid name"},
+		selectTestCase{clause: scNoName, err: "goqu: window expression has no valid name", isPrepared: true},
 
 		selectTestCase{clause: scWindow1, sql: `SELECT * FROM "test" window "w" AS ()`},
 		selectTestCase{clause: scWindow1, sql: `SELECT * FROM "test" window "w" AS ()`, isPrepared: true},
@@ -496,8 +496,8 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
 
-		selectTestCase{clause: scWindow1, err: sqlgen.ErrWindowNotSupported("test").Error()},
-		selectTestCase{clause: scWindow1, err: sqlgen.ErrWindowNotSupported("test").Error(), isPrepared: true},
+		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
+		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
 	)
 }
 

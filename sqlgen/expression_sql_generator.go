@@ -46,143 +46,16 @@ var (
 	replacementRune = '?'
 	TrueLiteral     = exp.NewLiteralExpression("TRUE")
 	FalseLiteral    = exp.NewLiteralExpression("FALSE")
-
-	ErrEmptyIdentifier = NewInvalidExpressionError(
-		`a empty identifier was encountered, please specify a "schema", "table" or "column"`,
-	)
-	ErrUnexpectedNamedWindow = NewInvalidExpressionError(`unexpected named window function`)
-	ErrEmptyCaseWhens        = NewInvalidExpressionError(`when conditions not found for case statement`)
-
-	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
-	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
-	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
-	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
-	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
-	errJSONCandidateCondition        = NewInvalidExpressionError(
-		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
-	)
-	errIntervalCountCondition     = NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
-	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
-		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
-	)
 )
 
-func errUnsupportedExpressionType(e exp.Expression) error {
-	return NewInvalidExpressionError("unsupported expression type %T", e)
-}
-
-func errUnsupportedIdentifierExpression(t interface{}) error {
-	return NewInvalidExpressionError("unexpected col type must be string or LiteralExpression received %T", t)
-}
-
-func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
-	if caseInsensitiveLike && (op == exp.LikeOp || op == exp.NotLikeOp) {
-		return NewUnsupportedError("boolean operator '%+v' not supported, use ILike/NotILike [dialect=%s]", op, dialect)
-	}
-	return NewUnsupportedError("boolean operator '%+v' not supported [dialect=%s]", op, dialect)
-}
-
-func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
-	caseInsensitiveLike := bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
-	return errUnsupportedBooleanExpressionOperator(esg.dialect, op, caseInsensitiveLike)
-}
-
-func errUnsupportedBitwiseExpressionOperator(dialect string, op exp.BitwiseOperation) error {
-	return NewUnsupportedError("bitwise operator '%+v' not supported [dialect=%s]", op, dialect)
-}
-
-func errUnsupportedArithmeticExpressionOperator(dialect string, op exp.ArithmeticOperation) error {
-	return NewUnsupportedError("arithmetic operator '%+v' not supported [dialect=%s]", op, dialect)
-}
-
-func errUnsupportedRangeExpressionOperator(dialect string, op exp.RangeOperation) error {
-	return NewUnsupportedError("range operator '%+v' not supported [dialect=%s]", op, dialect)
-}
-
-func errBooleanDataTypeNotSupported(dialect string) error {
-	return NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
-}
-
-func errExcludedFragmentEmpty(option string) error {
-	return NewInvalidExpressionError("Excluded requires %s", option)
-}
-
-func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
-	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
-}
-
-func errTimeFSPCount(n int) error {
-	return NewInvalidExpressionError("Now and UTCTimestamp take at most one fsp, got %d", n)
-}
-
-func errTimeFSPRange(fsp int) error {
-	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and %d, got %d", microsecondFSP, fsp)
-}
-
-func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
-	names := make([]string, len(supported))
-	for i, s := range supported {
-		names[i] = strconv.Itoa(s)
-	}
-	return NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
-}
-
-func errUnknownTimeFunction(function exp.TimeFunction) error {
-	return NewInvalidExpressionError("unknown TimeFunction %d", function)
-}
-
-func errUnknownTimeStyle(dialect string, style TimeStyle) error {
-	return NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
-}
-
-func errIntervalUnit(unit exp.IntervalUnit) error {
-	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
-}
-
-func errIntervalCount(dialect string, count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
-	accepted := "an integer or an expression"
-	if fractionalSeconds {
-		accepted = "an integer, an expression or, with SECOND, a finite number"
-	}
-	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s [dialect=%s]", accepted, count, value, unit, dialect)
-}
-
-func errIntervalCountValue(cause error) error {
-	return NewInvalidExpressionErrorWithCause(cause, "Interval count")
-}
-
-func errIntervalNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
+func (esg *expressionSQLGenerator) likeIsCaseInsensitive() bool {
+	return bytes.Equal(esg.dialectOptions.BooleanOperatorLookup[exp.ILikeOp], []byte("LIKE"))
 }
 
 var jsonFunctionNames = map[exp.JSONFunction]string{
 	exp.JSONExtractFunction:  "JSONExtract",
 	exp.JSONValueFunction:    "JSONValue",
 	exp.JSONContainsFunction: "JSONContains",
-}
-
-func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) error {
-	name, ok := jsonFunctionNames[function]
-	if !ok {
-		return errUnknownJSONFunction(function)
-	}
-	return NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
-}
-
-func errJSONContainsPaths(n int) error {
-	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
-}
-
-func errUnknownJSONFunction(function exp.JSONFunction) error {
-	return NewInvalidExpressionError("unknown JSONFunction %d", function)
-}
-
-func errJSONCandidate(cause error) error {
-	return NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
-}
-
-func errLateralNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
 }
 
 func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) ExpressionSQLGenerator {
@@ -241,7 +114,7 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
 	dVal, err := valuerValue(v)
 	if err != nil {
-		b.SetError(err)
+		b.SetError(errValuerValue(v, err))
 		return
 	}
 	esg.Generate(b, dVal)
@@ -360,7 +233,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 
-		b.SetError(NewInvalidExpressionError("unable to encode value %+v", val))
+		b.SetError(errUnencodableValue(val))
 	}
 }
 
@@ -449,7 +322,7 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a ex
 // Quotes an identifier (e.g. "col", "table"."col"
 func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, ident exp.IdentifierExpression) {
 	if ident.IsEmpty() {
-		b.SetError(ErrEmptyIdentifier)
+		b.SetError(errEmptyIdentifier)
 		return
 	}
 	schema, table, col := ident.GetSchema(), ident.GetTable(), ident.GetCol()
@@ -478,7 +351,7 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 		}
 		esg.Generate(b, t)
 	default:
-		b.SetError(errUnsupportedIdentifierExpression(col))
+		b.SetError(errUnsupportedColumnType(col))
 	}
 }
 
@@ -628,7 +501,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BooleanOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(esg.errUnsupportedBooleanOperator(operatorOp))
+		b.SetError(errBooleanOperatorNotSupported(esg.dialect, operatorOp, esg.likeIsCaseInsensitive()))
 		return
 	}
 	rhs := operator.RHS()
@@ -679,15 +552,15 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	}
 	op := operator.Op()
 	if _, ok := esg.dialectOptions.BooleanOperatorLookup[op]; !ok {
-		b.SetError(esg.errUnsupportedBooleanOperator(op))
+		b.SetError(errBooleanOperatorNotSupported(esg.dialect, op, esg.likeIsCaseInsensitive()))
 		return
 	}
-	fragment, errMissing := esg.dialectOptions.EmptyInFragment, errEmptyInFragmentMissing
+	fragment, fragmentName, list := esg.dialectOptions.EmptyInFragment, "EmptyInFragment", "IN"
 	if op == exp.NotInOp {
-		fragment, errMissing = esg.dialectOptions.EmptyNotInFragment, errEmptyNotInFragmentMissing
+		fragment, fragmentName, list = esg.dialectOptions.EmptyNotInFragment, "EmptyNotInFragment", "NOT IN"
 	}
 	if len(fragment) == 0 {
-		b.SetError(errMissing)
+		b.SetError(errEmptyListFragmentMissing(esg.dialect, fragmentName, list))
 		return
 	}
 	b.Write(fragment)
@@ -735,7 +608,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operato
 	if val, ok := esg.dialectOptions.BitwiseOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedBitwiseExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errBitwiseOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 
@@ -753,7 +626,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, oper
 	if val, ok := esg.dialectOptions.ArithmeticOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedArithmeticExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errArithmeticOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -770,7 +643,7 @@ func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator 
 	if val, ok := esg.dialectOptions.RangeOperatorLookup[operatorOp]; ok {
 		b.Write(val)
 	} else {
-		b.SetError(errUnsupportedRangeExpressionOperator(esg.dialect, operatorOp))
+		b.SetError(errRangeOperatorNotSupported(esg.dialect, operatorOp))
 		return
 	}
 	rhs := operator.RHS()
@@ -902,7 +775,7 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sql
 
 func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
-		b.SetError(ErrWindowNotSupported(esg.dialect))
+		b.SetError(errWindowNotSupported(esg.dialect))
 		return
 	}
 	esg.Generate(b, sqlWinFunc.Func())
@@ -912,7 +785,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 		esg.Generate(b, sqlWinFunc.WindowName())
 	case sqlWinFunc.HasWindow():
 		if sqlWinFunc.Window().HasName() {
-			b.SetError(ErrUnexpectedNamedWindow)
+			b.SetError(errUnexpectedNamedWindow)
 			return
 		}
 		esg.Generate(b, sqlWinFunc.Window())
@@ -923,7 +796,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 
 func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.WindowExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
-		b.SetError(ErrWindowNotSupported(esg.dialect))
+		b.SetError(errWindowNotSupported(esg.dialect))
 		return
 	}
 	if we.HasName() {
@@ -977,7 +850,7 @@ func (esg *expressionSQLGenerator) collateExpressionSQL(b sb.SQLBuilder, collate
 	opts := esg.dialectOptions
 	parts, ok := esg.collationParts(collate.Collation())
 	if !ok {
-		b.SetError(ErrInvalidCollation(describeCollation(collate.Collation())))
+		b.SetError(errInvalidCollation(describeCollation(collate.Collation())))
 		return
 	}
 
@@ -1133,7 +1006,7 @@ func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quan
 	name := string(unit)
 	for i := 0; i < len(name); i++ {
 		if name[i] >= utf8.RuneSelf {
-			return "", "", errIntervalUnit(unit)
+			return "", "", errUnknownIntervalUnit(unit)
 		}
 	}
 	name = strings.ToUpper(name)
@@ -1142,7 +1015,7 @@ func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quan
 			return u.unit, u.quantity, nil
 		}
 	}
-	return "", "", errIntervalUnit(unit)
+	return "", "", errUnknownIntervalUnit(unit)
 }
 
 const (
@@ -1342,7 +1215,12 @@ func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sb.SQLBuilder, exp.Int
 
 func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
 	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
-		b.SetError(errJSONFunctionNotSupported(esg.dialect, e.Function()))
+		name, ok := jsonFunctionNames[e.Function()]
+		if !ok {
+			b.SetError(errUnknownJSONFunction(e.Function()))
+			return
+		}
+		b.SetError(errJSONFunctionNotSupported(esg.dialect, name))
 		return
 	}
 	paths := make([]interface{}, len(e.Paths()))
@@ -1434,7 +1312,7 @@ func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.
 	switch esg.dialectOptions.ExcludedStyle {
 	case ExcludedValuesFuncStyle:
 		if len(esg.dialectOptions.ExcludedValuesFuncFragment) == 0 {
-			b.SetError(errExcludedFragmentEmpty("ExcludedValuesFuncFragment"))
+			b.SetError(errExcludedFragmentMissing(esg.dialect, "ExcludedValuesFuncFragment"))
 			return
 		}
 		b.Write(esg.dialectOptions.ExcludedValuesFuncFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -1448,7 +1326,7 @@ func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.
 		esg.Generate(b, ub.rowAlias.Col(e.GetCol()))
 	case ExcludedTableStyle:
 		if len(esg.dialectOptions.ExcludedTableFragment) == 0 {
-			b.SetError(errExcludedFragmentEmpty("ExcludedTableFragment"))
+			b.SetError(errExcludedFragmentMissing(esg.dialect, "ExcludedTableFragment"))
 			return
 		}
 		b.Write(esg.dialectOptions.ExcludedTableFragment).WriteRunes(esg.dialectOptions.PeriodRune)
@@ -1478,7 +1356,7 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []
 		return
 	}
 	if !esg.dialectOptions.SupportsWithCTE {
-		b.SetError(ErrCTENotSupported(esg.dialect))
+		b.SetError(errCTENotSupported(esg.dialect))
 		return
 	}
 	b.Write(esg.dialectOptions.WithFragment)
@@ -1488,7 +1366,7 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []
 	}
 	if anyRecursive {
 		if !esg.dialectOptions.SupportsWithCTERecursive {
-			b.SetError(ErrRecursiveCTENotSupported(esg.dialect))
+			b.SetError(errRecursiveCTENotSupported(esg.dialect))
 			return
 		}
 		b.Write(esg.dialectOptions.RecursiveFragment)
@@ -1537,7 +1415,7 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sb.SQLBuilder, caseExpres
 	elseResult := caseExpression.GetElse()
 
 	if len(whens) == 0 {
-		b.SetError(ErrEmptyCaseWhens)
+		b.SetError(errEmptyCaseWhens)
 		return
 	}
 	b.Write(esg.dialectOptions.CaseFragment)

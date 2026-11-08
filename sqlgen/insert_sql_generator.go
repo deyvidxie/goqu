@@ -39,30 +39,6 @@ const (
 	insertSourceComplete
 )
 
-var (
-	errExcludedRowAliasEmpty     = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
-	errExcludedRowAliasQualified = NewInvalidExpressionError("Excluded requires an unqualified insert alias")
-
-	ErrConflictUpdateValuesRequired = NewInvalidExpressionError("values are required for on conflict update expression")
-	ErrNoSourceForInsert            = NewInvalidExpressionError("no source found when generating insert sql")
-)
-
-func errMisMatchedRowLength(expectedL, actualL int) error {
-	return NewInvalidExpressionError("rows with different value length expected %d got %d", expectedL, actualL)
-}
-
-func errUpsertWithWhereNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
-}
-
-func errOnConflictNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support upsert [dialect=%s]", dialect)
-}
-
-func errExcludedRequiresInsertCols(dialect string) error {
-	return NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
-}
-
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
 	return &insertSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
@@ -72,7 +48,7 @@ func (isg *insertSQLGenerator) Generate(
 	clauses exp.InsertClauses,
 ) {
 	if !clauses.HasInto() {
-		b.SetError(ErrNoSourceForInsert)
+		b.SetError(errNoSourceForInsert)
 		return
 	}
 	for _, f := range isg.DialectOptions().InsertSQLOrder {
@@ -92,7 +68,7 @@ func (isg *insertSQLGenerator) Generate(
 		case ReturningSQLFragment:
 			isg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(errNotSupportedFragment(isg.Dialect(), "INSERT", f))
+			b.SetError(errFragmentNotSupported(isg.Dialect(), "INSERT", f))
 		}
 	}
 }
@@ -124,7 +100,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 		return
 	}
 	if rowAlias != nil && source == insertSourceQuery {
-		b.SetError(errExcludedRequiresInsertCols(isg.Dialect()))
+		b.SetError(errExcludedInsertSelectNotSupported(isg.Dialect()))
 		return
 	}
 	isg.insertAliasAndConflictSQL(b, ic, rowAlias, rendered)
@@ -273,7 +249,7 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]inter
 	valueLen := len(values)
 	for i, row := range values {
 		if len(row) != rowLen {
-			b.SetError(errMisMatchedRowLength(rowLen, len(row)))
+			b.SetError(errRowLengthMismatch(rowLen, len(row)))
 			return
 		}
 		isg.ExpressionSQLGenerator().Generate(b, row)
@@ -310,8 +286,11 @@ func (isg *insertSQLGenerator) excludedRowAlias(
 	if !probe.usesExcluded {
 		return nil, rendered, nil
 	}
+	if alias.IsEmpty() && ic.HasAlias() {
+		return nil, renderedConflictUpdate{}, errEmptyInsertAlias
+	}
 	if alias.IsEmpty() {
-		return nil, renderedConflictUpdate{}, errExcludedRowAliasEmpty
+		return nil, renderedConflictUpdate{}, errExcludedRowAliasMissing(isg.Dialect())
 	}
 	if col := alias.GetCol(); alias.GetSchema() != "" || (col != nil && col != "") {
 		return nil, renderedConflictUpdate{}, errExcludedRowAliasQualified
@@ -372,7 +351,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 			b.WriteRunes(opts.LeftParenRune).WriteStrings(target).WriteRunes(opts.RightParenRune)
 		}
 	case opts.ErrorOnUnsupportedConflictTarget:
-		b.SetError(ErrConflictTargetNotSupported(isg.Dialect()))
+		b.SetError(errConflictTargetNotSupported(isg.Dialect()))
 	}
 }
 
@@ -397,7 +376,7 @@ func (ub *conflictUpdateBuilder) withBuilder(b sb.SQLBuilder) *conflictUpdateBui
 func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp.ConflictUpdateExpression) {
 	update := o.Update()
 	if update == nil {
-		b.SetError(ErrConflictUpdateValuesRequired)
+		b.SetError(errConflictUpdateValuesRequired)
 		return
 	}
 	ue, err := exp.NewUpdateExpressions(isg.TagName(), update)

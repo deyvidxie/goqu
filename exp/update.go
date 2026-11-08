@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -31,7 +30,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 	}
 
 	if util.IsNilOrNilPointer(update) {
-		return nil, errors.NewInvalidExpressionError("update values must not be nil, got %T", update)
+		return nil, errNilUpdateValues(update)
 	}
 	updateValue := reflect.Indirect(reflect.ValueOf(update))
 	switch updateValue.Kind() {
@@ -44,7 +43,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 	case reflect.Struct:
 		return getUpdateExpressionsStruct(tagName, updateValue)
 	default:
-		return nil, errors.NewInvalidExpressionError("unsupported update interface type %+v", updateValue.Type())
+		return nil, errUnsupportedUpdateValueType(update)
 	}
 	return updates, nil
 }

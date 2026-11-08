@@ -3,8 +3,6 @@ package exp
 import (
 	"sort"
 	"strings"
-
-	"github.com/doug-martin/goqu/v9/internal/errors"
 )
 
 type (
@@ -158,7 +156,7 @@ func createExpressionFromOp(lhs IdentifierExpression, opKey string, op Op) (exp 
 			exp = lhs.NotBetween(rangeVal)
 		}
 	default:
-		err = errors.NewInvalidExpressionError("unsupported expression type %s", opKey)
+		err = errUnsupportedOpKey(opKey)
 	}
 	return exp, err
 }

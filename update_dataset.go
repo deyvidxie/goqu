@@ -3,7 +3,6 @@ package goqu
 import (
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -16,10 +15,6 @@ type UpdateDataset struct {
 	requestedTag tagRequest
 	err          error
 }
-
-var ErrUnsupportedUpdateTableType = errors.NewInvalidExpressionError(
-	"unsupported table type, a string or identifier expression is required",
-)
 
 func newUpdateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *UpdateDataset {
 	tagName := requestedTag.resolve(d)
@@ -126,7 +121,7 @@ func (ud *UpdateDataset) Table(table interface{}) *UpdateDataset {
 	case string:
 		return ud.copy(ud.clauses.SetTable(exp.ParseIdentifier(t)))
 	default:
-		panic(ErrUnsupportedUpdateTableType)
+		panic(errUnsupportedTableType(table))
 	}
 }
 

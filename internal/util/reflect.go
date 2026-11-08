@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-
-	"github.com/doug-martin/goqu/v9/internal/errors"
 )
 
 const (
@@ -253,7 +251,7 @@ func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
 	val := reflect.Indirect(reflect.ValueOf(i))
 	t, valKind := GetTypeInfo(i, val)
 	if valKind != reflect.Struct {
-		return nil, errors.NewUnsupportedScanTypeError("cannot scan into this type: %v", t)
+		return nil, errColumnMapNotStruct(t)
 	}
 
 	return StructColumnMap(t, tagName), nil

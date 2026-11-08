@@ -116,8 +116,8 @@ func (csgs *commonSQLGeneratorSuite) TestConflictTargetSQL() {
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``},
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support Conflict Target clause [dialect=test]`},
-		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support Conflict Target clause [dialect=test]`},
+		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support conflict target clause [dialect=test]`},
+		commonSQLTestCase{gen: conflictTargetGen(csgs2), err: `goqu: dialect does not support conflict target clause [dialect=test]`},
 	)
 }
 
@@ -373,8 +373,8 @@ func (csgs *commonSQLGeneratorSuite) TestUpdateExpressionSQL() {
 	ue2 := exp.NewIdentifierExpression("", "", "col2").Set("b")
 
 	csgs.assertCases(
-		commonSQLTestCase{gen: updateGen(csg), err: sqlgen.ErrNoUpdatedValuesProvided.Error()},
-		commonSQLTestCase{gen: updateGen(csg), err: sqlgen.ErrNoUpdatedValuesProvided.Error()},
+		commonSQLTestCase{gen: updateGen(csg), err: "goqu: no update values provided"},
+		commonSQLTestCase{gen: updateGen(csg), err: "goqu: no update values provided"},
 
 		commonSQLTestCase{gen: updateGen(csg, ue), sql: `"col"='a'`},
 		commonSQLTestCase{gen: updateGen(csg, ue), sql: `"col"=?`, isPrepared: true, args: []interface{}{"a"}},

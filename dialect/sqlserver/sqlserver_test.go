@@ -168,7 +168,7 @@ func (sst *sqlserverTest) TestQuery() {
 		}},
 		entryTestCase{
 			ds:  ds.Where(goqu.C("bool").IsTrue()).Order(goqu.C("id").Asc()),
-			err: "goqu: boolean data type is not supported [dialect=sqlserver]",
+			err: "goqu: dialect does not support the boolean data type [dialect=sqlserver]",
 		},
 		entryTestCase{ds: ds.Where(goqu.C("int").Gt(4)).Order(goqu.C("id").Asc()), len: 5, check: func(entry entry, _ int) {
 			sst.True(entry.Int > 4)
@@ -227,7 +227,7 @@ func (sst *sqlserverTest) TestQuery_Prepared() {
 		}},
 		entryTestCase{
 			ds:  ds.Where(goqu.C("bool").IsTrue()).Order(goqu.C("id").Asc()),
-			err: "goqu: boolean data type is not supported [dialect=sqlserver]",
+			err: "goqu: dialect does not support the boolean data type [dialect=sqlserver]",
 		},
 		entryTestCase{ds: ds.Where(goqu.C("int").Gt(4)).Order(goqu.C("id").Asc()), len: 5, check: func(entry entry, _ int) {
 			sst.True(entry.Int > 4)

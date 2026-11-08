@@ -46,23 +46,23 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentReco
 		testRecord{C: "v1"},
 		exp.Record{"c": "v2"},
 	)
-	iets.EqualError(err, "goqu: rows must be all the same type expected exp_test.testRecord got exp.Record")
+	iets.EqualError(err, "goqu: rows must all be the same type, expected exp_test.testRecord got exp.Record")
 	_, err = exp.NewInsertExpression(
 		"",
 		testRecord{C: "v1"},
 		testRecord2{C: "v2"},
 	)
-	iets.EqualError(err, "goqu: rows must be all the same type expected exp_test.testRecord got exp_test.testRecord2")
+	iets.EqualError(err, "goqu: rows must all be the same type, expected exp_test.testRecord got exp_test.testRecord2")
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withInvalidValue() {
 	_, err := exp.NewInsertExpression("db", true)
-	iets.EqualError(err, "goqu: unsupported insert must be map, goqu.Record, or struct type got: bool")
+	iets.EqualError(err, "goqu: unsupported insert row type bool, a map, goqu.Record or struct is required")
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentTypes() {
 	_, err := exp.NewInsertExpression("db", exp.Record{"a": "a1"}, true)
-	iets.EqualError(err, "goqu: rows must be all the same type expected exp.Record got bool")
+	iets.EqualError(err, "goqu: rows must all be the same type, expected exp.Record got bool")
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withNoValues() {
@@ -138,12 +138,12 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRecordsSlice(
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRecordOfDifferentLength() {
 	_, err := exp.NewInsertExpression("db", exp.Record{"c": "a"}, exp.Record{"c": "b", "c2": "d"})
-	iets.EqualError(err, "goqu: rows with different value length expected 1 got 2")
+	iets.EqualError(err, "goqu: rows with different value length, expected 1 got 2")
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRecordWithDifferentkeys() {
 	_, err := exp.NewInsertExpression("db", exp.Record{"c1": "a"}, exp.Record{"c2": "b"})
-	iets.EqualError(err, `goqu: rows with different keys expected ["c1"] got ["c2"]`)
+	iets.EqualError(err, `goqu: rows with different keys, expected ["c1"] got ["c2"]`)
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withMap() {
@@ -364,7 +364,7 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentStru
 		item{Address: "311 Test Addr", Name: "Test3"},
 		Phone{Home: "123123", Primary: "456456"},
 	)
-	iets.EqualError(err, "goqu: rows must be all the same type expected exp_test.item got exp_test.Phone")
+	iets.EqualError(err, "goqu: rows must all be the same type, expected exp_test.item got exp_test.Phone")
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentColumnLengths() {
@@ -387,7 +387,7 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentColu
 		item{Address: "111 Test Addr", Name: "Test1", Phone2: &Phone2{Home: "123123", Primary: "456456"}},
 		item{Address: "311 Test Addr", Name: "Test3", Phone: &Phone{Home: "123123", Primary: "456456"}},
 	)
-	iets.EqualError(err, `goqu: rows with different keys expected `+
+	iets.EqualError(err, `goqu: rows with different keys, expected `+
 		`["address","home_phone2","name","primary_phone2"] got ["address","home_phone","name","primary_phone"]`)
 }
 

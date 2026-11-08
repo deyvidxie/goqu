@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -83,7 +82,7 @@ func (i *insert) SetVals(vals [][]interface{}) InsertExpression {
 func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression, err error) {
 	for _, row := range rows {
 		if util.IsNilOrNilPointer(row) {
-			return nil, errors.NewInvalidExpressionError("insert rows must not be nil, got %T", row)
+			return nil, errNilInsertRow(row)
 		}
 	}
 	var mapKeys util.ValueSlice
@@ -97,11 +96,7 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 	var columns ColumnListExpression
 	for _, row := range rows {
 		if rowType != reflect.Indirect(reflect.ValueOf(row)).Type() {
-			return nil, errors.NewInvalidExpressionError(
-				"rows must be all the same type expected %+v got %+v",
-				rowType,
-				reflect.Indirect(reflect.ValueOf(row)).Type(),
-			)
+			return nil, errMixedRowTypes(rowType, reflect.Indirect(reflect.ValueOf(row)).Type())
 		}
 		newRowValue := reflect.Indirect(reflect.ValueOf(row))
 		switch rowKind {
@@ -117,10 +112,10 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 			}
 			newMapKeys := util.ValueSlice(newRowValue.MapKeys())
 			if len(newMapKeys) != len(mapKeys) {
-				return nil, errors.NewInvalidExpressionError("rows with different value length expected %d got %d", len(mapKeys), len(newMapKeys))
+				return nil, errRowLengthMismatch(len(mapKeys), len(newMapKeys))
 			}
 			if !mapKeys.Equal(newMapKeys) {
-				return nil, errors.NewInvalidExpressionError("rows with different keys expected %s got %s", mapKeys.String(), newMapKeys.String())
+				return nil, errRowKeysMismatch(mapKeys.String(), newMapKeys.String())
 			}
 			rowVals := make([]interface{}, 0, len(mapKeys))
 			for _, key := range mapKeys {
@@ -128,10 +123,7 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 			}
 			vals = append(vals, rowVals)
 		default:
-			return nil, errors.NewInvalidExpressionError(
-				"unsupported insert must be map, goqu.Record, or struct type got: %T",
-				row,
-			)
+			return nil, errUnsupportedInsertRowType(row)
 		}
 	}
 	return &insert{cols: columns, vals: vals}, nil
@@ -143,11 +135,7 @@ func createStructSliceInsert(tagName string, rows ...interface{}) (insertExp Ins
 	recordRows := make([]interface{}, 0, len(rows))
 	for _, row := range rows {
 		if rowType != reflect.Indirect(reflect.ValueOf(row)).Type() {
-			return nil, errors.NewInvalidExpressionError(
-				"rows must be all the same type expected %+v got %+v",
-				rowType,
-				reflect.Indirect(reflect.ValueOf(row)).Type(),
-			)
+			return nil, errMixedRowTypes(rowType, reflect.Indirect(reflect.ValueOf(row)).Type())
 		}
 		record, err := NewRecordFromStruct(row, true, false, tagName)
 		if err != nil {

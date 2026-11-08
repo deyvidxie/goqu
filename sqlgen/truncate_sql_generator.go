@@ -22,8 +22,6 @@ type (
 	}
 )
 
-var errNoSourceForTruncate = NewInvalidExpressionError("no source found when generating truncate sql")
-
 func NewTruncateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) TruncateSQLGenerator {
 	return &truncateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
@@ -41,7 +39,7 @@ func (tsg *truncateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.TruncateC
 		case TruncateSQLFragment:
 			tsg.TruncateSQL(b, clauses.Table(), clauses.Options())
 		default:
-			b.SetError(errNotSupportedFragment(tsg.Dialect(), "TRUNCATE", f))
+			b.SetError(errFragmentNotSupported(tsg.Dialect(), "TRUNCATE", f))
 		}
 	}
 }

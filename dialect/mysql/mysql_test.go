@@ -751,7 +751,7 @@ func (mt *mysqlTest) TestStraightJoin() {
 
 	// MySQL 5.7 rejects USING for STRAIGHT_JOIN, so goqu refuses to generate it
 	_, err = mt.db.From("entry").StraightJoin(goqu.T("entry").As("e2"), goqu.Using("id")).Count()
-	mt.EqualError(err, "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=mysql]")
+	mt.EqualError(err, "goqu: dialect does not support USING for StraightJoinType, use an ON condition [dialect=mysql]")
 }
 
 func (mt *mysqlTest) TestInsertFromSelect() {

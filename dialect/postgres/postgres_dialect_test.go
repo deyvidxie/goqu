@@ -5,7 +5,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +38,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 		OnConflict(goqu.DoUpdateExcluded("a", 1)).
 		ToSQL()
 	assert.EqualError(t, err, "goqu: Excluded requires a column name")
-	assert.True(t, sqlgen.IsInvalidExpression(err))
+	assert.True(t, goqu.IsInvalidExpression(err))
 }
 
 func TestUpdateAndDeleteLimitAndOrderAreErrors(t *testing.T) {
@@ -96,7 +95,7 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("postgres").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=postgres]")
-	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, goqu.IsUnsupported(err))
 }
 
 func TestTimeFunctions(t *testing.T) {

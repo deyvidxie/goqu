@@ -5,7 +5,6 @@ import (
 	gsql "database/sql"
 	"reflect"
 
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/scantype"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -18,14 +17,6 @@ type (
 		query   string
 		args    []interface{}
 	}
-)
-
-var (
-	errUnsupportedScanStructType  = errors.NewUnsupportedScanTypeError("type must be a pointer to a struct when scanning into a struct")
-	errUnsupportedScanStructsType = errors.NewUnsupportedScanTypeError("type must be a pointer to a slice when scanning into structs")
-	errUnsupportedScanValsType    = errors.NewUnsupportedScanTypeError("type must be a pointer to a slice when scanning into vals")
-	errScanValPointer             = errors.NewUnsupportedScanTypeError("type must be a pointer when scanning into val")
-	errScanValNonSlice            = errors.NewUnsupportedScanTypeError("type cannot be a pointer to a slice when scanning into val")
 )
 
 func newQueryExecutor(tagName string, de DbExecutor, err error, query string, args ...interface{}) QueryExecutor {
@@ -120,13 +111,16 @@ func (q QueryExecutor) ScanStruct(i interface{}) (bool, error) {
 //
 // i: A pointer to a struct
 func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bool, error) {
+	if util.IsNilOrNilPointer(i) {
+		return false, errNilScanTarget(i)
+	}
 	val := reflect.ValueOf(i)
 	if !util.IsPointer(val.Kind()) {
-		return false, errUnsupportedScanStructType
+		return false, errScanStructTarget(i)
 	}
 	val = reflect.Indirect(val)
 	if !util.IsStruct(val.Kind()) {
-		return false, errUnsupportedScanStructType
+		return false, errScanStructTarget(i)
 	}
 
 	scanner, err := q.ScannerContext(ctx)
@@ -208,7 +202,7 @@ func (q QueryExecutor) ScanVal(i interface{}) (bool, error) {
 func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
 	val := reflect.ValueOf(i)
 	if !util.IsPointer(val.Kind()) {
-		return false, errScanValPointer
+		return false, errScanValTarget(i)
 	}
 	val = reflect.Indirect(val)
 	if util.IsSlice(val.Kind()) {
@@ -217,7 +211,7 @@ func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool,
 		case *[]byte: // do nothing
 		case gsql.Scanner: // do nothing
 		default:
-			return false, errScanValNonSlice
+			return false, errScanValSliceTarget(i)
 		}
 	}
 

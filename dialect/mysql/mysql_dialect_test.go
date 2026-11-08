@@ -8,7 +8,6 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	goqumysql "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -228,7 +227,7 @@ func (mds *mysqlDialectSuite) TestStraightJoin() {
 			sqlTestCase{
 				// MySQL 5.7 does not accept USING for STRAIGHT_JOIN
 				ds:  ds.StraightJoin(goqu.T("foo"), goqu.Using("test_id")),
-				err: "goqu: USING is not supported for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
+				err: "goqu: dialect does not support USING for StraightJoinType, use an ON condition [dialect=" + dialect + "]",
 			},
 			sqlTestCase{
 				ds:         ds.Prepared(true).StraightJoin(goqu.T("foo"), goqu.On(goqu.I("test.id").Eq(5))),
@@ -318,7 +317,7 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		Rows(goqu.Record{"a": "a"}).
 		OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a"))).
 		ToSQL()
-	assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect=mysql]")
+	assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect=mysql]")
 
 	// no target is still fine
 	_, _, err = goqu.Dialect("mysql").Insert("test").
@@ -354,8 +353,8 @@ func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
 			t.Cleanup(func() { goqu.DeregisterDialect(strict) })
 			for _, ds := range upserts(goqu.Dialect(strict)) {
 				_, _, err := ds.ToSQL()
-				assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect="+strict+"]")
-				assert.True(t, sqlgen.IsUnsupported(err))
+				assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect="+strict+"]")
+				assert.True(t, goqu.IsUnsupported(err))
 			}
 			_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).
 				OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
@@ -438,7 +437,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			ds: func(d goqu.DialectWrapper) *goqu.InsertDataset {
 				return d.Insert("test").FromQuery(d.From("src").Select("x", "y")).OnConflict(goqu.DoUpdateExcluded("", "b"))
 			},
-			err: "goqu: dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=mysql8]",
+			err: "goqu: dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=mysql8]",
 		},
 	}
 	for _, tc := range cases {
@@ -446,7 +445,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			sql, _, err := tc.ds(goqu.Dialect(tc.dialect)).ToSQL()
 			if tc.err != "" {
 				assert.EqualError(t, err, tc.err)
-				assert.True(t, sqlgen.IsUnsupported(err))
+				assert.True(t, goqu.IsUnsupported(err))
 				return
 			}
 			assert.NoError(t, err)

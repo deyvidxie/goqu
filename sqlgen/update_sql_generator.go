@@ -20,34 +20,21 @@ type (
 	}
 )
 
-var (
-	ErrNoSourceForUpdate    = NewInvalidExpressionError("no source found when generating update sql")
-	ErrNoSetValuesForUpdate = NewInvalidExpressionError("no set values found when generating UPDATE sql")
-)
-
-func ErrOrderByOnUpdateNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
-}
-
-func ErrLimitOnUpdateNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support LIMIT on UPDATE [dialect=%s]", dialect)
-}
-
 func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) UpdateSQLGenerator {
 	return &updateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
 func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClauses) {
 	if !clauses.HasTable() {
-		b.SetError(ErrNoSourceForUpdate)
+		b.SetError(errNoSourceForUpdate)
 		return
 	}
 	if !clauses.HasSetValues() {
-		b.SetError(ErrNoSetValuesForUpdate)
+		b.SetError(errNoSetValuesForUpdate)
 		return
 	}
 	if !usg.DialectOptions().SupportsMultipleUpdateTables && clauses.HasFrom() {
-		b.SetError(NewUnsupportedError("%s dialect does not support multiple tables in UPDATE", usg.Dialect()))
+		b.SetError(errMultipleUpdateTablesNotSupported(usg.Dialect()))
 	}
 	updates, err := exp.NewUpdateExpressions(usg.TagName(), clauses.SetValues())
 	if err != nil {
@@ -78,7 +65,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case ReturningSQLFragment:
 			usg.ReturningSQL(b, clauses.Returning())
 		default:
-			b.SetError(errNotSupportedFragment(usg.Dialect(), "UPDATE", f))
+			b.SetError(errFragmentNotSupported(usg.Dialect(), "UPDATE", f))
 		}
 	}
 }
@@ -88,7 +75,7 @@ func (usg *updateSQLGenerator) updateLimitSQL(b sb.SQLBuilder, clauses exp.Updat
 	case usg.DialectOptions().SupportsLimitOnUpdate:
 		usg.LimitSQL(b, clauses.Limit())
 	case hasRealLimit(clauses.Limit()) && usg.DialectOptions().ErrorOnUnsupportedLimitOnUpdate:
-		b.SetError(ErrLimitOnUpdateNotSupported(usg.Dialect()))
+		b.SetError(errLimitOnUpdateNotSupported(usg.Dialect()))
 	}
 }
 
@@ -97,7 +84,7 @@ func (usg *updateSQLGenerator) updateOrderSQL(b sb.SQLBuilder, clauses exp.Updat
 	case usg.DialectOptions().SupportsOrderByOnUpdate:
 		usg.OrderSQL(b, clauses.Order())
 	case clauses.HasOrder() && usg.DialectOptions().ErrorOnUnsupportedOrderByOnUpdate:
-		b.SetError(ErrOrderByOnUpdateNotSupported(usg.Dialect()))
+		b.SetError(errOrderByOnUpdateNotSupported(usg.Dialect()))
 	}
 }
 

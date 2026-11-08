@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -509,7 +510,7 @@ func (qes *queryExecutorSuite) TestScanStructs_badValue() {
 					AddRow(testAddr1, testName1).AddRow(testAddr2, testName2),
 				)
 			e := newQueryExecutor("db", db, nil, `SELECT * FROM "items"`)
-			qes.Equal(errUnsupportedScanStructsType, e.ScanStructs(test.items))
+			qes.Equal(errScanSliceTarget(test.items), e.ScanStructs(test.items))
 		})
 	}
 }
@@ -830,7 +831,7 @@ func (qes *queryExecutorSuite) TestScanStructsContext_badValue() {
 					AddRow(testAddr1, testName1).AddRow(testAddr2, testName2),
 				)
 			e := newQueryExecutor("db", db, nil, `SELECT * FROM "items"`)
-			qes.Equal(errUnsupportedScanStructsType, e.ScanStructsContext(context.Background(), test.items))
+			qes.Equal(errScanSliceTarget(test.items), e.ScanStructsContext(context.Background(), test.items))
 		})
 	}
 }
@@ -919,10 +920,10 @@ func (qes *queryExecutorSuite) TestScanStruct() {
 	var slicePtr []StructWithTags
 	var item StructWithTags
 	found, err := e.ScanStruct(item)
-	qes.Equal(errUnsupportedScanStructType, err)
+	qes.Equal(errScanStructTarget(item), err)
 	qes.False(found)
 	found, err = e.ScanStruct(&slicePtr)
-	qes.Equal(errUnsupportedScanStructType, err)
+	qes.Equal(errScanStructTarget(&slicePtr), err)
 	qes.False(found)
 	found, err = e.ScanStruct(&item)
 	qes.EqualError(err, "queryExecutor error")
@@ -1161,7 +1162,7 @@ func (qes *queryExecutorSuite) TestScanStruct_nilScannerInterfaceFieldIsAnError(
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.EqualError(err, `goqu: unable to scan column "val" into sql.Scanner field: `+
 		`it must hold a non-nil pointer to a value that implements sql.Scanner (ScanStructs cannot do this)`)
-	qes.True(IsUnsupportedScanType(err))
+	qes.True(errors.IsUnsupportedScanType(err))
 }
 
 type valueReceiverScanner struct{}
@@ -1182,7 +1183,7 @@ func (qes *queryExecutorSuite) TestScanStruct_scannerInterfaceHoldingNonPointerI
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.Error(err)
 	qes.Contains(err.Error(), `unable to scan column "val"`)
-	qes.True(IsUnsupportedScanType(err))
+	qes.True(errors.IsUnsupportedScanType(err))
 }
 
 func (qes *queryExecutorSuite) TestScanStructs_scannerInterfaceFieldIsAnError() {
@@ -1336,7 +1337,7 @@ func (qes *queryExecutorSuite) TestScanValsError() {
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 
 			e := newQueryExecutor("db", db, nil, `SELECT "id" FROM "items"`)
-			qes.Equal(errUnsupportedScanValsType, e.ScanVals(test.items))
+			qes.Equal(errScanSliceTarget(test.items), e.ScanVals(test.items))
 		})
 	}
 }
@@ -1366,10 +1367,10 @@ func (qes *queryExecutorSuite) TestScanVal() {
 	var id int64
 	var ids []int64
 	found, err := e.ScanVal(id)
-	qes.Equal(errScanValPointer, err)
+	qes.Equal(errScanValTarget(id), err)
 	qes.False(found)
 	found, err = e.ScanVal(&ids)
-	qes.Equal(errScanValNonSlice, err)
+	qes.EqualError(err, "goqu: cannot scan one value into *[]int64, use ScanVals for a slice")
 	qes.False(found)
 	found, err = e.ScanVal(&id)
 	qes.EqualError(err, "queryExecutor error")
@@ -1402,7 +1403,7 @@ func (qes *queryExecutorSuite) TestScanVal_withByteSlice() {
 
 	var bytes []byte
 	found, err := e.ScanVal(bytes)
-	qes.Equal(errScanValPointer, err)
+	qes.Equal(errScanValTarget(bytes), err)
 	qes.False(found)
 
 	found, err = e.ScanVal(&bytes)
@@ -1423,7 +1424,7 @@ func (qes *queryExecutorSuite) TestScanVal_withRawBytes() {
 
 	var bytes sql.RawBytes
 	found, err := e.ScanVal(bytes)
-	qes.Equal(errScanValPointer, err)
+	qes.Equal(errScanValTarget(bytes), err)
 	qes.False(found)
 
 	found, err = e.ScanVal(&bytes)
@@ -1450,7 +1451,7 @@ func (qes *queryExecutorSuite) TestScanVal_withValuerSlice() {
 
 	var bools JSONBoolArray
 	found, err := e.ScanVal(bools)
-	qes.Equal(errScanValPointer, err)
+	qes.Equal(errScanValTarget(bools), err)
 	qes.False(found)
 
 	found, err = e.ScanVal(&bools)

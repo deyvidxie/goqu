@@ -94,7 +94,7 @@ func (gis *githubIssuesSuite) TestIssue115() {
 	})
 
 	_, _, err := goqu.Insert("test").Rows(TestStruct{Field: "hello"}).ToSQL()
-	gis.EqualError(err, `goqu: a empty identifier was encountered, please specify a "schema", "table" or "column"`)
+	gis.EqualError(err, `goqu: an empty identifier was encountered, please specify a "schema", "table" or "column"`)
 }
 
 // Test for https://github.com/doug-martin/goqu/issues/118
