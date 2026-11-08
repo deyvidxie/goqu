@@ -733,6 +733,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: ident.In([]interface{}{}), sql: `(1=0)`},
 		{val: ident.In(&emptyStrings), sql: `(1=0)`},
 		{val: ident.In(uint8Codes{}), sql: `(1=0)`},
+		{val: ident.In([0]int{}), sql: `(1=0)`},
+		{val: ident.In((*[2]int)(nil)), sql: `(1=0)`},
+		{val: exp.Ex{"a": [0]string{}}, sql: `(1=0)`},
 		{val: ident.Eq([]int{}), sql: `(1=0)`},
 		{val: exp.Ex{"a": []string{}}, sql: `(1=0)`},
 		{val: exp.Ex{"a": nilInts}, sql: `(1=0)`},
@@ -743,6 +746,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: exp.Ex{"a": exp.Op{"is": []int{}}}, sql: `(1=0)`},
 		{val: exp.NewLiteralExpression("? + 1", 5).In([]int{}), sql: `(1=0)`},
 		{val: ident.NotIn([]int{}), sql: `(1=1)`},
+		{val: ident.NotIn([0]int{}), sql: `(1=1)`},
 		{val: ident.NotIn(nil), sql: `(1=1)`},
 		{val: ident.NotIn(nilIntsPtr), sql: `(1=1)`},
 		{val: ident.NotIn(), sql: `(1=1)`},
@@ -769,6 +773,60 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
 		)
 	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ArrayList() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	pair := [2]int{1, 2}
+	inPair := ident.In(&pair)
+	pair[0] = 9
+	bytes16 := [16]byte{1}
+	for _, c := range []struct {
+		val          interface{}
+		sql          string
+		preparedSQL  string
+		preparedArgs []interface{}
+	}{
+		{
+			val: ident.In([2]int{1, 2}), sql: `("a" IN (1, 2))`,
+			preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{
+			val: ident.NotIn([2]int{1, 2}), sql: `("a" NOT IN (1, 2))`,
+			preparedSQL: `("a" NOT IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{
+			val: exp.Ex{"a": [2]string{"x", "y"}}, sql: `("a" IN ('x', 'y'))`,
+			preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{"x", "y"},
+		},
+		{
+			val: exp.Ex{"a": exp.Op{"neq": [2]int{1, 2}}}, sql: `("a" NOT IN (1, 2))`,
+			preparedSQL: `("a" NOT IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{val: inPair, sql: `("a" IN (1, 2))`, preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)}},
+		{
+			val: exp.NewLiteralExpression("?", [2]int{1, 2}), sql: `(1, 2)`,
+			preparedSQL: `(?, ?)`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+	} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+			expressionTestCase{val: c.val, sql: c.sql},
+			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
+		)
+	}
+	const unencodable = "goqu: unable to encode value [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]"
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: ident.In(bytes16), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.NotIn(bytes16), sql: `("a" NOT IN (?))`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.Eq(bytes16), sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: exp.Ex{"a": bytes16}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.In(bytes16), err: unencodable},
+		expressionTestCase{val: ident.NotIn(bytes16), err: unencodable},
+		expressionTestCase{val: ident.Eq(bytes16), err: unencodable},
+		expressionTestCase{val: exp.Ex{"a": bytes16}, err: unencodable},
+	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListLHSFollowsPreparedMode() {

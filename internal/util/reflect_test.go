@@ -376,24 +376,55 @@ func (rt *reflectTest) TestIsEmptyValue_validValues() {
 
 type uint8Codes []uint8
 
-type intArray []int
+type intSliceValuer []int
 
-func (a intArray) Value() (driver.Value, error) {
+func (a intSliceValuer) Value() (driver.Value, error) {
 	return []int(a), nil
+}
+
+type valuerPair [2]int
+
+func (p valuerPair) Value() (driver.Value, error) {
+	return p[0], nil
+}
+
+type ptrValuerPair [2]int
+
+func (p *ptrValuerPair) Value() (driver.Value, error) {
+	return p[0], nil
 }
 
 func (rt *reflectTest) TestIsBytesValue() {
 	for _, v := range []interface{}{[]byte{}, &[]byte{}, json.RawMessage{}, &json.RawMessage{}} {
 		rt.True(util.IsBytesValue(v), "%T", v)
 	}
-	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intArray{}} {
+	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intSliceValuer{}} {
 		rt.False(util.IsBytesValue(v), "%T", v)
 	}
 }
 
+func (rt *reflectTest) TestIsListValue() {
+	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, intSliceValuer{}, [0]int{}, [2]string{}, &[2]int{}} {
+		rt.True(util.IsListValue(v), "%T", v)
+	}
+	var nilArrayPtr *[2]int
+	notLists := []interface{}{
+		[]byte{}, json.RawMessage{}, [16]byte{}, valuerPair{}, &valuerPair{}, &ptrValuerPair{}, nilArrayPtr, "s", 1, nil,
+	}
+	for _, v := range notLists {
+		rt.False(util.IsListValue(v), "%T", v)
+	}
+}
+
+func (rt *reflectTest) TestIsListType() {
+	rt.True(util.IsListType(reflect.TypeFor[[2]int]()))
+	rt.False(util.IsListType(reflect.TypeFor[[16]byte]()))
+	rt.False(util.IsListType(reflect.TypeFor[json.RawMessage]()))
+}
+
 func (rt *reflectTest) TestIsValuerOrBytes() {
-	var nilArrayPtr *intArray
-	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intArray{}, nilArrayPtr, sql.NullInt64{}} {
+	var nilSliceValuerPtr *intSliceValuer
+	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intSliceValuer{}, nilSliceValuerPtr, sql.NullInt64{}} {
 		rt.True(util.IsValuerOrBytes(v), "%T", v)
 	}
 	for _, v := range []interface{}{uint8Codes{}, []int{}, &[]int{}, "s", nil} {
