@@ -978,7 +978,7 @@ func (rt *reflectTest) TestGetColumnMap_withSliceOfStructs() {
 func (rt *reflectTest) TestGetColumnMap_withNonStruct() {
 	var v int64
 	_, err := util.GetColumnMap(&v, "db")
-	rt.EqualError(err, "goqu: cannot scan into this type: int64")
+	rt.EqualError(err, "goqu: cannot scan rows into int64, a struct is required")
 	rt.True(errors.IsUnsupportedScanType(err))
 }
 

@@ -10,13 +10,12 @@ import (
 
 func TestScanErrorsAreUnsupportedScanType(t *testing.T) {
 	for _, err := range []error{
-		errUnsupportedScanStructType,
-		errUnsupportedScanStructsType,
-		errUnsupportedScanValsType,
-		errScanValPointer,
-		errScanValNonSlice,
-		unableToFindFieldError("c"),
-		scannerFieldNeedsValueError("c", reflect.TypeFor[int]()),
+		errScanStructTarget(1),
+		errScanSliceTarget(1),
+		errScanValTarget(1),
+		errScanValSliceTarget(&[]int{}),
+		errNoFieldForColumn("c"),
+		errScannerFieldNeedsValue("c", reflect.TypeFor[int]()),
 	} {
 		assert.True(t, errors.IsUnsupportedScanType(err), "%v", err)
 	}

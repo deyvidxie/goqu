@@ -809,8 +809,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewInsertSQLGenerator("test", "db", emptyOpts).Generate(b, ic.SetOnConflict(excludedB))
 		_, _, err := b.ToSQL()
-		igs.EqualError(err, "goqu: Excluded requires "+tc.option)
-		igs.True(goqu.IsInvalidExpression(err))
+		igs.EqualError(err, "goqu: dialect has no "+tc.option+" for Excluded [dialect=test]")
+		igs.True(goqu.IsUnsupported(err))
 	}
 }
 

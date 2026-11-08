@@ -91,9 +91,9 @@ func (ds *databaseSuite) TestScanStructs() {
 
 	items = items[0:0]
 	ds.EqualError(db.ScanStructs(items, `SELECT * FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into []goqu_test.testActionItem, a pointer to a slice is required")
 	ds.EqualError(db.ScanStructs(&testActionItem{}, `SELECT * FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into *goqu_test.testActionItem, a pointer to a slice is required")
 	ds.EqualError(db.ScanStructs(&items, `SELECT "test" FROM "items"`),
 		`goqu: unable to find corresponding field to column "test" returned by query`)
 }
@@ -118,9 +118,9 @@ func (ds *databaseSuite) TestScanStruct() {
 	ds.Equal("Test1", item.Name)
 
 	_, err = db.ScanStruct(item, `SELECT * FROM "items" LIMIT 1`)
-	ds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	ds.EqualError(err, "goqu: cannot scan into goqu_test.testActionItem, a pointer to a struct is required")
 	_, err = db.ScanStruct([]testActionItem{}, `SELECT * FROM "items" LIMIT 1`)
-	ds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	ds.EqualError(err, "goqu: cannot scan into []goqu_test.testActionItem, a pointer to a struct is required")
 	_, err = db.ScanStruct(&item, `SELECT "test" FROM "items" LIMIT 1`)
 	ds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
 }
@@ -144,9 +144,9 @@ func (ds *databaseSuite) TestScanVals() {
 	ds.Len(ids, 5)
 
 	ds.EqualError(db.ScanVals([]uint32{}, `SELECT "id" FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into []uint32, a pointer to a slice is required")
 	ds.EqualError(db.ScanVals(testActionItem{}, `SELECT "id" FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into goqu_test.testActionItem, a pointer to a slice is required")
 }
 
 func (ds *databaseSuite) TestScanVal() {
@@ -165,10 +165,10 @@ func (ds *databaseSuite) TestScanVal() {
 
 	found, err = db.ScanVal([]int64{}, `SELECT "id" FROM "items"`)
 	ds.False(found)
-	ds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	ds.EqualError(err, "goqu: cannot scan into []int64, a pointer is required")
 	found, err = db.ScanVal(10, `SELECT "id" FROM "items"`)
 	ds.False(found)
-	ds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	ds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 }
 
 func (ds *databaseSuite) TestExec() {
@@ -534,9 +534,9 @@ func (tds *txdatabaseSuite) TestScanStructs() {
 
 	items = items[0:0]
 	tds.EqualError(tx.ScanStructs(items, `SELECT * FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into []goqu_test.testActionItem, a pointer to a slice is required")
 	tds.EqualError(tx.ScanStructs(&testActionItem{}, `SELECT * FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into *goqu_test.testActionItem, a pointer to a slice is required")
 	tds.EqualError(tx.ScanStructs(&items, `SELECT "test" FROM "items"`),
 		`goqu: unable to find corresponding field to column "test" returned by query`)
 	tds.NoError(tx.Commit())
@@ -565,9 +565,9 @@ func (tds *txdatabaseSuite) TestScanStruct() {
 	tds.Equal("Test1", item.Name)
 
 	_, err = tx.ScanStruct(item, `SELECT * FROM "items" LIMIT 1`)
-	tds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	tds.EqualError(err, "goqu: cannot scan into goqu_test.testActionItem, a pointer to a struct is required")
 	_, err = tx.ScanStruct([]testActionItem{}, `SELECT * FROM "items" LIMIT 1`)
-	tds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	tds.EqualError(err, "goqu: cannot scan into []goqu_test.testActionItem, a pointer to a struct is required")
 	_, err = tx.ScanStruct(&item, `SELECT "test" FROM "items" LIMIT 1`)
 	tds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
 	tds.NoError(tx.Commit())
@@ -595,9 +595,9 @@ func (tds *txdatabaseSuite) TestScanVals() {
 	tds.Len(ids, 5)
 
 	tds.EqualError(tx.ScanVals([]uint32{}, `SELECT "id" FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into []uint32, a pointer to a slice is required")
 	tds.EqualError(tx.ScanVals(testActionItem{}, `SELECT "id" FROM "items"`),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into goqu_test.testActionItem, a pointer to a slice is required")
 	tds.NoError(tx.Commit())
 }
 
@@ -620,10 +620,10 @@ func (tds *txdatabaseSuite) TestScanVal() {
 
 	found, err = tx.ScanVal([]int64{}, `SELECT "id" FROM "items"`)
 	tds.False(found)
-	tds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	tds.EqualError(err, "goqu: cannot scan into []int64, a pointer is required")
 	found, err = tx.ScanVal(10, `SELECT "id" FROM "items"`)
 	tds.False(found)
-	tds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	tds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 	tds.NoError(tx.Commit())
 }
 

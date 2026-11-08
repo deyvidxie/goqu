@@ -37,7 +37,7 @@ func (s *scannerSuite) TestScanStructs() {
 
 	result := make([]StructWithTags, 0)
 	err = sc.ScanStructs(result)
-	s.Require().EqualError(err, errUnsupportedScanStructsType.Error())
+	s.Require().EqualError(err, errScanSliceTarget(result).Error())
 
 	err = sc.ScanStructs(&result)
 	s.Require().NoError(err)
@@ -62,7 +62,7 @@ func (s *scannerSuite) TestScanVals() {
 
 	result := make([]int, 0)
 	err = sc.ScanVals(result)
-	s.Require().EqualError(err, errUnsupportedScanValsType.Error())
+	s.Require().EqualError(err, errScanSliceTarget(result).Error())
 
 	err = sc.ScanVals(&result)
 	s.Require().NoError(err)

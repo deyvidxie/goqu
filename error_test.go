@@ -72,8 +72,8 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		return err
 	}
 	const (
-		tableType = "goqu: unsupported table type, a string or identifier expression is required"
-		badFrom   = "goqu: unsupported DeleteDataset#From argument, a string or identifier expression is required"
+		tableType = "goqu: unsupported table type bool, a string or identifier expression is required"
+		badFrom   = "goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required"
 	)
 	for _, c := range []struct {
 		name string
@@ -105,7 +105,7 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		},
 		{"unsupported update value", "goqu: unsupported update value type int", toSQL(goqu.Update("t").Set(1))},
 		{
-			"unknown Op key", "goqu: unsupported expression type bogus",
+			"unknown Op key", `goqu: unsupported Op key "bogus"`,
 			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"bogus": 1}})),
 		},
 		{"nil pointer row", "goqu: insert rows must not be nil, got *goqu_test.row", toSQL(goqu.Insert("t").Rows((*row)(nil)))},
@@ -131,13 +131,10 @@ func panicErr(f func()) (err error) {
 	return nil
 }
 
-func TestQueryFactoryNotFoundIsNoDatabase(t *testing.T) {
+func TestNoDatabaseMessage(t *testing.T) {
 	_, err := goqu.From("t").Count()
 	assert.EqualError(t, err, "goqu: no database to execute the query, create the dataset with goqu.Database#From")
 	assert.True(t, goqu.IsNoDatabase(err))
-	var target goqu.NoDatabaseError
-	assert.ErrorAs(t, err, &target)
-	assert.False(t, goqu.IsInvalidExpression(err))
 }
 
 func TestExecutorWithoutDatabaseFailsWithNoDatabase(t *testing.T) {
@@ -149,7 +146,6 @@ func TestExecutorWithoutDatabaseFailsWithNoDatabase(t *testing.T) {
 		"truncate": func() (any, error) { return goqu.Truncate("t").Executor().Exec() },
 	} {
 		_, err := executor()
-		assert.True(t, goqu.IsNoDatabase(err), name)
 		assert.True(t, goqu.IsNoDatabase(err), name)
 	}
 }

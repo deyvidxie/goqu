@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -23,26 +22,6 @@ type (
 	}
 )
 
-func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
-	return errors.NewUnsupportedError("dialect does not support %v [dialect=%s]", j.JoinType(), dialect)
-}
-
-func errJoinConditionRequired(j exp.JoinExpression) error {
-	return errors.NewInvalidExpressionError("join condition required for conditioned join %v", j.JoinType())
-}
-
-func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
-	return errors.NewUnsupportedError("USING is not supported for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
-}
-
-func errDistinctOnNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
-}
-
-func errWindowNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support WINDOW clause [dialect=%s]", dialect)
-}
-
 var lockStrengthSQL = map[exp.LockStrength]string{
 	exp.ForUpdate:      "FOR UPDATE",
 	exp.ForNoKeyUpdate: "FOR NO KEY UPDATE",
@@ -50,28 +29,10 @@ var lockStrengthSQL = map[exp.LockStrength]string{
 	exp.ForKeyShare:    "FOR KEY SHARE",
 }
 
-func errLockStrengthNotSupported(dialect string, strength exp.LockStrength) error {
-	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
-}
-
 var lockWaitOptionSQL = map[exp.WaitOption]string{
 	exp.NoWait:     "NOWAIT",
 	exp.SkipLocked: "SKIP LOCKED",
 }
-
-func errLockWaitOptionNotSupported(dialect string, option exp.WaitOption) error {
-	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", lockWaitOptionSQL[option], dialect)
-}
-
-func errLockOfNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support OF in a locking clause [dialect=%s]", dialect)
-}
-
-func errQualifyNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
-}
-
-var errNoWindowName = errors.NewInvalidExpressionError("window expression has no valid name")
 
 func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) SelectSQLGenerator {
 	return &selectSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}

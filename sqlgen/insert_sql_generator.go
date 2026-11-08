@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -39,30 +38,6 @@ const (
 	insertSourceQuery
 	insertSourceComplete
 )
-
-var (
-	errExcludedRowAliasEmpty     = errors.NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
-	errExcludedRowAliasQualified = errors.NewInvalidExpressionError("Excluded requires an unqualified insert alias")
-
-	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
-	errNoSourceForInsert            = errors.NewInvalidExpressionError("no source found when generating insert sql")
-)
-
-func errMisMatchedRowLength(expectedL, actualL int) error {
-	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expectedL, actualL)
-}
-
-func errUpsertWithWhereNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
-}
-
-func errOnConflictNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support upsert [dialect=%s]", dialect)
-}
-
-func errExcludedRequiresInsertCols(dialect string) error {
-	return errors.NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
-}
 
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
 	return &insertSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
@@ -274,7 +249,7 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]inter
 	valueLen := len(values)
 	for i, row := range values {
 		if len(row) != rowLen {
-			b.SetError(errMisMatchedRowLength(rowLen, len(row)))
+			b.SetError(errMismatchedRowLength(rowLen, len(row)))
 			return
 		}
 		isg.ExpressionSQLGenerator().Generate(b, row)

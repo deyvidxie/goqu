@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -28,18 +27,6 @@ type (
 		tagName   string
 	}
 )
-
-func scannerFieldNeedsValueError(col string, t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError(
-		`unable to scan column "%s" into %s field: it must hold a non-nil pointer to a value that `+
-			`implements sql.Scanner (ScanStructs cannot do this)`,
-		col, t,
-	)
-}
-
-func unableToFindFieldError(col string) error {
-	return errors.NewUnsupportedScanTypeError(`unable to find corresponding field to column "%s" returned by query`, col)
-}
 
 // NewScanner returns a scanner that can be used for scanning rows into structs.
 func NewScanner(rows *sql.Rows, tagName string) Scanner {
@@ -82,7 +69,7 @@ func (s *scanner) ScanStruct(i interface{}) error {
 	for index, col := range s.columns {
 		data, ok := s.columnMap[col]
 		if !ok {
-			return unableToFindFieldError(col)
+			return errNoFieldForColumn(col)
 		}
 		if data.GoType.Kind() == reflect.Interface && data.GoType.NumMethod() > 0 {
 			// The column map is cached per struct type so it only knows the interface, not the concrete type.
@@ -97,7 +84,7 @@ func (s *scanner) ScanStruct(i interface{}) error {
 				continue
 			}
 			if util.IsScannerInterface(data.GoType) {
-				return scannerFieldNeedsValueError(col, data.GoType)
+				return errScannerFieldNeedsValue(col, data.GoType)
 			}
 		}
 		scans = append(scans, reflect.New(data.GoType).Interface())
@@ -173,11 +160,11 @@ func (s *scanner) scanIntoSlice(val reflect.Value, it func(i interface{}) error)
 func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
 	if !util.IsPointer(val.Kind()) {
-		return val, errUnsupportedScanStructsType
+		return val, errScanSliceTarget(i)
 	}
 	val = reflect.Indirect(val)
 	if !util.IsSlice(val.Kind()) {
-		return val, errUnsupportedScanStructsType
+		return val, errScanSliceTarget(i)
 	}
 	return val, nil
 }
@@ -185,11 +172,11 @@ func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
 func checkScanValsTarget(i interface{}) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
 	if !util.IsPointer(val.Kind()) {
-		return val, errUnsupportedScanValsType
+		return val, errScanSliceTarget(i)
 	}
 	val = reflect.Indirect(val)
 	if !util.IsSlice(val.Kind()) {
-		return val, errUnsupportedScanValsType
+		return val, errScanSliceTarget(i)
 	}
 	return val, nil
 }

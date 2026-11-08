@@ -861,15 +861,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	withoutNotIn.EmptyNotInFragment = nil
 
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutIn),
-		expressionTestCase{val: ident.In([]int{}), err: "goqu: an empty IN list requires EmptyInFragment"})
+		expressionTestCase{val: ident.In([]int{}), err: "goqu: dialect has no EmptyInFragment for an empty IN list [dialect=test]"})
 	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", withoutNotIn),
-		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: an empty NOT IN list requires EmptyNotInFragment"})
+		expressionTestCase{val: ident.NotIn([]int{}), err: "goqu: dialect has no EmptyNotInFragment for an empty NOT IN list [dialect=test]"})
 
 	for opts, val := range map[*sqlgen.SQLDialectOptions]exp.Expression{withoutIn: ident.In([]int{}), withoutNotIn: ident.NotIn([]int{})} {
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, val)
 		_, _, err := b.ToSQL()
-		esgs.True(goqu.IsInvalidExpression(err))
+		esgs.True(goqu.IsUnsupported(err))
 	}
 }
 
@@ -2192,12 +2192,12 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionMapWithABadOp() 
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{
 			val: exp.Ex{"a": exp.Op{"badOp": true}},
-			err: "goqu: unsupported expression type badOp",
+			err: `goqu: unsupported Op key "badOp"`,
 		},
 		expressionTestCase{
 			val:        exp.Ex{"a": exp.Op{"badOp": true}},
 			isPrepared: true,
-			err:        "goqu: unsupported expression type badOp",
+			err:        `goqu: unsupported Op key "badOp"`,
 		},
 	)
 }
@@ -2504,12 +2504,12 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionOrMap() {
 
 		expressionTestCase{
 			val: exp.ExOr{"a": exp.Op{"badOp": true}},
-			err: "goqu: unsupported expression type badOp",
+			err: `goqu: unsupported Op key "badOp"`,
 		},
 		expressionTestCase{
 			val:        exp.ExOr{"a": exp.Op{"badOp": true}},
 			isPrepared: true,
-			err:        "goqu: unsupported expression type badOp",
+			err:        `goqu: unsupported Op key "badOp"`,
 		},
 
 		expressionTestCase{val: exp.ExOr{"a": 1, "b": true}, sql: `(("a" = 1) OR ("b" IS TRUE))`},

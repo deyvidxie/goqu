@@ -3,12 +3,7 @@ package goqu
 import (
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
-)
-
-var errBadFromArgument = errors.NewInvalidExpressionError(
-	"unsupported DeleteDataset#From argument, a string or identifier expression is required",
 )
 
 type DeleteDataset struct {
@@ -134,7 +129,7 @@ func (dd *DeleteDataset) From(table interface{}) *DeleteDataset {
 	case string:
 		return dd.copy(dd.clauses.SetFrom(exp.ParseIdentifier(t)))
 	default:
-		panic(errBadFromArgument)
+		panic(errBadFromArgument(table))
 	}
 }
 

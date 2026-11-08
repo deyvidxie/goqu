@@ -2,35 +2,8 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
-
-var errNoUpdatedValuesProvided = errors.NewInvalidExpressionError("no update values provided")
-
-func errInvalidCollation(collation string) error {
-	return errors.NewInvalidExpressionError("invalid collation name %q", collation)
-}
-
-func errCTENotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support CTE WITH clause [dialect=%s]", dialect)
-}
-
-func errRecursiveCTENotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support CTE WITH RECURSIVE clause [dialect=%s]", dialect)
-}
-
-func errReturnNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support RETURNING clause [dialect=%s]", dialect)
-}
-
-func errConflictTargetNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support Conflict Target clause [dialect=%s]", dialect)
-}
-
-func errNotSupportedFragment(dialect, sqlType string, f SQLFragmentType) error {
-	return errors.NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
-}
 
 type (
 	CommonSQLGenerator interface {

@@ -21,19 +21,6 @@ type (
 	}
 )
 
-var (
-	errNoSourceForUpdate    = errors.NewInvalidExpressionError("no source found when generating update sql")
-	errNoSetValuesForUpdate = errors.NewInvalidExpressionError("no set values found when generating update sql")
-)
-
-func errOrderByOnUpdateNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support ORDER BY on UPDATE [dialect=%s]", dialect)
-}
-
-func errLimitOnUpdateNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support LIMIT on UPDATE [dialect=%s]", dialect)
-}
-
 func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) UpdateSQLGenerator {
 	return &updateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }

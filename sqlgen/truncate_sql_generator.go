@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -22,8 +21,6 @@ type (
 		CommonSQLGenerator
 	}
 )
-
-var errNoSourceForTruncate = errors.NewInvalidExpressionError("no source found when generating truncate sql")
 
 func NewTruncateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) TruncateSQLGenerator {
 	return &truncateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}

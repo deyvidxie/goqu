@@ -158,7 +158,7 @@ func createExpressionFromOp(lhs IdentifierExpression, opKey string, op Op) (exp 
 			exp = lhs.NotBetween(rangeVal)
 		}
 	default:
-		err = errors.NewInvalidExpressionError("unsupported expression type %s", opKey)
+		err = errors.NewInvalidExpressionError("unsupported Op key %q", opKey)
 	}
 	return exp, err
 }

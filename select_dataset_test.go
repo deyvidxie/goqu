@@ -1306,9 +1306,9 @@ func (sds *selectDatasetSuite) TestScanStructs() {
 
 	items = items[0:0]
 	sds.EqualError(db.From("items").ScanStructs(items),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a slice is required")
 	sds.EqualError(db.From("items").ScanStructs(&dsTestActionItem{}),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into *goqu_test.dsTestActionItem, a pointer to a slice is required")
 	sds.EqualError(db.From("items").Select("test").ScanStructs(&items),
 		`goqu: unable to find corresponding field to column "test" returned by query`)
 
@@ -1351,9 +1351,9 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 
 	items = items[0:0]
 	sds.EqualError(db.From("items").ScanStructs(items),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a slice is required")
 	sds.EqualError(db.From("items").ScanStructs(&dsTestActionItem{}),
-		"goqu: type must be a pointer to a slice when scanning into structs")
+		"goqu: cannot scan into *goqu_test.dsTestActionItem, a pointer to a slice is required")
 	sds.EqualError(db.From("items").
 		Prepared(true).
 		Select("test").
@@ -1392,9 +1392,9 @@ func (sds *selectDatasetSuite) TestScanStruct() {
 	sds.Equal("Test1", item.Name)
 
 	_, err = db.From("items").ScanStruct(item)
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").ScanStruct([]dsTestActionItem{})
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
 	sds.True(goqu.IsUnsupportedScanType(err))
@@ -1428,9 +1428,9 @@ func (sds *selectDatasetSuite) TestScanStruct_WithPreparedStatements() {
 	sds.Equal("Test1", item.Name)
 
 	_, err = db.From("items").ScanStruct(item)
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").ScanStruct([]dsTestActionItem{})
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").
 		Prepared(true).
 		Select("test").
@@ -1459,9 +1459,9 @@ func (sds *selectDatasetSuite) TestScanStructSubqueries() {
 	sds.Equal(true, item.WithName)
 
 	_, err = db.From("items").ScanStruct(item)
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into goqu_test.dsSubQueryTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").ScanStruct([]dsTestActionItem{})
-	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
+	sds.EqualError(err, "goqu: cannot scan into []goqu_test.dsTestActionItem, a pointer to a struct is required")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
 	sds.True(goqu.IsUnsupportedScanType(err))
@@ -1524,9 +1524,9 @@ func (sds *selectDatasetSuite) TestScanVals() {
 	sds.Equal(ids, []uint32{1, 2, 3, 4, 5})
 
 	sds.EqualError(db.From("items").ScanVals([]uint32{}),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into []uint32, a pointer to a slice is required")
 	sds.EqualError(db.From("items").ScanVals(dsTestActionItem{}),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into goqu_test.dsTestActionItem, a pointer to a slice is required")
 
 	err = goqu.From("items").ScanVals(&ids)
 	sds.True(goqu.IsNoDatabase(err))
@@ -1558,10 +1558,10 @@ func (sds *selectDatasetSuite) TestScanVals_WithPreparedStatment() {
 	sds.Equal([]uint32{1, 2, 3, 4, 5}, ids)
 
 	sds.EqualError(db.From("items").ScanVals([]uint32{}),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into []uint32, a pointer to a slice is required")
 
 	sds.EqualError(db.From("items").ScanVals(dsTestActionItem{}),
-		"goqu: type must be a pointer to a slice when scanning into vals")
+		"goqu: cannot scan into goqu_test.dsTestActionItem, a pointer to a slice is required")
 }
 
 func (sds *selectDatasetSuite) TestScanVal() {
@@ -1580,10 +1580,10 @@ func (sds *selectDatasetSuite) TestScanVal() {
 
 	found, err = db.From("items").ScanVal([]int64{})
 	sds.False(found)
-	sds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	sds.EqualError(err, "goqu: cannot scan into []int64, a pointer is required")
 	found, err = db.From("items").ScanVal(10)
 	sds.False(found)
-	sds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	sds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 
 	_, err = goqu.From("items").ScanVal(&id)
 	sds.True(goqu.IsNoDatabase(err))
@@ -1611,10 +1611,10 @@ func (sds *selectDatasetSuite) TestScanVal_WithPreparedStatement() {
 
 	found, err = db.From("items").ScanVal([]int64{})
 	sds.False(found)
-	sds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	sds.EqualError(err, "goqu: cannot scan into []int64, a pointer is required")
 	found, err = db.From("items").ScanVal(10)
 	sds.False(found)
-	sds.EqualError(err, "goqu: type must be a pointer when scanning into val")
+	sds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 }
 
 func (sds *selectDatasetSuite) TestCount() {

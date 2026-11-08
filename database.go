@@ -7,12 +7,7 @@ import (
 	"sync"
 
 	"github.com/doug-martin/goqu/v9/exec"
-	goquerrors "github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
-)
-
-var errNoDatabase = goquerrors.NewNoDatabaseError(
-	"no database to execute the query, create the dataset with goqu.Database#From",
 )
 
 func noDatabaseExecutor(tagName string) exec.QueryExecutor {

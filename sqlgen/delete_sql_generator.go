@@ -2,7 +2,6 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -20,16 +19,6 @@ type (
 		CommonSQLGenerator
 	}
 )
-
-var errNoSourceForDelete = errors.NewInvalidExpressionError("no source found when generating delete sql")
-
-func errOrderByOnDeleteNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support ORDER BY on DELETE [dialect=%s]", dialect)
-}
-
-func errLimitOnDeleteNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support LIMIT on DELETE [dialect=%s]", dialect)
-}
 
 func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) DeleteSQLGenerator {
 	return &deleteSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}

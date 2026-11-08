@@ -29,3 +29,17 @@ func IsUnknownDialect(err error) bool {
 func IsNoDatabase(err error) bool {
 	return errors.IsNoDatabase(err)
 }
+
+var errNoDatabase = errors.NewNoDatabaseError(
+	"no database to execute the query, create the dataset with goqu.Database#From",
+)
+
+func errBadFromArgument(from interface{}) error {
+	return errors.NewInvalidExpressionError(
+		"unsupported DeleteDataset#From argument %T, a string or identifier expression is required", from,
+	)
+}
+
+func errUnsupportedTableType(table interface{}) error {
+	return errors.NewInvalidExpressionError("unsupported table type %T, a string or identifier expression is required", table)
+}
