@@ -310,11 +310,8 @@ func iterRows[T any](
 
 func scanStructRow[T any](s Scanner) (T, error) {
 	target, scanned := newStructRow[T]()
-	if err := s.ScanStruct(target); err != nil {
-		var zero T
-		return zero, err
-	}
-	return scanned(), nil
+	err := s.ScanStruct(target)
+	return scanned(), err
 }
 
 func newStructRow[T any]() (target interface{}, scanned func() T) {

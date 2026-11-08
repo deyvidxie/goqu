@@ -3,7 +3,7 @@ package scantype
 import (
 	"database/sql"
 	"reflect"
-	"slices"
+	"strings"
 	"time"
 	"uuid"
 
@@ -16,11 +16,8 @@ var (
 	bytesType    = reflect.TypeFor[[]byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 	uuidType     = reflect.TypeFor[uuid.UUID]()
-
-	driverValueTypes = []reflect.Type{
-		reflect.TypeFor[int64](), reflect.TypeFor[float64](), reflect.TypeFor[bool](), bytesType,
-		reflect.TypeFor[string](), timeType,
-	}
+	anyType      = reflect.TypeFor[any]()
+	sqlRowsType  = reflect.TypeFor[sql.Rows]()
 )
 
 func Struct[T any](tagName string) error {
@@ -52,7 +49,7 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	case util.ColumnMapOK:
 	}
 	oneColumn := isTime(elem) || util.IsScanner(elem)
-	sqlValue := oneColumn && elem.PkgPath() == "database/sql"
+	sqlValue := oneColumn && elem.PkgPath() == sqlRowsType.PkgPath()
 	columns := util.StructColumnMap(elem, tagName)
 	switch {
 	case len(columns) > 0 && !sqlValue:
@@ -103,6 +100,8 @@ func scannableVal(fn, structsFn string, t reflect.Type, tagName string) error {
 func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) error {
 	inner := util.DerefAll(t)
 	switch {
+	case isSQLNull(inner):
+		return scannableVal(fn, structsFn, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
 	case isRowStruct(inner, tagName):
@@ -121,17 +120,20 @@ func isUnassignable(t reflect.Type) bool {
 	case reflect.Array:
 		return t != uuidType
 	case reflect.Interface:
-		return t.NumMethod() > 0 && !slices.ContainsFunc(driverValueTypes, func(v reflect.Type) bool { return v.Implements(t) })
+		return !timeType.Implements(t)
 	case reflect.Struct:
-		return !isTime(t)
+		return !isTime(t) && t != sqlRowsType
 	default:
 		return false
 	}
 }
 
+func isSQLNull(t reflect.Type) bool {
+	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlRowsType.PkgPath() && strings.HasPrefix(t.Name(), "Null[")
+}
+
 func acceptsNull(t reflect.Type) bool {
-	return util.IsPointer(t.Kind()) || t == bytesType || (t.Kind() == reflect.Interface && t.NumMethod() == 0) ||
-		util.IsScanner(t)
+	return util.IsPointer(t.Kind()) || t == bytesType || t == anyType || util.IsScanner(t)
 }
 
 func isTime(t reflect.Type) bool {

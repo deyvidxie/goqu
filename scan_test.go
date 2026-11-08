@@ -40,6 +40,7 @@ type (
 	scanTestOpaqueScanner  struct{}
 	ScanTestID             int
 	ScanTestUUID           uuid.UUID
+	ScanTestAny            interface{}
 	ScanTestName           string
 	scanTestEmbeddedID     struct {
 		*ScanTestID
@@ -716,6 +717,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 		"goqu_test.ScanTestTime": ss.allValsErr[*ScanTestTime](),
 		"goqu_test.scanTestBlob": ss.allValsErr[*scanTestBlob](),
 		"fmt.Stringer":           ss.allValsErr[*fmt.Stringer](),
+		"goqu_test.ScanTestAny":  ss.allValsErr[*ScanTestAny](),
 		"uuid.UUID":              ss.allValsErr[*uuid.UUID](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+": "+name+" cannot hold NULL; use sql.Null["+name+"]", name)
@@ -1199,6 +1201,32 @@ func (ss *scanSuite) TestValueScans_rejectTypesDatabaseSQLCannotFill() {
 		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
 		ss.True(goqu.IsUnsupportedScanType(err))
 	}
+}
+
+func (ss *scanSuite) TestValueScans_checkTheValueOfSQLNull() {
+	for want, err := range map[string]error{
+		"IterVals cannot scan into map[string]int; use a concrete sql.Scanner": ss.iterValsErr[sql.Null[map[string]int]](),
+		"ScanOneVal cannot return sql.RawBytes, which is only valid until the next row is read " +
+			"or the rows are closed; use []byte": ss.oneValErr[sql.Null[sql.RawBytes]](),
+		"ScanAllVals cannot scan into goqu_test.dsTestActionItem: goqu_test.dsTestActionItem is a row struct; " +
+			"use ScanAllStructs[goqu_test.dsTestActionItem]": ss.allValsErr[*sql.Null[dsTestActionItem]](),
+	} {
+		ss.EqualError(err, "goqu: "+want)
+		ss.True(goqu.IsUnsupportedScanType(err))
+	}
+}
+
+func (ss *scanSuite) TestIterVals_acceptsSQLNullAndCursors() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1).AddRow(nil))
+	ss.mock.ExpectQuery(`SELECT "cursor" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"cursor"}))
+
+	ids, errs := ss.collect(ss.db.From("items").Select("id").IterVals[sql.Null[int64]](context.Background()))
+	ss.Empty(errs)
+	ss.Equal([]sql.Null[int64]{{V: 1, Valid: true}, {}}, ids)
+
+	cursors, errs := ss.collect(ss.db.From("items").Select("cursor").IterVals[*sql.Rows](context.Background()))
+	ss.Empty(errs)
+	ss.Empty(cursors)
 }
 
 func (ss *scanSuite) TestIterVals_acceptsInterfacesADriverValueImplements() {
