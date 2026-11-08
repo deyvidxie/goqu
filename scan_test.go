@@ -353,28 +353,28 @@ func (ss *scanSuite) TestScanOneStruct_requiresStruct() {
 func (ss *scanSuite) TestStructScans_rejectsSingleColumnTypes() {
 	_, err := ss.db.From("items").ScanAllStructs[time.Time](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into time.Time, which scans as one column; "+
-		"use ScanAllVals[time.Time] or ScanOneVal[time.Time]")
+		"use ScanVals/ScanVal or ScanAllVals[time.Time]/ScanOneVal[time.Time]")
 	ss.True(goqu.IsUnsupportedScanType(err))
 
 	_, err = ss.db.From("items").ScanAllStructs[*time.Time](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into *time.Time, which scans as one column; "+
-		"use ScanAllVals[time.Time] or ScanOneVal[time.Time]")
+		"use ScanVals/ScanVal or ScanAllVals[time.Time]/ScanOneVal[time.Time]")
 
 	_, _, err = ss.db.From("items").ScanOneStruct[sql.NullString](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into sql.NullString, which scans as one column; "+
-		"use ScanAllVals[sql.NullString] or ScanOneVal[sql.NullString]")
+		"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]")
 
 	_, _, err = ss.db.From("items").ScanOneStruct[*sql.NullString](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into *sql.NullString, which scans as one column; "+
-		"use ScanAllVals[sql.NullString] or ScanOneVal[sql.NullString]")
+		"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]")
 
 	_, err = ss.db.From("items").ScanAllStructs[scanTestOpaqueScanner](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestOpaqueScanner, which scans as one column; "+
-		"use ScanAllVals[goqu_test.scanTestOpaqueScanner] or ScanOneVal[goqu_test.scanTestOpaqueScanner]")
+		"use ScanVals/ScanVal or ScanAllVals[goqu_test.scanTestOpaqueScanner]/ScanOneVal[goqu_test.scanTestOpaqueScanner]")
 
 	_, err = ss.db.From("items").ScanAllStructs[ScanTestTime](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.ScanTestTime, which scans as one column; "+
-		"use ScanAllVals[goqu_test.ScanTestTime] or ScanOneVal[goqu_test.ScanTestTime]")
+		"use ScanVals/ScanVal or ScanAllVals[goqu_test.ScanTestTime]/ScanOneVal[goqu_test.ScanTestTime]")
 }
 
 func (ss *scanSuite) TestScanAllStructs_rejectsStructsWithoutColumns() {

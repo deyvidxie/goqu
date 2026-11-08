@@ -3,6 +3,7 @@ package goqu
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -712,18 +713,12 @@ func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error)
 	if sd.queryFactory == nil {
 		return nil, errNoDatabase
 	}
-	if err := scantype.Struct[T](sd.tagName); err != nil {
-		return nil, err
-	}
 	return sd.selectStructColumns(new([]T)).Executor().ScanAllStructs[T](ctx)
 }
 
 func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
 	if sd.queryFactory == nil {
 		return row, false, errNoDatabase
-	}
-	if typeErr := scantype.Struct[T](sd.tagName); typeErr != nil {
-		return row, false, typeErr
 	}
 	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
 }
@@ -743,10 +738,28 @@ func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bo
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {
-	if sd.GetClauses().IsDefaultSelect() {
-		return sd.Select(target)
+	if !sd.GetClauses().IsDefaultSelect() {
+		return sd
 	}
-	return sd
+	t := reflect.TypeOf(target)
+	if t != nil && t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	var err error
+	switch {
+	case t == nil:
+		return sd
+	case t.Kind() == reflect.Slice:
+		err = scantype.StrictRowStruct(t.Elem(), sd.tagName)
+	case t.Kind() == reflect.Struct:
+		err = scantype.RowStruct(t, sd.tagName)
+	default:
+		return sd
+	}
+	if err != nil {
+		return sd.copy(sd.clauses).SetError(err)
+	}
+	return sd.Select(target)
 }
 
 // Generates the SELECT COUNT(*) sql for this dataset and uses Exec#ScanVal to scan the result into an int64.
