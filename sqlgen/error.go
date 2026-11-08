@@ -105,7 +105,7 @@ func errConflictTargetNotSupported(dialect string) error {
 }
 
 func errConflictWithDefaultValuesNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support upsert on an insert without rows [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support upsert with DEFAULT VALUES [dialect=%s]", dialect)
 }
 
 func errUpsertWithWhereNotSupported(dialect string) error {

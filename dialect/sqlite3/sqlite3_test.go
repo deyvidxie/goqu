@@ -713,10 +713,6 @@ func (st *sqlite3Suite) TestInsert_OnConflict() {
 	st.Equal("upsert", entryActual.String)
 }
 
-func TestSqlite3Suite(t *testing.T) {
-	suite.Run(t, new(sqlite3Suite))
-}
-
 func (st *sqlite3Suite) TestInsert_withoutRows() {
 	_, err := st.db.Exec("CREATE TABLE empty_insert (id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT NOT NULL DEFAULT 'x')")
 	st.Require().NoError(err)
@@ -728,7 +724,13 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 		_, err = st.db.Insert("empty_insert").Prepared(prepared).Executor().Exec()
 		st.Require().NoError(err, "prepared=%v", prepared)
 	}
+	_, err = st.db.Insert("empty_insert").OnConflict(goqu.DoNothing()).Executor().Exec()
+	st.Require().NoError(err)
 	var as []string
 	st.Require().NoError(st.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
-	st.Equal([]string{"x", "x"}, as)
+	st.Equal([]string{"x", "x", "x"}, as)
+}
+
+func TestSqlite3Suite(t *testing.T) {
+	suite.Run(t, new(sqlite3Suite))
 }

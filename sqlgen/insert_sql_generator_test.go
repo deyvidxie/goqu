@@ -1103,6 +1103,42 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	doNothing := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
+	emptyRows := doNothing.SetRows([]interface{}{exp.Record{}})
+	targeted := ic.SetOnConflict(exp.NewDoNothingConflictExpression().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
+
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: doNothing, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
+		insertTestCase{clause: emptyRows, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
+	)
+
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsConflictWithDefaultValues = false
+	const unsupported = "goqu: dialect does not support upsert with DEFAULT VALUES [dialect=test]"
+	cases := make([]insertTestCase, 0, 6)
+	for _, prepared := range []bool{false, true} {
+		cases = append(cases,
+			insertTestCase{clause: doNothing, err: unsupported, isPrepared: prepared},
+			insertTestCase{clause: emptyRows, err: unsupported, isPrepared: prepared},
+			insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: prepared},
+		)
+	}
+	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", opts), cases...)
+
+	ignoreOpts := sqlgen.DefaultDialectOptions()
+	ignoreOpts.SupportsConflictWithDefaultValues = false
+	ignoreOpts.SupportsInsertIgnoreSyntax = true
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", ignoreOpts),
+		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`},
+		insertTestCase{clause: emptyRows, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
+		insertTestCase{clause: targeted, err: unsupported},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictNotSupported() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.SupportsOnConflict = false
@@ -1221,32 +1257,4 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withReturning() {
 
 func TestInsertSQLGenerator(t *testing.T) {
 	suite.Run(t, new(insertSQLGeneratorSuite))
-}
-
-func (igs *insertSQLGeneratorSuite) TestGenerate_emptyWithConflict() {
-	ic := exp.NewInsertClauses().
-		SetInto(exp.NewIdentifierExpression("", "test", "")).
-		SetOnConflict(exp.NewDoNothingConflictExpression())
-	emptyRows := ic.SetRows([]interface{}{exp.Record{}})
-
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
-		insertTestCase{clause: emptyRows, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
-	)
-
-	opts := sqlgen.DefaultDialectOptions()
-	opts.SupportsConflictWithDefaultValues = false
-	const unsupported = "goqu: dialect does not support upsert on an insert without rows [dialect=test]"
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: ic, err: unsupported},
-		insertTestCase{clause: emptyRows, err: unsupported, isPrepared: true},
-		insertTestCase{clause: ic.SetOnConflict(nil), sql: `INSERT INTO "test" DEFAULT VALUES`},
-	)
-
-	b := sb.NewSQLBuilder(false)
-	sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, ic)
-	_, _, err := b.ToSQL()
-	igs.True(goqu.IsUnsupported(err))
 }

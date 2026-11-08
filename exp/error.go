@@ -18,6 +18,10 @@ func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
 }
 
+func errRowsWithoutColumns(n int) error {
+	return errors.NewInvalidExpressionError("%d insert rows have no columns, only one row of defaults can be inserted", n)
+}
+
 func errRowKeysMismatch(expected, actual string) error {
 	return errors.NewInvalidExpressionError("rows with different keys, expected %s got %s", expected, actual)
 }

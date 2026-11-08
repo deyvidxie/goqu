@@ -76,18 +76,22 @@ func (isg *insertSQLGenerator) Generate(
 
 // Adds the correct fragment to being an INSERT statement
 func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExpression) {
-	_, isNotDoNothingConflictExpression := o.(exp.ConflictUpdateExpression)
-	// A conflict target requires a real ON CONFLICT clause: INSERT IGNORE / INSERT OR IGNORE would swallow
-	// violations of every constraint, not just the targeted one.
-	hasTarget := false
-	if dn, ok := o.(exp.ConflictNothingExpression); ok {
-		hasTarget = dn.Cols() != nil && len(dn.Cols().Columns()) > 0
-	}
-	if isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget {
+	if isg.rendersInsertIgnore(o) {
 		b.Write(isg.DialectOptions().InsertIgnoreClause)
 	} else {
 		b.Write(isg.DialectOptions().InsertClause)
 	}
+}
+
+// A conflict target requires a real ON CONFLICT clause: INSERT IGNORE / INSERT OR IGNORE would swallow
+// violations of every constraint, not just the targeted one.
+func (isg *insertSQLGenerator) rendersInsertIgnore(o exp.ConflictExpression) bool {
+	_, isNotDoNothingConflictExpression := o.(exp.ConflictUpdateExpression)
+	hasTarget := false
+	if dn, ok := o.(exp.ConflictNothingExpression); ok {
+		hasTarget = dn.Cols() != nil && len(dn.Cols().Columns()) > 0
+	}
+	return isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget
 }
 
 func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
@@ -96,7 +100,9 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 		return
 	}
 	if source == insertSourceDefaults && ic.OnConflict() != nil && !isg.DialectOptions().SupportsConflictWithDefaultValues {
-		b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
+		if !isg.rendersInsertIgnore(ic.OnConflict()) {
+			b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
+		}
 		return
 	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)

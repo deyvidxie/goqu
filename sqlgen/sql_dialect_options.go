@@ -51,8 +51,8 @@ type (
 		SupportsOnConflict bool
 		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
 		SupportsInsertIgnoreSyntax bool
-		// Set to true if the dialect accepts an upsert clause after DefaultValuesFragment; when false, OnConflict on an
-		// insert without rows returns an error (DEFAULT=true)
+		// Set to true if the dialect accepts an upsert clause after DefaultValuesFragment; when false, OnConflict there
+		// returns an error unless it renders as Insert Ignore syntax (DEFAULT=true)
 		SupportsConflictWithDefaultValues bool
 		// Set to true if the dialect supports Common Table Expressions (DEFAULT=true)
 		SupportsWithCTE bool

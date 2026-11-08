@@ -53,6 +53,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoNothing())
 		}},
+		{"upsert DEFAULT VALUES", "upsert with DEFAULT VALUES", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsConflictWithDefaultValues = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}))
+		}},
 		{"upsert WHERE", "upsert with where clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictUpdateWhere = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {

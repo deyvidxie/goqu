@@ -87,6 +87,33 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowLists() {
 	iets.EqualError(err, "goqu: unsupported insert row type []uint8, a map, goqu.Record or struct is required")
 }
 
+func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowsWithoutColumns() {
+	type skipped struct {
+		ID int `db:"id" goqu:"skipinsert"`
+	}
+	ie, err := exp.NewInsertExpression("db", exp.Record{})
+	iets.NoError(err)
+	iets.True(ie.IsEmpty())
+
+	for name, c := range map[string]struct {
+		rows []interface{}
+		want string
+	}{
+		"records": {
+			rows: []interface{}{exp.Record{}, exp.Record{}},
+			want: "goqu: 2 insert rows have no columns, only one row of defaults can be inserted",
+		},
+		"structs": {
+			rows: []interface{}{[]skipped{{ID: 1}, {ID: 2}, {ID: 3}}},
+			want: "goqu: 3 insert rows have no columns, only one row of defaults can be inserted",
+		},
+	} {
+		_, err = exp.NewInsertExpression("db", c.rows...)
+		iets.EqualError(err, c.want, name)
+		iets.True(errors.IsInvalidExpression(err), name)
+	}
+}
+
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withInvalidValue() {
 	_, err := exp.NewInsertExpression("db", true)
 	iets.EqualError(err, "goqu: unsupported insert row type bool, a map, goqu.Record or struct is required")
