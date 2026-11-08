@@ -50,6 +50,18 @@ func TestSliceComparisonsCopyTheSlice(t *testing.T) {
 	assert.Equal(t, &[]int{1}, neq.RHS())
 }
 
+func TestArrayComparisonsCopyTheArray(t *testing.T) {
+	pointed, eqPointed := [2]int{1, 2}, [2]int{1, 2}
+	a := exp.NewIdentifierExpression("", "", "a")
+	in, eq := a.In(&pointed), a.Eq(&eqPointed)
+
+	pointed[0], eqPointed[0] = 9, 9
+
+	assert.Equal(t, &[2]int{1, 2}, in.RHS())
+	assert.Equal(t, &[2]int{1, 2}, eq.RHS())
+	assert.Equal(t, exp.InOp, eq.Op())
+}
+
 func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
 	window := func(name string) exp.WindowExpression {
 		return exp.NewWindowExpression("db", exp.ParseIdentifier(name), nil, nil, nil)

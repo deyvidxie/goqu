@@ -713,26 +713,6 @@ func (v emptyArrayValuer) Value() (driver.Value, error) {
 
 type uint8Codes []uint8
 
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionArrayList() {
-	ident := exp.NewIdentifierExpression("", "", "a")
-	pair := [2]int{1, 2}
-	inPair := ident.In(&pair)
-	pair[0] = 9
-	uuid := [16]byte{1}
-	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: ident.In([2]int{1, 2}), sql: `("a" IN (1, 2))`},
-		expressionTestCase{val: ident.In([2]int{1, 2}), sql: `("a" IN (?, ?))`, isPrepared: true, args: []interface{}{int64(1), int64(2)}},
-		expressionTestCase{val: ident.NotIn([2]int{1, 2}), sql: `("a" NOT IN (1, 2))`},
-		expressionTestCase{val: exp.Ex{"a": [2]string{"x", "y"}}, sql: `("a" IN ('x', 'y'))`},
-		expressionTestCase{val: exp.Ex{"a": exp.Op{"neq": [2]int{1, 2}}}, sql: `("a" NOT IN (1, 2))`},
-		expressionTestCase{val: inPair, sql: `("a" IN (1, 2))`},
-		expressionTestCase{val: ident.Eq(uuid), sql: `("a" = ?)`, isPrepared: true, args: []interface{}{uuid}},
-		expressionTestCase{val: exp.Ex{"a": uuid}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{uuid}},
-		expressionTestCase{val: ident.Eq(uuid), err: "goqu: unable to encode value [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]"},
-	)
-}
-
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	var nilInts []int
@@ -793,6 +773,58 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
 		)
 	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ArrayList() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	pair := [2]int{1, 2}
+	inPair := ident.In(&pair)
+	pair[0] = 9
+	bytes16 := [16]byte{1}
+	for _, c := range []struct {
+		val          interface{}
+		sql          string
+		preparedSQL  string
+		preparedArgs []interface{}
+	}{
+		{
+			val: ident.In([2]int{1, 2}), sql: `("a" IN (1, 2))`,
+			preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{
+			val: ident.NotIn([2]int{1, 2}), sql: `("a" NOT IN (1, 2))`,
+			preparedSQL: `("a" NOT IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{
+			val: exp.Ex{"a": [2]string{"x", "y"}}, sql: `("a" IN ('x', 'y'))`,
+			preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{"x", "y"},
+		},
+		{
+			val: exp.Ex{"a": exp.Op{"neq": [2]int{1, 2}}}, sql: `("a" NOT IN (1, 2))`,
+			preparedSQL: `("a" NOT IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+		{val: inPair, sql: `("a" IN (1, 2))`, preparedSQL: `("a" IN (?, ?))`, preparedArgs: []interface{}{int64(1), int64(2)}},
+		{
+			val: exp.NewLiteralExpression("?", [2]int{1, 2}), sql: `(1, 2)`,
+			preparedSQL: `(?, ?)`, preparedArgs: []interface{}{int64(1), int64(2)},
+		},
+	} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+			expressionTestCase{val: c.val, sql: c.sql},
+			expressionTestCase{val: c.val, sql: c.preparedSQL, isPrepared: true, args: c.preparedArgs},
+		)
+	}
+	const unencodable = "goqu: unable to encode value [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]"
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: ident.In(bytes16), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.NotIn(bytes16), sql: `("a" NOT IN (?))`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.Eq(bytes16), sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: exp.Ex{"a": bytes16}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
+		expressionTestCase{val: ident.In(bytes16), err: unencodable},
+		expressionTestCase{val: ident.Eq(bytes16), err: unencodable},
+	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyListLHSFollowsPreparedMode() {

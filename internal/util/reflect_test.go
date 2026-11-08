@@ -376,9 +376,9 @@ func (rt *reflectTest) TestIsEmptyValue_validValues() {
 
 type uint8Codes []uint8
 
-type intArray []int
+type intSliceValuer []int
 
-func (a intArray) Value() (driver.Value, error) {
+func (a intSliceValuer) Value() (driver.Value, error) {
 	return []int(a), nil
 }
 
@@ -392,13 +392,13 @@ func (rt *reflectTest) TestIsBytesValue() {
 	for _, v := range []interface{}{[]byte{}, &[]byte{}, json.RawMessage{}, &json.RawMessage{}} {
 		rt.True(util.IsBytesValue(v), "%T", v)
 	}
-	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intArray{}} {
+	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intSliceValuer{}} {
 		rt.False(util.IsBytesValue(v), "%T", v)
 	}
 }
 
 func (rt *reflectTest) TestIsListValue() {
-	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, intArray{}, [0]int{}, [2]string{}, &[2]int{}} {
+	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, intSliceValuer{}, [0]int{}, [2]string{}, &[2]int{}} {
 		rt.True(util.IsListValue(v), "%T", v)
 	}
 	var nilArrayPtr *[2]int
@@ -408,8 +408,8 @@ func (rt *reflectTest) TestIsListValue() {
 }
 
 func (rt *reflectTest) TestIsValuerOrBytes() {
-	var nilArrayPtr *intArray
-	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intArray{}, nilArrayPtr, sql.NullInt64{}} {
+	var nilArrayPtr *intSliceValuer
+	for _, v := range []interface{}{[]byte{}, &json.RawMessage{}, intSliceValuer{}, nilArrayPtr, sql.NullInt64{}} {
 		rt.True(util.IsValuerOrBytes(v), "%T", v)
 	}
 	for _, v := range []interface{}{uint8Codes{}, []int{}, &[]int{}, "s", nil} {

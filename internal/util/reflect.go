@@ -33,14 +33,29 @@ func IsBytesValue(v any) bool {
 	}
 }
 
+var (
+	bytesType        = reflect.TypeFor[[]byte]()
+	rawMessageType   = reflect.TypeFor[json.RawMessage]()
+	driverValuerType = reflect.TypeFor[driver.Valuer]()
+)
+
 func IsListValue(v any) bool {
 	rv := reflect.Indirect(reflect.ValueOf(v))
-	switch rv.Kind() {
+	if !rv.IsValid() {
+		return false
+	}
+	if _, valuer := v.(driver.Valuer); valuer && rv.Kind() == reflect.Array {
+		return false
+	}
+	return IsListType(rv.Type())
+}
+
+func IsListType(t reflect.Type) bool {
+	switch t.Kind() {
 	case reflect.Slice:
-		return !IsBytesValue(v)
+		return t != bytesType && t != rawMessageType
 	case reflect.Array:
-		_, valuer := v.(driver.Valuer)
-		return !valuer && rv.Type().Elem().Kind() != reflect.Uint8
+		return t.Elem().Kind() != reflect.Uint8 && !t.Implements(driverValuerType)
 	default:
 		return false
 	}

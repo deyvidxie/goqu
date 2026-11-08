@@ -127,7 +127,7 @@ func isNilList(v interface{}) bool {
 		return false
 	}
 	rv := reflect.ValueOf(v)
-	return rv.Kind() == reflect.Ptr && rv.IsNil() && util.IsListValue(reflect.Zero(rv.Type().Elem()).Interface())
+	return rv.Kind() == reflect.Ptr && rv.IsNil() && util.IsListType(rv.Type().Elem())
 }
 
 func in(lhs Expression, vals ...interface{}) BooleanExpression {

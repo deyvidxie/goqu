@@ -65,6 +65,8 @@ func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	var nilBytesPtr *[]byte
 	var nilJSONPtr *json.RawMessage
 	var nilArrayPtr *intArray
+	var nilPairPtr *[2]int
+	var nilBytes16Ptr *[16]byte
 	ints := []int{1}
 
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, emptyList), ident.In(nil))
@@ -78,6 +80,19 @@ func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilBytesPtr}), ident.NotIn(nilBytesPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilJSONPtr}), ident.NotIn(nilJSONPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilArrayPtr}), ident.NotIn(nilArrayPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, emptyList), ident.In(nilPairPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, emptyList), ident.NotIn(nilPairPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilBytes16Ptr}), ident.In(nilBytes16Ptr))
+}
+
+func (ies *identifierExpressionSuite) TestArrayComparisonOps() {
+	ident := exp.ParseIdentifier("a")
+	ies.Equal(exp.InOp, ident.Eq([2]int{1, 2}).Op())
+	ies.Equal(exp.NotInOp, ident.Neq([2]int{1, 2}).Op())
+	ies.Equal(exp.InOp, ident.In([2]int{1, 2}).Op())
+	ies.Equal([2]int{1, 2}, ident.In([2]int{1, 2}).RHS())
+	ies.Equal(exp.EqOp, ident.Eq([16]byte{1}).Op())
+	ies.Equal([]interface{}{[16]byte{1}}, ident.In([16]byte{1}).RHS())
 }
 
 func TestIdentifierExpressionSuite(t *testing.T) {

@@ -72,7 +72,8 @@ Output:
 SELECT * FROM "items" WHERE ((1=0) AND (1=1))
 ```
 
-Arrays (`[N]T`) are lists like slices; byte arrays such as `[16]byte` and `driver.Valuer`s are single values.
+Arrays (`[N]T`) are lists like slices; byte arrays such as `[16]byte` and array `driver.Valuer`s are single values.
+
 For a more complete examples see the [`Op`](https://godoc.org/github.com/doug-martin/goqu#Op) and [`Ex`](https://godoc.org/github.com/doug-martin/goqu#Ex) docs
 
 <a name="ex-or"></a>
