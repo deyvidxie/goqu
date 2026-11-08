@@ -823,7 +823,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ArrayList() {
 		expressionTestCase{val: ident.Eq(bytes16), sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
 		expressionTestCase{val: exp.Ex{"a": bytes16}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{bytes16}},
 		expressionTestCase{val: ident.In(bytes16), err: unencodable},
+		expressionTestCase{val: ident.NotIn(bytes16), err: unencodable},
 		expressionTestCase{val: ident.Eq(bytes16), err: unencodable},
+		expressionTestCase{val: exp.Ex{"a": bytes16}, err: unencodable},
 	)
 }
 

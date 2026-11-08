@@ -17,7 +17,11 @@ const (
 	omitEmptyTagName      = "omitempty"
 )
 
-var scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+var (
+	scannerType    = reflect.TypeFor[sql.Scanner]()
+	bytesType      = reflect.TypeFor[[]byte]()
+	rawMessageType = reflect.TypeFor[json.RawMessage]()
+)
 
 func IsValuerOrBytes(v any) bool {
 	_, ok := v.(driver.Valuer)
@@ -32,12 +36,6 @@ func IsBytesValue(v any) bool {
 		return false
 	}
 }
-
-var (
-	bytesType        = reflect.TypeFor[[]byte]()
-	rawMessageType   = reflect.TypeFor[json.RawMessage]()
-	driverValuerType = reflect.TypeFor[driver.Valuer]()
-)
 
 func IsListValue(v any) bool {
 	rv := reflect.Indirect(reflect.ValueOf(v))
@@ -55,7 +53,7 @@ func IsListType(t reflect.Type) bool {
 	case reflect.Slice:
 		return t != bytesType && t != rawMessageType
 	case reflect.Array:
-		return t.Elem().Kind() != reflect.Uint8 && !t.Implements(driverValuerType)
+		return t.Elem().Kind() != reflect.Uint8
 	default:
 		return false
 	}

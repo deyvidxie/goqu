@@ -51,9 +51,9 @@ func (ies *identifierExpressionSuite) TestEqWithTypedNulls() {
 	ies.Equal(exp.NewBooleanExpression(exp.NeqOp, ident, valid), ident.Neq(valid))
 }
 
-type intArray []int
+type intSliceValuer []int
 
-func (a intArray) Value() (driver.Value, error) {
+func (a intSliceValuer) Value() (driver.Value, error) {
 	return []int(a), nil
 }
 
@@ -64,7 +64,7 @@ func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	var nilInt *int
 	var nilBytesPtr *[]byte
 	var nilJSONPtr *json.RawMessage
-	var nilArrayPtr *intArray
+	var nilSliceValuerPtr *intSliceValuer
 	var nilPairPtr *[2]int
 	var nilBytes16Ptr *[16]byte
 	ints := []int{1}
@@ -79,7 +79,7 @@ func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilInt}), ident.In(nilInt))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilBytesPtr}), ident.NotIn(nilBytesPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilJSONPtr}), ident.NotIn(nilJSONPtr))
-	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilArrayPtr}), ident.NotIn(nilArrayPtr))
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{nilSliceValuerPtr}), ident.NotIn(nilSliceValuerPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, emptyList), ident.In(nilPairPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, emptyList), ident.NotIn(nilPairPtr))
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilBytes16Ptr}), ident.In(nilBytes16Ptr))
