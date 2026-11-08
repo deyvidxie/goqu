@@ -1,7 +1,7 @@
 package goqu_test
 
 import (
-	gsql "database/sql"
+	dbsql "database/sql"
 	"net/netip"
 	"testing"
 	"time"
@@ -1367,29 +1367,78 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 	sds.False(goqu.IsUnsupportedScanType(unmappedErr))
 }
 
-func (sds *selectDatasetSuite) TestScanStructs_rejectsTargetsThatAreNotRows() {
-	mDB, sqlMock, err := sqlmock.New()
+type dsHiddenColumns struct {
+	X int `db:"x"`
+}
+
+type dsUnexportedEmbedRow struct {
+	*dsHiddenColumns
+	ID int `db:"id"`
+}
+
+func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
+	mDB, _, err := sqlmock.New()
 	sds.Require().NoError(err)
 	db := goqu.New("mock", mDB)
-	var nullStrings []gsql.NullString
+	var nullStrings []dbsql.NullString
 	var times []time.Time
 	var names []string
-	var nullString gsql.NullString
+	var nullString dbsql.NullString
 	var addr netip.Addr
 	var user *dsTestActionItem
+	var embedRows []dsUnexportedEmbedRow
 	for name, scan := range map[string]func() error{
-		"[]sql.NullString": func() error { return db.From("items").ScanStructs(&nullStrings) },
-		"[]time.Time":      func() error { return db.From("items").ScanStructs(&times) },
-		"[]string":         func() error { return db.From("items").ScanStructs(&names) },
-		"*sql.NullString":  func() error { _, err := db.From("items").ScanStruct(&nullString); return err },
-		"*netip.Addr":      func() error { _, err := db.From("items").ScanStruct(&addr); return err },
-		"**T":              func() error { _, err := db.From("items").ScanStruct(&user); return err },
+		"[]sql.NullString":       func() error { return db.From("items").ScanStructs(&nullStrings) },
+		"[]time.Time":            func() error { return db.From("items").ScanStructs(&times) },
+		"[]string":               func() error { return db.From("items").ScanStructs(&names) },
+		"[]string value":         func() error { return db.From("items").ScanStructs([]string{}) },
+		"*sql.NullString":        func() error { _, err := db.From("items").ScanStruct(&nullString); return err },
+		"*netip.Addr":            func() error { _, err := db.From("items").ScanStruct(&addr); return err },
+		"**T":                    func() error { _, err := db.From("items").ScanStruct(&user); return err },
+		"struct value":           func() error { _, err := db.From("items").ScanStruct(dsTestActionItem{}); return err },
+		"auto-selected embed []": func() error { return db.From("items").ScanStructs(&embedRows) },
 	} {
 		var scanErr error
 		sds.NotPanics(func() { scanErr = scan() }, name)
 		sds.True(goqu.IsUnsupportedScanType(scanErr), "%s: %v", name, scanErr)
 	}
-	sds.NoError(sqlMock.ExpectationsWereMet())
+}
+
+func (sds *selectDatasetSuite) TestStructScans_rejectedTargetLeavesTheDatasetUsable() {
+	mDB, sqlMock, err := sqlmock.New()
+	sds.Require().NoError(err)
+	ds := goqu.New("mock", mDB).From("items")
+	var nullStrings []dbsql.NullString
+	sds.True(goqu.IsUnsupportedScanType(ds.ScanStructs(&nullStrings)))
+
+	sql, _, err := ds.ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "items"`, sql)
+	sqlMock.ExpectQuery(`SELECT "address", "name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"address", "name"}).AddRow("111 Test Addr", "Test1"))
+	var items []dsTestActionItem
+	sds.NoError(ds.ScanStructs(&items))
+	sds.Len(items, 1)
+}
+
+func (sds *selectDatasetSuite) TestStructScans_acceptCallerFilledUnexportedEmbeds() {
+	mDB, sqlMock, err := sqlmock.New()
+	sds.Require().NoError(err)
+	db := goqu.New("mock", mDB)
+
+	sqlMock.ExpectQuery(`SELECT "id", "x" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "x"}).AddRow(1, 2))
+	row := dsUnexportedEmbedRow{dsHiddenColumns: &dsHiddenColumns{}}
+	found, err := db.From("items").ScanStruct(&row)
+	sds.Require().NoError(err)
+	sds.True(found)
+	sds.Equal(dsUnexportedEmbedRow{dsHiddenColumns: &dsHiddenColumns{X: 2}, ID: 1}, row)
+
+	sqlMock.ExpectQuery(`SELECT "id" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(3))
+	var rows []dsUnexportedEmbedRow
+	sds.Require().NoError(db.From("items").Select("id").ScanStructs(&rows))
+	sds.Equal([]dsUnexportedEmbedRow{{ID: 3}}, rows)
 }
 
 func (sds *selectDatasetSuite) TestScanStruct() {

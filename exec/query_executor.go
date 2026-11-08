@@ -122,7 +122,7 @@ func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bo
 	if !util.IsStruct(val.Kind()) {
 		return false, errScanStructTarget(i)
 	}
-	if err := scantype.StructType(val.Type(), q.tagName); err != nil {
+	if err := scantype.StructTarget(val.Type(), q.tagName); err != nil {
 		return false, err
 	}
 

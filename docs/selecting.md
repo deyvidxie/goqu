@@ -977,8 +977,6 @@ Scans rows into a slice of structs
 
 **NOTE** [`ScanStructs`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanStructs) will only select the columns that can be scanned in to the structs unless you have explicitly selected certain columns.
 
-`ScanStructs` and `ScanStruct` need a row struct: a type that scans as one column (`time.Time`, `sql.NullString`, any `sql.Scanner` from `database/sql`), a struct with no scannable fields or a non-struct element returns `goqu.UnsupportedScanTypeError`, before the query runs when the columns are auto-selected. Use `ScanVals`/`ScanVal` for those.
-
  ```go
 type User struct{
   FirstName string `db:"first_name"`
@@ -1000,6 +998,8 @@ if err := db.From("user").Select("first_name").ScanStructs(&users); err != nil{
 }
 fmt.Printf("\n%+v", users)
 ```
+
+`ScanStructs` and `ScanStruct` return `goqu.UnsupportedScanTypeError` for a target that is not a row struct (`time.Time`, a `database/sql` type such as `sql.NullString`, a struct with no scannable fields, a non-struct); scan one-column types with `ScanVals`/`ScanVal`.
 
 Fields whose type is a non-empty interface that `sql.Scanner` values can be stored in (such as `sql.Scanner` itself) can be scanned into by setting the field to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. If the field is `nil`, holds a non-pointer, or you use `ScanStructs`, `ScanAllStructs` or `ScanOneStruct` (which create new structs), these methods return an error. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
 

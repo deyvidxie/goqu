@@ -20,6 +20,14 @@ func Struct[T any](tagName string) error {
 }
 
 func StructType(t reflect.Type, tagName string) error {
+	return structType(t, tagName, false)
+}
+
+func StructTarget(t reflect.Type, tagName string) error {
+	return structType(t, tagName, true)
+}
+
+func structType(t reflect.Type, tagName string, callerSuppliesEmbeds bool) error {
 	elem := util.Deref(t)
 	if !util.IsStruct(elem.Kind()) {
 		return errNotStructTarget(t)
@@ -28,7 +36,9 @@ func StructType(t reflect.Type, tagName string) error {
 	case util.ColumnMapNonStructEmbed:
 		return errNonStructEmbed(t, problem, tagName)
 	case util.ColumnMapUnexportedPointerEmbed:
-		return errUnexportedPointerEmbed(t, problem, tagName)
+		if !callerSuppliesEmbeds {
+			return errUnexportedPointerEmbed(t, problem, tagName)
+		}
 	case util.ColumnMapCycle:
 		return errFieldCycle(t, problem, tagName)
 	case util.ColumnMapOK:

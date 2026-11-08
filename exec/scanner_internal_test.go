@@ -2,9 +2,11 @@ package exec
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -67,4 +69,21 @@ func (s *scannerSuite) TestScanVals() {
 	err = sc.ScanVals(&result)
 	s.Require().NoError(err)
 	s.Require().ElementsMatch([]int{1, 2}, result)
+}
+
+func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
+	db, mock, err := sqlmock.New()
+	s.Require().NoError(err)
+	mock.ExpectQuery(`SELECT \* FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"string", "valid"}).AddRow("a", true))
+	rows, err := db.QueryContext(context.Background(), `SELECT * FROM "items"`)
+	s.Require().NoError(err)
+
+	sc := NewScanner(rows, "db")
+	s.Require().True(sc.Next())
+	err = sc.ScanStruct(&sql.NullString{})
+	s.EqualError(err, "goqu: cannot scan rows into *sql.NullString, which scans as one column; "+
+		"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]")
+	s.True(errors.IsUnsupportedScanType(err))
+	s.NoError(sc.Close())
 }

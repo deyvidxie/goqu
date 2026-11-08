@@ -17,6 +17,15 @@ type scannerRow struct {
 
 func (r *scannerRow) Scan(interface{}) error { return nil }
 
+type hiddenColumns struct {
+	X int `db:"x"`
+}
+
+type unexportedEmbedRow struct {
+	*hiddenColumns
+	ID int `db:"id"`
+}
+
 func TestStructTargetsMustBeRows(t *testing.T) {
 	for target, want := range map[interface{}]string{
 		&[]sql.NullString{}: "goqu: cannot scan rows into sql.NullString, which scans as one column; " +
@@ -40,6 +49,14 @@ func TestStructTargetsMustBeRows(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = checkScanStructsTarget(&[]*scannerRow{}, "db")
 	assert.NoError(t, err)
+	_, err = checkScanStructsTarget(&[]unexportedEmbedRow{}, "db")
+	assert.NoError(t, err)
+
+	queryErr := errNoFieldForColumn("query not run")
+	_, err = QueryExecutor{err: queryErr}.ScanStruct(&scannerRow{})
+	assert.Equal(t, queryErr, err)
+	_, err = QueryExecutor{err: queryErr}.ScanStruct(&unexportedEmbedRow{})
+	assert.Equal(t, queryErr, err)
 }
 
 func TestNilScanTargets(t *testing.T) {
