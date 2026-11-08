@@ -35,6 +35,7 @@ type (
 
 const (
 	insertSourceValues insertSource = iota
+	insertSourceDefaults
 	insertSourceQuery
 	insertSourceComplete
 )
@@ -94,6 +95,10 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	if source == insertSourceComplete || b.Error() != nil {
 		return
 	}
+	if source == insertSourceDefaults && ic.OnConflict() != nil && !isg.DialectOptions().SupportsConflictWithDefaultValues {
+		b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
+		return
+	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
 	if err != nil {
 		b.SetError(err)
@@ -118,6 +123,9 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		if ie.IsInsertFrom() {
 			return insertSourceQuery
 		}
+		if ie.IsEmpty() {
+			return insertSourceDefaults
+		}
 	case ic.HasCols() && ic.HasVals():
 		isg.insertColumnsSQL(b, ic.Cols())
 		isg.insertValuesSQL(b, ic.Vals())
@@ -129,6 +137,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		return insertSourceQuery
 	default:
 		isg.defaultValuesSQL(b)
+		return insertSourceDefaults
 	}
 	return insertSourceValues
 }

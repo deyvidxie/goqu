@@ -490,3 +490,15 @@ func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 		"ON DUPLICATE KEY UPDATE `b`=CASE  WHEN (1=0) THEN 1 ELSE 2 END", sql)
 	assert.Empty(t, args)
 }
+
+func TestInsertWithoutRows(t *testing.T) {
+	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(d).Insert("test")
+		sql, _, err := ds.ToSQL()
+		assert.NoError(t, err, d)
+		assert.Equal(t, "INSERT INTO `test` () VALUES ()", sql, d)
+		sql, _, err = ds.OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
+		assert.NoError(t, err, d)
+		assert.Equal(t, "INSERT INTO `test` () VALUES () ON DUPLICATE KEY UPDATE `a`='b'", sql, d)
+	}
+}

@@ -778,3 +778,19 @@ func (mt *mysqlTest) TestInsertFromSelect() {
 func TestMysqlSuite(t *testing.T) {
 	suite.Run(t, new(mysqlTest))
 }
+
+func (mt *mysqlTest) TestInsert_withoutRows() {
+	_, err := mt.db.Exec("CREATE TABLE empty_insert (id INT AUTO_INCREMENT PRIMARY KEY, a VARCHAR(5) NOT NULL DEFAULT 'x')")
+	mt.Require().NoError(err)
+	mt.T().Cleanup(func() {
+		_, err := mt.db.Exec("DROP TABLE empty_insert")
+		mt.NoError(err)
+	})
+	for _, prepared := range []bool{false, true} {
+		_, err = mt.db.Insert("empty_insert").Prepared(prepared).Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+	}
+	var as []string
+	mt.Require().NoError(mt.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
+	mt.Equal([]string{"x", "x"}, as)
+}

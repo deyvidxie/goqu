@@ -304,3 +304,21 @@ func TestIntervalIsError(t *testing.T) {
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlite3]`)
 	assert.True(t, goqu.IsUnsupported(err))
 }
+
+func TestInsertWithoutRows(t *testing.T) {
+	ds := goqu.Dialect("sqlite3").Insert("test")
+	sql, _, err := ds.ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO `test` DEFAULT VALUES", sql)
+	sql, _, err = ds.Returning("id").ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO `test` DEFAULT VALUES RETURNING `id`", sql)
+	for name, conflict := range map[string]exp.ConflictExpression{
+		"do nothing": goqu.DoNothing(),
+		"do update":  goqu.DoUpdate("id", goqu.Record{"a": "b"}),
+	} {
+		_, _, err = ds.OnConflict(conflict).ToSQL()
+		assert.EqualError(t, err, "goqu: dialect does not support upsert on an insert without rows [dialect=sqlite3]", name)
+		assert.True(t, goqu.IsUnsupported(err), name)
+	}
+}

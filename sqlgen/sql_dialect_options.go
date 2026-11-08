@@ -51,6 +51,9 @@ type (
 		SupportsOnConflict bool
 		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
 		SupportsInsertIgnoreSyntax bool
+		// Set to true if the dialect accepts an upsert clause after DefaultValuesFragment; when false, OnConflict on an
+		// insert without rows returns an error (DEFAULT=true)
+		SupportsConflictWithDefaultValues bool
 		// Set to true if the dialect supports Common Table Expressions (DEFAULT=true)
 		SupportsWithCTE bool
 		// Set to true if the dialect supports recursive Common Table Expressions (DEFAULT=true)
@@ -99,7 +102,7 @@ type (
 		// The RESTRICT fragment to use when generating sql. (DEFAULT=[]byte(" RESTRICT"))
 		RestrictFragment []byte
 		// The SQL fragment to use when generating insert sql and using
-		// DEFAULT VALUES (e.g. postgres="DEFAULT VALUES", mysql="", sqlite3=""). (DEFAULT=[]byte(" DEFAULT VALUES"))
+		// DEFAULT VALUES (e.g. postgres=" DEFAULT VALUES", mysql=" () VALUES ()"). (DEFAULT=[]byte(" DEFAULT VALUES"))
 		DefaultValuesFragment []byte
 		// The SQL fragment to use when generating insert sql and listing columns using a VALUES clause
 		// (DEFAULT=[]byte(" VALUES "))
@@ -508,26 +511,27 @@ const (
 //nolint:funlen
 func DefaultDialectOptions() *SQLDialectOptions {
 	return &SQLDialectOptions{
-		SupportsOrderByOnDelete:     false,
-		SupportsDeleteTableHint:     false,
-		SupportsOrderByOnUpdate:     false,
-		SupportsLimitOnDelete:       false,
-		SupportsLimitOnUpdate:       false,
-		SupportsLimitAll:            true,
-		SupportsReturn:              true,
-		SupportsConflictUpdateWhere: true,
-		SupportsOnConflict:          true,
-		SupportsInsertIgnoreSyntax:  false,
-		SupportsConflictTarget:      true,
-		SupportsWithCTE:             true,
-		SupportsWithCTERecursive:    true,
-		SupportsDistinctOn:          true,
-		WrapCompoundsInParens:       true,
-		SupportsWindowFunction:      true,
-		SupportsLateral:             true,
-		SupportsQualify:             false,
-		SupportsMySQLJSONFunctions:  false,
-		SupportsLockOf:              true,
+		SupportsOrderByOnDelete:           false,
+		SupportsDeleteTableHint:           false,
+		SupportsOrderByOnUpdate:           false,
+		SupportsLimitOnDelete:             false,
+		SupportsLimitOnUpdate:             false,
+		SupportsLimitAll:                  true,
+		SupportsReturn:                    true,
+		SupportsConflictUpdateWhere:       true,
+		SupportsOnConflict:                true,
+		SupportsInsertIgnoreSyntax:        false,
+		SupportsConflictWithDefaultValues: true,
+		SupportsConflictTarget:            true,
+		SupportsWithCTE:                   true,
+		SupportsWithCTERecursive:          true,
+		SupportsDistinctOn:                true,
+		WrapCompoundsInParens:             true,
+		SupportsWindowFunction:            true,
+		SupportsLateral:                   true,
+		SupportsQualify:                   false,
+		SupportsMySQLJSONFunctions:        false,
+		SupportsLockOf:                    true,
 
 		SupportsMultipleUpdateTables:         true,
 		UseFromClauseForMultipleUpdateTables: true,
