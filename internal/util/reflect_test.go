@@ -382,12 +382,28 @@ func (a intArray) Value() (driver.Value, error) {
 	return []int(a), nil
 }
 
+type valuerPair [2]int
+
+func (p valuerPair) Value() (driver.Value, error) {
+	return p[0], nil
+}
+
 func (rt *reflectTest) TestIsBytesValue() {
 	for _, v := range []interface{}{[]byte{}, &[]byte{}, json.RawMessage{}, &json.RawMessage{}} {
 		rt.True(util.IsBytesValue(v), "%T", v)
 	}
 	for _, v := range []interface{}{uint8Codes{}, []int{}, "s", nil, intArray{}} {
 		rt.False(util.IsBytesValue(v), "%T", v)
+	}
+}
+
+func (rt *reflectTest) TestIsListValue() {
+	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, intArray{}, [0]int{}, [2]string{}, &[2]int{}} {
+		rt.True(util.IsListValue(v), "%T", v)
+	}
+	var nilArrayPtr *[2]int
+	for _, v := range []interface{}{[]byte{}, json.RawMessage{}, [16]byte{}, valuerPair{}, nilArrayPtr, "s", 1, nil} {
+		rt.False(util.IsListValue(v), "%T", v)
 	}
 }
 

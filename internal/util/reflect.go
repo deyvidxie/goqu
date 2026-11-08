@@ -33,6 +33,19 @@ func IsBytesValue(v any) bool {
 	}
 }
 
+func IsListValue(v any) bool {
+	rv := reflect.Indirect(reflect.ValueOf(v))
+	switch rv.Kind() {
+	case reflect.Slice:
+		return !IsBytesValue(v)
+	case reflect.Array:
+		_, valuer := v.(driver.Valuer)
+		return !valuer && rv.Type().Elem().Kind() != reflect.Uint8
+	default:
+		return false
+	}
+}
+
 func IsUint(k reflect.Kind) bool {
 	return (k == reflect.Uint) ||
 		(k == reflect.Uint8) ||

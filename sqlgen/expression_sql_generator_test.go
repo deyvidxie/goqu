@@ -713,6 +713,26 @@ func (v emptyArrayValuer) Value() (driver.Value, error) {
 
 type uint8Codes []uint8
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionArrayList() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	pair := [2]int{1, 2}
+	inPair := ident.In(&pair)
+	pair[0] = 9
+	uuid := [16]byte{1}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: ident.In([2]int{1, 2}), sql: `("a" IN (1, 2))`},
+		expressionTestCase{val: ident.In([2]int{1, 2}), sql: `("a" IN (?, ?))`, isPrepared: true, args: []interface{}{int64(1), int64(2)}},
+		expressionTestCase{val: ident.NotIn([2]int{1, 2}), sql: `("a" NOT IN (1, 2))`},
+		expressionTestCase{val: exp.Ex{"a": [2]string{"x", "y"}}, sql: `("a" IN ('x', 'y'))`},
+		expressionTestCase{val: exp.Ex{"a": exp.Op{"neq": [2]int{1, 2}}}, sql: `("a" NOT IN (1, 2))`},
+		expressionTestCase{val: inPair, sql: `("a" IN (1, 2))`},
+		expressionTestCase{val: ident.Eq(uuid), sql: `("a" = ?)`, isPrepared: true, args: []interface{}{uuid}},
+		expressionTestCase{val: exp.Ex{"a": uuid}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{uuid}},
+		expressionTestCase{val: ident.Eq(uuid), err: "goqu: unable to encode value [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]"},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	var nilInts []int
@@ -733,6 +753,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: ident.In([]interface{}{}), sql: `(1=0)`},
 		{val: ident.In(&emptyStrings), sql: `(1=0)`},
 		{val: ident.In(uint8Codes{}), sql: `(1=0)`},
+		{val: ident.In([0]int{}), sql: `(1=0)`},
+		{val: ident.In((*[2]int)(nil)), sql: `(1=0)`},
+		{val: exp.Ex{"a": [0]string{}}, sql: `(1=0)`},
 		{val: ident.Eq([]int{}), sql: `(1=0)`},
 		{val: exp.Ex{"a": []string{}}, sql: `(1=0)`},
 		{val: exp.Ex{"a": nilInts}, sql: `(1=0)`},
@@ -743,6 +766,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		{val: exp.Ex{"a": exp.Op{"is": []int{}}}, sql: `(1=0)`},
 		{val: exp.NewLiteralExpression("? + 1", 5).In([]int{}), sql: `(1=0)`},
 		{val: ident.NotIn([]int{}), sql: `(1=1)`},
+		{val: ident.NotIn([0]int{}), sql: `(1=1)`},
 		{val: ident.NotIn(nil), sql: `(1=1)`},
 		{val: ident.NotIn(nilIntsPtr), sql: `(1=1)`},
 		{val: ident.NotIn(), sql: `(1=1)`},

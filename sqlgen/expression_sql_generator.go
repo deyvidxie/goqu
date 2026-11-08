@@ -213,6 +213,8 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 		esg.sliceValueSQL(b, v)
+	case valKind == reflect.Array && util.IsListValue(val):
+		esg.sliceValueSQL(b, v)
 	case util.IsInt(valKind):
 		esg.Generate(b, v.Int())
 	case util.IsUint(valKind):
@@ -539,11 +541,10 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if util.IsValuerOrBytes(rhs) {
+	if util.IsValuerOrBytes(rhs) || !util.IsListValue(rhs) {
 		return false
 	}
-	v := reflect.Indirect(reflect.ValueOf(rhs))
-	return v.Kind() == reflect.Slice && v.Len() == 0
+	return reflect.Indirect(reflect.ValueOf(rhs)).Len() == 0
 }
 
 func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
