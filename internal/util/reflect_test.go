@@ -414,6 +414,9 @@ func (rt *reflectTest) TestIsListValue() {
 	for _, v := range notLists {
 		rt.False(util.IsListValue(v), "%T", v)
 	}
+}
+
+func (rt *reflectTest) TestIsListType() {
 	rt.True(util.IsListType(reflect.TypeFor[[2]int]()))
 	rt.False(util.IsListType(reflect.TypeFor[[16]byte]()))
 	rt.False(util.IsListType(reflect.TypeFor[json.RawMessage]()))

@@ -171,7 +171,7 @@ func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
 	ret.rows = slices.Clone(rows)
 	if len(rows) == 1 {
-		ret.rows[0] = cloneSlice(rows[0])
+		ret.rows[0] = cloneList(rows[0])
 	}
 	return ret
 }

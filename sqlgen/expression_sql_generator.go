@@ -541,7 +541,7 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if util.IsValuerOrBytes(rhs) || !util.IsListValue(rhs) {
+	if _, valuer := rhs.(driver.Valuer); valuer || !util.IsListValue(rhs) {
 		return false
 	}
 	return reflect.Indirect(reflect.ValueOf(rhs)).Len() == 0

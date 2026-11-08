@@ -79,7 +79,7 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 	}
 	if len(vals) == 1 {
 		if util.IsListValue(vals[0]) {
-			return NewBooleanExpression(op, lhs, cloneSlice(vals[0]))
+			return NewBooleanExpression(op, lhs, cloneList(vals[0]))
 		}
 		if _, ok := vals[0].(AppendableExpression); ok {
 			return NewBooleanExpression(op, lhs, vals[0])
@@ -94,12 +94,12 @@ func cloneArgs(args []interface{}) []interface{} {
 	}
 	cloned := make([]interface{}, len(args))
 	for i, arg := range args {
-		cloned[i] = cloneSlice(arg)
+		cloned[i] = cloneList(arg)
 	}
 	return cloned
 }
 
-func cloneSlice(v interface{}) interface{} {
+func cloneList(v interface{}) interface{} {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr && !rv.IsNil() && rv.Elem().Kind() == reflect.Array {
 		ptr := reflect.New(rv.Elem().Type())
@@ -108,7 +108,7 @@ func cloneSlice(v interface{}) interface{} {
 	}
 	if rv.Kind() == reflect.Ptr && !rv.IsNil() && rv.Elem().Kind() == reflect.Slice {
 		ptr := reflect.New(rv.Elem().Type())
-		ptr.Elem().Set(reflect.ValueOf(cloneSlice(rv.Elem().Interface())))
+		ptr.Elem().Set(reflect.ValueOf(cloneList(rv.Elem().Interface())))
 		return ptr.Interface()
 	}
 	if rv.Kind() != reflect.Slice || rv.IsNil() {
@@ -221,7 +221,7 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Slice, reflect.Array:
 			if util.IsListValue(rhs) {
 				op = InOp
-				rhs = cloneSlice(rhs)
+				rhs = cloneList(rhs)
 			}
 		case reflect.Struct:
 			switch rhs.(type) {
