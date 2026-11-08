@@ -84,8 +84,8 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_noFrom() {
 	dc := exp.NewDeleteClauses()
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		deleteTestCase{clause: dc, err: sqlgen.ErrNoSourceForDelete.Error()},
-		deleteTestCase{clause: dc, err: sqlgen.ErrNoSourceForDelete.Error(), isPrepared: true},
+		deleteTestCase{clause: dc, err: "goqu: no source found when generating delete sql"},
+		deleteTestCase{clause: dc, err: "goqu: no source found when generating delete sql", isPrepared: true},
 	)
 }
 
@@ -124,26 +124,26 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withCommonTables() {
 	)
 
 	opts.SupportsWithCTE = false
-	expectedErr := sqlgen.ErrCTENotSupported("test")
+	expectedErr := "goqu: dialect does not support CTE WITH clause [dialect=test]"
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
-		deleteTestCase{clause: dcCte1, err: expectedErr.Error()},
-		deleteTestCase{clause: dcCte1, err: expectedErr.Error(), isPrepared: true},
+		deleteTestCase{clause: dcCte1, err: expectedErr},
+		deleteTestCase{clause: dcCte1, err: expectedErr, isPrepared: true},
 
-		deleteTestCase{clause: dcCte2, err: expectedErr.Error()},
-		deleteTestCase{clause: dcCte2, err: expectedErr.Error(), isPrepared: true},
+		deleteTestCase{clause: dcCte2, err: expectedErr},
+		deleteTestCase{clause: dcCte2, err: expectedErr, isPrepared: true},
 	)
 
 	opts.SupportsWithCTE = true
 	opts.SupportsWithCTERecursive = false
-	expectedErr = sqlgen.ErrRecursiveCTENotSupported("test")
+	expectedErr = "goqu: dialect does not support CTE WITH RECURSIVE clause [dialect=test]"
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
 		deleteTestCase{clause: dcCte1, sql: `with test_cte AS (select * from foo) DELETE FROM "test_cte"`},
 		deleteTestCase{clause: dcCte1, sql: `with test_cte AS (select * from foo) DELETE FROM "test_cte"`, isPrepared: true},
 
-		deleteTestCase{clause: dcCte2, err: expectedErr.Error()},
-		deleteTestCase{clause: dcCte2, err: expectedErr.Error(), isPrepared: true},
+		deleteTestCase{clause: dcCte2, err: expectedErr},
+		deleteTestCase{clause: dcCte2, err: expectedErr, isPrepared: true},
 	)
 }
 

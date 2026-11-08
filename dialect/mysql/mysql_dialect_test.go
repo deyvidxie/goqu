@@ -8,7 +8,6 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	goqumysql "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -355,7 +354,7 @@ func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
 			for _, ds := range upserts(goqu.Dialect(strict)) {
 				_, _, err := ds.ToSQL()
 				assert.EqualError(t, err, "goqu: dialect does not support Conflict Target clause [dialect="+strict+"]")
-				assert.True(t, sqlgen.IsUnsupported(err))
+				assert.True(t, goqu.IsUnsupported(err))
 			}
 			_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).
 				OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
@@ -446,7 +445,7 @@ func TestInsertOnConflictDoUpdateExcluded(t *testing.T) {
 			sql, _, err := tc.ds(goqu.Dialect(tc.dialect)).ToSQL()
 			if tc.err != "" {
 				assert.EqualError(t, err, tc.err)
-				assert.True(t, sqlgen.IsUnsupported(err))
+				assert.True(t, goqu.IsUnsupported(err))
 				return
 			}
 			assert.NoError(t, err)

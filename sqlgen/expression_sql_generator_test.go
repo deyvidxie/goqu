@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
@@ -376,9 +377,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
 			val: datasetValuerType{int: 10}, sql: "?", isPrepared: true, args: []interface{}{[]byte("Hello World 10")},
 		},
 
-		expressionTestCase{val: datasetValuerType{err: err}, err: "valuer error"},
+		expressionTestCase{val: datasetValuerType{err: err}, err: "goqu: driver.Valuer sqlgen_test.datasetValuerType: valuer error"},
 		expressionTestCase{
-			val: datasetValuerType{err: err}, isPrepared: true, err: "valuer error",
+			val: datasetValuerType{err: err}, isPrepared: true, err: "goqu: driver.Valuer sqlgen_test.datasetValuerType: valuer error",
 		},
 		expressionTestCase{
 			val: val, sql: "NULL",
@@ -386,6 +387,12 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_Valuer() {
 		expressionTestCase{val: &datasetValuerType{int: 10}, sql: "'Hello World 10'"},
 		expressionTestCase{val: (*pointerValuer)(nil), sql: "'pointer'"},
 	)
+
+	b := sb.NewSQLBuilder(false)
+	sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()).Generate(b, datasetValuerType{err: err})
+	_, _, genErr := b.ToSQL()
+	esgs.True(goqu.IsInvalidExpression(genErr))
+	esgs.ErrorIs(genErr, err)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_Slice() {
@@ -862,7 +869,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		b := sb.NewSQLBuilder(false)
 		sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, val)
 		_, _, err := b.ToSQL()
-		esgs.True(sqlgen.IsInvalidExpression(err))
+		esgs.True(goqu.IsInvalidExpression(err))
 	}
 }
 
@@ -1129,15 +1136,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLWindowFunctionExpressio
 		expressionTestCase{val: emptyWinFunc, sql: `some_func() OVER ()`},
 		expressionTestCase{val: emptyWinFunc, sql: `some_func() OVER ()`, isPrepared: true},
 
-		expressionTestCase{val: badNamedSQLWinFuncInherit, err: sqlgen.ErrUnexpectedNamedWindow.Error()},
-		expressionTestCase{val: badNamedSQLWinFuncInherit, err: sqlgen.ErrUnexpectedNamedWindow.Error(), isPrepared: true},
+		expressionTestCase{val: badNamedSQLWinFuncInherit, err: "goqu: unexpected named window function"},
+		expressionTestCase{val: badNamedSQLWinFuncInherit, err: "goqu: unexpected named window function", isPrepared: true},
 	)
 	opts := sqlgen.DefaultDialectOptions()
 	opts.SupportsWindowFunction = false
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: sqlWinFunc, err: sqlgen.ErrWindowNotSupported("test").Error()},
-		expressionTestCase{val: sqlWinFunc, err: sqlgen.ErrWindowNotSupported("test").Error(), isPrepared: true},
+		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
+		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
 	)
 }
 
@@ -1206,8 +1213,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_WindowExpression() {
 	opts.SupportsWindowFunction = false
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", opts),
-		expressionTestCase{val: emptySQLWinFunc, err: sqlgen.ErrWindowNotSupported("test").Error()},
-		expressionTestCase{val: emptySQLWinFunc, err: sqlgen.ErrWindowNotSupported("test").Error(), isPrepared: true},
+		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
+		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
 	)
 }
 
@@ -1471,16 +1478,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 		_, _, err := b.ToSQL()
 		return err
 	}
-	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(7))))
-	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(1, 2))))
-	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, unknownTimeFunction{exp.NewNowExpression()})))
-	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, "x"))))
-	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewNowExpression(6))))
-	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLServerTimeStyle, exp.NewIntervalExpression(1, exp.SecondInterval))))
-	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression())))
-	esgs.True(sqlgen.IsUnsupported(render(99, exp.NewNowExpression(7))))
-	esgs.True(sqlgen.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
-	esgs.True(sqlgen.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
+	esgs.True(goqu.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(7))))
+	esgs.True(goqu.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewNowExpression(1, 2))))
+	esgs.True(goqu.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, unknownTimeFunction{exp.NewNowExpression()})))
+	esgs.True(goqu.IsInvalidExpression(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(goqu.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewNowExpression(6))))
+	esgs.True(goqu.IsUnsupported(render(sqlgen.SQLServerTimeStyle, exp.NewIntervalExpression(1, exp.SecondInterval))))
+	esgs.True(goqu.IsUnsupported(render(99, exp.NewNowExpression())))
+	esgs.True(goqu.IsUnsupported(render(99, exp.NewNowExpression(7))))
+	esgs.True(goqu.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
+	esgs.True(goqu.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
 }
 
 type (
@@ -1540,7 +1547,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
 		sqlgen.NewExpressionSQLGenerator("test", timeStyleOptions(tc.style)).Generate(b, exp.NewIntervalExpression(tc.count, tc.unit))
 		_, _, err := b.ToSQL()
 		esgs.EqualError(err, tc.err, "%T", tc.count)
-		esgs.True(sqlgen.IsInvalidExpression(err), "%T", tc.count)
+		esgs.True(goqu.IsInvalidExpression(err), "%T", tc.count)
 	}
 
 	b := sb.NewSQLBuilder(false)
@@ -1707,7 +1714,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 		Generate(b, unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
 	_, _, err := b.ToSQL()
 	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
-	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.True(goqu.IsInvalidExpression(err))
 
 	do := sqlgen.DefaultDialectOptions()
 	do.SupportsMySQLJSONFunctions = true
@@ -1717,23 +1724,23 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_JSONExpressionErrorTypes()
 		_, _, err := b.ToSQL()
 		return err
 	}
-	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
-	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
-	esgs.True(sqlgen.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
+	esgs.True(goqu.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", 1, "$.a", "$.b"))))
+	esgs.True(goqu.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", []byte("{")))))
+	esgs.True(goqu.IsInvalidExpression(render(exp.NewJSONContainsExpression("doc", exp.Ex{"a": 1}))))
 
 	err = render(exp.NewJSONContainsExpression("doc", math.NaN()))
-	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.True(goqu.IsInvalidExpression(err))
 	var unsupportedValue *json.UnsupportedValueError
 	esgs.ErrorAs(err, &unsupportedValue)
 
 	err = render(exp.NewJSONContainsExpression("doc", jsonFailingValuer{}))
-	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.True(goqu.IsInvalidExpression(err))
 	var valueErr jsonValueError
 	esgs.ErrorAs(err, &valueErr)
 
 	err = render(unknownJSONExpression{exp.NewJSONExtractExpression("doc", "$")})
 	esgs.EqualError(err, "goqu: unknown JSONFunction 99")
-	esgs.True(sqlgen.IsInvalidExpression(err))
+	esgs.True(goqu.IsInvalidExpression(err))
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideConflictUpdate() {
@@ -1742,8 +1749,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExcludedExpressionOutsideC
 		Generate(b, exp.NewIdentifierExpression("", "", "a").Eq(exp.NewExcludedExpression("a")))
 	_, _, err := b.ToSQL()
 	esgs.EqualError(err, "goqu: Excluded is only valid in an OnConflict DoUpdate")
-	esgs.True(sqlgen.IsInvalidExpression(err))
-	esgs.False(sqlgen.IsUnsupported(err))
+	esgs.True(goqu.IsInvalidExpression(err))
+	esgs.False(goqu.IsUnsupported(err))
 }
 
 // Generates the sql for the WITH clauses for common table expressions (CTE)
@@ -1929,15 +1936,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IdentifierExpression() {
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{
 			val: exp.NewIdentifierExpression("", "", ""),
-			err: `goqu: a empty identifier was encountered, please specify a "schema", "table" or "column"`,
+			err: `goqu: an empty identifier was encountered, please specify a "schema", "table" or "column"`,
 		},
 		expressionTestCase{
 			val: exp.NewIdentifierExpression("", "", nil),
-			err: `goqu: a empty identifier was encountered, please specify a "schema", "table" or "column"`,
+			err: `goqu: an empty identifier was encountered, please specify a "schema", "table" or "column"`,
 		},
 		expressionTestCase{
 			val: exp.NewIdentifierExpression("", "", false),
-			err: `goqu: unexpected col type must be string or LiteralExpression received bool`,
+			err: `goqu: unsupported column type bool, a string or LiteralExpression is required`,
 		},
 
 		expressionTestCase{val: col, sql: `"col"`},

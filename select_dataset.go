@@ -645,7 +645,7 @@ func (sd *SelectDataset) ScanStructs(i interface{}) error {
 // i: A pointer to a slice of structs
 func (sd *SelectDataset) ScanStructsContext(ctx context.Context, i interface{}) error {
 	if sd.queryFactory == nil {
-		return ErrQueryFactoryNotFoundError
+		return errNoDatabase
 	}
 	return sd.selectStructColumns(i).Executor().ScanStructsContext(ctx, i)
 }
@@ -668,7 +668,7 @@ func (sd *SelectDataset) ScanStruct(i interface{}) (bool, error) {
 // i: A pointer to a structs
 func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (bool, error) {
 	if sd.queryFactory == nil {
-		return false, ErrQueryFactoryNotFoundError
+		return false, errNoDatabase
 	}
 	return sd.selectStructColumns(i).Limit(1).Executor().ScanStructContext(ctx, i)
 }
@@ -686,7 +686,7 @@ func (sd *SelectDataset) ScanVals(i interface{}) error {
 // i: A pointer to a slice of primitive values
 func (sd *SelectDataset) ScanValsContext(ctx context.Context, i interface{}) error {
 	if sd.queryFactory == nil {
-		return ErrQueryFactoryNotFoundError
+		return errNoDatabase
 	}
 	return sd.Executor().ScanValsContext(ctx, i)
 }
@@ -703,14 +703,14 @@ func (sd *SelectDataset) ScanVal(i interface{}) (bool, error) {
 // i: A pointer to a primitive value
 func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
 	if sd.queryFactory == nil {
-		return false, ErrQueryFactoryNotFoundError
+		return false, errNoDatabase
 	}
 	return sd.Limit(1).Executor().ScanValContext(ctx, i)
 }
 
 func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
 	if sd.queryFactory == nil {
-		return nil, ErrQueryFactoryNotFoundError
+		return nil, errNoDatabase
 	}
 	if err := scantype.Struct[T](sd.tagName); err != nil {
 		return nil, err
@@ -720,7 +720,7 @@ func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error)
 
 func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
 	if sd.queryFactory == nil {
-		return row, false, ErrQueryFactoryNotFoundError
+		return row, false, errNoDatabase
 	}
 	if typeErr := scantype.Struct[T](sd.tagName); typeErr != nil {
 		return row, false, typeErr
@@ -730,14 +730,14 @@ func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found
 
 func (sd *SelectDataset) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 	if sd.queryFactory == nil {
-		return nil, ErrQueryFactoryNotFoundError
+		return nil, errNoDatabase
 	}
 	return sd.Executor().ScanAllVals[T](ctx)
 }
 
 func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
 	if sd.queryFactory == nil {
-		return val, false, ErrQueryFactoryNotFoundError
+		return val, false, errNoDatabase
 	}
 	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
 }

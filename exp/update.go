@@ -44,7 +44,7 @@ func NewUpdateExpressions(tagName string, update interface{}) (updates []UpdateE
 	case reflect.Struct:
 		return getUpdateExpressionsStruct(tagName, updateValue)
 	default:
-		return nil, errors.NewInvalidExpressionError("unsupported update interface type %+v", updateValue.Type())
+		return nil, errors.NewInvalidExpressionError("unsupported update value type %+v", updateValue.Type())
 	}
 	return updates, nil
 }

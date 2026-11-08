@@ -6,7 +6,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -297,11 +296,11 @@ func TestEmptyInList(t *testing.T) {
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlite3").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=sqlite3]")
-	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, goqu.IsUnsupported(err))
 }
 
 func TestIntervalIsError(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlite3").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlite3]`)
-	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, goqu.IsUnsupported(err))
 }

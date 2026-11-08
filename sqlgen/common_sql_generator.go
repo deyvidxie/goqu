@@ -2,38 +2,34 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrNoUpdatedValuesProvided = NewInvalidExpressionError("no update values provided")
+var errNoUpdatedValuesProvided = errors.NewInvalidExpressionError("no update values provided")
 
-func ErrInvalidCollation(collation string) error {
-	return NewInvalidExpressionError("invalid collation name %q", collation)
+func errInvalidCollation(collation string) error {
+	return errors.NewInvalidExpressionError("invalid collation name %q", collation)
 }
 
-func ErrCTENotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support CTE WITH clause [dialect=%s]", dialect)
+func errCTENotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support CTE WITH clause [dialect=%s]", dialect)
 }
 
-func ErrRecursiveCTENotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support CTE WITH RECURSIVE clause [dialect=%s]", dialect)
+func errRecursiveCTENotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support CTE WITH RECURSIVE clause [dialect=%s]", dialect)
 }
 
-func ErrReturnNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support RETURNING clause [dialect=%s]", dialect)
+func errReturnNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support RETURNING clause [dialect=%s]", dialect)
 }
 
-func ErrConflictTargetNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support Conflict Target clause [dialect=%s]", dialect)
-}
-
-// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
-func ErrNotSupportedFragment(sqlType string, f SQLFragmentType) error {
-	return NewUnsupportedError("unsupported %s SQL fragment %s", sqlType, f)
+func errConflictTargetNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support Conflict Target clause [dialect=%s]", dialect)
 }
 
 func errNotSupportedFragment(dialect, sqlType string, f SQLFragmentType) error {
-	return NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
+	return errors.NewUnsupportedError("unsupported %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
 }
 
 type (
@@ -86,7 +82,7 @@ func (csg *commonSQLGenerator) ReturningSQL(b sb.SQLBuilder, returns exp.ColumnL
 			b.Write(csg.dialectOptions.ReturningFragment)
 			csg.esg.Generate(b, returns)
 		} else {
-			b.SetError(ErrReturnNotSupported(csg.dialect))
+			b.SetError(errReturnNotSupported(csg.dialect))
 		}
 	}
 }
@@ -99,7 +95,7 @@ func (csg *commonSQLGenerator) ConflictTargetSQL(b sb.SQLBuilder, targets exp.Co
 			csg.esg.Generate(b, targets)
 			b.WriteRunes(csg.dialectOptions.RightParenRune)
 		} else {
-			b.SetError(ErrConflictTargetNotSupported(csg.dialect))
+			b.SetError(errConflictTargetNotSupported(csg.dialect))
 		}
 	}
 }
@@ -187,7 +183,7 @@ func (csg *commonSQLGenerator) LimitSQL(b sb.SQLBuilder, limit interface{}) {
 
 func (csg *commonSQLGenerator) UpdateExpressionSQL(b sb.SQLBuilder, updates ...exp.UpdateExpression) {
 	if len(updates) == 0 {
-		b.SetError(ErrNoUpdatedValuesProvided)
+		b.SetError(errNoUpdatedValuesProvided)
 		return
 	}
 	updateLen := len(updates)

@@ -5,7 +5,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
@@ -1313,7 +1312,7 @@ func (sds *selectDatasetSuite) TestScanStructs() {
 	sds.EqualError(db.From("items").Select("test").ScanStructs(&items),
 		`goqu: unable to find corresponding field to column "test" returned by query`)
 
-	sds.Equal(goqu.ErrQueryFactoryNotFoundError, goqu.From("items").ScanStructs(items))
+	sds.True(goqu.IsNoDatabase(goqu.From("items").ScanStructs(items)))
 }
 
 func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
@@ -1398,10 +1397,10 @@ func (sds *selectDatasetSuite) TestScanStruct() {
 	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
-	sds.True(exec.IsUnsupportedScanType(err))
+	sds.True(goqu.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
-	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	sds.True(goqu.IsNoDatabase(err))
 }
 
 func (sds *selectDatasetSuite) TestScanStruct_WithPreparedStatements() {
@@ -1465,10 +1464,10 @@ func (sds *selectDatasetSuite) TestScanStructSubqueries() {
 	sds.EqualError(err, "goqu: type must be a pointer to a struct when scanning into a struct")
 	_, err = db.From("items").Select("test").ScanStruct(&item)
 	sds.EqualError(err, `goqu: unable to find corresponding field to column "test" returned by query`)
-	sds.True(exec.IsUnsupportedScanType(err))
+	sds.True(goqu.IsUnsupportedScanType(err))
 
 	_, err = goqu.From("items").ScanStruct(item)
-	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	sds.True(goqu.IsNoDatabase(err))
 }
 
 func (sds *selectDatasetSuite) TestScanStructUntagged() {
@@ -1530,7 +1529,7 @@ func (sds *selectDatasetSuite) TestScanVals() {
 		"goqu: type must be a pointer to a slice when scanning into vals")
 
 	err = goqu.From("items").ScanVals(&ids)
-	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	sds.True(goqu.IsNoDatabase(err))
 }
 
 func (sds *selectDatasetSuite) TestScanVals_WithPreparedStatment() {
@@ -1587,7 +1586,7 @@ func (sds *selectDatasetSuite) TestScanVal() {
 	sds.EqualError(err, "goqu: type must be a pointer when scanning into val")
 
 	_, err = goqu.From("items").ScanVal(&id)
-	sds.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	sds.True(goqu.IsNoDatabase(err))
 }
 
 func (sds *selectDatasetSuite) TestScanVal_WithPreparedStatement() {

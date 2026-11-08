@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -1161,7 +1162,7 @@ func (qes *queryExecutorSuite) TestScanStruct_nilScannerInterfaceFieldIsAnError(
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.EqualError(err, `goqu: unable to scan column "val" into sql.Scanner field: `+
 		`it must hold a non-nil pointer to a value that implements sql.Scanner (ScanStructs cannot do this)`)
-	qes.True(IsUnsupportedScanType(err))
+	qes.True(errors.IsUnsupportedScanType(err))
 }
 
 type valueReceiverScanner struct{}
@@ -1182,7 +1183,7 @@ func (qes *queryExecutorSuite) TestScanStruct_scannerInterfaceHoldingNonPointerI
 	_, err = newQueryExecutor("db", db, nil, `SELECT * FROM "items"`).ScanStruct(&item)
 	qes.Error(err)
 	qes.Contains(err.Error(), `unable to scan column "val"`)
-	qes.True(IsUnsupportedScanType(err))
+	qes.True(errors.IsUnsupportedScanType(err))
 }
 
 func (qes *queryExecutorSuite) TestScanStructs_scannerInterfaceFieldIsAnError() {

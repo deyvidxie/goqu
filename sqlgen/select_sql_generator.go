@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -22,34 +23,24 @@ type (
 	}
 )
 
-// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
-func ErrNotSupportedJoinType(j exp.JoinExpression) error {
-	return NewUnsupportedError("dialect does not support %v", j.JoinType())
-}
-
 func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
-	return NewUnsupportedError("dialect does not support %v [dialect=%s]", j.JoinType(), dialect)
+	return errors.NewUnsupportedError("dialect does not support %v [dialect=%s]", j.JoinType(), dialect)
 }
 
-func ErrJoinConditionRequired(j exp.JoinExpression) error {
-	return NewInvalidExpressionError("join condition required for conditioned join %v", j.JoinType())
-}
-
-// Deprecated: ToSQL returns an error that also names the dialect; match it with IsUnsupported.
-func ErrJoinUsingNotSupported(j exp.JoinExpression) error {
-	return NewUnsupportedError("USING is not supported for %v, use an ON condition", j.JoinType())
+func errJoinConditionRequired(j exp.JoinExpression) error {
+	return errors.NewInvalidExpressionError("join condition required for conditioned join %v", j.JoinType())
 }
 
 func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
-	return NewUnsupportedError("USING is not supported for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
+	return errors.NewUnsupportedError("USING is not supported for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
 }
 
-func ErrDistinctOnNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
+func errDistinctOnNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
 }
 
-func ErrWindowNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support WINDOW clause [dialect=%s]", dialect)
+func errWindowNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support WINDOW clause [dialect=%s]", dialect)
 }
 
 var lockStrengthSQL = map[exp.LockStrength]string{
@@ -59,8 +50,8 @@ var lockStrengthSQL = map[exp.LockStrength]string{
 	exp.ForKeyShare:    "FOR KEY SHARE",
 }
 
-func ErrLockStrengthNotSupported(dialect string, strength exp.LockStrength) error {
-	return NewUnsupportedError("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
+func errLockStrengthNotSupported(dialect string, strength exp.LockStrength) error {
+	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", lockStrengthSQL[strength], dialect)
 }
 
 var lockWaitOptionSQL = map[exp.WaitOption]string{
@@ -68,19 +59,19 @@ var lockWaitOptionSQL = map[exp.WaitOption]string{
 	exp.SkipLocked: "SKIP LOCKED",
 }
 
-func ErrLockWaitOptionNotSupported(dialect string, option exp.WaitOption) error {
-	return NewUnsupportedError("dialect does not support %s [dialect=%s]", lockWaitOptionSQL[option], dialect)
+func errLockWaitOptionNotSupported(dialect string, option exp.WaitOption) error {
+	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", lockWaitOptionSQL[option], dialect)
 }
 
-func ErrLockOfNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support OF in a locking clause [dialect=%s]", dialect)
+func errLockOfNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support OF in a locking clause [dialect=%s]", dialect)
 }
 
-func ErrQualifyNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
+func errQualifyNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support QUALIFY clause [dialect=%s]", dialect)
 }
 
-var ErrNoWindowName = NewInvalidExpressionError("window expresion has no valid name")
+var errNoWindowName = errors.NewInvalidExpressionError("window expression has no valid name")
 
 func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) SelectSQLGenerator {
 	return &selectSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
@@ -150,7 +141,7 @@ func (ssg *selectSQLGenerator) distinctSQL(b sb.SQLBuilder, clauses exp.SelectCl
 		return
 	}
 	if !ssg.DialectOptions().SupportsDistinctOn {
-		b.SetError(ErrDistinctOnNotSupported(ssg.Dialect()))
+		b.SetError(errDistinctOnNotSupported(ssg.Dialect()))
 		return
 	}
 	b.Write(ssg.DialectOptions().OnFragment).WriteRunes(ssg.DialectOptions().LeftParenRune)
@@ -201,7 +192,7 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 			ssg.ExpressionSQLGenerator().Generate(b, j.Table())
 			if t, ok := j.(exp.ConditionedJoinExpression); ok {
 				if t.IsConditionEmpty() {
-					b.SetError(ErrJoinConditionRequired(j))
+					b.SetError(errJoinConditionRequired(j))
 					return
 				}
 				// MySQL 5.7 rejects STRAIGHT_JOIN ... USING (...); only ON is portable across supported versions
@@ -238,7 +229,7 @@ func (ssg *selectSQLGenerator) QualifySQL(b sb.SQLBuilder, qualify exp.Expressio
 			b.Write(ssg.DialectOptions().QualifyFragment)
 			ssg.ExpressionSQLGenerator().Generate(b, qualify)
 		} else {
-			b.SetError(ErrQualifyNotSupported(ssg.Dialect()))
+			b.SetError(errQualifyNotSupported(ssg.Dialect()))
 		}
 	}
 }
@@ -310,11 +301,11 @@ func (ssg *selectSQLGenerator) unsupportedLockError(lock exp.Lock) error {
 	opts := ssg.DialectOptions()
 	switch {
 	case slices.Contains(opts.UnsupportedLockStrengths, lock.Strength()):
-		return ErrLockStrengthNotSupported(ssg.Dialect(), lock.Strength())
+		return errLockStrengthNotSupported(ssg.Dialect(), lock.Strength())
 	case slices.Contains(opts.UnsupportedLockWaitOptions, lock.WaitOption()):
-		return ErrLockWaitOptionNotSupported(ssg.Dialect(), lock.WaitOption())
+		return errLockWaitOptionNotSupported(ssg.Dialect(), lock.WaitOption())
 	case len(lock.Of()) > 0 && !opts.SupportsLockOf:
-		return ErrLockOfNotSupported(ssg.Dialect())
+		return errLockOfNotSupported(ssg.Dialect())
 	}
 	return nil
 }
@@ -325,13 +316,13 @@ func (ssg *selectSQLGenerator) WindowSQL(b sb.SQLBuilder, windows []exp.WindowEx
 		return
 	}
 	if !ssg.DialectOptions().SupportsWindowFunction {
-		b.SetError(ErrWindowNotSupported(ssg.Dialect()))
+		b.SetError(errWindowNotSupported(ssg.Dialect()))
 		return
 	}
 	b.Write(ssg.DialectOptions().WindowFragment)
 	for i, we := range windows {
 		if !we.HasName() {
-			b.SetError(ErrNoWindowName)
+			b.SetError(errNoWindowName)
 		}
 		ssg.ExpressionSQLGenerator().Generate(b, we)
 		if i < weLen-1 {

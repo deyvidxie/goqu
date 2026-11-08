@@ -66,8 +66,8 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_empty() {
 	uc := exp.NewUpdateClauses()
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		updateTestCase{clause: uc, err: sqlgen.ErrNoSourceForUpdate.Error()},
-		updateTestCase{clause: uc, err: sqlgen.ErrNoSourceForUpdate.Error(), isPrepared: true},
+		updateTestCase{clause: uc, err: "goqu: no source found when generating update sql"},
+		updateTestCase{clause: uc, err: "goqu: no source found when generating update sql", isPrepared: true},
 	)
 }
 
@@ -76,7 +76,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withBadUpdateValues() {
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(true)
 
-	expectedErr := "goqu: unsupported update interface type bool"
+	expectedErr := "goqu: unsupported update value type bool"
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		updateTestCase{clause: uc, err: expectedErr},
@@ -87,7 +87,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withBadUpdateValues() {
 func (usgs *updateSQLGeneratorSuite) TestGenerate_noSetValues() {
 	uc := exp.NewUpdateClauses().SetTable(exp.NewIdentifierExpression("", "test", ""))
 
-	expectedErr := sqlgen.ErrNoSetValuesForUpdate.Error()
+	expectedErr := "goqu: no set values found when generating update sql"
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		updateTestCase{clause: uc, err: expectedErr},
@@ -129,7 +129,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withFrom() {
 
 	opts = sqlgen.DefaultDialectOptions()
 	opts.SupportsMultipleUpdateTables = false
-	expectedErr := "goqu: test dialect does not support multiple tables in UPDATE"
+	expectedErr := "goqu: dialect does not support multiple tables in UPDATE [dialect=test]"
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
 		updateTestCase{clause: uc, err: expectedErr},
@@ -159,8 +159,8 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withUpdateExpression() {
 		updateTestCase{clause: ucRecordBoolVals, sql: `UPDATE "test" set "a"=TRUE,"b"=FALSE`},
 		updateTestCase{clause: ucRecordBoolVals, sql: `UPDATE "test" set "a"=?,"b"=?`, isPrepared: true, args: []interface{}{true, false}},
 
-		updateTestCase{clause: ucEmptyRecord, err: sqlgen.ErrNoUpdatedValuesProvided.Error()},
-		updateTestCase{clause: ucEmptyRecord, err: sqlgen.ErrNoUpdatedValuesProvided.Error(), isPrepared: true},
+		updateTestCase{clause: ucEmptyRecord, err: "goqu: no update values provided"},
+		updateTestCase{clause: ucEmptyRecord, err: "goqu: no update values provided", isPrepared: true},
 	)
 }
 

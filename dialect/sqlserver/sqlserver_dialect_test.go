@@ -7,7 +7,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -298,13 +297,13 @@ func TestEmptyInList(t *testing.T) {
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=sqlserver]")
-	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, goqu.IsUnsupported(err))
 }
 
 func TestIntervalIsError(t *testing.T) {
 	_, _, err := goqu.Dialect("sqlserver").From("t").Where(goqu.C("at").Lt(goqu.Now().Sub(goqu.Interval(1, "day")))).ToSQL()
 	assert.EqualError(t, err, `goqu: dialect does not support Interval [dialect=sqlserver]`)
-	assert.True(t, sqlgen.IsUnsupported(err))
+	assert.True(t, goqu.IsUnsupported(err))
 }
 
 func TestRegexpIsError(t *testing.T) {
@@ -315,6 +314,6 @@ func TestRegexpIsError(t *testing.T) {
 	} {
 		_, _, err := goqu.Dialect("sqlserver").From("t").Where(condition).ToSQL()
 		assert.EqualError(t, err, "goqu: boolean operator '"+op+"' not supported [dialect=sqlserver]")
-		assert.True(t, sqlgen.IsUnsupported(err))
+		assert.True(t, goqu.IsUnsupported(err))
 	}
 }

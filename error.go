@@ -1,40 +1,31 @@
 package goqu
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/doug-martin/goqu/v9/internal/errors"
 
 type (
-	baseError struct {
-		msg string
-	}
-	UnknownDialectError struct {
-		baseError
-	}
-	NoDatabaseError struct {
-		baseError
-	}
+	InvalidExpressionError   = errors.InvalidExpressionError
+	UnsupportedError         = errors.UnsupportedError
+	UnsupportedScanTypeError = errors.UnsupportedScanTypeError
+	UnknownDialectError      = errors.UnknownDialectError
+	NoDatabaseError          = errors.NoDatabaseError
 )
 
-func (e baseError) Error() string {
-	return "goqu: " + e.msg
+func IsInvalidExpression(err error) bool {
+	return errors.IsInvalidExpression(err)
 }
 
-func newUnknownDialectError(format string, args ...interface{}) error {
-	return UnknownDialectError{baseError{msg: fmt.Sprintf(format, args...)}}
+func IsUnsupported(err error) bool {
+	return errors.IsUnsupported(err)
+}
+
+func IsUnsupportedScanType(err error) bool {
+	return errors.IsUnsupportedScanType(err)
 }
 
 func IsUnknownDialect(err error) bool {
-	var target UnknownDialectError
-	return errors.As(err, &target)
-}
-
-func newNoDatabaseError(format string, args ...interface{}) error {
-	return NoDatabaseError{baseError{msg: fmt.Sprintf(format, args...)}}
+	return errors.IsUnknownDialect(err)
 }
 
 func IsNoDatabase(err error) bool {
-	var target NoDatabaseError
-	return errors.As(err, &target)
+	return errors.IsNoDatabase(err)
 }

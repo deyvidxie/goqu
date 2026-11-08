@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -40,27 +41,27 @@ const (
 )
 
 var (
-	errExcludedRowAliasEmpty     = NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
-	errExcludedRowAliasQualified = NewInvalidExpressionError("Excluded requires an unqualified insert alias")
+	errExcludedRowAliasEmpty     = errors.NewInvalidExpressionError("Excluded requires ExcludedRowAlias or an insert alias")
+	errExcludedRowAliasQualified = errors.NewInvalidExpressionError("Excluded requires an unqualified insert alias")
 
-	ErrConflictUpdateValuesRequired = NewInvalidExpressionError("values are required for on conflict update expression")
-	ErrNoSourceForInsert            = NewInvalidExpressionError("no source found when generating insert sql")
+	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
+	errNoSourceForInsert            = errors.NewInvalidExpressionError("no source found when generating insert sql")
 )
 
 func errMisMatchedRowLength(expectedL, actualL int) error {
-	return NewInvalidExpressionError("rows with different value length expected %d got %d", expectedL, actualL)
+	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expectedL, actualL)
 }
 
 func errUpsertWithWhereNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
 }
 
 func errOnConflictNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support upsert [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support upsert [dialect=%s]", dialect)
 }
 
 func errExcludedRequiresInsertCols(dialect string) error {
-	return NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect requires Cols(...).FromQuery(...) to use Excluded with INSERT ... SELECT [dialect=%s]", dialect)
 }
 
 func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) InsertSQLGenerator {
@@ -72,7 +73,7 @@ func (isg *insertSQLGenerator) Generate(
 	clauses exp.InsertClauses,
 ) {
 	if !clauses.HasInto() {
-		b.SetError(ErrNoSourceForInsert)
+		b.SetError(errNoSourceForInsert)
 		return
 	}
 	for _, f := range isg.DialectOptions().InsertSQLOrder {
@@ -372,7 +373,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 			b.WriteRunes(opts.LeftParenRune).WriteStrings(target).WriteRunes(opts.RightParenRune)
 		}
 	case opts.ErrorOnUnsupportedConflictTarget:
-		b.SetError(ErrConflictTargetNotSupported(isg.Dialect()))
+		b.SetError(errConflictTargetNotSupported(isg.Dialect()))
 	}
 }
 
@@ -397,7 +398,7 @@ func (ub *conflictUpdateBuilder) withBuilder(b sb.SQLBuilder) *conflictUpdateBui
 func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp.ConflictUpdateExpression) {
 	update := o.Update()
 	if update == nil {
-		b.SetError(ErrConflictUpdateValuesRequired)
+		b.SetError(errConflictUpdateValuesRequired)
 		return
 	}
 	ue, err := exp.NewUpdateExpressions(isg.TagName(), update)

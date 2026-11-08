@@ -9,7 +9,6 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -136,7 +135,7 @@ func (ids *insertDatasetSuite) TestInto() {
 		},
 	)
 
-	ids.PanicsWithValue(goqu.ErrUnsupportedIntoType, func() {
+	ids.PanicsWithError("goqu: unsupported table type, a string or identifier expression is required", func() {
 		bd.Into(true)
 	})
 }
@@ -247,7 +246,7 @@ func (ids *insertDatasetSuite) TestFromQueryDialectInheritance() {
 				r.(error),
 				"goqu: incompatible dialects for INSERT (\"dialect\") and SELECT (\"other_dialect\")",
 			)
-			ids.True(sqlgen.IsInvalidExpression(r.(error)))
+			ids.True(goqu.IsInvalidExpression(r.(error)))
 		}()
 
 		otherDialect := new(mocks.SQLDialect)

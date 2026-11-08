@@ -7,7 +7,7 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
-var ErrBadFromArgument = errors.NewInvalidExpressionError(
+var errBadFromArgument = errors.NewInvalidExpressionError(
 	"unsupported DeleteDataset#From argument, a string or identifier expression is required",
 )
 
@@ -134,7 +134,7 @@ func (dd *DeleteDataset) From(table interface{}) *DeleteDataset {
 	case string:
 		return dd.copy(dd.clauses.SetFrom(exp.ParseIdentifier(t)))
 	default:
-		panic(ErrBadFromArgument)
+		panic(errBadFromArgument)
 	}
 }
 

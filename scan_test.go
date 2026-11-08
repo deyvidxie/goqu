@@ -12,7 +12,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -244,7 +243,7 @@ func (ss *scanSuite) TestScanAllStructs_fromExecutor() {
 func (ss *scanSuite) TestScanAllStructs_requiresStruct() {
 	items, err := ss.db.From("items").ScanAllStructs[string](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Nil(items)
 }
 
@@ -253,7 +252,7 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 
 	names, err := executor.ScanAllStructs[string](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Nil(names)
 
 	_, found, err := executor.ScanOneStruct[string](context.Background())
@@ -271,7 +270,7 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 
 func (ss *scanSuite) TestScanAllStructs_withoutDatabase() {
 	_, err := goqu.From("items").ScanAllStructs[dsTestActionItem](context.Background())
-	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	ss.True(goqu.IsNoDatabase(err))
 }
 
 func (ss *scanSuite) TestScanOneStruct() {
@@ -342,7 +341,7 @@ func (ss *scanSuite) TestScanOneStruct_fromExecutor() {
 func (ss *scanSuite) TestScanOneStruct_requiresStruct() {
 	_, found, err := ss.db.From("items").ScanOneStruct[string](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into string: requires a struct or a pointer to a struct")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.False(found)
 
 	row, found, err := ss.db.From("items").ScanOneStruct[**dsTestActionItem](context.Background())
@@ -355,7 +354,7 @@ func (ss *scanSuite) TestStructScans_rejectsSingleColumnTypes() {
 	_, err := ss.db.From("items").ScanAllStructs[time.Time](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into time.Time, which scans as one column; "+
 		"use ScanAllVals[time.Time] or ScanOneVal[time.Time]")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 
 	_, err = ss.db.From("items").ScanAllStructs[*time.Time](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into *time.Time, which scans as one column; "+
@@ -386,7 +385,7 @@ func (ss *scanSuite) TestScanAllStructs_rejectsStructsWithoutColumns() {
 		"strings.Builder":               ss.allStructsErr[strings.Builder](),
 	} {
 		ss.EqualError(err, "goqu: cannot scan rows into "+name+", which has no fields goqu can scan into", name)
-		ss.True(exec.IsUnsupportedScanType(err), name)
+		ss.True(goqu.IsUnsupportedScanType(err), name)
 	}
 
 	ss.EqualError(ss.allStructsErr[*strings.Builder](), "goqu: cannot scan rows into *strings.Builder, which has no fields goqu can scan into")
@@ -472,7 +471,7 @@ func (ss *scanSuite) TestScanOneStruct_pointerQueryError() {
 
 func (ss *scanSuite) TestScanOneStruct_withoutDatabase() {
 	_, _, err := goqu.From("items").ScanOneStruct[dsTestActionItem](context.Background())
-	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	ss.True(goqu.IsNoDatabase(err))
 }
 
 func (ss *scanSuite) TestScanAllVals() {
@@ -520,7 +519,7 @@ func (ss *scanSuite) TestScanAllVals_fromExecutor() {
 
 func (ss *scanSuite) TestScanAllVals_withoutDatabase() {
 	_, err := goqu.From("items").Select("id").ScanAllVals[int64](context.Background())
-	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	ss.True(goqu.IsNoDatabase(err))
 }
 
 func (ss *scanSuite) TestScanOneVal() {
@@ -578,21 +577,21 @@ func (ss *scanSuite) TestScanOneVal_rejectsSlices() {
 		"*[]goqu_test.scanTestByte": ss.oneValErr[*[]scanTestByte](),
 	} {
 		ss.EqualError(err, "goqu: ScanOneVal cannot scan into "+name+"; use []byte or a sql.Scanner", name)
-		ss.True(exec.IsUnsupportedScanType(err), name)
+		ss.True(goqu.IsUnsupportedScanType(err), name)
 	}
 }
 
 func (ss *scanSuite) TestScanOneVal_rejectsNamedByteSliceValues() {
 	err := ss.oneValErr[scanTestBlob]()
 	ss.EqualError(err, "goqu: ScanOneVal cannot scan into goqu_test.scanTestBlob; use *goqu_test.scanTestBlob")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 }
 
 func (ss *scanSuite) TestScanOneVal_rejectsRawBytes() {
 	for _, err := range []error{ss.oneValErr[sql.RawBytes](), ss.oneValErr[*sql.RawBytes](), ss.oneValErr[**sql.RawBytes]()} {
 		ss.EqualError(err, "goqu: ScanOneVal cannot return sql.RawBytes, "+
 			"which is only valid until the next row is read or the rows are closed; use []byte")
-		ss.True(exec.IsUnsupportedScanType(err))
+		ss.True(goqu.IsUnsupportedScanType(err))
 	}
 }
 
@@ -600,7 +599,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsRawBytes() {
 	for _, err := range []error{ss.allValsErr[sql.RawBytes](), ss.allValsErr[*sql.RawBytes](), ss.allValsErr[**sql.RawBytes]()} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot return sql.RawBytes, "+
 			"which is only valid until the next row is read or the rows are closed; use []byte")
-		ss.True(exec.IsUnsupportedScanType(err))
+		ss.True(goqu.IsUnsupportedScanType(err))
 	}
 }
 
@@ -645,7 +644,7 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
 	ids, err := ss.db.From("items").ScanAllVals[*int64](context.Background())
 	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64, whose element int64 cannot hold NULL; use sql.Null[int64]")
-	ss.True(exec.IsUnsupportedScanType(err))
+	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Nil(ids)
 
 	for name, err := range map[string]error{
@@ -672,7 +671,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 		"*[]goqu_test.scanTestByte; use []byte or a sql.Scanner": ss.allValsErr[*[]scanTestByte](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+msg, msg)
-		ss.True(exec.IsUnsupportedScanType(err), msg)
+		ss.True(goqu.IsUnsupportedScanType(err), msg)
 	}
 }
 
@@ -753,7 +752,7 @@ func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 		"scanTestNodeRow: field Node.Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`":        ss.allStructsErr[scanTestNodeRow](),
 	} {
 		ss.EqualError(err, "goqu: cannot scan rows into goqu_test."+msg, msg)
-		ss.True(exec.IsUnsupportedScanType(err), msg)
+		ss.True(goqu.IsUnsupportedScanType(err), msg)
 	}
 }
 
@@ -874,7 +873,7 @@ func (ss *scanSuite) TestScanOneVal_acceptsPointersToNamedByteSlices() {
 
 func (ss *scanSuite) TestScanOneVal_withoutDatabase() {
 	_, _, err := goqu.From("items").Select("id").ScanOneVal[int64](context.Background())
-	ss.Equal(goqu.ErrQueryFactoryNotFoundError, err)
+	ss.True(goqu.IsNoDatabase(err))
 }
 
 func TestScanSuite(t *testing.T) {

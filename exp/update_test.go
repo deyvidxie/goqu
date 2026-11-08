@@ -20,7 +20,7 @@ func (uets *updateExpressionTestSuite) TestNewUpdateExpressions_withNil() {
 
 func (uets *updateExpressionTestSuite) TestNewUpdateExpressions_withInvalidValue() {
 	_, err := exp.NewUpdateExpressions("db", true)
-	uets.EqualError(err, "goqu: unsupported update interface type bool")
+	uets.EqualError(err, "goqu: unsupported update value type bool")
 }
 
 func (uets *updateExpressionTestSuite) TestNewUpdateExpressions_withRecords() {

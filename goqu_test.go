@@ -10,7 +10,6 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -145,7 +144,7 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_unsupportedOperator() {
 	for _, render := range []func(exp.Expression) (string, []interface{}, error){dw.ExpressionSQL, dw.PreparedExpressionSQL} {
 		sql, args, err := render(goqu.C("a").BitwiseLeftShift(1))
 		dws.EqualError(err, "goqu: bitwise operator 'Left Shift' not supported [dialect=sqlserver]")
-		dws.True(sqlgen.IsUnsupported(err))
+		dws.True(goqu.IsUnsupported(err))
 		dws.Empty(sql)
 		dws.Empty(args)
 	}

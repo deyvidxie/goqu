@@ -160,7 +160,7 @@ func (dds *deleteDatasetSuite) TestFrom_withIdentifier() {
 		},
 	)
 
-	dds.PanicsWithValue(goqu.ErrBadFromArgument, func() {
+	dds.PanicsWithError("goqu: unsupported DeleteDataset#From argument, a string or identifier expression is required", func() {
 		goqu.Delete("test").From(true)
 	})
 }

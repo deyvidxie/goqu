@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -47,39 +48,39 @@ var (
 	TrueLiteral     = exp.NewLiteralExpression("TRUE")
 	FalseLiteral    = exp.NewLiteralExpression("FALSE")
 
-	ErrEmptyIdentifier = NewInvalidExpressionError(
-		`a empty identifier was encountered, please specify a "schema", "table" or "column"`,
+	errEmptyIdentifier = errors.NewInvalidExpressionError(
+		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
 	)
-	ErrUnexpectedNamedWindow = NewInvalidExpressionError(`unexpected named window function`)
-	ErrEmptyCaseWhens        = NewInvalidExpressionError(`when conditions not found for case statement`)
+	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
+	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
 
-	errExcludedOutsideConflictUpdate = NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
-	errExcludedWithoutColumn         = NewInvalidExpressionError("Excluded requires a column name")
-	errEmptyInFragmentMissing        = NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
-	errEmptyNotInFragmentMissing     = NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
-	errJSONCandidateInvalid          = NewInvalidExpressionError("JSONContains candidate is not valid JSON")
-	errJSONCandidateCondition        = NewInvalidExpressionError(
+	errExcludedOutsideConflictUpdate = errors.NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
+	errExcludedWithoutColumn         = errors.NewInvalidExpressionError("Excluded requires a column name")
+	errEmptyInFragmentMissing        = errors.NewInvalidExpressionError("an empty IN list requires EmptyInFragment")
+	errEmptyNotInFragmentMissing     = errors.NewInvalidExpressionError("an empty NOT IN list requires EmptyNotInFragment")
+	errJSONCandidateInvalid          = errors.NewInvalidExpressionError("JSONContains candidate is not valid JSON")
+	errJSONCandidateCondition        = errors.NewInvalidExpressionError(
 		"JSONContains candidate goqu.Ex/ExOr is a condition, not a JSON object; use map[string]any",
 	)
-	errIntervalCountCondition     = NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
-	errExcludedRowAliasUnresolved = NewInvalidExpressionError(
+	errIntervalCountCondition     = errors.NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
+	errExcludedRowAliasUnresolved = errors.NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
 )
 
 func errUnsupportedExpressionType(e exp.Expression) error {
-	return NewInvalidExpressionError("unsupported expression type %T", e)
+	return errors.NewInvalidExpressionError("unsupported expression type %T", e)
 }
 
 func errUnsupportedIdentifierExpression(t interface{}) error {
-	return NewInvalidExpressionError("unexpected col type must be string or LiteralExpression received %T", t)
+	return errors.NewInvalidExpressionError("unsupported column type %T, a string or LiteralExpression is required", t)
 }
 
 func errUnsupportedBooleanExpressionOperator(dialect string, op exp.BooleanOperation, caseInsensitiveLike bool) error {
 	if caseInsensitiveLike && (op == exp.LikeOp || op == exp.NotLikeOp) {
-		return NewUnsupportedError("boolean operator '%+v' not supported, use ILike/NotILike [dialect=%s]", op, dialect)
+		return errors.NewUnsupportedError("boolean operator '%+v' not supported, use ILike/NotILike [dialect=%s]", op, dialect)
 	}
-	return NewUnsupportedError("boolean operator '%+v' not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("boolean operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
 func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanOperation) error {
@@ -88,35 +89,35 @@ func (esg *expressionSQLGenerator) errUnsupportedBooleanOperator(op exp.BooleanO
 }
 
 func errUnsupportedBitwiseExpressionOperator(dialect string, op exp.BitwiseOperation) error {
-	return NewUnsupportedError("bitwise operator '%+v' not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("bitwise operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
 func errUnsupportedArithmeticExpressionOperator(dialect string, op exp.ArithmeticOperation) error {
-	return NewUnsupportedError("arithmetic operator '%+v' not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("arithmetic operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
 func errUnsupportedRangeExpressionOperator(dialect string, op exp.RangeOperation) error {
-	return NewUnsupportedError("range operator '%+v' not supported [dialect=%s]", op, dialect)
+	return errors.NewUnsupportedError("range operator '%+v' not supported [dialect=%s]", op, dialect)
 }
 
 func errBooleanDataTypeNotSupported(dialect string) error {
-	return NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("boolean data type is not supported [dialect=%s]", dialect)
 }
 
 func errExcludedFragmentEmpty(option string) error {
-	return NewInvalidExpressionError("Excluded requires %s", option)
+	return errors.NewInvalidExpressionError("Excluded requires %s", option)
 }
 
 func errUnknownExcludedStyle(dialect string, style ExcludedStyle) error {
-	return NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
+	return errors.NewUnsupportedError("dialect has unknown ExcludedStyle %d [dialect=%s]", style, dialect)
 }
 
 func errTimeFSPCount(n int) error {
-	return NewInvalidExpressionError("Now and UTCTimestamp take at most one fsp, got %d", n)
+	return errors.NewInvalidExpressionError("Now and UTCTimestamp take at most one fsp, got %d", n)
 }
 
 func errTimeFSPRange(fsp int) error {
-	return NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and %d, got %d", microsecondFSP, fsp)
+	return errors.NewInvalidExpressionError("Now and UTCTimestamp fsp must be between 0 and %d, got %d", microsecondFSP, fsp)
 }
 
 func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
@@ -124,19 +125,19 @@ func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
 	for i, s := range supported {
 		names[i] = strconv.Itoa(s)
 	}
-	return NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
+	return errors.NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
 }
 
 func errUnknownTimeFunction(function exp.TimeFunction) error {
-	return NewInvalidExpressionError("unknown TimeFunction %d", function)
+	return errors.NewInvalidExpressionError("unknown TimeFunction %d", function)
 }
 
 func errUnknownTimeStyle(dialect string, style TimeStyle) error {
-	return NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
+	return errors.NewUnsupportedError("dialect has unknown TimeStyle %d [dialect=%s]", style, dialect)
 }
 
 func errIntervalUnit(unit exp.IntervalUnit) error {
-	return NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
+	return errors.NewInvalidExpressionError("unknown Interval unit %q, want one of %s", unit, intervalUnitNames)
 }
 
 func errIntervalCount(dialect string, count, value any, unit exp.IntervalUnit, fractionalSeconds bool) error {
@@ -144,15 +145,19 @@ func errIntervalCount(dialect string, count, value any, unit exp.IntervalUnit, f
 	if fractionalSeconds {
 		accepted = "an integer, an expression or, with SECOND, a finite number"
 	}
-	return NewInvalidExpressionError("Interval count must be %s, got %T %v for %s [dialect=%s]", accepted, count, value, unit, dialect)
+	return errors.NewInvalidExpressionError("Interval count must be %s, got %T %v for %s [dialect=%s]", accepted, count, value, unit, dialect)
+}
+
+func errValuerValue(v driver.Valuer, cause error) error {
+	return errors.NewInvalidExpressionErrorWithCause(cause, "driver.Valuer %T", v)
 }
 
 func errIntervalCountValue(cause error) error {
-	return NewInvalidExpressionErrorWithCause(cause, "Interval count")
+	return errors.NewInvalidExpressionErrorWithCause(cause, "Interval count")
 }
 
 func errIntervalNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support Interval [dialect=%s]", dialect)
 }
 
 var jsonFunctionNames = map[exp.JSONFunction]string{
@@ -166,23 +171,23 @@ func errJSONFunctionNotSupported(dialect string, function exp.JSONFunction) erro
 	if !ok {
 		return errUnknownJSONFunction(function)
 	}
-	return NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
+	return errors.NewUnsupportedError("dialect does not support %s [dialect=%s]", name, dialect)
 }
 
 func errJSONContainsPaths(n int) error {
-	return NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
+	return errors.NewInvalidExpressionError("JSONContains takes at most one path, got %d", n)
 }
 
 func errUnknownJSONFunction(function exp.JSONFunction) error {
-	return NewInvalidExpressionError("unknown JSONFunction %d", function)
+	return errors.NewInvalidExpressionError("unknown JSONFunction %d", function)
 }
 
 func errJSONCandidate(cause error) error {
-	return NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
+	return errors.NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
 }
 
 func errLateralNotSupported(dialect string) error {
-	return NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support lateral expressions [dialect=%s]", dialect)
 }
 
 func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) ExpressionSQLGenerator {
@@ -241,7 +246,7 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
 	dVal, err := valuerValue(v)
 	if err != nil {
-		b.SetError(err)
+		b.SetError(errValuerValue(v, err))
 		return
 	}
 	esg.Generate(b, dVal)
@@ -360,7 +365,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 			return
 		}
 
-		b.SetError(NewInvalidExpressionError("unable to encode value %+v", val))
+		b.SetError(errors.NewInvalidExpressionError("unable to encode value %+v", val))
 	}
 }
 
@@ -449,7 +454,7 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a ex
 // Quotes an identifier (e.g. "col", "table"."col"
 func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, ident exp.IdentifierExpression) {
 	if ident.IsEmpty() {
-		b.SetError(ErrEmptyIdentifier)
+		b.SetError(errEmptyIdentifier)
 		return
 	}
 	schema, table, col := ident.GetSchema(), ident.GetTable(), ident.GetCol()
@@ -902,7 +907,7 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sql
 
 func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
-		b.SetError(ErrWindowNotSupported(esg.dialect))
+		b.SetError(errWindowNotSupported(esg.dialect))
 		return
 	}
 	esg.Generate(b, sqlWinFunc.Func())
@@ -912,7 +917,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 		esg.Generate(b, sqlWinFunc.WindowName())
 	case sqlWinFunc.HasWindow():
 		if sqlWinFunc.Window().HasName() {
-			b.SetError(ErrUnexpectedNamedWindow)
+			b.SetError(errUnexpectedNamedWindow)
 			return
 		}
 		esg.Generate(b, sqlWinFunc.Window())
@@ -923,7 +928,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 
 func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.WindowExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
-		b.SetError(ErrWindowNotSupported(esg.dialect))
+		b.SetError(errWindowNotSupported(esg.dialect))
 		return
 	}
 	if we.HasName() {
@@ -977,7 +982,7 @@ func (esg *expressionSQLGenerator) collateExpressionSQL(b sb.SQLBuilder, collate
 	opts := esg.dialectOptions
 	parts, ok := esg.collationParts(collate.Collation())
 	if !ok {
-		b.SetError(ErrInvalidCollation(describeCollation(collate.Collation())))
+		b.SetError(errInvalidCollation(describeCollation(collate.Collation())))
 		return
 	}
 
@@ -1478,7 +1483,7 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []
 		return
 	}
 	if !esg.dialectOptions.SupportsWithCTE {
-		b.SetError(ErrCTENotSupported(esg.dialect))
+		b.SetError(errCTENotSupported(esg.dialect))
 		return
 	}
 	b.Write(esg.dialectOptions.WithFragment)
@@ -1488,7 +1493,7 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []
 	}
 	if anyRecursive {
 		if !esg.dialectOptions.SupportsWithCTERecursive {
-			b.SetError(ErrRecursiveCTENotSupported(esg.dialect))
+			b.SetError(errRecursiveCTENotSupported(esg.dialect))
 			return
 		}
 		b.Write(esg.dialectOptions.RecursiveFragment)
@@ -1537,7 +1542,7 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sb.SQLBuilder, caseExpres
 	elseResult := caseExpression.GetElse()
 
 	if len(whens) == 0 {
-		b.SetError(ErrEmptyCaseWhens)
+		b.SetError(errEmptyCaseWhens)
 		return
 	}
 	b.Write(esg.dialectOptions.CaseFragment)
