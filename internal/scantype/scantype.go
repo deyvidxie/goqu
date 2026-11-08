@@ -16,18 +16,18 @@ var (
 )
 
 func Struct[T any](tagName string) error {
-	return AllocatedStruct(reflect.TypeFor[T](), tagName)
+	return StrictRowStruct(reflect.TypeFor[T](), tagName)
 }
 
-func AllocatedStruct(t reflect.Type, tagName string) error {
-	return structType(t, tagName, false)
+func StrictRowStruct(t reflect.Type, tagName string) error {
+	return rowStruct(t, tagName, false)
 }
 
-func SuppliedStruct(t reflect.Type, tagName string) error {
-	return structType(t, tagName, true)
+func RowStruct(t reflect.Type, tagName string) error {
+	return rowStruct(t, tagName, true)
 }
 
-func structType(t reflect.Type, tagName string, callerSuppliesEmbeds bool) error {
+func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool) error {
 	elem := util.Deref(t)
 	if !util.IsStruct(elem.Kind()) {
 		return errNotStructTarget(t)
@@ -36,7 +36,7 @@ func structType(t reflect.Type, tagName string, callerSuppliesEmbeds bool) error
 	case util.ColumnMapNonStructEmbed:
 		return errNonStructEmbed(t, problem, tagName)
 	case util.ColumnMapUnexportedPointerEmbed:
-		if !callerSuppliesEmbeds {
+		if !allowUnexportedPointerEmbeds {
 			return errUnexportedPointerEmbed(t, problem, tagName)
 		}
 	case util.ColumnMapCycle:

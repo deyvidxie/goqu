@@ -750,9 +750,9 @@ func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset 
 	case t == nil:
 		return sd
 	case t.Kind() == reflect.Slice:
-		err = scantype.AllocatedStruct(t.Elem(), sd.tagName)
+		err = scantype.StrictRowStruct(t.Elem(), sd.tagName)
 	case t.Kind() == reflect.Struct:
-		err = scantype.SuppliedStruct(t, sd.tagName)
+		err = scantype.RowStruct(t, sd.tagName)
 	default:
 		return sd
 	}

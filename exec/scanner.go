@@ -51,7 +51,7 @@ func (s *scanner) ScanStruct(i interface{}) error {
 	// Setup columnMap and columns, but only once.
 	if s.columnMap == nil || s.columns == nil {
 		if t := reflect.TypeOf(i); t != nil {
-			if err := scantype.SuppliedStruct(t, s.tagName); err != nil {
+			if err := scantype.RowStruct(t, s.tagName); err != nil {
 				return err
 			}
 		}
@@ -175,7 +175,7 @@ func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error
 	if !util.IsSlice(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}
-	return val, scantype.SuppliedStruct(val.Type().Elem(), tagName)
+	return val, scantype.RowStruct(val.Type().Elem(), tagName)
 }
 
 func checkScanValsTarget(i interface{}) (reflect.Value, error) {
