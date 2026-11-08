@@ -55,6 +55,30 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withDifferentReco
 	iets.EqualError(err, "goqu: rows must all be the same type, expected exp_test.testRecord got exp_test.testRecord2")
 }
 
+func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowLists() {
+	type testRecord struct {
+		C string `db:"c"`
+	}
+	for name, rows := range map[string]interface{}{
+		"array":            [2]testRecord{{C: "a"}, {C: "b"}},
+		"pointer to array": &[2]testRecord{{C: "a"}, {C: "b"}},
+		"pointer to slice": &[]testRecord{{C: "a"}, {C: "b"}},
+		"array of records": [2]exp.Record{{"c": "a"}, {"c": "b"}},
+	} {
+		ie, err := exp.NewInsertExpression("db", rows)
+		iets.Require().NoError(err, name)
+		iets.Equal(exp.NewColumnListExpression(nil, "db", "c"), ie.Cols(), name)
+		iets.Equal([][]interface{}{{"a"}, {"b"}}, ie.Vals(), name)
+	}
+
+	ie, err := exp.NewInsertExpression("db", [0]testRecord{})
+	iets.NoError(err)
+	iets.True(ie.IsEmpty())
+
+	_, err = exp.NewInsertExpression("db", []byte{1})
+	iets.EqualError(err, "goqu: unsupported insert row type []uint8, a map, goqu.Record or struct is required")
+}
+
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_withInvalidValue() {
 	_, err := exp.NewInsertExpression("db", true)
 	iets.EqualError(err, "goqu: unsupported insert row type bool, a map, goqu.Record or struct is required")

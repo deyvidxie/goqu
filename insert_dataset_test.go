@@ -625,3 +625,18 @@ func (ids *insertDatasetSuite) TestSetError() {
 func TestInsertDataset(t *testing.T) {
 	suite.Run(t, new(insertDatasetSuite))
 }
+
+func (ids *insertDatasetSuite) TestRowsAcceptRowLists() {
+	type row struct {
+		A int `db:"a"`
+	}
+	want, _, err := goqu.Insert("t").Rows([]row{{A: 1}, {A: 2}}).ToSQL()
+	ids.Require().NoError(err)
+	for name, rows := range map[string]interface{}{
+		"array": [2]row{{A: 1}, {A: 2}}, "pointer to array": &[2]row{{A: 1}, {A: 2}}, "pointer to slice": &[]row{{A: 1}, {A: 2}},
+	} {
+		sql, _, err := goqu.Insert("t").Rows(rows).ToSQL()
+		ids.NoError(err, name)
+		ids.Equal(want, sql, name)
+	}
+}
