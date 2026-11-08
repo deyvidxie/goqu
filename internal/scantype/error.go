@@ -58,8 +58,12 @@ func errElementIsRowStruct(t reflect.Type) error {
 	)
 }
 
-func errElementNotScannable(t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
+func errNotScannable(fn string, t reflect.Type) error {
+	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use a sql.Scanner", fn, t)
+}
+
+func errRowStructValue(fn, structsFn string, t reflect.Type) error {
+	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s, a row struct; use %s[%s]", fn, t, structsFn, t)
 }
 
 func errNamedByteSliceValue(t reflect.Type) error {

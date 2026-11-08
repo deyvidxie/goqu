@@ -271,7 +271,7 @@ func (q QueryExecutor) IterStructs[T any](ctx context.Context) iter.Seq2[T, erro
 }
 
 func (q QueryExecutor) IterVals[T any](ctx context.Context) iter.Seq2[T, error] {
-	return iterRows(ctx, q, scantype.IterVal[T](), func(s Scanner) (val T, err error) {
+	return iterRows(ctx, q, scantype.IterVal[T](q.tagName), func(s Scanner) (val T, err error) {
 		err = s.ScanVal(&val)
 		return val, err
 	})
@@ -353,7 +353,7 @@ func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 }
 
 func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
-	if typeErr := scantype.OneVal[T](); typeErr != nil {
+	if typeErr := scantype.OneVal[T](q.tagName); typeErr != nil {
 		return val, false, typeErr
 	}
 	found, err = q.ScanValContext(ctx, &val)

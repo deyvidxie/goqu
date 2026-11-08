@@ -1137,6 +1137,47 @@ func (ss *scanSuite) TestIterVals_withoutDatabase() {
 	ss.True(goqu.IsNoDatabase(errs[0]))
 }
 
+func (ss *scanSuite) TestValueScans_rejectRowStructs() {
+	for want, err := range map[string]error{
+		"goqu: IterVals cannot scan into goqu_test.dsTestActionItem, a row struct; " +
+			"use IterStructs[goqu_test.dsTestActionItem]": ss.iterValsErr[dsTestActionItem](),
+		"goqu: IterVals cannot scan into *goqu_test.dsTestActionItem, a row struct; " +
+			"use IterStructs[*goqu_test.dsTestActionItem]": ss.iterValsErr[*dsTestActionItem](),
+		"goqu: ScanOneVal cannot scan into goqu_test.dsTestActionItem, a row struct; " +
+			"use ScanOneStruct[goqu_test.dsTestActionItem]": ss.oneValErr[dsTestActionItem](),
+		"goqu: ScanAllVals cannot scan into goqu_test.dsTestActionItem, a row struct; " +
+			"use ScanAllStructs[goqu_test.dsTestActionItem]": ss.allValsErr[dsTestActionItem](),
+	} {
+		ss.EqualError(err, want)
+		ss.True(goqu.IsUnsupportedScanType(err))
+	}
+}
+
+func (ss *scanSuite) TestValueScans_rejectTypesNoDriverValueFits() {
+	for want, err := range map[string]error{
+		"goqu: IterVals cannot scan into map[string]int; use a sql.Scanner": ss.iterValsErr[map[string]int](),
+		"goqu: ScanOneVal cannot scan into func(); use a sql.Scanner":       ss.oneValErr[func()](),
+		"goqu: ScanAllVals cannot scan into chan int; use a sql.Scanner":    ss.allValsErr[chan int](),
+	} {
+		ss.EqualError(err, want)
+		ss.True(goqu.IsUnsupportedScanType(err))
+	}
+}
+
+func (ss *scanSuite) TestIterVals_acceptsScannerAndTimeStructs() {
+	created := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Test1"))
+	ss.mock.ExpectQuery(`SELECT "created" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"created"}).AddRow(created))
+
+	names, errs := collect(ss.db.From("items").Select("name").IterVals[sql.NullString](context.Background()))
+	ss.Empty(errs)
+	ss.Equal([]sql.NullString{{String: "Test1", Valid: true}}, names)
+
+	times, errs := collect(ss.db.From("items").Select("created").IterVals[time.Time](context.Background()))
+	ss.Empty(errs)
+	ss.Equal([]time.Time{created}, times)
+}
+
 func TestScanSuite(t *testing.T) {
 	suite.Run(t, new(scanSuite))
 }

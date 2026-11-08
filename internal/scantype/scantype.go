@@ -62,7 +62,7 @@ func AllVals[T any](tagName string) error {
 		return err
 	}
 	if !util.IsPointer(t.Kind()) {
-		return nil
+		return driverValueTarget("ScanAllVals", "ScanAllStructs", t, tagName)
 	}
 	switch {
 	case isUnscannableSlice(util.DerefAll(t)):
@@ -74,13 +74,13 @@ func AllVals[T any](tagName string) error {
 	case isRowStruct(t.Elem(), tagName):
 		return errElementIsRowStruct(t)
 	default:
-		return errElementNotScannable(t)
+		return errNotScannable("ScanAllVals", t)
 	}
 }
 
-func OneVal[T any]() error {
+func OneVal[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanOneVal", t); err != nil {
+	if err := scannableVal("ScanOneVal", "ScanOneStruct", t, tagName); err != nil {
 		return err
 	}
 	if isByteSlice(t) && t != bytesType && !util.IsScanner(t) {
@@ -89,18 +89,36 @@ func OneVal[T any]() error {
 	return nil
 }
 
-func IterVal[T any]() error {
-	return scannableVal("IterVals", reflect.TypeFor[T]())
+func IterVal[T any](tagName string) error {
+	return scannableVal("IterVals", "IterStructs", reflect.TypeFor[T](), tagName)
 }
 
-func scannableVal(fn string, t reflect.Type) error {
+func scannableVal(fn, structsFn string, t reflect.Type, tagName string) error {
 	if err := rejectRawBytes(fn, t); err != nil {
 		return err
 	}
 	if isUnscannableSlice(util.DerefAll(t)) {
 		return errUnscannableSlice(fn, t)
 	}
-	return nil
+	return driverValueTarget(fn, structsFn, t, tagName)
+}
+
+func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) error {
+	inner := util.DerefAll(t)
+	switch {
+	case util.IsScanner(inner):
+		return nil
+	case isRowStruct(inner, tagName):
+		return errRowStructValue(fn, structsFn, t)
+	case isNeverADriverValue(inner.Kind()):
+		return errNotScannable(fn, t)
+	default:
+		return nil
+	}
+}
+
+func isNeverADriverValue(k reflect.Kind) bool {
+	return k == reflect.Map || k == reflect.Chan || k == reflect.Func || k == reflect.UnsafePointer
 }
 
 func acceptsNull(t reflect.Type) bool {
