@@ -33,7 +33,8 @@ func errFieldCycle(t reflect.Type, problem util.ColumnMapProblem, tagName string
 
 func errOneColumnStruct(t, elem reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
-		"cannot scan rows into %s, which scans as one column; use ScanVals/ScanVal or ScanAllVals[%s]/ScanOneVal[%s]", t, elem, elem,
+		"cannot scan rows into %s, which scans as one column; use ScanVals/ScanVal, ScanAllVals[%s]/ScanOneVal[%s] or IterVals[%s]",
+		t, elem, elem, elem,
 	)
 }
 
@@ -61,8 +62,8 @@ func errElementNotScannable(t reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError("ScanAllVals cannot scan into %s; use a sql.Scanner", t)
 }
 
-func errNamedByteSliceValue(fn string, t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use *%s", fn, t, t)
+func errNamedByteSliceValue(t reflect.Type) error {
+	return errors.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 }
 
 func errRawBytes(fn string) error {

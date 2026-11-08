@@ -78,20 +78,29 @@ func AllVals[T any](tagName string) error {
 	}
 }
 
-func OneVal[T any](fn string) error {
+func OneVal[T any]() error {
 	t := reflect.TypeFor[T]()
+	if err := scannableVal("ScanOneVal", t); err != nil {
+		return err
+	}
+	if isByteSlice(t) && t != bytesType && !util.IsScanner(t) {
+		return errNamedByteSliceValue(t)
+	}
+	return nil
+}
+
+func IterVal[T any]() error {
+	return scannableVal("IterVals", reflect.TypeFor[T]())
+}
+
+func scannableVal(fn string, t reflect.Type) error {
 	if err := rejectRawBytes(fn, t); err != nil {
 		return err
 	}
-	inner := util.DerefAll(t)
-	switch {
-	case isUnscannableSlice(inner):
+	if isUnscannableSlice(util.DerefAll(t)) {
 		return errUnscannableSlice(fn, t)
-	case t == inner && isByteSlice(t) && t != bytesType && !util.IsScanner(t):
-		return errNamedByteSliceValue(fn, t)
-	default:
-		return nil
 	}
+	return nil
 }
 
 func acceptsNull(t reflect.Type) bool {

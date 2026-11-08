@@ -271,7 +271,7 @@ func (q QueryExecutor) IterStructs[T any](ctx context.Context) iter.Seq2[T, erro
 }
 
 func (q QueryExecutor) IterVals[T any](ctx context.Context) iter.Seq2[T, error] {
-	return iterRows(ctx, q, scantype.OneVal[T]("IterVals"), func(s Scanner) (val T, err error) {
+	return iterRows(ctx, q, scantype.IterVal[T](), func(s Scanner) (val T, err error) {
 		err = s.ScanVal(&val)
 		return val, err
 	})
@@ -309,31 +309,34 @@ func iterRows[T any](
 }
 
 func scanStructRow[T any](s Scanner) (T, error) {
+	target, scanned := newStructRow[T]()
+	if err := s.ScanStruct(target); err != nil {
+		var zero T
+		return zero, err
+	}
+	return scanned(), nil
+}
+
+func newStructRow[T any]() (target interface{}, scanned func() T) {
 	var row T
 	t := reflect.TypeFor[T]()
 	if !util.IsPointer(t.Kind()) {
-		err := s.ScanStruct(&row)
-		return row, err
+		return &row, func() T { return row }
 	}
 	elem := reflect.New(t.Elem())
-	if err := s.ScanStruct(elem.Interface()); err != nil {
-		return row, err
+	return elem.Interface(), func() T {
+		reflect.ValueOf(&row).Elem().Set(elem)
+		return row
 	}
-	return elem.Interface().(T), nil
 }
 
 func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
 	if typeErr := scantype.Struct[T](q.tagName); typeErr != nil {
 		return row, false, typeErr
 	}
-	t := reflect.TypeFor[T]()
-	if !util.IsPointer(t.Kind()) {
-		found, err = q.ScanStructContext(ctx, &row)
-		return row, found, err
-	}
-	elem := reflect.New(t.Elem())
-	if found, err = q.ScanStructContext(ctx, elem.Interface()); found {
-		reflect.ValueOf(&row).Elem().Set(elem)
+	target, scanned := newStructRow[T]()
+	if found, err = q.ScanStructContext(ctx, target); found {
+		row = scanned()
 	}
 	return row, found, err
 }
@@ -350,7 +353,7 @@ func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 }
 
 func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
-	if typeErr := scantype.OneVal[T]("ScanOneVal"); typeErr != nil {
+	if typeErr := scantype.OneVal[T](); typeErr != nil {
 		return val, false, typeErr
 	}
 	found, err = q.ScanValContext(ctx, &val)

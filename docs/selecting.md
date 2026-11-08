@@ -1281,21 +1281,21 @@ id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bo
 <a name="iter"></a>
 **[`IterStructs`, `IterVals`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.IterStructs)**
 
-Range over the rows one at a time, for result sets too large to load with `ScanAllStructs`/`ScanAllVals`. They are methods of `*SelectDataset` and of `exec.QueryExecutor` and return an `iter.Seq2[T, error]`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error (from the type check, the query, a row's scan or the rows) is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`; `IterVals` takes the same types as `ScanOneVal`, so a pointer such as `*int64` receives `nil` for `NULL`.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`. `IterVals` scans each row straight into a `T`, so a pointer such as `*int64` receives `nil` for `NULL`.
 
 ```go
-for user, err := range db.From("user").IterStructs[User](ctx) {
+for user, err := range db.From("user").IterStructs[User](context.Background()) {
 	if err != nil {
 		return err
 	}
-	// use user
+	fmt.Println(user)
 }
 
-for id, err := range db.From("user").Select("id").IterVals[int64](ctx) {
+for id, err := range db.From("user").Select("id").IterVals[int64](context.Background()) {
 	if err != nil {
 		return err
 	}
-	// use id
+	fmt.Println(id)
 }
 ```
 
