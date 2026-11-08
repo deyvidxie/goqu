@@ -33,7 +33,7 @@ func errFieldCycle(t reflect.Type, problem util.ColumnMapProblem, tagName string
 
 func errOneColumnStruct(t, elem reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
-		"cannot scan rows into %s, which scans as one column; use ScanAllVals[%s] or ScanOneVal[%s]", t, elem, elem,
+		"cannot scan rows into %s, which scans as one column; use ScanVals/ScanVal or ScanAllVals[%s]/ScanOneVal[%s]", t, elem, elem,
 	)
 }
 

@@ -1,7 +1,10 @@
 package goqu_test
 
 import (
+	gsql "database/sql"
+	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9"
@@ -1362,6 +1365,31 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 	sds.EqualError(unmappedErr, `goqu: unable to find corresponding field to column "test" returned by query`)
 	sds.True(goqu.IsColumnMismatch(unmappedErr))
 	sds.False(goqu.IsUnsupportedScanType(unmappedErr))
+}
+
+func (sds *selectDatasetSuite) TestScanStructs_rejectsTargetsThatAreNotRows() {
+	mDB, sqlMock, err := sqlmock.New()
+	sds.Require().NoError(err)
+	db := goqu.New("mock", mDB)
+	var nullStrings []gsql.NullString
+	var times []time.Time
+	var names []string
+	var nullString gsql.NullString
+	var addr netip.Addr
+	var user *dsTestActionItem
+	for name, scan := range map[string]func() error{
+		"[]sql.NullString": func() error { return db.From("items").ScanStructs(&nullStrings) },
+		"[]time.Time":      func() error { return db.From("items").ScanStructs(&times) },
+		"[]string":         func() error { return db.From("items").ScanStructs(&names) },
+		"*sql.NullString":  func() error { _, err := db.From("items").ScanStruct(&nullString); return err },
+		"*netip.Addr":      func() error { _, err := db.From("items").ScanStruct(&addr); return err },
+		"**T":              func() error { _, err := db.From("items").ScanStruct(&user); return err },
+	} {
+		var scanErr error
+		sds.NotPanics(func() { scanErr = scan() }, name)
+		sds.True(goqu.IsUnsupportedScanType(scanErr), "%s: %v", name, scanErr)
+	}
+	sds.NoError(sqlMock.ExpectationsWereMet())
 }
 
 func (sds *selectDatasetSuite) TestScanStruct() {

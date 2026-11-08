@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/scantype"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -108,7 +109,7 @@ func (s *scanner) ScanStruct(i interface{}) error {
 
 // ScanStructs scans results in slice of structs
 func (s *scanner) ScanStructs(i interface{}) error {
-	val, err := checkScanStructsTarget(i)
+	val, err := checkScanStructsTarget(i, s.tagName)
 	if err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func (s *scanner) scanIntoSlice(val reflect.Value, it func(i interface{}) error)
 	return s.Err()
 }
 
-func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
+func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
 	if util.IsNilOrNilPointer(i) {
 		return val, errNilScanTarget(i)
@@ -169,7 +170,7 @@ func checkScanStructsTarget(i interface{}) (reflect.Value, error) {
 	if !util.IsSlice(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}
-	return val, nil
+	return val, scantype.StructType(val.Type().Elem(), tagName)
 }
 
 func checkScanValsTarget(i interface{}) (reflect.Value, error) {

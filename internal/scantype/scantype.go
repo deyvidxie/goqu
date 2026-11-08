@@ -16,7 +16,10 @@ var (
 )
 
 func Struct[T any](tagName string) error {
-	t := reflect.TypeFor[T]()
+	return StructType(reflect.TypeFor[T](), tagName)
+}
+
+func StructType(t reflect.Type, tagName string) error {
 	elem := util.Deref(t)
 	if !util.IsStruct(elem.Kind()) {
 		return errNotStructTarget(t)

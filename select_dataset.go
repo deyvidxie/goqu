@@ -3,6 +3,7 @@ package goqu
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -743,10 +744,35 @@ func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bo
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {
-	if sd.GetClauses().IsDefaultSelect() {
-		return sd.Select(target)
+	if !sd.GetClauses().IsDefaultSelect() {
+		return sd
 	}
-	return sd
+	row, ok := scanRowType(target)
+	if !ok {
+		return sd
+	}
+	if err := scantype.StructType(row, sd.tagName); err != nil {
+		return sd.SetError(err)
+	}
+	return sd.Select(target)
+}
+
+func scanRowType(target interface{}) (reflect.Type, bool) {
+	t := reflect.TypeOf(target)
+	if t == nil {
+		return nil, false
+	}
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Slice:
+		return t.Elem(), true
+	case reflect.Struct:
+		return t, true
+	default:
+		return nil, false
+	}
 }
 
 // Generates the SELECT COUNT(*) sql for this dataset and uses Exec#ScanVal to scan the result into an int64.

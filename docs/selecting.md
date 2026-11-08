@@ -977,6 +977,8 @@ Scans rows into a slice of structs
 
 **NOTE** [`ScanStructs`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanStructs) will only select the columns that can be scanned in to the structs unless you have explicitly selected certain columns.
 
+`ScanStructs` and `ScanStruct` need a row struct: a type that scans as one column (`time.Time`, `sql.NullString`, any `sql.Scanner` from `database/sql`), a struct with no scannable fields or a non-struct element returns `goqu.UnsupportedScanTypeError`, before the query runs when the columns are auto-selected. Use `ScanVals`/`ScanVal` for those.
+
  ```go
 type User struct{
   FirstName string `db:"first_name"`
