@@ -76,6 +76,15 @@ func IsUnsupportedScanType(err error) bool {
 	return errors.As(err, &target)
 }
 
+func NewColumnMismatchError(format string, args ...interface{}) error {
+	return ColumnMismatchError{baseError{msg: fmt.Sprintf(format, args...)}}
+}
+
+func IsColumnMismatch(err error) bool {
+	var target ColumnMismatchError
+	return errors.As(err, &target)
+}
+
 func NewUnknownDialectError(format string, args ...interface{}) error {
 	return UnknownDialectError{baseError{msg: fmt.Sprintf(format, args...)}}
 }
@@ -91,14 +100,5 @@ func NewNoDatabaseError(format string, args ...interface{}) error {
 
 func IsNoDatabase(err error) bool {
 	var target NoDatabaseError
-	return errors.As(err, &target)
-}
-
-func NewColumnMismatchError(format string, args ...interface{}) error {
-	return ColumnMismatchError{baseError{msg: fmt.Sprintf(format, args...)}}
-}
-
-func IsColumnMismatch(err error) bool {
-	var target ColumnMismatchError
 	return errors.As(err, &target)
 }
