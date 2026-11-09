@@ -193,6 +193,11 @@ func (sds *sqlserverDialectSuite) TestTruncate() {
 		},
 		sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=sqlserver]"},
 		sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=sqlserver]"},
+	)
+}
+
+func (sds *sqlserverDialectSuite) TestInsertRowAlias() {
+	sds.assertSQL(
 		sqlTestCase{
 			ds:  goqu.Dialect("sqlserver").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
 			err: "goqu: dialect does not support an INSERT row alias [dialect=sqlserver]",

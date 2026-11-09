@@ -137,7 +137,7 @@ func (sds *sqlite3DialectSuite) TestLimitAllAndOffset() {
 	)
 }
 
-func (sds *sqlite3DialectSuite) TestInsertRowAliasIsError() {
+func (sds *sqlite3DialectSuite) TestInsertRowAlias() {
 	sds.assertSQL(
 		sqlTestCase{
 			ds:  goqu.Dialect("sqlite3").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),

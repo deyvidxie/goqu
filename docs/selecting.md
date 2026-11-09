@@ -697,7 +697,7 @@ Output:
 SELECT * FROM "test" OFFSET 2
 ```
 
-**NOTE** `sqlserver` renders an offset as `ORDER BY … OFFSET n ROWS`, so an `Offset` without `Order` returns a `goqu.UnsupportedError`. `mysql` and `sqlite3` reject `OFFSET` without `LIMIT`, so an `Offset` without `Limit` renders `LIMIT 18446744073709551615` (mysql) or `LIMIT -1` (sqlite3) before it; `LimitAll` renders no limit on `mysql`, `sqlite3` and `sqlserver`.
+**NOTE** `sqlserver` renders an offset as `ORDER BY … OFFSET n ROWS`, so an `Offset` without `Order` returns a `goqu.UnsupportedError`. `mysql` and `sqlite3` reject `OFFSET` without `LIMIT`, so an `Offset` without `Limit` renders `LIMIT 18446744073709551615` (mysql) or `LIMIT -1` (sqlite3) before it; `LimitAll` is treated as no limit on `mysql`, `sqlite3` and `sqlserver`.
 
 <a name="group_by"></a>
 **[`GroupBy`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.GroupBy)**

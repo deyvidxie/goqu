@@ -473,8 +473,8 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 `Excluded`; qualify it with the table name.
 
 **NOTE** `mysql8` needs MySQL 8.0.19+ for the row alias; for older servers set `ExcludedStyle` to
-`sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`, which returns a
-`goqu.UnsupportedError` on dialects without the row alias (every dialect but `mysql8` and `mysql8nano`). An `INSERT ... SELECT` that
+`sqlgen.ExcludedValuesFuncStyle` on the dialect options. It reuses the alias set with `As`, which fails with a
+`goqu.UnsupportedError` on dialects whose `ExcludedStyle` is not `ExcludedRowAliasStyle`. An `INSERT ... SELECT` that
 uses `Excluded` cannot reference the tables of the `SELECT` in the update.
 
 `DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set

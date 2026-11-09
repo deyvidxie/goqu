@@ -279,6 +279,11 @@ func (sds *duckdbDialectSuite) TestTruncate() {
 		},
 		sqlTestCase{ds: ds.Truncate().Cascade(), sql: "TRUNCATE \"test\" CASCADE"},
 		sqlTestCase{ds: ds.Truncate().Restrict(), sql: "TRUNCATE \"test\" RESTRICT"},
+	)
+}
+
+func (sds *duckdbDialectSuite) TestInsertRowAlias() {
+	sds.assertSQL(
 		sqlTestCase{
 			ds:  goqu.Dialect("duckdb").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
 			err: "goqu: dialect does not support an INSERT row alias [dialect=duckdb]",

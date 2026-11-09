@@ -217,8 +217,7 @@ func ExampleDeleteDataset_Limit() {
 }
 
 func ExampleDeleteDataset_LimitAll() {
-	// Using mysql dialect because it supports limit on delete
-	ds := goqu.Dialect("mysql").Delete("test").LimitAll()
+	ds := goqu.Dialect("mysql").Delete("test").Limit(10).LimitAll()
 	sql, _, _ := ds.ToSQL()
 	fmt.Println(sql)
 	// Output:
@@ -226,7 +225,6 @@ func ExampleDeleteDataset_LimitAll() {
 }
 
 func ExampleDeleteDataset_ClearLimit() {
-	// Using mysql dialect because it supports limit on delete
 	ds := goqu.Dialect("mysql").Delete("test").Limit(10)
 	sql, _, _ := ds.ClearLimit().ToSQL()
 	fmt.Println(sql)

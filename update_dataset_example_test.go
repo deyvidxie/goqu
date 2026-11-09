@@ -242,6 +242,7 @@ func ExampleUpdateDataset_LimitAll() {
 	ds := goqu.Dialect("mysql").
 		Update("test").
 		Set(goqu.Record{"foo": "bar"}).
+		Limit(10).
 		LimitAll()
 	sql, _, _ := ds.ToSQL()
 	fmt.Println(sql)

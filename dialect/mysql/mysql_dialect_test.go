@@ -279,7 +279,7 @@ func (mds *mysqlDialectSuite) TestLateral() {
 }
 
 func (mds *mysqlDialectSuite) TestTruncate() {
-	for _, d := range []string{"mysql", "mysql8"} {
+	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
 		ds := goqu.Dialect(d).From("test")
 		mds.assertSQL(
 			sqlTestCase{ds: ds.Truncate(), sql: "TRUNCATE `test`"},
@@ -298,7 +298,7 @@ func (mds *mysqlDialectSuite) TestTruncate() {
 }
 
 func (mds *mysqlDialectSuite) TestLimitAllAndOffset() {
-	for _, d := range []string{"mysql", "mysql8"} {
+	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
 		ds := goqu.Dialect(d).From("test")
 		mds.assertSQL(
 			sqlTestCase{ds: ds.LimitAll(), sql: "SELECT * FROM `test`"},
@@ -315,11 +315,13 @@ func (mds *mysqlDialectSuite) TestInsertRowAlias() {
 			ds:  goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
 			err: "goqu: dialect does not support an INSERT row alias [dialect=mysql]",
 		},
-		sqlTestCase{
-			ds:  goqu.Dialect("mysql8").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
-			sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
-		},
 	)
+	for _, d := range []string{"mysql8", "mysql8nano"} {
+		mds.assertSQL(sqlTestCase{
+			ds:  goqu.Dialect(d).Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
+		})
+	}
 }
 
 func (mds *mysqlDialectSuite) TestWithCTE() {

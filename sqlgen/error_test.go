@@ -144,6 +144,31 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Select(goqu.Now(6))
 		}},
+		{"TRUNCATE several tables", "TRUNCATE of more than one table", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsMultipleTruncateTables = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("a", "b")
+		}},
+		{"TRUNCATE identity", "CONTINUE IDENTITY in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateIdentity = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Identity("continue")
+		}},
+		{"TRUNCATE CASCADE", "CASCADE in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateCascade = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Cascade()
+		}},
+		{"TRUNCATE RESTRICT", "RESTRICT in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateCascade = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Restrict()
+		}},
+		{"INSERT row alias", "INSERT row alias", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedTableStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).As("new")
+		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {

@@ -25,11 +25,11 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsWindowFunction = false
 	opts.SupportsLateral = false
 
-	// SQLite has no TRUNCATE statement; DELETE without a WHERE clause empties the table.
 	opts.TruncateClause = []byte("DELETE FROM")
 	opts.SupportsTruncateIdentity = false
 	opts.SupportsTruncateCascade = false
 	opts.SupportsMultipleTruncateTables = false
+
 	opts.SupportsLimitAll = false
 	opts.OffsetWithoutLimitFragment = []byte(" LIMIT -1")
 
