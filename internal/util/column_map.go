@@ -100,8 +100,12 @@ func hasTaggedField(t reflect.Type, tagName string, tagged bool, seen map[tagged
 		sub, follow := followedType(&f, tagName)
 		fieldTagged := tagged || !fieldTag.IsEmpty()
 		switch {
+		case isEmbed(&f) && follow && !IsStruct(sub.Kind()):
+			if fieldTagged {
+				return true
+			}
 		case isEmbed(&f):
-			if follow && IsStruct(sub.Kind()) && hasTaggedField(sub, tagName, fieldTagged, seen) {
+			if follow && hasTaggedField(sub, tagName, fieldTagged, seen) {
 				return true
 			}
 		case !f.IsExported() || shouldIgnoreField(fieldTag):
@@ -109,20 +113,6 @@ func hasTaggedField(t reflect.Type, tagName string, tagged bool, seen map[tagged
 			return true
 		case follow && hasTaggedField(sub, tagName, false, seen):
 			return true
-		}
-	}
-	return false
-}
-
-func HasTaggedColumn(t reflect.Type, tagName string) bool {
-	for _, col := range StructColumnMap(t, tagName) {
-		owner := t
-		for _, i := range col.FieldIndex {
-			f := owner.Field(i)
-			if !tag.New(tagName, f.Tag).IsEmpty() {
-				return true
-			}
-			owner = Deref(f.Type)
 		}
 	}
 	return false

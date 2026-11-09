@@ -111,6 +111,21 @@ type (
 		Item dsTestActionItem
 		Next *ScanTestWrappedCycle
 	}
+	scanTestReusedInner struct {
+		*ScanTestID
+		Plain                 scanTestUntaggedInner
+		scanTestUntaggedInner `db:"inner"`
+	}
+	scanTestTaggedPtrScalar struct {
+		*ScanTestID `db:"count"`
+	}
+	scanTestUntaggedPtrScalar struct{ *ScanTestID }
+	scanTestIgnoredPtrScalar  struct {
+		*ScanTestID `db:"-"`
+	}
+	ScanTestTaggedSelfRef struct {
+		*ScanTestTaggedSelfRef `db:"self"`
+	}
 	scanTestPrefixedEmbed struct {
 		*ScanTestID
 		scanTestUntaggedInner `db:"inner"`
@@ -793,6 +808,9 @@ func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToT
 		"ScanTestSkippedCycle":      ss.allValsErr[ScanTestSkippedCycle],
 		"ScanTestPrivateCycle":      ss.allValsErr[ScanTestPrivateCycle],
 		"scanTestEmptyTaggedEmbed":  ss.allValsErr[scanTestEmptyTaggedEmbed],
+		"scanTestUntaggedPtrScalar": ss.allValsErr[scanTestUntaggedPtrScalar],
+		"scanTestIgnoredPtrScalar":  ss.allValsErr[scanTestIgnoredPtrScalar],
+		"ScanTestTaggedSelfRef":     ss.allValsErr[ScanTestTaggedSelfRef],
 		"ScanTestIgnoredEmbedCycle": ss.allValsErr[ScanTestIgnoredEmbedCycle],
 		"scanTestUntaggedInner":     ss.allValsErr[scanTestUntaggedInner],
 		"map[string]int":            ss.allValsErr[map[string]int],
@@ -819,16 +837,18 @@ func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 
 func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 	for elem, err := range map[string]error{
-		"goqu_test.ScanTestItem":          ss.allValsErr[*ScanTestItem](),
-		"goqu_test.ScanTestNode":          ss.allValsErr[*ScanTestNode](),
-		"goqu_test.scanTestEmbeddedID":    ss.allValsErr[*scanTestEmbeddedID](),
-		"goqu_test.scanTestNestedID":      ss.allValsErr[*scanTestNestedID](),
-		"goqu_test.scanTestHiddenAudit":   ss.allValsErr[*scanTestHiddenAudit](),
-		"goqu_test.scanTestNestedIDPtr":   ss.allValsErr[*scanTestNestedIDPtr](),
-		"goqu_test.scanTestPrefixedEmbed": ss.allValsErr[*scanTestPrefixedEmbed](),
-		"goqu_test.ScanTestOptionCycle":   ss.allValsErr[*ScanTestOptionCycle](),
-		"goqu_test.ScanTestWrappedCycle":  ss.allValsErr[*ScanTestWrappedCycle](),
-		"goqu_test.scanTestUnexportedPtr": ss.allValsErr[*scanTestUnexportedPtr](),
+		"goqu_test.ScanTestItem":            ss.allValsErr[*ScanTestItem](),
+		"goqu_test.ScanTestNode":            ss.allValsErr[*ScanTestNode](),
+		"goqu_test.scanTestEmbeddedID":      ss.allValsErr[*scanTestEmbeddedID](),
+		"goqu_test.scanTestNestedID":        ss.allValsErr[*scanTestNestedID](),
+		"goqu_test.scanTestHiddenAudit":     ss.allValsErr[*scanTestHiddenAudit](),
+		"goqu_test.scanTestNestedIDPtr":     ss.allValsErr[*scanTestNestedIDPtr](),
+		"goqu_test.scanTestPrefixedEmbed":   ss.allValsErr[*scanTestPrefixedEmbed](),
+		"goqu_test.scanTestReusedInner":     ss.allValsErr[*scanTestReusedInner](),
+		"goqu_test.scanTestTaggedPtrScalar": ss.allValsErr[*scanTestTaggedPtrScalar](),
+		"goqu_test.ScanTestOptionCycle":     ss.allValsErr[*ScanTestOptionCycle](),
+		"goqu_test.ScanTestWrappedCycle":    ss.allValsErr[*ScanTestWrappedCycle](),
+		"goqu_test.scanTestUnexportedPtr":   ss.allValsErr[*scanTestUnexportedPtr](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+": "+elem+
 			" is a row struct; use ScanAllStructs[*"+elem+"]", elem)

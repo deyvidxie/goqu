@@ -125,15 +125,7 @@ func isTime(t reflect.Type) bool {
 }
 
 func isRowStruct(t reflect.Type, tagName string) bool {
-	if !util.IsStruct(t.Kind()) {
-		return false
-	}
-	switch util.CheckColumnMap(t, tagName).Issue {
-	case util.ColumnMapNonStructEmbed, util.ColumnMapCycle:
-		return util.HasTaggedField(t, tagName)
-	default:
-		return util.HasTaggedColumn(t, tagName)
-	}
+	return util.IsStruct(t.Kind()) && util.HasTaggedField(t, tagName)
 }
 
 func IsUnscannableSlice(t reflect.Type) bool {
