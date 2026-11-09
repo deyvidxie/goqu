@@ -179,6 +179,16 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": goqu.Default()})
 		}},
+		{"empty AND fragment", "no EmptyAndFragment for an empty AND list", func(o *sqlgen.SQLDialectOptions) {
+			o.EmptyAndFragment = nil
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And()))
+		}},
+		{"empty OR fragment", "no EmptyOrFragment for an empty OR list", func(o *sqlgen.SQLDialectOptions) {
+			o.EmptyOrFragment = nil
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Where(goqu.Or())
+		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -265,6 +275,7 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		},
 		{"unencodable value", "unable to encode value {}", expression(struct{}{})},
 		{"Default outside a value", "Default is only valid as an INSERT or UPDATE SET value", expression(exp.Default())},
+		{"empty Op", `Op for "t.a" has no operators`, expression(exp.Ex{"t.a": exp.Op{}})},
 		{"list as an UPDATE value", "a list ([]int) is not an INSERT or UPDATE value", toSQL(func(b sb.SQLBuilder) {
 			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, exp.NewUpdateClauses().
 				SetTable(exp.NewIdentifierExpression("", "t", "")).SetSetValues(exp.Record{"a": []int{1}}))

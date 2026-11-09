@@ -105,6 +105,16 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 	assert.Empty(t, args)
 }
 
+func TestInsertOnConflictEmptyWhere(t *testing.T) {
+	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
+	sql, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2`, sql)
+	sql, _, err = ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.ExOr{})).ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2 WHERE (1=0)`, sql)
+}
+
 func TestJSONFunctionsAreErrors(t *testing.T) {
 	_, _, err := goqu.Dialect("postgres").From("t").Where(goqu.JSONValue("doc", "$.a").Eq(1)).ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support JSONValue [dialect=postgres]")

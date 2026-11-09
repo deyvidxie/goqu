@@ -49,3 +49,7 @@ func errRecordNotStruct(source interface{}) error {
 func errUnsupportedOpKey(key string) error {
 	return errors.NewInvalidExpressionError("unsupported Op key %q", key)
 }
+
+func errEmptyOp(key string) error {
+	return errors.NewInvalidExpressionError("Op for %q has no operators", key)
+}

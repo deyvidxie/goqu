@@ -77,6 +77,9 @@ func mapToExpressionList(ex map[string]interface{}, eType ExpressionListType) (E
 		rhs := ex[key]
 		var exp Expression
 		if op, ok := rhs.(Op); ok {
+			if len(op) == 0 {
+				return nil, errEmptyOp(key)
+			}
 			ors, err := createOredExpressionFromMap(lhs, op)
 			if err != nil {
 				return nil, err

@@ -330,6 +330,8 @@ SELECT * FROM "test" WHERE (("col" = 10) OR ("col" = 20)) []
 SELECT * FROM "test" WHERE (("col" = ?) OR ("col" = ?)) [10 20]
 ```
 
+**NOTE** An empty `And()`/`Ex{}` is true and an empty `Or()`/`ExOr{}` is false: an empty group is dropped from a group of its own kind (an empty `And` from a `Where`), and anywhere else renders `(1=1)` or `(1=0)` (a JOIN `On` with only empty ANDs still fails with an `InvalidExpressionError`, `join condition required`). Inside a `Where`/`Having`/`On` or an `And`/`Or` group, an empty literal `L("")` counts as an empty `And()`; an empty `goqu.Op{}` is an `InvalidExpressionError`.
+
 You can also use `Or` and `And` functions in tandem which will give you control not only over how the Expressions are joined together, but also how they are grouped
  
 ```go

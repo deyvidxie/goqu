@@ -522,6 +522,21 @@ func (st *duckdbSuite) TestDefaultValue() {
 	st.Equal(int64(7), a)
 }
 
+func (st *duckdbSuite) TestEmptyConditions() {
+	var none []goqu.Expression
+	_, err := st.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
+	st.Require().NoError(err)
+	count, err := st.db.From("entry").Count()
+	st.Require().NoError(err)
+	st.Equal(int64(10), count)
+
+	var ints []int64
+	err = st.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
+	st.Require().NoError(err)
+	st.Len(ints, 10)
+	st.Equal(int64(1), ints[0])
+}
+
 func (st *duckdbSuite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()

@@ -71,7 +71,7 @@ func (gis *githubIssuesSuite) TestIssue49() {
 	sql, args, err := dialect.From("table").Where(filters).ToSQL()
 	gis.NoError(err)
 	gis.Empty(args)
-	gis.Equal(`SELECT * FROM "table"`, sql)
+	gis.Equal(`SELECT * FROM "table" WHERE (1=0)`, sql)
 
 	sql, args, err = dialect.From("table").Where(goqu.Ex{}).ToSQL()
 	gis.NoError(err)
@@ -81,7 +81,7 @@ func (gis *githubIssuesSuite) TestIssue49() {
 	sql, args, err = dialect.From("table").Where(goqu.ExOr{}).ToSQL()
 	gis.NoError(err)
 	gis.Empty(args)
-	gis.Equal(`SELECT * FROM "table"`, sql)
+	gis.Equal(`SELECT * FROM "table" WHERE (1=0)`, sql)
 }
 
 // Test for https://github.com/doug-martin/goqu/issues/115
