@@ -395,7 +395,7 @@ func (st *sqlite3Suite) TestILikeEscapesLiteralPercent() {
 	st.Equal(int64(11), count)
 }
 
-func (st *sqlite3Suite) TestForUpdateRunsWithoutTheClause() {
+func (st *sqlite3Suite) TestForUpdateRunsAndRejectsSkipLocked() {
 	var entries []entry
 	st.NoError(st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries))
 	st.Len(entries, 10)

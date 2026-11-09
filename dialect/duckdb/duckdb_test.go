@@ -186,7 +186,7 @@ func (st *duckdbSuite) TestGreatestAndLeast() {
 	st.Equal([]int{0, 1, 2, 3, 4, 5, 5, 5, 5, 5}, least)
 }
 
-func (st *duckdbSuite) TestForUpdateRunsWithoutTheClause() {
+func (st *duckdbSuite) TestForUpdateRunsAndRejectsSkipLocked() {
 	var entries []entry
 	st.NoError(st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries))
 	st.Len(entries, 10)
