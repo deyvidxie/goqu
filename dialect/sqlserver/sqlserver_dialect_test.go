@@ -163,6 +163,22 @@ func (sds *sqlserverDialectSuite) TestSelectDistinctWithLimit() {
 	)
 }
 
+func (sds *sqlserverDialectSuite) TestOffsetRequiresOrder() {
+	ds := goqu.Dialect("sqlserver").From("test")
+	for _, offset := range []*goqu.SelectDataset{ds.Offset(20), ds.Limit(10).Offset(20), ds.Order().Offset(20)} {
+		_, _, err := offset.ToSQL()
+		sds.EqualError(err, "goqu: dialect does not support OFFSET without ORDER BY [dialect=sqlserver]")
+		sds.True(goqu.IsUnsupported(err))
+	}
+	sds.assertSQL(
+		sqlTestCase{ds: ds.Limit(10).Offset(0), sql: `SELECT  TOP (10) * FROM "test"`},
+		sqlTestCase{
+			ds:  ds.Order(goqu.C("a").Asc()).Limit(10).Offset(20),
+			sql: `SELECT * FROM "test" ORDER BY "a" ASC OFFSET 20 ROWS FETCH FIRST 10 ROWS ONLY`,
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestSelectLimitAll() {
 	ds := goqu.Dialect("sqlserver").From("test")
 	sds.assertSQL(

@@ -146,6 +146,10 @@ type (
 		LimitFragment []byte
 		// The SQL OFFSET BY clause fragment(DEFAULT=[]byte(" OFFSET "))
 		OffsetFragment []byte
+		// The fragment after the offset in ORDER BY … OFFSET n ROWS(DEFAULT=[]byte(" ROWS"))
+		OffsetRowsFragment []byte
+		// The fragment after the limit in OFFSET … FETCH FIRST n ROWS ONLY(DEFAULT=[]byte(" ROWS ONLY"))
+		FetchRowsOnlyFragment []byte
 		// The SQL FOR UPDATE fragment(DEFAULT=[]byte(" FOR UPDATE "))
 		ForUpdateFragment []byte
 		// The SQL FOR NO KEY UPDATE fragment(DEFAULT=[]byte(" FOR NO KEY UPDATE "))
@@ -567,6 +571,8 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		FetchFragment:             []byte(" "),
 		LimitFragment:             []byte(" LIMIT "),
 		OffsetFragment:            []byte(" OFFSET "),
+		OffsetRowsFragment:        []byte(" ROWS"),
+		FetchRowsOnlyFragment:     []byte(" ROWS ONLY"),
 		ForUpdateFragment:         []byte(" FOR UPDATE "),
 		ForNoKeyUpdateFragment:    []byte(" FOR NO KEY UPDATE "),
 		ForShareFragment:          []byte(" FOR SHARE "),

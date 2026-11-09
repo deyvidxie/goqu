@@ -693,6 +693,8 @@ Output:
 SELECT * FROM "test" OFFSET 2
 ```
 
+**NOTE** `sqlserver` renders an offset as `ORDER BY … OFFSET n ROWS`, so an `Offset` without `Order` returns a `goqu.UnsupportedError`.
+
 <a name="group_by"></a>
 **[`GroupBy`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.GroupBy)**
 
