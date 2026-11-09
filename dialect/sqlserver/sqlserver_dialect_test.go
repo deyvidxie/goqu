@@ -328,6 +328,18 @@ func TestIntervalIsError(t *testing.T) {
 	assert.True(t, goqu.IsUnsupported(err))
 }
 
+func TestLateralIsError(t *testing.T) {
+	lateral := goqu.Lateral(goqu.From("other").Select("c").As("o"))
+	for _, ds := range []*goqu.SelectDataset{
+		goqu.Dialect("sqlserver").From(goqu.T("test"), lateral),
+		goqu.Dialect("sqlserver").From("test").Join(lateral, goqu.On(goqu.V(true))),
+	} {
+		_, _, err := ds.ToSQL()
+		assert.EqualError(t, err, "goqu: dialect does not support lateral expressions [dialect=sqlserver]")
+		assert.True(t, goqu.IsUnsupported(err))
+	}
+}
+
 func TestRegexpIsError(t *testing.T) {
 	re := regexp.MustCompile("[ab]")
 	a := goqu.C("a")
