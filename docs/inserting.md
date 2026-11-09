@@ -257,6 +257,8 @@ Output:
 INSERT INTO "user" ("first_name", "last_name") VALUES (DEFAULT, 'Farley'), ('Jimmy', 'Stewart'), (DEFAULT, 'Jeffers') []
 ```
 
+**NOTE** `goqu.Default()` is only valid as an insert or update value; elsewhere `ToSQL` returns a `goqu.InvalidExpressionError`. `sqlite3` has no `DEFAULT` value and returns a `goqu.UnsupportedError`.
+
 `goqu` will also use fields in embedded structs when creating an insert.
 
 **NOTE** unexported fields will be ignored!

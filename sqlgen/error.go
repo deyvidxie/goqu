@@ -32,6 +32,7 @@ var (
 	errExcludedRowAliasUnresolved    = errors.NewInvalidExpressionError(
 		"Excluded rendered differently on a second pass; Valuers and expressions in DoUpdate must render deterministically",
 	)
+	errDefaultOutsideValues = errors.NewInvalidExpressionError("Default is only valid as an INSERT or UPDATE SET value")
 
 	errIntervalCountCondition = errors.NewInvalidExpressionError("Interval count goqu.Ex/ExOr is a condition, not a count")
 	errJSONCandidateInvalid   = errors.NewInvalidExpressionError("JSONContains candidate is not valid JSON")
@@ -292,4 +293,14 @@ func errTruncateCascadeNotSupported(dialect string, cascade bool) error {
 
 func errInsertRowAliasNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support an INSERT row alias [dialect=%s]", dialect)
+}
+
+func errListAsValue(val interface{}) error {
+	return errors.NewInvalidExpressionError(
+		"a list (%T) is not an INSERT or UPDATE value; wrap it in a driver.Valuer to store it as one value", val,
+	)
+}
+
+func errDefaultValueNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support DEFAULT as an INSERT or UPDATE value [dialect=%s]", dialect)
 }

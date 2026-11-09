@@ -322,6 +322,10 @@ type (
 		WhereClause() ExpressionList
 		Update() interface{}
 	}
+	DefaultExpression interface {
+		Expression
+		isDefault()
+	}
 	ExcludedExpression interface {
 		Expression
 		Comparable

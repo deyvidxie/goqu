@@ -130,8 +130,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_colsAndVals() {
 			"a1", "b1", "a2", "b2", "a3", "b3",
 		}},
 
-		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`},
-		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`, isPrepared: true},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 2 got 1`},
+		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 2 got 1`, isPrepared: true},
 	)
 }
 
@@ -193,6 +193,49 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withRows() {
 
 		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`},
 		insertTestCase{clause: bic, err: `goqu: rows with different value length, expected 1 got 2`, isPrepared: true},
+	)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.DefaultFragment = []byte("default")
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
+	withVals := func(rows ...[]interface{}) exp.InsertClauses { return ic.SetVals(rows) }
+
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{clause: withVals([]interface{}{exp.Default(), 1}), sql: `INSERT INTO "test" ("a", "b") VALUES (default, 1)`},
+		insertTestCase{
+			clause:     withVals([]interface{}{exp.Default(), 1}),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES (default, ?)`,
+			isPrepared: true,
+			args:       []interface{}{int64(1)},
+		},
+		insertTestCase{
+			clause: ic.SetCols(nil).SetRows([]interface{}{exp.Record{"a": exp.Default(), "b": 1}}),
+			sql:    `INSERT INTO "test" ("a", "b") VALUES (default, 1)`,
+		},
+		insertTestCase{
+			clause: withVals([]interface{}{exp.NewSQLFunctionExpression("COALESCE", exp.Default(), 1), 1}),
+			err:    "goqu: Default is only valid as an INSERT or UPDATE SET value",
+		},
+		insertTestCase{clause: withVals([]interface{}{[]byte("x"), 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('x', 1)`},
+		insertTestCase{clause: withVals([]interface{}{emptyArrayValuer{1}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{}', 1)`},
+		insertTestCase{
+			clause:     withVals([]interface{}{emptyArrayValuer{1}, 1}),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?)`,
+			isPrepared: true,
+			args:       []interface{}{"{}", int64(1)},
+		},
+		insertTestCase{
+			clause: withVals([]interface{}{[]int{1, 2}, 1}),
+			err:    "goqu: a list ([]int) is not an INSERT or UPDATE value; wrap it in a driver.Valuer to store it as one value",
+		},
+		insertTestCase{clause: withVals([]interface{}{}), err: "goqu: rows with different value length, expected 2 got 0"},
+		insertTestCase{clause: withVals([]interface{}{1}), err: "goqu: rows with different value length, expected 2 got 1"},
+		insertTestCase{clause: withVals([]interface{}{1, 2, 3}), err: "goqu: rows with different value length, expected 2 got 3"},
 	)
 }
 
@@ -279,6 +322,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 		},
 
 		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') on conflict (test) do update set "a"='b'`},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("test", exp.Record{"a": exp.Default()})),
+			sql:    `INSERT INTO "test" ("a") VALUES ('a1') on conflict (test) do update set "a"=DEFAULT`,
+		},
 		insertTestCase{
 			clause:     icDu,
 			sql:        `INSERT INTO "test" ("a") VALUES (?) on conflict (test) do update set "a"=?`,

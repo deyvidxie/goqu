@@ -372,6 +372,12 @@ func (st *sqlite3Suite) TestLimitAllAndOffset() {
 	st.Len(ints, 10)
 }
 
+func (st *sqlite3Suite) TestDefaultValueIsUnsupported() {
+	_, err := st.db.Insert("entry").Rows(goqu.Record{"int": goqu.Default()}).Executor().Exec()
+	st.EqualError(err, "goqu: dialect does not support DEFAULT as an INSERT or UPDATE value [dialect=sqlite3]")
+	st.True(goqu.IsUnsupported(err))
+}
+
 func (st *sqlite3Suite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()

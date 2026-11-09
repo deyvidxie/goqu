@@ -145,7 +145,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		}
 	case ic.HasCols() && ic.HasVals():
 		isg.insertColumnsSQL(b, ic.Cols())
-		isg.insertValuesSQL(b, ic.Vals())
+		isg.insertValuesSQL(b, len(ic.Cols().Columns()), ic.Vals())
 	case ic.HasCols() && ic.HasFrom():
 		isg.insertColumnsFromSQL(b, ic)
 		return insertSourceComplete
@@ -223,7 +223,7 @@ func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.Inser
 		isg.defaultValuesSQL(b)
 	default:
 		isg.insertColumnsSQL(b, ie.Cols())
-		isg.insertValuesSQL(b, ie.Vals())
+		isg.insertValuesSQL(b, len(ie.Cols().Columns()), ie.Vals())
 	}
 }
 
@@ -272,19 +272,25 @@ func (isg *insertSQLGenerator) insertColumnsSQL(b sb.SQLBuilder, cols exp.Column
 }
 
 // Adds the values clause to an SQL statement
-func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, values [][]interface{}) {
-	b.Write(isg.DialectOptions().ValuesFragment)
-	rowLen := len(values[0])
-	valueLen := len(values)
+func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, colCount int, values [][]interface{}) {
+	opts := isg.DialectOptions()
+	b.Write(opts.ValuesFragment)
 	for i, row := range values {
-		if len(row) != rowLen {
-			b.SetError(errRowLengthMismatch(rowLen, len(row)))
+		if len(row) != colCount {
+			b.SetError(errRowLengthMismatch(colCount, len(row)))
 			return
 		}
-		isg.ExpressionSQLGenerator().Generate(b, row)
-		if i < valueLen-1 {
-			b.WriteRunes(isg.DialectOptions().CommaRune, isg.DialectOptions().SpaceRune)
+		if i > 0 {
+			b.WriteRunes(opts.CommaRune, opts.SpaceRune)
 		}
+		b.WriteRunes(opts.LeftParenRune)
+		for j, val := range row {
+			if j > 0 {
+				b.WriteRunes(opts.CommaRune, opts.SpaceRune)
+			}
+			writeValue(isg.ExpressionSQLGenerator(), opts, b, val)
+		}
+		b.WriteRunes(opts.RightParenRune)
 	}
 }
 
