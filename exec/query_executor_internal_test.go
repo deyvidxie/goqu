@@ -1516,6 +1516,19 @@ func (qes *queryExecutorSuite) TestScanVal_withJSONRawMessage() {
 	qes.Nil(nullable)
 }
 
+func (qes *queryExecutorSuite) TestScanVal_acceptsAnySlice() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	mock.ExpectQuery(`SELECT "list" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"list"}))
+	e := newQueryExecutor("db", db, nil, `SELECT "list" FROM "items"`)
+
+	var list []any
+	found, err := e.ScanVal(&list)
+	qes.NoError(err)
+	qes.False(found)
+	qes.NoError(mock.ExpectationsWereMet())
+}
+
 func (qes *queryExecutorSuite) TestScanVal_withUUID() {
 	db, mock, err := sqlmock.New()
 	qes.NoError(err)

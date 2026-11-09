@@ -139,7 +139,7 @@ func isRowStruct(t reflect.Type, tagName string) bool {
 
 func hasOwnTag(t reflect.Type, tagName string) bool {
 	for i := range t.NumField() {
-		if !tag.New(tagName, t.Field(i).Tag).IsEmpty() {
+		if fieldTag := tag.New(tagName, t.Field(i).Tag); !fieldTag.IsEmpty() && !fieldTag.Equals("-") {
 			return true
 		}
 	}

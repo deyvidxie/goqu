@@ -90,8 +90,12 @@ type (
 		strings.Builder
 		Name string `db:"name"`
 	}
-	ScanTestSelfRef struct{ *ScanTestSelfRef }
-	scanTestTagged  struct {
+	ScanTestSelfRef      struct{ *ScanTestSelfRef }
+	ScanTestSkippedCycle struct {
+		Next  *ScanTestSkippedCycle
+		Cache string `db:"-"`
+	}
+	scanTestTagged struct {
 		ID int64 `json:"id"`
 	}
 	ScanTestTree struct {
@@ -506,6 +510,11 @@ func (ss *scanSuite) TestGenericScans_useDatasetTagName() {
 	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *goqu_test.scanTestTagged: "+
 		"goqu_test.scanTestTagged is a row struct; use ScanAllStructs[*goqu_test.scanTestTagged]")
 
+	ss.EqualError(db.From("items").ScanVals(&[]scanTestTagged{}),
+		"goqu: ScanVals cannot scan into goqu_test.scanTestTagged: goqu_test.scanTestTagged is a row struct; use ScanStructs")
+	_, err = db.From("items").ScanVal(&scanTestTagged{})
+	ss.EqualError(err, "goqu: ScanVal cannot scan into goqu_test.scanTestTagged: goqu_test.scanTestTagged is a row struct; use ScanStruct")
+
 	_, iterErrs := ss.collect(db.From("items").IterVals[scanTestTagged](context.Background()))
 	ss.Require().Len(iterErrs, 1)
 	_, _, oneErr := db.From("items").ScanOneVal[scanTestTagged](context.Background())
@@ -749,11 +758,14 @@ func (ss *scanSuite) TestScanAllVals_rejectsStructsWithTaggedColumns() {
 
 func (ss *scanSuite) TestScanAllVals_leavesStructsWithoutColumnTagsToTheDriver() {
 	for name, scan := range map[string]func() error{
-		"ScanTestSelfRef":      ss.allValsErr[ScanTestSelfRef],
-		"scanTestMeta":         ss.allValsErr[scanTestMeta],
-		"scanTestIgnoredEmbed": ss.allValsErr[scanTestIgnoredEmbed],
-		"scanTestPrivateID":    ss.allValsErr[scanTestPrivateID],
-		"scanTestTaggedTime":   ss.allValsErr[scanTestTaggedTime],
+		"ScanTestSelfRef":       ss.allValsErr[ScanTestSelfRef],
+		"scanTestMeta":          ss.allValsErr[scanTestMeta],
+		"scanTestIgnoredEmbed":  ss.allValsErr[scanTestIgnoredEmbed],
+		"scanTestPrivateID":     ss.allValsErr[scanTestPrivateID],
+		"scanTestTaggedTime":    ss.allValsErr[scanTestTaggedTime],
+		"ScanTestSkippedCycle":  ss.allValsErr[ScanTestSkippedCycle],
+		"scanTestUntaggedInner": ss.allValsErr[scanTestUntaggedInner],
+		"map[string]int":        ss.allValsErr[map[string]int],
 	} {
 		ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
 		err := scan()

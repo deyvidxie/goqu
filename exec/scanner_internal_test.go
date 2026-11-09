@@ -66,6 +66,11 @@ func (s *scannerSuite) TestScanVals() {
 	err = sc.ScanVals(result)
 	s.Require().EqualError(err, errScanSliceTarget(result).Error())
 
+	err = NewScanner(rows, "json").ScanVals(&[]struct {
+		ID int64 `json:"id"`
+	}{})
+	s.Require().ErrorContains(err, "is a row struct; use ScanStructs")
+
 	err = sc.ScanVals(&[][]int64{})
 	s.Require().EqualError(err, "goqu: ScanVals cannot scan into []int64; use []byte or a concrete sql.Scanner")
 	s.True(errors.IsUnsupportedScanType(err))
