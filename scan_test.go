@@ -117,9 +117,9 @@ type (
 		ScanTestCount `db:"count"`
 	}
 	scanTestUntaggedInner struct{ X int64 }
-	scanTestHiddenCount   int64 //nolint:unused
-	scanTestHiddenScalar  struct {
-		scanTestHiddenCount `db:"count"` //nolint:unused
+	scanTestItemWrapper   struct{ Item dsTestActionItem }
+	scanTestTaggedTime    struct {
+		time.Time `db:"t"`
 	}
 	scanTestTaggedEmbed struct {
 		scanTestUntaggedInner `db:"inner"`
@@ -736,13 +736,24 @@ func (ss *scanSuite) TestScanAllVals_pointersReceiveNilForNull() {
 	ss.Nil(idRefs[1])
 }
 
+func (ss *scanSuite) TestScanAllVals_rejectsStructsWithTaggedColumns() {
+	for name, err := range map[string]error{
+		"goqu_test.scanTestTaggedScalar": ss.allValsErr[scanTestTaggedScalar](),
+		"goqu_test.scanTestTaggedEmbed":  ss.allValsErr[scanTestTaggedEmbed](),
+		"goqu_test.scanTestItemWrapper":  ss.allValsErr[scanTestItemWrapper](),
+	} {
+		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+name+": "+name+" is a row struct; use ScanAllStructs["+name+"]")
+		ss.True(goqu.IsUnsupportedScanType(err), name)
+	}
+}
+
 func (ss *scanSuite) TestScanAllVals_leavesStructsWithoutColumnTagsToTheDriver() {
 	for name, scan := range map[string]func() error{
 		"ScanTestSelfRef":      ss.allValsErr[ScanTestSelfRef],
 		"scanTestMeta":         ss.allValsErr[scanTestMeta],
 		"scanTestIgnoredEmbed": ss.allValsErr[scanTestIgnoredEmbed],
 		"scanTestPrivateID":    ss.allValsErr[scanTestPrivateID],
-		"scanTestHiddenScalar": ss.allValsErr[scanTestHiddenScalar],
+		"scanTestTaggedTime":   ss.allValsErr[scanTestTaggedTime],
 	} {
 		ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
 		err := scan()
@@ -1191,16 +1202,6 @@ func (ss *scanSuite) TestIterVals_withoutDatabase() {
 	_, errs := ss.collect(goqu.From("items").Select("id").IterVals[int64](context.Background()))
 	ss.Require().Len(errs, 1)
 	ss.True(goqu.IsNoDatabase(errs[0]))
-}
-
-func (ss *scanSuite) TestScanAllVals_rejectsStructsTaggedThroughEmbeds() {
-	for name, err := range map[string]error{
-		"goqu_test.scanTestTaggedScalar": ss.allValsErr[scanTestTaggedScalar](),
-		"goqu_test.scanTestTaggedEmbed":  ss.allValsErr[scanTestTaggedEmbed](),
-	} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot scan into "+name+": "+name+" is a row struct; use ScanAllStructs["+name+"]")
-		ss.True(goqu.IsUnsupportedScanType(err), name)
-	}
 }
 
 func (ss *scanSuite) TestValueScans_rejectRowStructs() {

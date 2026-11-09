@@ -80,6 +80,20 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 	return cm
 }
 
+func (cm ColumnMap) HasTaggedColumn(t reflect.Type, tagName string) bool {
+	for _, col := range cm {
+		owner := t
+		for _, i := range col.FieldIndex {
+			f := owner.Field(i)
+			if !tag.New(tagName, f.Tag).IsEmpty() {
+				return true
+			}
+			owner = Deref(f.Type)
+		}
+	}
+	return false
+}
+
 type ColumnMapIssue int
 
 const (

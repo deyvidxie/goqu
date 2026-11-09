@@ -147,7 +147,7 @@ func (s *scanner) ScanVals(i interface{}) error {
 		if err := s.ScanVal(row.Interface()); err != nil {
 			return err
 		}
-		val.Set(reflect.Append(val, row.Elem().Convert(elemType)))
+		val.Set(reflect.Append(val, row.Elem()))
 	}
 	return s.Err()
 }

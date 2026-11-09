@@ -126,27 +126,20 @@ func isTime(t reflect.Type) bool {
 }
 
 func isRowStruct(t reflect.Type, tagName string) bool {
-	return util.IsStruct(t.Kind()) && hasTaggedField(t, tagName, map[reflect.Type]bool{})
-}
-
-func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
-	if seen[t] {
+	if !util.IsStruct(t.Kind()) {
 		return false
 	}
-	seen[t] = true
+	switch util.CheckColumnMap(t, tagName).Issue {
+	case util.ColumnMapNonStructEmbed, util.ColumnMapCycle:
+		return hasOwnTag(t, tagName)
+	default:
+		return util.StructColumnMap(t, tagName).HasTaggedColumn(t, tagName)
+	}
+}
+
+func hasOwnTag(t reflect.Type, tagName string) bool {
 	for i := range t.NumField() {
-		f := t.Field(i)
-		fieldTag := tag.New(tagName, f.Tag)
-		if f.Anonymous && (util.IsStruct(f.Type.Kind()) || util.IsPointer(f.Type.Kind())) {
-			if fieldTag.Contains("-") {
-				continue
-			}
-			if embedded := util.Deref(f.Type); !fieldTag.IsEmpty() || util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
-				return true
-			}
-			continue
-		}
-		if f.IsExported() && !fieldTag.IsEmpty() && !fieldTag.Equals("-") {
+		if !tag.New(tagName, t.Field(i).Tag).IsEmpty() {
 			return true
 		}
 	}
@@ -154,13 +147,5 @@ func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) 
 }
 
 func IsUnscannableSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && !isByteSlice(t) && !isAnySlice(t) && !util.IsScanner(t)
-}
-
-func isAnySlice(t reflect.Type) bool {
-	return t.Elem() == anyType
-}
-
-func isByteSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && t.Elem() == byteType
+	return util.IsSlice(t.Kind()) && t.Elem() != byteType && t.Elem() != anyType && !util.IsScanner(t)
 }
