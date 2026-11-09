@@ -131,16 +131,27 @@ func isRowStruct(t reflect.Type, tagName string) bool {
 	}
 	switch util.CheckColumnMap(t, tagName).Issue {
 	case util.ColumnMapNonStructEmbed, util.ColumnMapCycle:
-		return hasOwnTag(t, tagName)
+		return hasOwnTag(t, tagName, map[reflect.Type]bool{})
 	default:
 		return util.HasTaggedColumn(t, tagName)
 	}
 }
 
-func hasOwnTag(t reflect.Type, tagName string) bool {
+func hasOwnTag(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
+	if seen[t] {
+		return false
+	}
+	seen[t] = true
 	for i := range t.NumField() {
 		f := t.Field(i)
-		if fieldTag := tag.New(tagName, f.Tag); (f.IsExported() || f.Anonymous) && !fieldTag.IsEmpty() && !fieldTag.Equals("-") {
+		fieldTag := tag.New(tagName, f.Tag)
+		if !f.IsExported() && !f.Anonymous || fieldTag.Contains("-") {
+			continue
+		}
+		if !fieldTag.IsEmpty() {
+			return true
+		}
+		if embedded := util.Deref(f.Type); f.Anonymous && util.IsStruct(embedded.Kind()) && hasOwnTag(embedded, tagName, seen) {
 			return true
 		}
 	}

@@ -86,7 +86,11 @@ type (
 	}
 	scanTestNestedID    struct{ scanTestEmbeddedID }
 	scanTestNestedIDPtr struct{ *scanTestEmbeddedID }
-	scanTestMixed       struct {
+	scanTestHiddenAudit struct {
+		*ScanTestID
+		scanTestAuditID `db:"audit"`
+	}
+	scanTestMixed struct {
 		strings.Builder
 		Name string `db:"name"`
 	}
@@ -796,6 +800,8 @@ func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 		"goqu_test.ScanTestItem":          ss.allValsErr[*ScanTestItem](),
 		"goqu_test.ScanTestNode":          ss.allValsErr[*ScanTestNode](),
 		"goqu_test.scanTestEmbeddedID":    ss.allValsErr[*scanTestEmbeddedID](),
+		"goqu_test.scanTestNestedID":      ss.allValsErr[*scanTestNestedID](),
+		"goqu_test.scanTestHiddenAudit":   ss.allValsErr[*scanTestHiddenAudit](),
 		"goqu_test.scanTestUnexportedPtr": ss.allValsErr[*scanTestUnexportedPtr](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+": "+elem+
