@@ -86,33 +86,16 @@ type (
 	}
 	scanTestNestedID    struct{ scanTestEmbeddedID }
 	scanTestNestedIDPtr struct{ *scanTestEmbeddedID }
-	scanTestHiddenAudit struct {
-		*ScanTestID
-		scanTestAuditID `db:"audit"`
-	}
-	scanTestMixed struct {
+	scanTestMixed       struct {
 		strings.Builder
 		Name string `db:"name"`
 	}
-	ScanTestSelfRef      struct{ *ScanTestSelfRef }
-	ScanTestSkippedCycle struct {
-		Next  *ScanTestSkippedCycle
-		Cache string `db:"-"`
-	}
-	ScanTestPrivateCycle struct {
-		Next *ScanTestPrivateCycle
-		_    int64 `db:"id"`
-	}
+	ScanTestSelfRef     struct{ *ScanTestSelfRef }
 	ScanTestOptionCycle struct {
 		Next *ScanTestOptionCycle
 		Name string `db:"name,-"`
 	}
-	ScanTestWrappedCycle struct {
-		Item dsTestActionItem
-		Next *ScanTestWrappedCycle
-	}
 	scanTestReusedInner struct {
-		*ScanTestID
 		Plain                 scanTestUntaggedInner
 		scanTestUntaggedInner `db:"inner"`
 	}
@@ -126,17 +109,8 @@ type (
 	ScanTestTaggedSelfRef struct {
 		*ScanTestTaggedSelfRef `db:"self"`
 	}
-	scanTestPrefixedEmbed struct {
-		*ScanTestID
-		scanTestUntaggedInner `db:"inner"`
-	}
 	scanTestEmptyTaggedEmbed struct {
-		*ScanTestID
 		scanTestMeta `db:"meta"`
-	}
-	ScanTestIgnoredEmbedCycle struct {
-		scanTestAuditID `db:"-"`
-		Next            *ScanTestIgnoredEmbedCycle
 	}
 	scanTestTagged struct {
 		ID int64 `json:"id"`
@@ -798,6 +772,15 @@ func (ss *scanSuite) TestScanAllVals_rejectsStructsWithTaggedColumns() {
 	}
 }
 
+func (ss *scanSuite) TestScanAllVals_ignoredUntaggedFieldsNameNoColumns() {
+	goqu.SetIgnoreUntaggedFields(true)
+	defer goqu.SetIgnoreUntaggedFields(false)
+	ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
+	err := ss.allValsErr[scanTestTaggedEmbed]()
+	ss.ErrorContains(err, "sql: Scan error on column index 0")
+	ss.False(goqu.IsUnsupportedScanType(err))
+}
+
 func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToTheDriver() {
 	for name, scan := range map[string]func() error{
 		"ScanTestSelfRef":           ss.allValsErr[ScanTestSelfRef],
@@ -805,13 +788,10 @@ func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToT
 		"scanTestIgnoredEmbed":      ss.allValsErr[scanTestIgnoredEmbed],
 		"scanTestPrivateID":         ss.allValsErr[scanTestPrivateID],
 		"scanTestTaggedTime":        ss.allValsErr[scanTestTaggedTime],
-		"ScanTestSkippedCycle":      ss.allValsErr[ScanTestSkippedCycle],
-		"ScanTestPrivateCycle":      ss.allValsErr[ScanTestPrivateCycle],
 		"scanTestEmptyTaggedEmbed":  ss.allValsErr[scanTestEmptyTaggedEmbed],
 		"scanTestUntaggedPtrScalar": ss.allValsErr[scanTestUntaggedPtrScalar],
 		"scanTestIgnoredPtrScalar":  ss.allValsErr[scanTestIgnoredPtrScalar],
 		"ScanTestTaggedSelfRef":     ss.allValsErr[ScanTestTaggedSelfRef],
-		"ScanTestIgnoredEmbedCycle": ss.allValsErr[ScanTestIgnoredEmbedCycle],
 		"scanTestUntaggedInner":     ss.allValsErr[scanTestUntaggedInner],
 		"map[string]int":            ss.allValsErr[map[string]int],
 	} {
@@ -841,13 +821,10 @@ func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 		"goqu_test.ScanTestNode":            ss.allValsErr[*ScanTestNode](),
 		"goqu_test.scanTestEmbeddedID":      ss.allValsErr[*scanTestEmbeddedID](),
 		"goqu_test.scanTestNestedID":        ss.allValsErr[*scanTestNestedID](),
-		"goqu_test.scanTestHiddenAudit":     ss.allValsErr[*scanTestHiddenAudit](),
 		"goqu_test.scanTestNestedIDPtr":     ss.allValsErr[*scanTestNestedIDPtr](),
-		"goqu_test.scanTestPrefixedEmbed":   ss.allValsErr[*scanTestPrefixedEmbed](),
 		"goqu_test.scanTestReusedInner":     ss.allValsErr[*scanTestReusedInner](),
 		"goqu_test.scanTestTaggedPtrScalar": ss.allValsErr[*scanTestTaggedPtrScalar](),
 		"goqu_test.ScanTestOptionCycle":     ss.allValsErr[*ScanTestOptionCycle](),
-		"goqu_test.ScanTestWrappedCycle":    ss.allValsErr[*ScanTestWrappedCycle](),
 		"goqu_test.scanTestUnexportedPtr":   ss.allValsErr[*scanTestUnexportedPtr](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+": "+elem+

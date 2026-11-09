@@ -1444,6 +1444,8 @@ func (qes *queryExecutorSuite) TestScanVal_rejectsUnscannableTargetsBeforeQuery(
 		{&[2]int{}, "goqu: ScanVal cannot scan into [2]int; use a concrete sql.Scanner"},
 		{&[]int{}, "goqu: cannot scan one value into *[]int, use ScanVals for a slice"},
 		{&[]fmt.Stringer{}, "goqu: cannot scan one value into *[]fmt.Stringer, use ScanVals for a slice"},
+		{&[][]int64{}, "goqu: ScanVals cannot scan into []int64; use []byte or a concrete sql.Scanner"},
+		{&[]scanValRow{}, "goqu: ScanVals cannot scan into exec.scanValRow: exec.scanValRow is a row struct; use ScanStructs"},
 		{&p, "goqu: ScanVal cannot scan into *[]int64; use []byte or a concrete sql.Scanner"},
 	}
 	for _, c := range cases {

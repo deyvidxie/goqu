@@ -210,6 +210,9 @@ func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool,
 		return false, errScanValTarget(i)
 	}
 	if scantype.IsUnscannableSlice(t.Elem()) {
+		if err := scantype.Val("ScanVals", "ScanStructs", t.Elem().Elem(), q.tagName); err != nil {
+			return false, err
+		}
 		return false, errScanValSliceTarget(i)
 	}
 	if err := scantype.Val("ScanVal", "ScanStruct", t.Elem(), q.tagName); err != nil {
