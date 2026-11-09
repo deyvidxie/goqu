@@ -17,7 +17,7 @@ var (
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 	uuidType     = reflect.TypeFor[uuid.UUID]()
 	anyType      = reflect.TypeFor[any]()
-	sqlRowsType  = reflect.TypeFor[sql.Rows]()
+	sqlPkgPath   = rawBytesType.PkgPath()
 )
 
 func Struct[T any](tagName string) error {
@@ -49,7 +49,7 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	case util.ColumnMapOK:
 	}
 	oneColumn := isTime(elem) || util.IsScanner(elem)
-	sqlValue := oneColumn && elem.PkgPath() == sqlRowsType.PkgPath()
+	sqlValue := oneColumn && elem.PkgPath() == sqlPkgPath
 	columns := util.StructColumnMap(elem, tagName)
 	switch {
 	case len(columns) > 0 && !sqlValue:
@@ -63,7 +63,7 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 
 func AllVals[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanAllVals", "ScanAllStructs", t, tagName); err != nil {
+	if err := scannableVal("ScanAllVals", "ScanAllStructs", t, t, tagName); err != nil {
 		return err
 	}
 	if !util.IsPointer(t.Kind()) || acceptsNull(t.Elem()) {
@@ -74,7 +74,7 @@ func AllVals[T any](tagName string) error {
 
 func OneVal[T any](tagName string) error {
 	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanOneVal", "ScanOneStruct", t, tagName); err != nil {
+	if err := scannableVal("ScanOneVal", "ScanOneStruct", t, t, tagName); err != nil {
 		return err
 	}
 	if isByteSlice(t) && t != bytesType && !util.IsScanner(t) {
@@ -84,30 +84,24 @@ func OneVal[T any](tagName string) error {
 }
 
 func IterVal[T any](tagName string) error {
-	return scannableVal("IterVals", "IterStructs", reflect.TypeFor[T](), tagName)
+	return scannableVal("IterVals", "IterStructs", reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
-func scannableVal(fn, structsFn string, t reflect.Type, tagName string) error {
-	if err := rejectRawBytes(fn, t); err != nil {
-		return err
-	}
-	if isUnscannableSlice(util.DerefAll(t)) {
-		return errUnscannableSlice(fn, t)
-	}
-	return driverValueTarget(fn, structsFn, t, tagName)
-}
-
-func driverValueTarget(fn, structsFn string, t reflect.Type, tagName string) error {
-	inner := util.DerefAll(t)
+func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName string) error {
+	inner := util.DerefAll(check)
 	switch {
+	case inner == rawBytesType:
+		return errRawBytes(fn)
+	case isUnscannableSlice(inner):
+		return errUnscannableSlice(fn, shown, inner)
 	case isSQLNull(inner):
-		return scannableVal(fn, structsFn, inner.Field(0).Type, tagName)
+		return scannableVal(fn, structsFn, shown, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
 	case isRowStruct(inner, tagName):
-		return errRowStructValue(fn, structsFn, t, inner)
+		return errRowStructValue(fn, structsFn, shown, inner)
 	case isUnassignable(inner):
-		return errNotScannable(fn, t)
+		return errNotScannable(fn, shown, inner)
 	default:
 		return nil
 	}
@@ -122,14 +116,14 @@ func isUnassignable(t reflect.Type) bool {
 	case reflect.Interface:
 		return !timeType.Implements(t)
 	case reflect.Struct:
-		return !isTime(t) && t != sqlRowsType
+		return !isTime(t)
 	default:
 		return false
 	}
 }
 
 func isSQLNull(t reflect.Type) bool {
-	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlRowsType.PkgPath() && strings.HasPrefix(t.Name(), "Null[")
+	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlPkgPath && strings.HasPrefix(t.Name(), "Null[")
 }
 
 func acceptsNull(t reflect.Type) bool {
@@ -151,11 +145,4 @@ func isUnscannableSlice(t reflect.Type) bool {
 
 func isByteSlice(t reflect.Type) bool {
 	return util.IsSlice(t.Kind()) && t.Elem() == byteType
-}
-
-func rejectRawBytes(fn string, t reflect.Type) error {
-	if util.DerefAll(t) == rawBytesType {
-		return errRawBytes(fn)
-	}
-	return nil
 }
