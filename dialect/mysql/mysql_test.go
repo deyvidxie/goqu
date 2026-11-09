@@ -413,7 +413,7 @@ func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
 	mt.Error(err)
 }
 
-func (mt *mysqlTest) TestOffsetWithoutLimit() {
+func (mt *mysqlTest) TestLimitAllAndOffset() {
 	ds := mt.db.From("entry").Order(goqu.C("int").Asc())
 	var ints []int64
 	mt.Require().NoError(ds.Select("int").Offset(8).ScanVals(&ints))

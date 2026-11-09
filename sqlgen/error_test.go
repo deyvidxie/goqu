@@ -74,6 +74,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
+		{"INSERT row alias with INSERT SELECT", "INSERT row alias with INSERT ... SELECT", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").FromQuery(d.From("s")).As("new")
+		}},
 		{"UPDATE multiple tables", "multiple tables in UPDATE", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMultipleUpdateTables = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
