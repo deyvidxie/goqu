@@ -453,6 +453,21 @@ func (mt *mysqlTest) TestDefaultValue() {
 	mt.Equal(int64(7), a)
 }
 
+func (mt *mysqlTest) TestEmptyConditions() {
+	var none []goqu.Expression
+	_, err := mt.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
+	mt.Require().NoError(err)
+	count, err := mt.db.From("entry").Count()
+	mt.Require().NoError(err)
+	mt.Equal(int64(10), count)
+
+	var ints []int64
+	err = mt.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
+	mt.Require().NoError(err)
+	mt.Len(ints, 10)
+	mt.Equal(int64(1), ints[0])
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()

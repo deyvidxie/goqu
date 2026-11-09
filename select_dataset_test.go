@@ -952,6 +952,27 @@ func (sds *selectDatasetSuite) TestClearWindow() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
+	var none []exp.Expression
+	for want, ds := range map[string]exp.SQLExpression{
+		`SELECT * FROM "t"`:                             goqu.From("t").Where(goqu.And(none...), goqu.Ex{}, goqu.L("")),
+		`SELECT * FROM "t" WHERE ("a" = 1)`:             goqu.From("t").Where(goqu.L(""), goqu.C("a").Eq(1)),
+		`SELECT * FROM "t" WHERE (1=0)`:                 goqu.From("t").Where(goqu.Or(none...)),
+		`SELECT * FROM "t" WHERE (("a" = 1) AND (1=0))`: goqu.From("t").Where(goqu.C("a").Eq(1), goqu.ExOr{}),
+		`SELECT * FROM "t" GROUP BY "a"`:                goqu.From("t").GroupBy("a").Having(goqu.L("")),
+		`SELECT * FROM "t" GROUP BY "a" HAVING (1=0)`:   goqu.From("t").GroupBy("a").Having(goqu.Or()),
+		`DELETE FROM "t" WHERE (1=0)`:                   goqu.Delete("t").Where(goqu.Or(none...)),
+		`UPDATE "t" SET "a"=1 WHERE (1=0)`:              goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}),
+		`SELECT CASE  WHEN (1=1) THEN 1 END FROM "t"`:   goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)),
+		`SELECT * FROM "t" WHERE NOT ((1=1))`:           goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))),
+	} {
+		sql, args, err := ds.ToSQL()
+		sds.NoError(err, want)
+		sds.Empty(args, want)
+		sds.Equal(want, sql)
+	}
+}
+
 func (sds *selectDatasetSuite) TestHaving() {
 	bd := goqu.From("test")
 	sds.assertCases(

@@ -463,6 +463,46 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ColumnList() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_emptyConditions() {
+	a := exp.NewIdentifierExpression("", "", "a").Eq(1)
+	and := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.AndType, e...) }
+	or := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.OrType, e...) }
+	custom := sqlgen.DefaultDialectOptions()
+	custom.EmptyAndFragment = []byte("TRUE")
+	custom.EmptyOrFragment = []byte("FALSE")
+	missing := sqlgen.DefaultDialectOptions()
+	missing.EmptyOrFragment = nil
+
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: and(), sql: `(1=1)`},
+		expressionTestCase{val: or(), sql: `(1=0)`},
+		expressionTestCase{val: and(a, and(), exp.Ex{}, exp.NewLiteralExpression("")), sql: `("a" = 1)`},
+		expressionTestCase{val: or(a, or(), exp.ExOr{}), sql: `("a" = 1)`},
+		expressionTestCase{val: and(a, or()), sql: `(("a" = 1) AND (1=0))`},
+		expressionTestCase{val: and(a, exp.ExOr{}), sql: `(("a" = 1) AND (1=0))`},
+		expressionTestCase{val: or(a, and()), sql: `(("a" = 1) OR (1=1))`},
+		expressionTestCase{val: or(a, exp.Ex{}), sql: `(("a" = 1) OR (1=1))`},
+		expressionTestCase{val: or(a, exp.NewLiteralExpression("")), sql: `(("a" = 1) OR (1=1))`},
+		expressionTestCase{val: and(a, or()), sql: `(("a" = ?) AND (1=0))`, isPrepared: true, args: []interface{}{int64(1)}},
+		expressionTestCase{
+			val: exp.NewCaseExpression().When(exp.Ex{}, 1).When(exp.ExOr{}, 2),
+			sql: `CASE  WHEN (1=1) THEN 1 WHEN (1=0) THEN 2 END`,
+		},
+		expressionTestCase{val: exp.NewLiteralExpression("NOT ?", and()), sql: `NOT (1=1)`},
+		expressionTestCase{val: exp.NewLiteralExpression("NOT ?", exp.ExOr{}), sql: `NOT (1=0)`},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", custom),
+		expressionTestCase{val: and(a, or()), sql: `(("a" = 1) AND FALSE)`},
+		expressionTestCase{val: or(a, and()), sql: `(("a" = 1) OR TRUE)`},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", missing),
+		expressionTestCase{val: or(), err: "goqu: dialect has no EmptyOrFragment for an empty OR list [dialect=test]"},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionList() {
 	andEl := exp.NewExpressionList(
 		exp.AndType,
@@ -2229,8 +2269,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_CaseExpression() {
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionMap() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: exp.Ex{}},
-		expressionTestCase{val: exp.Ex{}, isPrepared: true},
+		expressionTestCase{val: exp.Ex{}, sql: `(1=1)`},
+		expressionTestCase{val: exp.Ex{}, sql: `(1=1)`, isPrepared: true},
 
 		expressionTestCase{val: exp.Ex{"a": 1}, sql: `("a" = 1)`},
 		expressionTestCase{val: exp.Ex{"a": 1}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{int64(1)}},
@@ -2535,8 +2575,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionMapIsOp() {
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_ExpressionOrMap() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("default", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: exp.ExOr{}},
-		expressionTestCase{val: exp.ExOr{}, isPrepared: true},
+		expressionTestCase{val: exp.ExOr{}, sql: `(1=0)`},
+		expressionTestCase{val: exp.ExOr{}, sql: `(1=0)`, isPrepared: true},
 
 		expressionTestCase{val: exp.ExOr{"a": exp.Op{"regexpLike": "[ab]"}}, sql: `("a" ~ '[ab]')`},
 		expressionTestCase{

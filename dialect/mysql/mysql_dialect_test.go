@@ -580,6 +580,18 @@ func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 	assert.Empty(t, args)
 }
 
+func TestInsertOnConflictEmptyWhere(t *testing.T) {
+	ds := goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1})
+	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.And()}, {}} {
+		sql, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(where...)).ToSQL()
+		assert.NoError(t, err)
+		assert.Equal(t, "INSERT INTO `test` (`a`) VALUES (1) ON DUPLICATE KEY UPDATE `a`=2", sql)
+	}
+	_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.ExOr{})).ToSQL()
+	assert.EqualError(t, err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
+	assert.True(t, goqu.IsUnsupported(err))
+}
+
 func TestInsertWithoutRows(t *testing.T) {
 	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
 		ds := goqu.Dialect(d).Insert("test")

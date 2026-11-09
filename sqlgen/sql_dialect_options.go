@@ -200,6 +200,11 @@ type (
 		// Written in place of a whole NOT IN comparison whose list is empty (DEFAULT=[]byte("(1=1)")).
 		// Dialects not based on DefaultDialectOptions must set this.
 		EmptyNotInFragment []byte
+		// Written for an empty AND condition (And(), Ex{}) that is not dropped from an enclosing AND
+		// (DEFAULT=[]byte("(1=1)"))
+		EmptyAndFragment []byte
+		// Written for an empty OR condition (Or(), ExOr{}), which is false (DEFAULT=[]byte("(1=0)"))
+		EmptyOrFragment []byte
 		// The ASC fragment when specifying column order (DEFAULT=[]byte(" ASC"))
 		AscFragment []byte
 		// The DESC fragment when specifying column order (DEFAULT=[]byte(" DESC"))
@@ -624,6 +629,8 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		False:                     []byte("FALSE"),
 		EmptyInFragment:           []byte("(1=0)"),
 		EmptyNotInFragment:        []byte("(1=1)"),
+		EmptyAndFragment:          []byte("(1=1)"),
+		EmptyOrFragment:           []byte("(1=0)"),
 
 		ExcludedRowAlias:           "excluded",
 		ExcludedTableFragment:      []byte("EXCLUDED"),

@@ -11,28 +11,32 @@ type (
 //
 //	Or(I("a").Eq(10), I("b").Eq(11)) //(("a" = 10) OR ("b" = 11))
 func NewExpressionList(operator ExpressionListType, expressions ...Expression) ExpressionList {
-	el := expressionList{operator: operator}
-	exps := make([]Expression, 0, len(el.expressions))
+	exps := make([]Expression, 0, len(expressions))
 	for _, e := range expressions {
-		switch t := e.(type) {
-		case ExpressionList:
-			if !t.IsEmpty() {
-				exps = append(exps, e)
+		if listType, empty := emptyCondition(e); empty {
+			if listType == operator {
+				continue
 			}
-		case Ex:
-			if len(t) > 0 {
-				exps = append(exps, e)
-			}
-		case ExOr:
-			if len(t) > 0 {
-				exps = append(exps, e)
-			}
-		default:
-			exps = append(exps, e)
+			e = expressionList{operator: listType}
 		}
+		exps = append(exps, e)
 	}
-	el.expressions = exps
-	return el
+	return expressionList{operator: operator, expressions: exps}
+}
+
+func emptyCondition(e Expression) (ExpressionListType, bool) {
+	switch t := e.(type) {
+	case ExpressionList:
+		return t.Type(), t.IsEmpty()
+	case Ex:
+		return AndType, len(t) == 0
+	case ExOr:
+		return OrType, len(t) == 0
+	case LiteralExpression:
+		return AndType, t.Literal() == "" && len(t.Args()) == 0
+	default:
+		return AndType, false
+	}
 }
 
 func (el expressionList) Clone() Expression {
