@@ -7,6 +7,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/doug-martin/goqu/v9/internal/tag"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -15,6 +16,7 @@ var (
 	byteType     = reflect.TypeFor[byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 	uuidType     = reflect.TypeFor[uuid.UUID]()
+	anyType      = reflect.TypeFor[any]()
 	sqlPkgPath   = rawBytesType.PkgPath()
 )
 
@@ -134,10 +136,15 @@ func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) 
 	seen[t] = true
 	for i := range t.NumField() {
 		f := t.Field(i)
-		if tag, ok := f.Tag.Lookup(tagName); ok && tag != "-" {
-			return true
+		fieldTag := tag.New(tagName, f.Tag)
+		if f.Anonymous {
+			embedded := util.Deref(f.Type)
+			if !fieldTag.Contains("-") && util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
+				return true
+			}
+			continue
 		}
-		if embedded := util.Deref(f.Type); f.Anonymous && util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
+		if f.IsExported() && !fieldTag.IsEmpty() && !fieldTag.Equals("-") {
 			return true
 		}
 	}
@@ -149,7 +156,7 @@ func IsUnscannableSlice(t reflect.Type) bool {
 }
 
 func isAnySlice(t reflect.Type) bool {
-	return t.Elem().Kind() == reflect.Interface && t.Elem().NumMethod() == 0
+	return t.Elem() == anyType
 }
 
 func isByteSlice(t reflect.Type) bool {

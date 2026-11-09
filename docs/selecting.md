@@ -1246,7 +1246,7 @@ found, err := db.From("user").ScanStruct(&user)
 
 Scans a rows of 1 column into a slice of primitive values
 
-A `[]*int64` gets `nil` for `NULL`. `ScanVals` and `ScanVal` reject the types `ScanAllVals`/`ScanOneVal` reject, with `goqu.UnsupportedScanTypeError` before the query runs.
+A `[]*int64` gets `nil` for `NULL`.
 
 ```go
 var ids []int64
@@ -1280,7 +1280,7 @@ if !found{
 <a name="generic-scan"></a>
 **[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
 
-They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` or a struct with a `db` tag for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` or a struct with a `db` tag for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice. `ScanVals` and `ScanVal` run the same value checks.
 
 ```go
 users, err := db.From("user").ScanAllStructs[User](context.Background())

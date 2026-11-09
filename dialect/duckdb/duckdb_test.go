@@ -539,7 +539,7 @@ func (st *duckdbSuite) TestEmptyConditions() {
 	st.Equal(int64(1), ints[0])
 }
 
-func (st *duckdbSuite) TestScanValsIntoDriverNativeValues() {
+func (st *duckdbSuite) TestValueScansIntoDriverNativeValues() {
 	ctx := context.Background()
 	lists := st.db.Select(goqu.L("[1, 2]"))
 	var list []any

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1410,7 +1411,7 @@ func (qes *queryExecutorSuite) TestScanVal_withByteSlice() {
 	qes.Equal([]byte(testByteSliceContent), bytes)
 }
 
-func (qes *queryExecutorSuite) TestScanVal_withRawBytes() {
+func (qes *queryExecutorSuite) TestScanVal_rejectsRawBytes() {
 	db, _, err := sqlmock.New()
 	qes.NoError(err)
 	e := newQueryExecutor("db", db, nil, `SELECT "name" FROM "items"`)
@@ -1442,6 +1443,7 @@ func (qes *queryExecutorSuite) TestScanVal_rejectsUnscannableTargetsBeforeQuery(
 		{&scanValRow{}, "goqu: ScanVal cannot scan into exec.scanValRow: exec.scanValRow is a row struct; use ScanStruct"},
 		{&[2]int{}, "goqu: ScanVal cannot scan into [2]int; use a concrete sql.Scanner"},
 		{&[]int{}, "goqu: cannot scan one value into *[]int, use ScanVals for a slice"},
+		{&[]fmt.Stringer{}, "goqu: cannot scan one value into *[]fmt.Stringer, use ScanVals for a slice"},
 		{&p, "goqu: ScanVal cannot scan into *[]int64; use []byte or a concrete sql.Scanner"},
 	}
 	for _, c := range cases {
@@ -1526,6 +1528,10 @@ func (qes *queryExecutorSuite) TestScanVal_withNamedByteSlice() {
 	qes.NoError(err)
 	qes.True(found)
 	qes.Equal(namedBytes("abc"), blob)
+
+	mock.ExpectQuery(`SELECT "data" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow(nil))
+	_, err = e.ScanVal(&blob)
+	qes.ErrorContains(err, `sql: Scan error on column index 0, name "data": unsupported Scan, storing driver.Value type <nil>`)
 }
 
 func (qes *queryExecutorSuite) TestScanVal_withUUID() {
@@ -1554,26 +1560,58 @@ func (qes *queryExecutorSuite) TestScanVals_withByteSlices() {
 	qes.Equal([][]byte{[]byte("a"), nil}, data)
 }
 
-func (qes *queryExecutorSuite) TestScanVals_namedPointerElements() {
+func (qes *queryExecutorSuite) TestScanVals_namedPointersReceiveNilForNull() {
 	db, mock, err := sqlmock.New()
 	qes.NoError(err)
-	e := newQueryExecutor("db", db, nil, `SELECT "name" FROM "items"`)
+	e := newQueryExecutor("db", db, nil, `SELECT "v" FROM "items"`)
 
-	mock.ExpectQuery(`SELECT "name" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("a").AddRow(nil))
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a").AddRow(nil))
 	var names []nullStringRef
 	qes.NoError(e.ScanVals(&names))
 	qes.Require().Len(names, 2)
 	qes.Equal(sql.NullString{String: "a", Valid: true}, *names[0])
-	qes.Equal(sql.NullString{}, *names[1])
+	qes.Nil(names[1])
 
-	mock.ExpectQuery(`SELECT "name" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(int64(1)).AddRow(nil))
-	var ids []int64Ref
-	qes.NoError(e.ScanVals(&ids))
-	qes.Require().Len(ids, 2)
-	qes.Equal(int64(1), *ids[0])
-	qes.Nil(ids[1])
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow(int64(1)).AddRow(int64(0)).AddRow(nil))
+	var flags []boolRef
+	qes.NoError(e.ScanVals(&flags))
+	qes.Require().Len(flags, 3)
+	qes.True(*flags[0])
+	qes.False(*flags[1])
+	qes.Nil(flags[2])
+}
+
+func (qes *queryExecutorSuite) TestScanVals_withJSONRawMessages() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	mock.ExpectQuery(`SELECT "doc" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"doc"}).AddRow([]byte(`{"a":1}`)).AddRow([]byte(`[]`)))
+	e := newQueryExecutor("db", db, nil, `SELECT "doc" FROM "items"`)
+
+	var docs []json.RawMessage
+	qes.NoError(e.ScanVals(&docs))
+	qes.Equal([]json.RawMessage{json.RawMessage(`{"a":1}`), json.RawMessage(`[]`)}, docs)
+}
+
+func (qes *queryExecutorSuite) TestScanVal_withByteSlicePointer() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	e := newQueryExecutor("db", db, nil, `SELECT "data" FROM "items"`)
+
+	mock.ExpectQuery(`SELECT "data" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
+	var data *[]byte
+	found, err := e.ScanVal(&data)
+	qes.NoError(err)
+	qes.True(found)
+	qes.Equal([]byte("abc"), *data)
+
+	mock.ExpectQuery(`SELECT "data" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow(nil))
+	found, err = e.ScanVal(&data)
+	qes.NoError(err)
+	qes.True(found)
+	qes.Nil(data)
 }
 
 type (
@@ -1582,7 +1620,7 @@ type (
 	}
 	namedBytes    []byte
 	nullStringRef *sql.NullString
-	int64Ref      *int64
+	boolRef       *bool
 )
 
 type JSONBoolArray []bool

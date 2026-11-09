@@ -138,22 +138,16 @@ func (s *scanner) ScanVals(i interface{}) error {
 		return err
 	}
 	elemType := val.Type().Elem()
-	namedScannerPointer := util.IsPointer(elemType.Kind()) && elemType.Name() != "" && util.IsScanner(elemType.Elem())
 	scanType := elemType
-	if namedScannerPointer {
-		scanType = elemType.Elem()
+	if util.IsPointer(elemType.Kind()) {
+		scanType = reflect.PointerTo(elemType.Elem())
 	}
 	for s.Next() {
 		row := reflect.New(scanType)
 		if err := s.ScanVal(row.Interface()); err != nil {
 			return err
 		}
-		if namedScannerPointer {
-			row = row.Convert(elemType)
-		} else {
-			row = row.Elem()
-		}
-		val.Set(reflect.Append(val, row))
+		val.Set(reflect.Append(val, row.Elem().Convert(elemType)))
 	}
 	return s.Err()
 }

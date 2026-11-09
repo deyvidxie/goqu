@@ -76,9 +76,6 @@ type (
 		ID     int64 `db:"id"`
 		Parent *ScanTestNode
 	}
-	ScanTestUntaggedCycle struct {
-		*ScanTestUntaggedCycle
-	}
 	ScanTestTime      time.Time
 	scanTestSkippedID struct {
 		*ScanTestID `db:"-"`
@@ -109,6 +106,12 @@ type (
 	}
 	scanTestMeta struct {
 		Note string `db:"-"`
+	}
+	scanTestIgnoredEmbed struct {
+		scanTestAuditID `db:"-"`
+	}
+	scanTestPrivateID struct {
+		id int64 `db:"id"`
 	}
 	scanTestHiddenMeta struct {
 		*scanTestMeta
@@ -722,19 +725,27 @@ func (ss *scanSuite) TestScanAllVals_pointersReceiveNilForNull() {
 	ss.Nil(idRefs[1])
 }
 
-func (ss *scanSuite) TestScanAllVals_leavesUntaggedStructsToTheDriver() {
-	ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
-	err := ss.allValsErr[ScanTestUntaggedCycle]()
-	ss.ErrorContains(err, "sql: Scan error on column index 0")
-	ss.False(goqu.IsUnsupportedScanType(err))
+func (ss *scanSuite) TestScanAllVals_leavesStructsWithoutColumnTagsToTheDriver() {
+	ss.Equal(int64(1), scanTestPrivateID{id: 1}.id)
+	for name, scan := range map[string]func() error{
+		"ScanTestSelfRef":      ss.allValsErr[ScanTestSelfRef],
+		"scanTestMeta":         ss.allValsErr[scanTestMeta],
+		"scanTestIgnoredEmbed": ss.allValsErr[scanTestIgnoredEmbed],
+		"scanTestPrivateID":    ss.allValsErr[scanTestPrivateID],
+	} {
+		ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
+		err := scan()
+		ss.ErrorContains(err, "sql: Scan error on column index 0", name)
+		ss.False(goqu.IsUnsupportedScanType(err), name)
+	}
 }
 
-func (ss *scanSuite) TestScanAllVals_namedScannerPointersReceiveZeroValueForNull() {
+func (ss *scanSuite) TestScanAllVals_namedPointersReceiveNilForNull() {
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
 	named, err := ss.db.From("items").Select("data").ScanAllVals[scanTestNullStringRef](context.Background())
 	ss.NoError(err)
-	ss.Equal([]scanTestNullStringRef{{String: "abc", Valid: true}, {}}, named)
+	ss.Equal([]scanTestNullStringRef{{String: "abc", Valid: true}, nil}, named)
 }
 
 func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
