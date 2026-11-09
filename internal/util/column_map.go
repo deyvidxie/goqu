@@ -133,8 +133,12 @@ type ColumnMapProblem struct {
 	Type  reflect.Type
 }
 
+func CheckColumnSource(t reflect.Type, tagName string) ColumnMapProblem {
+	return checkFollowedFields(t, tagName, "", map[reflect.Type]bool{})
+}
+
 func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
-	if problem := checkFollowedFields(t, tagName, "", map[reflect.Type]bool{}); problem.Issue != ColumnMapOK {
+	if problem := CheckColumnSource(t, tagName); problem.Issue != ColumnMapOK {
 		return problem
 	}
 	return checkUnexportedPointerEmbeds(t, StructColumnMap(t, tagName))

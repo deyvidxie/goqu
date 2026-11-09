@@ -37,3 +37,11 @@ func errScannerFieldNeedsValue(col string, t reflect.Type) error {
 func errNoFieldForColumn(col string) error {
 	return errors.NewColumnMismatchError("unable to find corresponding field to column %q returned by query", col)
 }
+
+func errNilUnexportedEmbed(col, field string, embedded reflect.Type, tagName string) error {
+	return errors.NewUnsupportedScanTypeError(
+		"cannot scan column %q: embedded field %s is a nil pointer to unexported %s; "+
+			"embed it by value, set it before scanning or tag it `%s:\"-\"`",
+		col, field, embedded, tagName,
+	)
+}

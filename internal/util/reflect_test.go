@@ -1321,15 +1321,15 @@ func (rt *reflectTest) TestGetTypeInfo() {
 	var b []int64
 	var c []*time.Time
 
-	t, k := util.GetTypeInfo(&a, reflect.ValueOf(a))
+	t, k := util.GetTypeInfo(&a)
 	rt.Equal(reflect.TypeOf(a), t)
 	rt.Equal(reflect.Int64, k)
 
-	t, k = util.GetTypeInfo(&b, reflect.ValueOf(a))
+	t, k = util.GetTypeInfo(&b)
 	rt.Equal(reflect.TypeOf(a), t)
 	rt.Equal(reflect.Int64, k)
 
-	t, k = util.GetTypeInfo(c, reflect.ValueOf(c))
+	t, k = util.GetTypeInfo(c)
 	rt.Equal(reflect.TypeOf(time.Time{}), t)
 	rt.Equal(reflect.Struct, k)
 }

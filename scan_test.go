@@ -36,6 +36,8 @@ type (
 	scanTestEmbeddedRowPtr struct{ *ScanTestItem }
 	scanTestUnexportedRow  struct{ dsTestActionItem }
 	scanTestUnexportedPtr  struct{ *dsTestActionItem }
+	ScanTestOuterPtr       struct{ *ScanTestInnerPtr }
+	ScanTestInnerPtr       struct{ *dsTestActionItem }
 	scanTestOpaqueScanner  struct{}
 	ScanTestID             int
 	ScanTestUUID           uuid.UUID
@@ -248,6 +250,37 @@ func (ss *scanSuite) TearDownTest() {
 
 func (ss *scanSuite) itemRows(csv string) *sqlmock.Rows {
 	return sqlmock.NewRows([]string{"address", "name"}).FromCSVString(csv)
+}
+
+func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
+	const query = `SELECT "address", "name" FROM "items"`
+	for field, target := range map[string]interface{}{
+		"dsTestActionItem":                  &scanTestUnexportedPtr{},
+		"ScanTestInnerPtr.dsTestActionItem": &ScanTestOuterPtr{},
+	} {
+		ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
+		found, err := ss.db.ScanStruct(target, query)
+		ss.EqualError(err, `goqu: cannot scan column "address": embedded field `+field+` is a nil pointer to unexported `+
+			"goqu_test.dsTestActionItem; embed it by value, set it before scanning or tag it `db:\"-\"`", field)
+		ss.True(goqu.IsUnsupportedScanType(err), field)
+		ss.False(found, field)
+	}
+
+	ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
+	var rows []scanTestUnexportedPtr
+	err := ss.db.ScanStructs(&rows, query)
+	ss.True(goqu.IsUnsupportedScanType(err))
+	ss.Empty(rows)
+}
+
+func (ss *scanSuite) TestScanStruct_fillsSetUnexportedPointerEmbeds() {
+	const query = `SELECT "address", "name" FROM "items"`
+	ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
+	row := scanTestUnexportedPtr{&dsTestActionItem{}}
+	found, err := ss.db.ScanStruct(&row, query)
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, *row.dsTestActionItem)
 }
 
 func (ss *scanSuite) TestScanAllStructs() {

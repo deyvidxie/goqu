@@ -326,6 +326,10 @@ type (
 		Expression
 		isDefault()
 	}
+	InvalidExpression interface {
+		Expression
+		Err() error
+	}
 	ExcludedExpression interface {
 		Expression
 		Comparable

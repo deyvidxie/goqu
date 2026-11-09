@@ -77,6 +77,9 @@ func (s *scanner) ScanStruct(i interface{}) error {
 		if !ok {
 			return errNoFieldForColumn(col)
 		}
+		if field, embedded, found := util.NilUnexportedEmbed(reflect.ValueOf(i), data.FieldIndex); found {
+			return errNilUnexportedEmbed(col, field, embedded, s.tagName)
+		}
 		if data.GoType.Kind() == reflect.Interface && data.GoType.NumMethod() > 0 {
 			// The column map is cached per struct type so it only knows the interface, not the concrete type.
 			// Scan into the value the caller already put in the field (e.g. &sql.NullString{}). Empty interfaces

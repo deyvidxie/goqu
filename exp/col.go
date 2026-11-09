@@ -23,13 +23,14 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 		case Expression:
 			cols = append(cols, t)
 		default:
-			_, valKind := util.GetTypeInfo(val, reflect.Indirect(reflect.ValueOf(val)))
+			structType, valKind := util.GetTypeInfo(val)
 
 			if valKind == reflect.Struct {
-				cm, err := util.GetColumnMap(val, tagName)
-				if err != nil {
-					panic(err.Error())
+				if problem := util.CheckColumnSource(structType, tagName); problem.Issue != util.ColumnMapOK {
+					cols = append(cols, newInvalidExpression(errColumnSource(structType, problem, tagName)))
+					continue
 				}
+				cm := util.StructColumnMap(structType, tagName)
 				structCols, subqueryKeys := cm.Cols()
 				for _, col := range structCols {
 					var sc Expression

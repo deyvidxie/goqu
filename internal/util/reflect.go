@@ -177,23 +177,12 @@ func AppendSliceElement(slice, val reflect.Value) {
 	}
 }
 
-func GetTypeInfo(i interface{}, val reflect.Value) (reflect.Type, reflect.Kind) {
-	var t reflect.Type
-	valKind := val.Kind()
-	if valKind == reflect.Slice {
-		if reflect.ValueOf(i).Kind() == reflect.Ptr {
-			t = reflect.TypeOf(i).Elem().Elem()
-		} else {
-			t = reflect.TypeOf(i).Elem()
-		}
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		valKind = t.Kind()
-	} else {
-		t = val.Type()
+func GetTypeInfo(i interface{}) (reflect.Type, reflect.Kind) {
+	t := Deref(reflect.TypeOf(i))
+	if kind := t.Kind(); kind == reflect.Slice || kind == reflect.Array {
+		t = Deref(t.Elem())
 	}
-	return t, valKind
+	return t, t.Kind()
 }
 
 func SafeGetFieldByIndex(v reflect.Value, fieldIndex []int) (result reflect.Value, isAvailable bool) {
@@ -273,9 +262,28 @@ func AssignStructVals(i interface{}, rd rowData, cm ColumnMap) {
 	}
 }
 
+func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedded reflect.Type, found bool) {
+	v = reflect.Indirect(v)
+	path := make([]string, 0, len(fieldIndex))
+	for _, i := range fieldIndex[:len(fieldIndex)-1] {
+		f := v.Field(i)
+		path = append(path, v.Type().Field(i).Name)
+		if f.Kind() == reflect.Ptr {
+			if f.IsNil() {
+				if !f.CanSet() {
+					return strings.Join(path, "."), f.Type().Elem(), true
+				}
+				f = reflect.New(f.Type().Elem())
+			}
+			f = f.Elem()
+		}
+		v = f
+	}
+	return "", nil, false
+}
+
 func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
-	val := reflect.Indirect(reflect.ValueOf(i))
-	t, valKind := GetTypeInfo(i, val)
+	t, valKind := GetTypeInfo(i)
 	if valKind != reflect.Struct {
 		return nil, errColumnMapNotStruct(t)
 	}
