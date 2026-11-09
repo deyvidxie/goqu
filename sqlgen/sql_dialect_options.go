@@ -34,8 +34,7 @@ type (
 		// Set to true to return an error, instead of silently dropping the clause, when LIMIT is used on an
 		// UPDATE and SupportsLimitOnUpdate is false; LimitAll() is still dropped (DEFAULT=false)
 		ErrorOnUnsupportedLimitOnUpdate bool
-		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit, or
-		// OffsetWithoutLimitFragment before an OFFSET (DEFAULT=true)
+		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
 		SupportsLimitAll bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
@@ -153,7 +152,7 @@ type (
 		LimitFragment []byte
 		// The SQL OFFSET BY clause fragment(DEFAULT=[]byte(" OFFSET "))
 		OffsetFragment []byte
-		// Written in place of the LIMIT of a select with an OFFSET and no limit, or an unsupported LimitAll
+		// Written in place of the LIMIT of a select that has an OFFSET and no limit or an unsupported LimitAll
 		// (e.g. mysql=[]byte(" LIMIT 18446744073709551615"), sqlite3=[]byte(" LIMIT -1")) (DEFAULT=nil)
 		OffsetWithoutLimitFragment []byte
 		// The fragment after the offset in ORDER BY … OFFSET n ROWS(DEFAULT=[]byte(" ROWS"))

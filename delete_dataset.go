@@ -173,7 +173,7 @@ func (dd *DeleteDataset) Limit(limit uint) *DeleteDataset {
 	return dd.copy(dd.clauses.ClearLimit())
 }
 
-// Replaces any LIMIT with LIMIT ALL, or with no limit when the dialect's SupportsLimitAll is false. See examples.
+// Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it renders no limit. See examples.
 func (dd *DeleteDataset) LimitAll() *DeleteDataset {
 	return dd.copy(dd.clauses.SetLimit(L("ALL")))
 }

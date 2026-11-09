@@ -250,7 +250,8 @@ func (id *InsertDataset) GetAs() exp.IdentifierExpression {
 	return id.clauses.Alias()
 }
 
-// Sets the INSERT row alias; dialects whose ExcludedStyle is not ExcludedRowAliasStyle return an UnsupportedError.
+// Sets the INSERT row alias; dialects whose ExcludedStyle is not ExcludedRowAliasStyle return an UnsupportedError,
+// as does an INSERT … SELECT without Cols.
 func (id *InsertDataset) As(alias string) *InsertDataset {
 	return id.copy(id.clauses.SetAlias(T(alias)))
 }
