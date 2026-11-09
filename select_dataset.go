@@ -676,16 +676,12 @@ func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVals to scan the results into a slice of primitive values
-//
-// i: A pointer to a slice of primitive values
 func (sd *SelectDataset) ScanVals(i interface{}) error {
 	return sd.ScanValsContext(context.Background(), i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanValsContext to scan the results into a slice of primitive
 // values
-//
-// i: A pointer to a slice of primitive values
 func (sd *SelectDataset) ScanValsContext(ctx context.Context, i interface{}) error {
 	if sd.queryFactory == nil {
 		return errNoDatabase
@@ -694,15 +690,11 @@ func (sd *SelectDataset) ScanValsContext(ctx context.Context, i interface{}) err
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVal to scan the result into a primitive value
-//
-// i: A pointer to a primitive value
 func (sd *SelectDataset) ScanVal(i interface{}) (bool, error) {
 	return sd.ScanValContext(context.Background(), i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanValContext to scan the result into a primitive value
-//
-// i: A pointer to a primitive value
 func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
 	if sd.queryFactory == nil {
 		return false, errNoDatabase
@@ -808,8 +800,6 @@ func (sd *SelectDataset) ExistsContext(ctx context.Context) (bool, error) {
 // Generates the SELECT sql only selecting the passed in column and uses Exec#ScanVals to scan the result into a slice
 // of primitive values.
 //
-// i: A slice of primitive values
-//
 // col: The column to select when generative the SQL
 func (sd *SelectDataset) Pluck(i interface{}, col string) error {
 	return sd.PluckContext(context.Background(), i, col)
@@ -817,8 +807,6 @@ func (sd *SelectDataset) Pluck(i interface{}, col string) error {
 
 // Generates the SELECT sql only selecting the passed in column and uses Exec#ScanValsContext to scan the result into a
 // slice of primitive values.
-//
-// i: A slice of primitive values
 //
 // col: The column to select when generative the SQL
 func (sd *SelectDataset) PluckContext(ctx context.Context, i interface{}, col string) error {

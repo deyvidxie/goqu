@@ -155,8 +155,6 @@ func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bo
 //	if err := db.From("test").Select("id").ScanVals(&ids); err != nil{
 //	    panic(err.Error()
 //	}
-//
-// i: Takes a pointer to a slice of primitive values.
 func (q QueryExecutor) ScanVals(i interface{}) error {
 	return q.ScanValsContext(context.Background(), i)
 }
@@ -167,9 +165,10 @@ func (q QueryExecutor) ScanVals(i interface{}) error {
 //	if err := db.From("test").Select("id").ScanValsContext(ctx, &ids); err != nil{
 //	    panic(err.Error()
 //	}
-//
-// i: Takes a pointer to a slice of primitive values.
 func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error {
+	if _, err := checkScanValsTarget(i, q.tagName); err != nil {
+		return err
+	}
 	scanner, err := q.ScannerContext(ctx)
 	if err != nil {
 		return err
@@ -180,46 +179,44 @@ func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error
 
 // This will execute the SQL and set the value of the primitive. This method will return false if no record is found.
 //
-//	 var id uint32
-//	 found, err := db.From("test").Select("id").Limit(1).ScanVal(&id)
-//	 if err != nil{
-//	     panic(err.Error()
-//	 }
-//	 if !found{
-//	     fmt.Println("NOT FOUND")
-//	 }
-//
-//	i: Takes a pointer to a primitive value.
+//	var id uint32
+//	found, err := db.From("test").Select("id").Limit(1).ScanVal(&id)
+//	if err != nil{
+//	    panic(err.Error()
+//	}
+//	if !found{
+//	    fmt.Println("NOT FOUND")
+//	}
 func (q QueryExecutor) ScanVal(i interface{}) (bool, error) {
 	return q.ScanValContext(context.Background(), i)
 }
 
 // This will execute the SQL and set the value of the primitive. This method will return false if no record is found.
 //
-//	 var id uint32
-//	 found, err := db.From("test").Select("id").Limit(1).ScanValContext(ctx, &id)
-//	 if err != nil{
-//	     panic(err.Error()
-//	 }
-//	 if !found{
-//	     fmt.Println("NOT FOUND")
-//	 }
-//
-//	i: Takes a pointer to a primitive value.
+//	var id uint32
+//	found, err := db.From("test").Select("id").Limit(1).ScanValContext(ctx, &id)
+//	if err != nil{
+//	    panic(err.Error()
+//	}
+//	if !found{
+//	    fmt.Println("NOT FOUND")
+//	}
 func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
-	val := reflect.ValueOf(i)
-	if !util.IsPointer(val.Kind()) {
+	if util.IsNilOrNilPointer(i) {
+		return false, errNilScanTarget(i)
+	}
+	t := reflect.TypeOf(i)
+	if !util.IsPointer(t.Kind()) {
 		return false, errScanValTarget(i)
 	}
-	val = reflect.Indirect(val)
-	if util.IsSlice(val.Kind()) {
-		switch i.(type) {
-		case *gsql.RawBytes: // do nothing
-		case *[]byte: // do nothing
-		case gsql.Scanner: // do nothing
-		default:
-			return false, errScanValSliceTarget(i)
+	if scantype.IsUnscannableSlice(t.Elem()) {
+		if err := scantype.Val("ScanVals", "ScanStructs", t.Elem().Elem(), q.tagName); err != nil {
+			return false, err
 		}
+		return false, errScanValSliceTarget(i)
+	}
+	if err := scantype.Val("ScanVal", "ScanStruct", t.Elem(), q.tagName); err != nil {
+		return false, err
 	}
 
 	scanner, err := q.ScannerContext(ctx)

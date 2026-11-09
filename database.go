@@ -454,8 +454,6 @@ func (d *Database) ScanStructContext(ctx context.Context, i interface{}, query s
 // Queries the database using the supplied query, and args and uses CrudExec.ScanVals to scan the results into a slice
 // of primitive values
 //
-// i: A pointer to a slice of primitive values
-//
 // query: The SQL to execute
 //
 // args...: for any placeholder parameters in the query
@@ -465,8 +463,6 @@ func (d *Database) ScanVals(i interface{}, query string, args ...interface{}) er
 
 // Queries the database using the supplied context, query, and args and uses CrudExec.ScanValsContext to scan the
 // results into a slice of primitive values
-//
-// i: A pointer to a slice of primitive values
 //
 // query: The SQL to execute
 //
@@ -478,8 +474,6 @@ func (d *Database) ScanValsContext(ctx context.Context, i interface{}, query str
 // Queries the database using the supplied query, and args and uses CrudExec.ScanVal to scan the results into a
 // primitive value
 //
-// i: A pointer to a primitive value
-//
 // query: The SQL to execute
 //
 // args...: for any placeholder parameters in the query
@@ -489,8 +483,6 @@ func (d *Database) ScanVal(i interface{}, query string, args ...interface{}) (bo
 
 // Queries the database using the supplied context, query, and args and uses CrudExec.ScanValContext to scan the
 // results into a primitive value
-//
-// i: A pointer to a primitive value
 //
 // query: The SQL to execute
 //

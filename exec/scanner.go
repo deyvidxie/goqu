@@ -112,15 +112,20 @@ func (s *scanner) ScanStruct(i interface{}) error {
 	return s.Err()
 }
 
-// ScanStructs scans results in slice of structs
 func (s *scanner) ScanStructs(i interface{}) error {
 	val, err := checkScanStructsTarget(i, s.tagName)
 	if err != nil {
 		return err
 	}
-	return s.scanIntoSlice(val, func(i interface{}) error {
-		return s.ScanStruct(i)
-	})
+	elemType := util.GetSliceElementType(val)
+	for s.Next() {
+		row := reflect.New(elemType)
+		if err := s.ScanStruct(row.Interface()); err != nil {
+			return err
+		}
+		util.AppendSliceElement(val, row)
+	}
+	return s.Err()
 }
 
 // ScanVal will scan the current row and column into i.
@@ -132,35 +137,30 @@ func (s *scanner) ScanVal(i interface{}) error {
 	return s.Err()
 }
 
-// ScanStructs scans results in slice of values
 func (s *scanner) ScanVals(i interface{}) error {
-	val, err := checkScanValsTarget(i)
+	val, err := checkScanValsTarget(i, s.tagName)
 	if err != nil {
 		return err
 	}
-	return s.scanIntoSlice(val, func(i interface{}) error {
-		return s.ScanVal(i)
-	})
+	elemType := val.Type().Elem()
+	scanType := elemType
+	if util.IsPointer(elemType.Kind()) {
+		scanType = reflect.PointerTo(elemType.Elem())
+	}
+	for s.Next() {
+		row := reflect.New(scanType)
+		if err := s.ScanVal(row.Interface()); err != nil {
+			return err
+		}
+		val.Set(reflect.Append(val, row.Elem()))
+	}
+	return s.Err()
 }
 
 // Close closes the Rows, preventing further enumeration. See sql.Rows#Close
 // for more info.
 func (s *scanner) Close() error {
 	return s.rows.Close()
-}
-
-func (s *scanner) scanIntoSlice(val reflect.Value, it func(i interface{}) error) error {
-	elemType := util.GetSliceElementType(val)
-
-	for s.Next() {
-		row := reflect.New(elemType)
-		if rowErr := it(row.Interface()); rowErr != nil {
-			return rowErr
-		}
-		util.AppendSliceElement(val, row)
-	}
-
-	return s.Err()
 }
 
 func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error) {
@@ -178,7 +178,7 @@ func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error
 	return val, scantype.RowStruct(val.Type().Elem(), tagName)
 }
 
-func checkScanValsTarget(i interface{}) (reflect.Value, error) {
+func checkScanValsTarget(i interface{}, tagName string) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
 	if util.IsNilOrNilPointer(i) {
 		return val, errNilScanTarget(i)
@@ -190,5 +190,5 @@ func checkScanValsTarget(i interface{}) (reflect.Value, error) {
 	if !util.IsSlice(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}
-	return val, nil
+	return val, scantype.Val("ScanVals", "ScanStructs", val.Type().Elem(), tagName)
 }

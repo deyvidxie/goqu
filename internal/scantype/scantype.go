@@ -13,7 +13,6 @@ import (
 var (
 	timeType     = reflect.TypeFor[time.Time]()
 	byteType     = reflect.TypeFor[byte]()
-	bytesType    = reflect.TypeFor[[]byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 	uuidType     = reflect.TypeFor[uuid.UUID]()
 	anyType      = reflect.TypeFor[any]()
@@ -61,47 +60,42 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	}
 }
 
+type caller struct {
+	fn, structsFn string
+	generic       bool
+}
+
 func AllVals[T any](tagName string) error {
-	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanAllVals", "ScanAllStructs", t, t, tagName); err != nil {
-		return err
-	}
-	if !util.IsPointer(t.Kind()) || acceptsNull(t.Elem()) {
-		return nil
-	}
-	return errElementNotNullable(t)
+	return scannableVal(caller{"ScanAllVals", "ScanAllStructs", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
 func OneVal[T any](tagName string) error {
-	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanOneVal", "ScanOneStruct", t, t, tagName); err != nil {
-		return err
-	}
-	if isByteSlice(t) && t != bytesType && !util.IsScanner(t) {
-		return errNamedByteSliceValue(t)
-	}
-	return nil
+	return scannableVal(caller{"ScanOneVal", "ScanOneStruct", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
 func IterVal[T any](tagName string) error {
-	return scannableVal("IterVals", "IterStructs", reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
+	return scannableVal(caller{"IterVals", "IterStructs", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
-func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName string) error {
+func Val(fn, structsFn string, t reflect.Type, tagName string) error {
+	return scannableVal(caller{fn, structsFn, false}, t, t, tagName)
+}
+
+func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	inner := util.DerefAll(check)
 	switch {
 	case inner == rawBytesType:
-		return errRawBytes(fn)
-	case isUnscannableSlice(inner):
-		return errUnscannableSlice(fn, shown, inner)
+		return errRawBytes(c.fn)
+	case IsUnscannableSlice(inner):
+		return errUnscannableSlice(c.fn, shown, inner)
 	case isSQLNull(inner):
-		return scannableVal(fn, structsFn, shown, inner.Field(0).Type, tagName)
+		return scannableVal(c, shown, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
 	case isRowStruct(inner, tagName):
-		return errRowStructValue(fn, structsFn, shown, inner)
+		return errRowStructValue(c, shown, inner)
 	case isUnassignable(inner):
-		return errNotScannable(fn, shown, inner)
+		return errNotScannable(c.fn, shown, inner)
 	default:
 		return nil
 	}
@@ -109,14 +103,14 @@ func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName strin
 
 func isUnassignable(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Map, reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+	case reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
 		return true
 	case reflect.Array:
 		return t != uuidType
 	case reflect.Interface:
 		return !timeType.Implements(t)
 	case reflect.Struct:
-		return !isTime(t)
+		return t.PkgPath() == sqlPkgPath
 	default:
 		return false
 	}
@@ -126,23 +120,14 @@ func isSQLNull(t reflect.Type) bool {
 	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlPkgPath && strings.HasPrefix(t.Name(), "Null[")
 }
 
-func acceptsNull(t reflect.Type) bool {
-	return util.IsPointer(t.Kind()) || t == bytesType || t == anyType || util.IsScanner(t)
-}
-
 func isTime(t reflect.Type) bool {
 	return util.IsStruct(t.Kind()) && t.ConvertibleTo(timeType)
 }
 
 func isRowStruct(t reflect.Type, tagName string) bool {
-	return util.IsStruct(t.Kind()) &&
-		(util.CheckColumnMap(t, tagName).Issue != util.ColumnMapOK || len(util.StructColumnMap(t, tagName)) > 0)
+	return util.IsStruct(t.Kind()) && util.HasTaggedField(t, tagName)
 }
 
-func isUnscannableSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && !isByteSlice(t) && !util.IsScanner(t)
-}
-
-func isByteSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && t.Elem() == byteType
+func IsUnscannableSlice(t reflect.Type) bool {
+	return util.IsSlice(t.Kind()) && t.Elem() != byteType && t.Elem() != anyType && !util.IsScanner(t)
 }

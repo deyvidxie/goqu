@@ -1611,12 +1611,6 @@ func (sds *selectDatasetSuite) TestScanVals() {
 	sqlMock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	sqlMock.ExpectQuery(`SELECT \* FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	sqlMock.ExpectQuery(`SELECT \* FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 
 	db := goqu.New("mock", mDB)
 	var ids []uint32
@@ -1639,13 +1633,6 @@ func (sds *selectDatasetSuite) TestScanVals_WithPreparedStatment() {
 		`SELECT "id" FROM "items" WHERE \(\("address" = \?\) AND \("name" IN \(\?, \?, \?\)\)\)`,
 	).
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy").
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-
-	sqlMock.ExpectQuery(`SELECT \* FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	sqlMock.ExpectQuery(`SELECT \* FROM "items"`).
-		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 
 	db := goqu.New("mock", mDB)

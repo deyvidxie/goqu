@@ -1,12 +1,14 @@
 package duckdb_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
-	_ "github.com/marcboeker/go-duckdb"
+	duckdbdriver "github.com/marcboeker/go-duckdb"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/dialect/duckdb"
@@ -535,6 +537,43 @@ func (st *duckdbSuite) TestEmptyConditions() {
 	st.Require().NoError(err)
 	st.Len(ints, 10)
 	st.Equal(int64(1), ints[0])
+}
+
+func (st *duckdbSuite) TestValueScansIntoDriverNativeValues() {
+	ctx := context.Background()
+	lists := st.db.Select(goqu.L("[1, 2]"))
+	var list []any
+	found, err := lists.ScanVal(&list)
+	st.NoError(err)
+	st.True(found)
+	st.Equal([]any{int32(1), int32(2)}, list)
+	var listRows [][]any
+	st.NoError(lists.ScanVals(&listRows))
+	st.Equal([][]any{{int32(1), int32(2)}}, listRows)
+	allLists, err := lists.ScanAllVals[[]any](ctx)
+	st.NoError(err)
+	st.Equal([][]any{{int32(1), int32(2)}}, allLists)
+
+	structs := st.db.Select(goqu.L("{'a': 1}"))
+	var row map[string]any
+	found, err = structs.ScanVal(&row)
+	st.NoError(err)
+	st.True(found)
+	st.Equal(map[string]any{"a": int32(1)}, row)
+	var rows []map[string]any
+	st.NoError(structs.ScanVals(&rows))
+	st.Equal([]map[string]any{{"a": int32(1)}}, rows)
+
+	interval, found, err := st.db.Select(goqu.L("INTERVAL 2 DAY")).ScanOneVal[duckdbdriver.Interval](ctx)
+	st.NoError(err)
+	st.True(found)
+	st.Equal(duckdbdriver.Interval{Days: 2}, interval)
+
+	var huge *big.Int
+	found, err = st.db.Select(goqu.L("170141183460469231731687303715884105727::HUGEINT")).ScanVal(&huge)
+	st.NoError(err)
+	st.True(found)
+	st.Equal("170141183460469231731687303715884105727", huge.String())
 }
 
 func (st *duckdbSuite) TestCount() {
