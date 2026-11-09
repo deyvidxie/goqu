@@ -275,7 +275,7 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		},
 		{"unencodable value", "unable to encode value {}", expression(struct{}{})},
 		{"Default outside a value", "Default is only valid as an INSERT or UPDATE SET value", expression(exp.Default())},
-		{"empty Op", "goqu.Op for a has no operators", expression(exp.Ex{"a": exp.Op{}})},
+		{"empty Op", `Op for "t.a" has no operators`, expression(exp.Ex{"t.a": exp.Op{}})},
 		{"list as an UPDATE value", "a list ([]int) is not an INSERT or UPDATE value", toSQL(func(b sb.SQLBuilder) {
 			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, exp.NewUpdateClauses().
 				SetTable(exp.NewIdentifierExpression("", "t", "")).SetSetValues(exp.Record{"a": []int{1}}))

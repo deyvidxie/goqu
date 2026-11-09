@@ -50,6 +50,6 @@ func errUnsupportedOpKey(key string) error {
 	return errors.NewInvalidExpressionError("unsupported Op key %q", key)
 }
 
-func errEmptyOp(lhs IdentifierExpression) error {
-	return errors.NewInvalidExpressionError("goqu.Op for %v has no operators", lhs.GetCol())
+func errEmptyOp(key string) error {
+	return errors.NewInvalidExpressionError("Op for %q has no operators", key)
 }
