@@ -112,7 +112,6 @@ func (s *scanner) ScanStruct(i interface{}) error {
 	return s.Err()
 }
 
-// ScanStructs scans results in slice of structs
 func (s *scanner) ScanStructs(i interface{}) error {
 	val, err := checkScanStructsTarget(i, s.tagName)
 	if err != nil {

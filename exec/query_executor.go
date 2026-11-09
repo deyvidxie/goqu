@@ -183,32 +183,28 @@ func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error
 
 // This will execute the SQL and set the value of the primitive. This method will return false if no record is found.
 //
-//	 var id uint32
-//	 found, err := db.From("test").Select("id").Limit(1).ScanVal(&id)
-//	 if err != nil{
-//	     panic(err.Error()
-//	 }
-//	 if !found{
-//	     fmt.Println("NOT FOUND")
-//	 }
-//
-//	i: Takes a pointer to a primitive value.
+//	var id uint32
+//	found, err := db.From("test").Select("id").Limit(1).ScanVal(&id)
+//	if err != nil{
+//	    panic(err.Error()
+//	}
+//	if !found{
+//	    fmt.Println("NOT FOUND")
+//	}
 func (q QueryExecutor) ScanVal(i interface{}) (bool, error) {
 	return q.ScanValContext(context.Background(), i)
 }
 
 // This will execute the SQL and set the value of the primitive. This method will return false if no record is found.
 //
-//	 var id uint32
-//	 found, err := db.From("test").Select("id").Limit(1).ScanValContext(ctx, &id)
-//	 if err != nil{
-//	     panic(err.Error()
-//	 }
-//	 if !found{
-//	     fmt.Println("NOT FOUND")
-//	 }
-//
-//	i: Takes a pointer to a primitive value.
+//	var id uint32
+//	found, err := db.From("test").Select("id").Limit(1).ScanValContext(ctx, &id)
+//	if err != nil{
+//	    panic(err.Error()
+//	}
+//	if !found{
+//	    fmt.Println("NOT FOUND")
+//	}
 func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
 	if util.IsNilOrNilPointer(i) {
 		return false, errNilScanTarget(i)

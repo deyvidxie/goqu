@@ -95,6 +95,10 @@ type (
 		Next  *ScanTestSkippedCycle
 		Cache string `db:"-"`
 	}
+	ScanTestPrivateCycle struct {
+		Next *ScanTestPrivateCycle
+		_    int64 `db:"id"`
+	}
 	scanTestTagged struct {
 		ID int64 `json:"id"`
 	}
@@ -763,6 +767,7 @@ func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToT
 		"scanTestPrivateID":     ss.allValsErr[scanTestPrivateID],
 		"scanTestTaggedTime":    ss.allValsErr[scanTestTaggedTime],
 		"ScanTestSkippedCycle":  ss.allValsErr[ScanTestSkippedCycle],
+		"ScanTestPrivateCycle":  ss.allValsErr[ScanTestPrivateCycle],
 		"scanTestUntaggedInner": ss.allValsErr[scanTestUntaggedInner],
 		"map[string]int":        ss.allValsErr[map[string]int],
 	} {
