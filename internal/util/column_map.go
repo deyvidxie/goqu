@@ -81,24 +81,33 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 }
 
 func HasTaggedField(t reflect.Type, tagName string) bool {
-	return hasTaggedField(t, tagName, map[reflect.Type]bool{})
+	return hasTaggedField(t, tagName, false, map[taggedVisit]bool{})
 }
 
-func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
-	if seen[t] {
+type taggedVisit struct {
+	t      reflect.Type
+	tagged bool
+}
+
+func hasTaggedField(t reflect.Type, tagName string, tagged bool, seen map[taggedVisit]bool) bool {
+	if seen[taggedVisit{t, tagged}] {
 		return false
 	}
-	seen[t] = true
+	seen[taggedVisit{t, tagged}] = true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		fieldTag := tag.New(tagName, f.Tag)
 		sub, follow := followedType(&f, tagName)
+		fieldTagged := tagged || !fieldTag.IsEmpty()
 		switch {
-		case isEmbed(&f) && !follow, !isEmbed(&f) && (!f.IsExported() || shouldIgnoreField(fieldTag)):
-			continue
-		case !fieldTag.IsEmpty():
+		case isEmbed(&f):
+			if follow && IsStruct(sub.Kind()) && hasTaggedField(sub, tagName, fieldTagged, seen) {
+				return true
+			}
+		case !f.IsExported() || shouldIgnoreField(fieldTag):
+		case fieldTagged:
 			return true
-		case follow && IsStruct(sub.Kind()) && hasTaggedField(sub, tagName, seen):
+		case follow && hasTaggedField(sub, tagName, false, seen):
 			return true
 		}
 	}

@@ -111,6 +111,14 @@ type (
 		Item dsTestActionItem
 		Next *ScanTestWrappedCycle
 	}
+	scanTestPrefixedEmbed struct {
+		*ScanTestID
+		scanTestUntaggedInner `db:"inner"`
+	}
+	scanTestEmptyTaggedEmbed struct {
+		*ScanTestID
+		scanTestMeta `db:"meta"`
+	}
 	ScanTestIgnoredEmbedCycle struct {
 		scanTestAuditID `db:"-"`
 		Next            *ScanTestIgnoredEmbedCycle
@@ -784,6 +792,7 @@ func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToT
 		"scanTestTaggedTime":        ss.allValsErr[scanTestTaggedTime],
 		"ScanTestSkippedCycle":      ss.allValsErr[ScanTestSkippedCycle],
 		"ScanTestPrivateCycle":      ss.allValsErr[ScanTestPrivateCycle],
+		"scanTestEmptyTaggedEmbed":  ss.allValsErr[scanTestEmptyTaggedEmbed],
 		"ScanTestIgnoredEmbedCycle": ss.allValsErr[ScanTestIgnoredEmbedCycle],
 		"scanTestUntaggedInner":     ss.allValsErr[scanTestUntaggedInner],
 		"map[string]int":            ss.allValsErr[map[string]int],
@@ -816,6 +825,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 		"goqu_test.scanTestNestedID":      ss.allValsErr[*scanTestNestedID](),
 		"goqu_test.scanTestHiddenAudit":   ss.allValsErr[*scanTestHiddenAudit](),
 		"goqu_test.scanTestNestedIDPtr":   ss.allValsErr[*scanTestNestedIDPtr](),
+		"goqu_test.scanTestPrefixedEmbed": ss.allValsErr[*scanTestPrefixedEmbed](),
 		"goqu_test.ScanTestOptionCycle":   ss.allValsErr[*ScanTestOptionCycle](),
 		"goqu_test.ScanTestWrappedCycle":  ss.allValsErr[*ScanTestWrappedCycle](),
 		"goqu_test.scanTestUnexportedPtr": ss.allValsErr[*scanTestUnexportedPtr](),
