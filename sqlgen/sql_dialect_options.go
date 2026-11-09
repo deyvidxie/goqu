@@ -200,10 +200,11 @@ type (
 		// Written in place of a whole NOT IN comparison whose list is empty (DEFAULT=[]byte("(1=1)")).
 		// Dialects not based on DefaultDialectOptions must set this.
 		EmptyNotInFragment []byte
-		// Written for an empty AND condition (And(), Ex{}) that is not dropped from an enclosing AND
-		// (DEFAULT=[]byte("(1=1)"))
+		// Written in place of an empty AND condition (DEFAULT=[]byte("(1=1)")).
+		// Dialects not based on DefaultDialectOptions must set this.
 		EmptyAndFragment []byte
-		// Written for an empty OR condition (Or(), ExOr{}), which is false (DEFAULT=[]byte("(1=0)"))
+		// Written in place of an empty OR condition (DEFAULT=[]byte("(1=0)")).
+		// Dialects not based on DefaultDialectOptions must set this.
 		EmptyOrFragment []byte
 		// The ASC fragment when specifying column order (DEFAULT=[]byte(" ASC"))
 		AscFragment []byte

@@ -95,6 +95,9 @@ func mapToExpressionList(ex map[string]interface{}, eType ExpressionListType) (E
 
 func createOredExpressionFromMap(lhs IdentifierExpression, op Op) ([]Expression, error) {
 	opKeys := getExMapKeys(op)
+	if len(opKeys) == 0 {
+		return nil, errEmptyOp(lhs)
+	}
 	ors := make([]Expression, 0, len(opKeys))
 	for _, opKey := range opKeys {
 		if exp, err := createExpressionFromOp(lhs, opKey, op); err != nil {

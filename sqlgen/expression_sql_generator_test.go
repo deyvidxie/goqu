@@ -463,7 +463,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ColumnList() {
 	)
 }
 
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_emptyConditions() {
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyConditions() {
 	a := exp.NewIdentifierExpression("", "", "a").Eq(1)
 	and := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.AndType, e...) }
 	or := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.OrType, e...) }
@@ -472,6 +472,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_emptyConditions() {
 	custom.EmptyOrFragment = []byte("FALSE")
 	missing := sqlgen.DefaultDialectOptions()
 	missing.EmptyOrFragment = nil
+	missingAnd := sqlgen.DefaultDialectOptions()
+	missingAnd.EmptyAndFragment = nil
 
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
@@ -500,6 +502,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_emptyConditions() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", missing),
 		expressionTestCase{val: or(), err: "goqu: dialect has no EmptyOrFragment for an empty OR list [dialect=test]"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", missingAnd),
+		expressionTestCase{val: or(a, and()), err: "goqu: dialect has no EmptyAndFragment for an empty AND list [dialect=test]"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: exp.Ex{"a": 1, "b": exp.Op{}}, err: "goqu: goqu.Op for b has no operators"},
+		expressionTestCase{val: exp.ExOr{"a": exp.Op{}}, err: "goqu: goqu.Op for a has no operators"},
 	)
 }
 

@@ -965,12 +965,21 @@ func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 		`UPDATE "t" SET "a"=1 WHERE (1=0)`:              goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}),
 		`SELECT CASE  WHEN (1=1) THEN 1 END FROM "t"`:   goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)),
 		`SELECT * FROM "t" WHERE NOT ((1=1))`:           goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))),
+		`DELETE FROM "t" WHERE (("a" = 1) OR (1=1))`:    goqu.Delete("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And(none...))),
+		`SELECT * FROM "t" WHERE (("b" = 2) AND (1=0))`: goqu.From("t").Where(goqu.C("b").Eq(2)).Where(goqu.Or()),
+		`SELECT * FROM "t" INNER JOIN "u" ON (1=0)`:     goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())),
 	} {
 		sql, args, err := ds.ToSQL()
 		sds.NoError(err, want)
 		sds.Empty(args, want)
 		sds.Equal(want, sql)
 	}
+}
+
+func (sds *selectDatasetSuite) TestEmptyJoinConditionIsRequired() {
+	_, _, err := goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.L(""))).ToSQL()
+	sds.EqualError(err, "goqu: join condition required for conditioned join InnerJoinType")
+	sds.True(goqu.IsInvalidExpression(err))
 }
 
 func (sds *selectDatasetSuite) TestHaving() {

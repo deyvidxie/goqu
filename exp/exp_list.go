@@ -7,9 +7,6 @@ type (
 	}
 )
 
-// A list of expressions that should be ORed together
-//
-//	Or(I("a").Eq(10), I("b").Eq(11)) //(("a" = 10) OR ("b" = 11))
 func NewExpressionList(operator ExpressionListType, expressions ...Expression) ExpressionList {
 	exps := make([]Expression, 0, len(expressions))
 	for _, e := range expressions {
