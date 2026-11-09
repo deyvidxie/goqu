@@ -328,6 +328,8 @@ SELECT * FROM "test" INNER JOIN "test2" ON ("test"."fkey" = "test2"."Id")
 
 [`FullOuterJoin`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.FullOuterJoin)
 
+**NOTE** `FullOuterJoin`, `FullJoin` and `NaturalFullJoin` return a `goqu.UnsupportedError` on the `mysql`, `mysql8` and `mysql8nano` dialects; MySQL has no `FULL` join.
+
 ```go
 sql, _, _ := goqu.From("test").FullOuterJoin(
 	goqu.T("test2"),
