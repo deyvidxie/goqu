@@ -660,6 +660,30 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
 }
 
+func (mt *mysqlTest) TestLateralJoin() {
+	if version := mt.serverVersion(); !versionAtLeast(version, [3]int{8, 0, 14}) {
+		mt.T().Skipf("LATERAL needs MySQL 8.0.14+, server is %v", version)
+	}
+	maxInt := goqu.Dialect("mysql8").From(goqu.T("entry").As("e2")).
+		Select(goqu.MAX("int").As("max_int")).
+		Where(goqu.I("e2.bool").Eq(goqu.I("e.bool"))).
+		As("m")
+	var rows []struct {
+		Int    int `db:"int"`
+		MaxInt int `db:"max_int"`
+	}
+	err := goqu.New("mysql8", mt.db.Db).From(goqu.T("entry").As("e")).
+		Select("e.int", "m.max_int").
+		Join(goqu.Lateral(maxInt), goqu.On(goqu.V(true))).
+		Where(goqu.I("e.int").In(0, 1)).
+		Order(goqu.I("e.int").Asc()).
+		ScanStructs(&rows)
+	mt.NoError(err)
+	mt.Len(rows, 2)
+	mt.Equal(8, rows[0].MaxInt)
+	mt.Equal(9, rows[1].MaxInt)
+}
+
 func (mt *mysqlTest) TestInsert_OnConflictExcluded() {
 	version := mt.serverVersion()
 	for _, dialect := range []string{"mysql", "mysql8"} {
