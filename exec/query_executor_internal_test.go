@@ -1429,9 +1429,84 @@ func (qes *queryExecutorSuite) TestScanVal_withRawBytes() {
 	qes.False(found)
 
 	found, err = e.ScanVal(&bytes)
+	qes.EqualError(err, "goqu: ScanVal cannot return sql.RawBytes, which is only valid until the next row is read "+
+		"or the rows are closed; use []byte")
+	qes.True(errors.IsUnsupportedScanType(err))
+	qes.False(found)
+}
+
+func (qes *queryExecutorSuite) TestScanVal_rejectsUnscannableTargetsBeforeQuery() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	e := newQueryExecutor("db", db, nil, `SELECT "id" FROM "items"`)
+
+	var p *[]int64
+	cases := []struct {
+		target interface{}
+		err    string
+	}{
+		{&[2]int{}, "goqu: ScanVal cannot scan into [2]int; use a concrete sql.Scanner"},
+		{&[]int{}, "goqu: cannot scan one value into *[]int, use ScanVals for a slice"},
+		{&p, "goqu: ScanVal cannot scan into *[]int64; use []byte or a concrete sql.Scanner"},
+	}
+	for _, c := range cases {
+		found, err := e.ScanVal(c.target)
+		qes.EqualError(err, c.err)
+		qes.True(errors.IsUnsupportedScanType(err))
+		qes.False(found)
+	}
+	qes.NoError(mock.ExpectationsWereMet())
+}
+
+func (qes *queryExecutorSuite) TestScanVals_rejectsUnscannableElementsBeforeQuery() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	e := newQueryExecutor("db", db, nil, `SELECT "id" FROM "items"`)
+
+	cases := []struct {
+		target interface{}
+		err    string
+	}{
+		{&[][]int64{}, "goqu: ScanVals cannot scan into []int64; use []byte or a concrete sql.Scanner"},
+		{&[]map[string]int{}, "goqu: ScanVals cannot scan into map[string]int; use a concrete sql.Scanner"},
+		{&[]*[]int64{}, "goqu: ScanVals cannot scan into *[]int64; use []byte or a concrete sql.Scanner"},
+		{&[]sql.RawBytes{}, "goqu: ScanVals cannot return sql.RawBytes, which is only valid until the next row " +
+			"is read or the rows are closed; use []byte"},
+	}
+	for _, c := range cases {
+		err := e.ScanVals(c.target)
+		qes.EqualError(err, c.err)
+		qes.True(errors.IsUnsupportedScanType(err))
+	}
+	qes.NoError(mock.ExpectationsWereMet())
+}
+
+func (qes *queryExecutorSuite) TestScanVals_pointerElementsReceiveNilForNull() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	mock.ExpectQuery(`SELECT "id" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(nil).AddRow(int64(2)))
+	e := newQueryExecutor("db", db, nil, `SELECT "id" FROM "items"`)
+
+	var ids []*int64
+	qes.NoError(e.ScanVals(&ids))
+	qes.Len(ids, 2)
+	qes.Nil(ids[0])
+	qes.Equal(int64(2), *ids[1])
+}
+
+func (qes *queryExecutorSuite) TestScanVal_withJSONRawMessage() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	mock.ExpectQuery(`SELECT "doc" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"doc"}).AddRow([]byte(`{"a":1}`)))
+	e := newQueryExecutor("db", db, nil, `SELECT "doc" FROM "items"`)
+
+	var doc json.RawMessage
+	found, err := e.ScanVal(&doc)
 	qes.NoError(err)
 	qes.True(found)
-	qes.Equal(sql.RawBytes(testByteSliceContent), bytes)
+	qes.Equal(json.RawMessage(`{"a":1}`), doc)
 }
 
 type JSONBoolArray []bool

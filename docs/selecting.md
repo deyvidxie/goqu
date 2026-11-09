@@ -1246,6 +1246,8 @@ found, err := db.From("user").ScanStruct(&user)
 
 Scans a rows of 1 column into a slice of primitive values
 
+A `[]*int64` gets `nil` for `NULL`. `ScanVals` and `ScanVal` reject a target they cannot scan into, such as `sql.RawBytes`, a map or a non-byte slice element, with `goqu.UnsupportedScanTypeError` before the query runs.
+
 ```go
 var ids []int64
 if err := db.From("user").Select("id").ScanVals(&ids); err != nil{

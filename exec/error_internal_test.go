@@ -64,7 +64,7 @@ func TestNilScanTargets(t *testing.T) {
 	assert.True(t, errors.IsUnsupportedScanType(err))
 	_, err = checkScanStructsTarget((*[]row)(nil), "db")
 	assert.EqualError(t, err, "goqu: scan target must not be nil, got *[]exec.row")
-	_, err = checkScanValsTarget(nil)
+	_, err = checkScanValsTarget(nil, "db")
 	assert.EqualError(t, err, "goqu: scan target must not be nil, got <nil>")
 }
 

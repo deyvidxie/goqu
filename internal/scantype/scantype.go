@@ -13,10 +13,8 @@ import (
 var (
 	timeType     = reflect.TypeFor[time.Time]()
 	byteType     = reflect.TypeFor[byte]()
-	bytesType    = reflect.TypeFor[[]byte]()
 	rawBytesType = reflect.TypeFor[sql.RawBytes]()
 	uuidType     = reflect.TypeFor[uuid.UUID]()
-	anyType      = reflect.TypeFor[any]()
 	sqlPkgPath   = rawBytesType.PkgPath()
 )
 
@@ -62,29 +60,19 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 }
 
 func AllVals[T any](tagName string) error {
-	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanAllVals", "ScanAllStructs", t, t, tagName); err != nil {
-		return err
-	}
-	if !util.IsPointer(t.Kind()) || acceptsNull(t.Elem()) {
-		return nil
-	}
-	return errElementNotNullable(t)
+	return Val("ScanAllVals", "ScanAllStructs", reflect.TypeFor[T](), tagName)
 }
 
 func OneVal[T any](tagName string) error {
-	t := reflect.TypeFor[T]()
-	if err := scannableVal("ScanOneVal", "ScanOneStruct", t, t, tagName); err != nil {
-		return err
-	}
-	if isByteSlice(t) && t != bytesType && !util.IsScanner(t) {
-		return errNamedByteSliceValue(t)
-	}
-	return nil
+	return Val("ScanOneVal", "ScanOneStruct", reflect.TypeFor[T](), tagName)
 }
 
 func IterVal[T any](tagName string) error {
-	return scannableVal("IterVals", "IterStructs", reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
+	return Val("IterVals", "IterStructs", reflect.TypeFor[T](), tagName)
+}
+
+func Val(fn, structsFn string, t reflect.Type, tagName string) error {
+	return scannableVal(fn, structsFn, t, t, tagName)
 }
 
 func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName string) error {
@@ -124,10 +112,6 @@ func isUnassignable(t reflect.Type) bool {
 
 func isSQLNull(t reflect.Type) bool {
 	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlPkgPath && strings.HasPrefix(t.Name(), "Null[")
-}
-
-func acceptsNull(t reflect.Type) bool {
-	return util.IsPointer(t.Kind()) || t == bytesType || t == anyType || util.IsScanner(t)
 }
 
 func isTime(t reflect.Type) bool {

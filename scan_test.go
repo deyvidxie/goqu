@@ -40,7 +40,6 @@ type (
 	scanTestOpaqueScanner  struct{}
 	ScanTestID             int
 	ScanTestUUID           uuid.UUID
-	ScanTestAny            interface{}
 	ScanTestName           string
 	scanTestEmbeddedID     struct {
 		*ScanTestID
@@ -297,8 +296,8 @@ func (ss *scanSuite) TestExecutor_rejectsUnscannableTypes() {
 	ss.EqualError(err, "goqu: cannot scan rows into string, a struct or a pointer to a struct is required")
 	ss.False(found)
 
-	ids, err := executor.ScanAllVals[*int64](context.Background())
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64: int64 cannot hold NULL; use sql.Null[int64]")
+	ids, err := executor.ScanAllVals[[]int64](context.Background())
+	ss.EqualError(err, "goqu: ScanAllVals cannot scan into []int64; use []byte or a concrete sql.Scanner")
 	ss.Nil(ids)
 
 	_, found, err = executor.ScanOneVal[[]int64](context.Background())
@@ -648,10 +647,21 @@ func (ss *scanSuite) TestScanOneVal_rejectsSlices() {
 	}
 }
 
-func (ss *scanSuite) TestScanOneVal_rejectsNamedByteSliceValues() {
-	err := ss.oneValErr[scanTestBlob]()
-	ss.EqualError(err, "goqu: ScanOneVal cannot scan into goqu_test.scanTestBlob; use *goqu_test.scanTestBlob")
-	ss.True(goqu.IsUnsupportedScanType(err))
+func (ss *scanSuite) TestScanOneVal_acceptsNamedByteSliceValues() {
+	ss.mock.ExpectQuery(`SELECT "data" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte(`{"a":1}`)))
+	doc, found, err := ss.db.From("items").Select("data").ScanOneVal[json.RawMessage](context.Background())
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(json.RawMessage(`{"a":1}`), doc)
+
+	ss.mock.ExpectQuery(`SELECT "data" FROM "items" LIMIT 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
+	var blob scanTestBlob
+	found, err = ss.db.From("items").Select("data").ScanVal(&blob)
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestBlob("abc"), blob)
 }
 
 func (ss *scanSuite) TestScanOneVal_rejectsRawBytes() {
@@ -677,7 +687,7 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 	ss.NoError(err)
 	ss.Require().Len(data, 2)
 	ss.Equal([]byte("abc"), *data[0])
-	ss.Nil(*data[1])
+	ss.Nil(data[1])
 
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
@@ -685,7 +695,7 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 	ss.NoError(err)
 	ss.Require().Len(anys, 2)
 	ss.Equal("abc", *anys[0])
-	ss.Nil(*anys[1])
+	ss.Nil(anys[1])
 
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
@@ -697,7 +707,7 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
 	nullStrings, err := ss.db.From("items").Select("data").ScanAllVals[*sql.NullString](context.Background())
 	ss.NoError(err)
-	ss.Equal([]*sql.NullString{{String: "abc", Valid: true}, {}}, nullStrings)
+	ss.Equal([]*sql.NullString{{String: "abc", Valid: true}, nil}, nullStrings)
 
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)).AddRow(nil))
@@ -705,29 +715,25 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 	ss.NoError(err)
 	ss.Require().Len(ids, 2)
 	ss.Equal(int64(3), **ids[0])
-	ss.Nil(*ids[1])
+	ss.Nil(ids[1])
 }
 
-func (ss *scanSuite) TestScanAllVals_rejectsNonNullablePointers() {
-	ids, err := ss.db.From("items").ScanAllVals[*int64](context.Background())
-	ss.EqualError(err, "goqu: ScanAllVals cannot scan into *int64: int64 cannot hold NULL; use sql.Null[int64]")
-	ss.True(goqu.IsUnsupportedScanType(err))
-	ss.Nil(ids)
+func (ss *scanSuite) TestScanAllVals_pointersReceiveNilForNull() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)).AddRow(nil))
+	ids, err := ss.db.From("items").Select("id").ScanAllVals[*int64](context.Background())
+	ss.NoError(err)
+	ss.Require().Len(ids, 2)
+	ss.Equal(int64(3), *ids[0])
+	ss.Nil(ids[1])
 
-	for name, err := range map[string]error{
-		"string":                 ss.allValsErr[*string](),
-		"bool":                   ss.allValsErr[*bool](),
-		"float64":                ss.allValsErr[*float64](),
-		"uint64":                 ss.allValsErr[*uint64](),
-		"time.Time":              ss.allValsErr[*time.Time](),
-		"goqu_test.ScanTestTime": ss.allValsErr[*ScanTestTime](),
-		"goqu_test.scanTestBlob": ss.allValsErr[*scanTestBlob](),
-		"fmt.Stringer":           ss.allValsErr[*fmt.Stringer](),
-		"goqu_test.ScanTestAny":  ss.allValsErr[*ScanTestAny](),
-		"uuid.UUID":              ss.allValsErr[*uuid.UUID](),
-	} {
-		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+name+": "+name+" cannot hold NULL; use sql.Null["+name+"]", name)
-	}
+	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("a").AddRow(nil))
+	names, err := ss.db.From("items").Select("name").ScanAllVals[*string](context.Background())
+	ss.NoError(err)
+	ss.Require().Len(names, 2)
+	ss.Equal("a", *names[0])
+	ss.Nil(names[1])
 }
 
 func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {

@@ -134,13 +134,26 @@ func (s *scanner) ScanVal(i interface{}) error {
 
 // ScanStructs scans results in slice of values
 func (s *scanner) ScanVals(i interface{}) error {
-	val, err := checkScanValsTarget(i)
+	val, err := checkScanValsTarget(i, s.tagName)
 	if err != nil {
 		return err
 	}
-	return s.scanIntoSlice(val, func(i interface{}) error {
-		return s.ScanVal(i)
-	})
+	elemType := val.Type().Elem()
+	scanType := elemType
+	if namedPointer := util.IsPointer(elemType.Kind()) && elemType.Name() != ""; namedPointer {
+		scanType = elemType.Elem()
+	}
+	for s.Next() {
+		row := reflect.New(scanType)
+		if err := s.ScanVal(row.Interface()); err != nil {
+			return err
+		}
+		if scanType == elemType {
+			row = row.Elem()
+		}
+		val.Set(reflect.Append(val, row.Convert(elemType)))
+	}
+	return s.Err()
 }
 
 // Close closes the Rows, preventing further enumeration. See sql.Rows#Close
@@ -178,7 +191,7 @@ func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error
 	return val, scantype.RowStruct(val.Type().Elem(), tagName)
 }
 
-func checkScanValsTarget(i interface{}) (reflect.Value, error) {
+func checkScanValsTarget(i interface{}, tagName string) (reflect.Value, error) {
 	val := reflect.ValueOf(i)
 	if util.IsNilOrNilPointer(i) {
 		return val, errNilScanTarget(i)
@@ -190,5 +203,5 @@ func checkScanValsTarget(i interface{}) (reflect.Value, error) {
 	if !util.IsSlice(val.Kind()) {
 		return val, errScanSliceTarget(i)
 	}
-	return val, nil
+	return val, scantype.Val("ScanVals", "ScanStructs", val.Type().Elem(), tagName)
 }

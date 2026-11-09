@@ -564,12 +564,6 @@ func (tds *txdatabaseSuite) TestScanVals() {
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 	mock.ExpectCommit()
 	db := goqu.New("mock", mDB)
 	tx, err := db.Begin()

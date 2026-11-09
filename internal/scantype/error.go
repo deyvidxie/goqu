@@ -56,12 +56,6 @@ func scanTarget(shown, inner reflect.Type) string {
 	return fmt.Sprintf("the %s of %s", inner, shown)
 }
 
-func errElementNotNullable(t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError(
-		"ScanAllVals cannot scan into %s: %s cannot hold NULL; use sql.Null[%s]", t, t.Elem(), t.Elem(),
-	)
-}
-
 func errNotScannable(fn string, shown, inner reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use a concrete sql.Scanner", fn, scanTarget(shown, inner))
 }
@@ -74,10 +68,6 @@ func errRowStructValue(fn, structsFn string, t, row reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
 		"%s cannot scan into %s: %s is a row struct; use %s[%s]", fn, t, row, structsFn, structsT,
 	)
-}
-
-func errNamedByteSliceValue(t reflect.Type) error {
-	return errors.NewUnsupportedScanTypeError("ScanOneVal cannot scan into %s; use *%s", t, t)
 }
 
 func errRawBytes(fn string) error {

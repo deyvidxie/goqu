@@ -170,6 +170,9 @@ func (q QueryExecutor) ScanVals(i interface{}) error {
 //
 // i: Takes a pointer to a slice of primitive values.
 func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error {
+	if _, err := checkScanValsTarget(i, q.tagName); err != nil {
+		return err
+	}
 	scanner, err := q.ScannerContext(ctx)
 	if err != nil {
 		return err
@@ -207,19 +210,18 @@ func (q QueryExecutor) ScanVal(i interface{}) (bool, error) {
 //
 //	i: Takes a pointer to a primitive value.
 func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool, error) {
-	val := reflect.ValueOf(i)
-	if !util.IsPointer(val.Kind()) {
+	if util.IsNilOrNilPointer(i) {
+		return false, errNilScanTarget(i)
+	}
+	t := reflect.TypeOf(i)
+	if !util.IsPointer(t.Kind()) {
 		return false, errScanValTarget(i)
 	}
-	val = reflect.Indirect(val)
-	if util.IsSlice(val.Kind()) {
-		switch i.(type) {
-		case *gsql.RawBytes: // do nothing
-		case *[]byte: // do nothing
-		case gsql.Scanner: // do nothing
-		default:
-			return false, errScanValSliceTarget(i)
-		}
+	if elem := t.Elem(); util.IsSlice(elem.Kind()) && !util.IsScanner(elem) && !isByteSliceKind(elem) {
+		return false, errScanValSliceTarget(i)
+	}
+	if err := scantype.Val("ScanVal", "ScanStruct", t.Elem(), q.tagName); err != nil {
+		return false, err
 	}
 
 	scanner, err := q.ScannerContext(ctx)
@@ -355,4 +357,8 @@ func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool
 	}
 	found, err = q.ScanValContext(ctx, &val)
 	return val, found, err
+}
+
+func isByteSliceKind(t reflect.Type) bool {
+	return util.IsSlice(t.Kind()) && t.Elem().Kind() == reflect.Uint8
 }
