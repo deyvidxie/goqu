@@ -116,9 +116,8 @@ type (
 	scanTestPrivateID struct {
 		_ int64 `db:"id"`
 	}
-	ScanTestCount        int64
 	scanTestTaggedScalar struct {
-		ScanTestCount `db:"count"`
+		ScanTestID `db:"count"`
 	}
 	scanTestUntaggedInner struct{ X int64 }
 	scanTestItemWrapper   struct{ Item dsTestActionItem }
@@ -756,7 +755,7 @@ func (ss *scanSuite) TestScanAllVals_rejectsStructsWithTaggedColumns() {
 	}
 }
 
-func (ss *scanSuite) TestScanAllVals_leavesStructsWithoutColumnTagsToTheDriver() {
+func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToTheDriver() {
 	for name, scan := range map[string]func() error{
 		"ScanTestSelfRef":       ss.allValsErr[ScanTestSelfRef],
 		"scanTestMeta":          ss.allValsErr[scanTestMeta],
