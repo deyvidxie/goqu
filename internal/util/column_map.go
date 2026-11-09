@@ -80,8 +80,8 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 	return cm
 }
 
-func (cm ColumnMap) HasTaggedColumn(t reflect.Type, tagName string) bool {
-	for _, col := range cm {
+func HasTaggedColumn(t reflect.Type, tagName string) bool {
+	for _, col := range StructColumnMap(t, tagName) {
 		owner := t
 		for _, i := range col.FieldIndex {
 			f := owner.Field(i)

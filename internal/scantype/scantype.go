@@ -133,7 +133,7 @@ func isRowStruct(t reflect.Type, tagName string) bool {
 	case util.ColumnMapNonStructEmbed, util.ColumnMapCycle:
 		return hasOwnTag(t, tagName)
 	default:
-		return util.StructColumnMap(t, tagName).HasTaggedColumn(t, tagName)
+		return util.HasTaggedColumn(t, tagName)
 	}
 }
 

@@ -118,9 +118,15 @@ func (s *scanner) ScanStructs(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	return s.scanIntoSlice(val, func(i interface{}) error {
-		return s.ScanStruct(i)
-	})
+	elemType := util.GetSliceElementType(val)
+	for s.Next() {
+		row := reflect.New(elemType)
+		if err := s.ScanStruct(row.Interface()); err != nil {
+			return err
+		}
+		util.AppendSliceElement(val, row)
+	}
+	return s.Err()
 }
 
 // ScanVal will scan the current row and column into i.
@@ -156,20 +162,6 @@ func (s *scanner) ScanVals(i interface{}) error {
 // for more info.
 func (s *scanner) Close() error {
 	return s.rows.Close()
-}
-
-func (s *scanner) scanIntoSlice(val reflect.Value, it func(i interface{}) error) error {
-	elemType := util.GetSliceElementType(val)
-
-	for s.Next() {
-		row := reflect.New(elemType)
-		if rowErr := it(row.Interface()); rowErr != nil {
-			return rowErr
-		}
-		util.AppendSliceElement(val, row)
-	}
-
-	return s.Err()
 }
 
 func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error) {
