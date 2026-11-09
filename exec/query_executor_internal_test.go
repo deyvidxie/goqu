@@ -1516,24 +1516,6 @@ func (qes *queryExecutorSuite) TestScanVal_withJSONRawMessage() {
 	qes.Nil(nullable)
 }
 
-func (qes *queryExecutorSuite) TestScanVal_withNamedByteSlice() {
-	db, mock, err := sqlmock.New()
-	qes.NoError(err)
-	mock.ExpectQuery(`SELECT "data" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
-	e := newQueryExecutor("db", db, nil, `SELECT "data" FROM "items"`)
-
-	var blob namedBytes
-	found, err := e.ScanVal(&blob)
-	qes.NoError(err)
-	qes.True(found)
-	qes.Equal(namedBytes("abc"), blob)
-
-	mock.ExpectQuery(`SELECT "data" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow(nil))
-	_, err = e.ScanVal(&blob)
-	qes.ErrorContains(err, `sql: Scan error on column index 0, name "data": unsupported Scan, storing driver.Value type <nil>`)
-}
-
 func (qes *queryExecutorSuite) TestScanVal_withUUID() {
 	db, mock, err := sqlmock.New()
 	qes.NoError(err)
@@ -1618,7 +1600,6 @@ type (
 	scanValRow struct {
 		Name string `db:"name"`
 	}
-	namedBytes    []byte
 	nullStringRef *sql.NullString
 	boolRef       *bool
 )

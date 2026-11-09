@@ -137,9 +137,11 @@ func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) 
 	for i := range t.NumField() {
 		f := t.Field(i)
 		fieldTag := tag.New(tagName, f.Tag)
-		if f.Anonymous {
-			embedded := util.Deref(f.Type)
-			if !fieldTag.Contains("-") && util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
+		if f.Anonymous && (util.IsStruct(f.Type.Kind()) || util.IsPointer(f.Type.Kind())) {
+			if fieldTag.Contains("-") {
+				continue
+			}
+			if embedded := util.Deref(f.Type); !fieldTag.IsEmpty() || util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
 				return true
 			}
 			continue
