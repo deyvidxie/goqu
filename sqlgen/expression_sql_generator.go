@@ -728,7 +728,7 @@ func writeValue(esg ExpressionSQLGenerator, opts *SQLDialectOptions, b sb.SQLBui
 		b.SetError(errDefaultValueNotSupported(esg.Dialect()))
 	case isDefault(val):
 		b.Write(opts.DefaultFragment)
-	case util.IsListValue(val):
+	case !util.IsValuerOrBytes(val) && util.IsListValue(val):
 		b.SetError(errListAsValue(val))
 	default:
 		esg.Generate(b, val)

@@ -257,7 +257,7 @@ Output:
 INSERT INTO "user" ("first_name", "last_name") VALUES (DEFAULT, 'Farley'), ('Jimmy', 'Stewart'), (DEFAULT, 'Jeffers') []
 ```
 
-**NOTE** `defaultifempty` and `goqu.Default()` render `DEFAULT` only as an insert or update value; elsewhere `goqu.Default()` returns a `goqu.InvalidExpressionError`. `sqlite3` has no `DEFAULT` value and returns a `goqu.UnsupportedError`. A slice or array value that is not a `driver.Valuer` or a byte slice returns a `goqu.InvalidExpressionError`, as does a `Vals` row whose length differs from `Cols`.
+**NOTE** `defaultifempty` and `goqu.Default()` render `DEFAULT` only as an insert or update value; elsewhere `goqu.Default()` returns a `goqu.InvalidExpressionError`. `sqlite3` has no `DEFAULT` value and returns a `goqu.UnsupportedError`.
 
 `goqu` will also use fields in embedded structs when creating an insert.
 

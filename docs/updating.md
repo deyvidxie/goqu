@@ -234,6 +234,8 @@ Output:
 UPDATE "items" SET "address"='111 Test Addr',"name"=DEFAULT []
 ```
 
+**NOTE** `sqlite3` has no `DEFAULT` value and returns a `goqu.UnsupportedError`.
+
 `goqu` will also use fields in embedded structs when creating an update.
 
 **NOTE** unexported fields will be ignored!

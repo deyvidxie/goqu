@@ -2,6 +2,7 @@ package sqlgen_test
 
 import (
 	"database/sql/driver"
+	"strings"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
@@ -196,6 +197,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withRows() {
 	)
 }
 
+type tagsValuer []string
+
+func (t tagsValuer) Value() (driver.Value, error) { return "{" + strings.Join(t, ",") + "}", nil }
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.DefaultFragment = []byte("default")
@@ -222,6 +227,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 			err:    "goqu: Default is only valid as an INSERT or UPDATE SET value",
 		},
 		insertTestCase{clause: withVals([]interface{}{[]byte("x"), 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('x', 1)`},
+		insertTestCase{clause: withVals([]interface{}{tagsValuer{"x", "y"}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{x,y}', 1)`},
+		insertTestCase{
+			clause:     withVals([]interface{}{tagsValuer{"x", "y"}, 1}),
+			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?)`,
+			isPrepared: true,
+			args:       []interface{}{"{x,y}", int64(1)},
+		},
 		insertTestCase{
 			clause: withVals([]interface{}{[]int{1, 2}, 1}),
 			err:    "goqu: a list ([]int) is not an INSERT or UPDATE value; wrap it in a driver.Valuer to store it as one value",
@@ -315,6 +327,10 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 		},
 
 		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') on conflict (test) do update set "a"='b'`},
+		insertTestCase{
+			clause: ic.SetOnConflict(exp.NewDoUpdateConflictExpression("test", exp.Record{"a": exp.Default()})),
+			sql:    `INSERT INTO "test" ("a") VALUES ('a1') on conflict (test) do update set "a"=DEFAULT`,
+		},
 		insertTestCase{
 			clause:     icDu,
 			sql:        `INSERT INTO "test" ("a") VALUES (?) on conflict (test) do update set "a"=?`,

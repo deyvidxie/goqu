@@ -18,6 +18,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsConflictUpdateWhere = true
 	opts.SupportsInsertIgnoreSyntax = true
 	opts.SupportsConflictWithDefaultValues = false
+	opts.DefaultFragment = nil
 	opts.SupportsConflictTarget = true
 	opts.SupportsMultipleUpdateTables = true
 	opts.WrapCompoundsInParens = false
@@ -26,7 +27,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsLateral = false
 
 	opts.TruncateClause = []byte("DELETE FROM")
-	opts.DefaultFragment = nil
 	opts.SupportsTruncateIdentity = false
 	opts.SupportsTruncateCascade = false
 	opts.SupportsMultipleTruncateTables = false

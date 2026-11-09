@@ -435,11 +435,14 @@ func (mt *mysqlTest) TestDefaultValue() {
 	}()
 	_, err = mt.db.Insert("dflt").Rows(goqu.Record{"a": goqu.Default(), "b": 1}).Executor().Exec()
 	mt.Require().NoError(err)
+	var a int64
+	_, err = mt.db.From("dflt").Select("a").ScanVal(&a)
+	mt.Require().NoError(err)
+	mt.Equal(int64(7), a)
 	_, err = mt.db.Update("dflt").Set(goqu.Record{"a": 1}).Executor().Exec()
 	mt.Require().NoError(err)
 	_, err = mt.db.Update("dflt").Set(goqu.Record{"a": goqu.Default()}).Executor().Exec()
 	mt.Require().NoError(err)
-	var a int64
 	found, err := mt.db.From("dflt").Select("a").ScanVal(&a)
 	mt.Require().NoError(err)
 	mt.True(found)
