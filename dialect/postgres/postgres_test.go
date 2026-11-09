@@ -334,6 +334,26 @@ func (pt *postgresTest) TestQuoteCharacterInIdentifier() {
 	pt.Error(err)
 }
 
+func (pt *postgresTest) TestDefaultValue() {
+	_, err := pt.db.Exec(`CREATE TABLE "dflt" ("a" INT DEFAULT 7, "b" INT)`)
+	pt.Require().NoError(err)
+	defer func() {
+		_, err := pt.db.Exec(`DROP TABLE "dflt"`)
+		pt.NoError(err)
+	}()
+	_, err = pt.db.Insert("dflt").Rows(goqu.Record{"a": goqu.Default(), "b": 1}).Executor().Exec()
+	pt.Require().NoError(err)
+	_, err = pt.db.Update("dflt").Set(goqu.Record{"a": 1}).Executor().Exec()
+	pt.Require().NoError(err)
+	_, err = pt.db.Update("dflt").Set(goqu.Record{"a": goqu.Default()}).Executor().Exec()
+	pt.Require().NoError(err)
+	var a int64
+	found, err := pt.db.From("dflt").Select("a").ScanVal(&a)
+	pt.Require().NoError(err)
+	pt.True(found)
+	pt.Equal(int64(7), a)
+}
+
 func (pt *postgresTest) TestCount() {
 	ds := pt.db.From("entry")
 	count, err := ds.Count()

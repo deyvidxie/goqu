@@ -426,6 +426,26 @@ func (mt *mysqlTest) TestLimitAllAndOffset() {
 	mt.Len(ints, 10)
 }
 
+func (mt *mysqlTest) TestDefaultValue() {
+	_, err := mt.db.Exec("CREATE TABLE `dflt` (`a` INT DEFAULT 7, `b` INT)")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := mt.db.Exec("DROP TABLE `dflt`")
+		mt.NoError(err)
+	}()
+	_, err = mt.db.Insert("dflt").Rows(goqu.Record{"a": goqu.Default(), "b": 1}).Executor().Exec()
+	mt.Require().NoError(err)
+	_, err = mt.db.Update("dflt").Set(goqu.Record{"a": 1}).Executor().Exec()
+	mt.Require().NoError(err)
+	_, err = mt.db.Update("dflt").Set(goqu.Record{"a": goqu.Default()}).Executor().Exec()
+	mt.Require().NoError(err)
+	var a int64
+	found, err := mt.db.From("dflt").Select("a").ScanVal(&a)
+	mt.Require().NoError(err)
+	mt.True(found)
+	mt.Equal(int64(7), a)
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()

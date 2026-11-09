@@ -26,6 +26,7 @@ var (
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 
 	errExcludedOutsideConflictUpdate = errors.NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
+	errDefaultOutsideValues          = errors.NewInvalidExpressionError("Default is only valid as an INSERT or UPDATE SET value")
 	errExcludedWithoutColumn         = errors.NewInvalidExpressionError("Excluded requires a column name")
 	errExcludedRowAliasQualified     = errors.NewInvalidExpressionError("Excluded requires an unqualified insert alias")
 	errEmptyInsertAlias              = errors.NewInvalidExpressionError("Excluded requires a non-empty insert alias")
@@ -292,4 +293,14 @@ func errTruncateCascadeNotSupported(dialect string, cascade bool) error {
 
 func errInsertRowAliasNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support an INSERT row alias [dialect=%s]", dialect)
+}
+
+func errListAsValue(val interface{}) error {
+	return errors.NewInvalidExpressionError(
+		"a list (%T) is not an INSERT or UPDATE value; wrap it in a driver.Valuer to store it as one value", val,
+	)
+}
+
+func errDefaultValueNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support DEFAULT as an INSERT or UPDATE value [dialect=%s]", dialect)
 }

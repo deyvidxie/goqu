@@ -345,6 +345,26 @@ func (sst *sqlserverTest) TestTruncate() {
 	sst.Equal(int64(0), count)
 }
 
+func (sst *sqlserverTest) TestDefaultValue() {
+	_, err := sst.db.Exec(`CREATE TABLE "dflt" ("a" INT DEFAULT 7, "b" INT)`)
+	sst.Require().NoError(err)
+	defer func() {
+		_, err := sst.db.Exec(`DROP TABLE "dflt"`)
+		sst.NoError(err)
+	}()
+	_, err = sst.db.Insert("dflt").Rows(goqu.Record{"a": goqu.Default(), "b": 1}).Executor().Exec()
+	sst.Require().NoError(err)
+	_, err = sst.db.Update("dflt").Set(goqu.Record{"a": 1}).Executor().Exec()
+	sst.Require().NoError(err)
+	_, err = sst.db.Update("dflt").Set(goqu.Record{"a": goqu.Default()}).Executor().Exec()
+	sst.Require().NoError(err)
+	var a int64
+	found, err := sst.db.From("dflt").Select("a").ScanVal(&a)
+	sst.Require().NoError(err)
+	sst.True(found)
+	sst.Equal(int64(7), a)
+}
+
 func (sst *sqlserverTest) TestCount() {
 	ds := sst.db.From("entry")
 	count, err := ds.Count()

@@ -26,6 +26,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsLateral = false
 
 	opts.TruncateClause = []byte("DELETE FROM")
+	opts.DefaultFragment = nil
 	opts.SupportsTruncateIdentity = false
 	opts.SupportsTruncateCascade = false
 	opts.SupportsMultipleTruncateTables = false

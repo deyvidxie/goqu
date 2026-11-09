@@ -26,11 +26,6 @@ func Star() LiteralExpression {
 	return NewLiteralExpression("*")
 }
 
-// Returns a literal for the 'DEFAULT'
-func Default() LiteralExpression {
-	return NewLiteralExpression("DEFAULT")
-}
-
 func (l literal) Clone() Expression {
 	return NewLiteralExpression(l.literal, l.args...)
 }

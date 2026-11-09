@@ -495,6 +495,26 @@ func (st *duckdbSuite) TestQuery_ValueExpressions() {
 	})
 }
 
+func (st *duckdbSuite) TestDefaultValue() {
+	_, err := st.db.Exec(`CREATE TABLE "dflt" ("a" INT DEFAULT 7, "b" INT)`)
+	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec(`DROP TABLE "dflt"`)
+		st.NoError(err)
+	}()
+	_, err = st.db.Insert("dflt").Rows(goqu.Record{"a": goqu.Default(), "b": 1}).Executor().Exec()
+	st.Require().NoError(err)
+	_, err = st.db.Update("dflt").Set(goqu.Record{"a": 1}).Executor().Exec()
+	st.Require().NoError(err)
+	_, err = st.db.Update("dflt").Set(goqu.Record{"a": goqu.Default()}).Executor().Exec()
+	st.Require().NoError(err)
+	var a int64
+	found, err := st.db.From("dflt").Select("a").ScanVal(&a)
+	st.Require().NoError(err)
+	st.True(found)
+	st.Equal(int64(7), a)
+}
+
 func (st *duckdbSuite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()

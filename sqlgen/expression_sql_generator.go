@@ -278,6 +278,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.collateExpressionSQL(b, e)
 	case exp.ExcludedExpression:
 		esg.excludedExpressionSQL(b, e)
+	case exp.DefaultExpression:
+		b.SetError(errDefaultOutsideValues)
 	case exp.JSONExpression:
 		esg.jsonExpressionSQL(b, e)
 	case exp.TimeFunctionExpression:
@@ -717,7 +719,25 @@ func (esg *expressionSQLGenerator) columnListSQL(b sb.SQLBuilder, columnList exp
 func (esg *expressionSQLGenerator) updateExpressionSQL(b sb.SQLBuilder, update exp.UpdateExpression) {
 	esg.Generate(b, update.Col())
 	b.WriteRunes(esg.dialectOptions.SetOperatorRune)
-	esg.Generate(b, update.Val())
+	writeValue(esg, esg.dialectOptions, b, update.Val())
+}
+
+func writeValue(esg ExpressionSQLGenerator, opts *SQLDialectOptions, b sb.SQLBuilder, val interface{}) {
+	switch {
+	case isDefault(val) && len(opts.DefaultFragment) == 0:
+		b.SetError(errDefaultValueNotSupported(esg.Dialect()))
+	case isDefault(val):
+		b.Write(opts.DefaultFragment)
+	case util.IsListValue(val):
+		b.SetError(errListAsValue(val))
+	default:
+		esg.Generate(b, val)
+	}
+}
+
+func isDefault(val interface{}) bool {
+	_, ok := val.(exp.DefaultExpression)
+	return ok
 }
 
 // Generates SQL for a LiteralExpression

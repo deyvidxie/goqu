@@ -110,6 +110,9 @@ type (
 		// The SQL fragment to use when generating insert sql and using
 		// DEFAULT VALUES (e.g. postgres=" DEFAULT VALUES", mysql=" () VALUES ()"). (DEFAULT=[]byte(" DEFAULT VALUES"))
 		DefaultValuesFragment []byte
+		// The keyword goqu.Default() renders as an INSERT or UPDATE value; empty returns an UnsupportedError
+		// (DEFAULT=[]byte("DEFAULT"))
+		DefaultFragment []byte
 		// The SQL fragment to use when generating insert sql and listing columns using a VALUES clause
 		// (DEFAULT=[]byte(" VALUES "))
 		ValuesFragment []byte
@@ -564,6 +567,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		CascadeFragment:           []byte(" CASCADE"),
 		RestrictFragment:          []byte(" RESTRICT"),
 		DefaultValuesFragment:     []byte(" DEFAULT VALUES"),
+		DefaultFragment:           []byte("DEFAULT"),
 		ValuesFragment:            []byte(" VALUES "),
 		IdentityFragment:          []byte(" IDENTITY"),
 		SetFragment:               []byte(" SET "),

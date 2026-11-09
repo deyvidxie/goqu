@@ -437,8 +437,8 @@ func Range(start, end interface{}) exp.RangeVal {
 // Creates a literal *
 func Star() exp.LiteralExpression { return exp.Star() }
 
-// Returns a literal for DEFAULT sql keyword
-func Default() exp.LiteralExpression {
+// Returns the DEFAULT keyword for an INSERT VALUES or UPDATE SET value
+func Default() exp.DefaultExpression {
 	return exp.Default()
 }
 
