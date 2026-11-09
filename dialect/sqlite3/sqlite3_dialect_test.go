@@ -120,7 +120,7 @@ func (sds *sqlite3DialectSuite) TestTruncate() {
 		sqlTestCase{ds: ds.Truncate().Identity("restart"), err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=sqlite3]"},
 		sqlTestCase{
 			ds:  goqu.Dialect("sqlite3").Truncate("a", "b"),
-			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=sqlite3]",
+			err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=sqlite3]",
 		},
 		sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=sqlite3]"},
 		sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=sqlite3]"},

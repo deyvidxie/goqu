@@ -73,13 +73,14 @@ func TestUpdateAndDeleteLimitAllIsDropped(t *testing.T) {
 	assert.Equal(t, `DELETE FROM "test"`, sql)
 }
 
-func TestTruncateOptionsAndRowAlias(t *testing.T) {
-	ds := goqu.Dialect("postgres")
-	sql, _, err := ds.Truncate("a", "b").Identity("restart").Cascade().ToSQL()
+func TestTruncateOptions(t *testing.T) {
+	sql, _, err := goqu.Dialect("postgres").Truncate("a", "b").Identity("restart").Cascade().ToSQL()
 	require.NoError(t, err)
 	assert.Equal(t, `TRUNCATE "a", "b" RESTART IDENTITY CASCADE`, sql)
+}
 
-	_, _, err = ds.Insert("test").Rows(goqu.Record{"a": 1}).As("new").ToSQL()
+func TestInsertRowAlias(t *testing.T) {
+	_, _, err := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1}).As("new").ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support an INSERT row alias [dialect=postgres]")
 	assert.True(t, goqu.IsUnsupported(err))
 }

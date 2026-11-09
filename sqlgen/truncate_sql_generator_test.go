@@ -127,7 +127,7 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithUnsupportedOptions() {
 		truncateTestCase{clause: tc, sql: `TRUNCATE "a"`},
 		truncateTestCase{
 			clause: tc.SetTable(exp.NewColumnListExpression(nil, "db", "a", "b")),
-			err:    "goqu: dialect does not support TRUNCATE of more than one table [dialect=test]",
+			err:    "goqu: dialect does not support multiple tables in TRUNCATE [dialect=test]",
 		},
 		truncateTestCase{
 			clause: tc.SetOptions(exp.TruncateOptions{Identity: "continue"}),

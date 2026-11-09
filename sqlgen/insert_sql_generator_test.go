@@ -603,6 +603,39 @@ func (v *secondCallValuer) Value() (driver.Value, error) {
 	return "first", v.firstErr
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_rowAliasWithQuerySource() {
+	fromIc := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetFrom(newTestAppendableExpression(`select c, d from test2`, nil, nil, nil))
+	fromColsIc := fromIc.SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{
+			clause: fromColsIc.SetAlias(exp.NewIdentifierExpression("", "new", nil)),
+			sql:    `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "new" ("a", "b")`,
+		},
+		insertTestCase{
+			clause: fromColsIc.SetAlias(exp.NewIdentifierExpression("", "new", nil)).
+				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewIdentifierExpression("", "new", "b")})),
+			sql: `INSERT INTO "test" ("a", "b") SELECT * FROM (select c, d from test2) AS "new" ("a", "b") ` +
+				`ON CONFLICT (a) DO UPDATE SET "b"="new"."b"`,
+		},
+		insertTestCase{
+			clause: fromIc.SetAlias(exp.NewIdentifierExpression("", "new", nil)),
+			err:    "goqu: dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
+		},
+		insertTestCase{
+			clause: exp.NewInsertClauses().
+				SetInto(exp.NewIdentifierExpression("", "test", "")).
+				SetRows([]interface{}{newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)}).
+				SetAlias(exp.NewIdentifierExpression("", "new", nil)),
+			err: "goqu: dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=test]",
+		},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAlias() {
 	preparedOnlyValue := [2]byte{1, 2}
 	ic := exp.NewInsertClauses().

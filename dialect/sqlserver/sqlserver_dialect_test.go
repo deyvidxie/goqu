@@ -189,7 +189,7 @@ func (sds *sqlserverDialectSuite) TestTruncate() {
 		},
 		sqlTestCase{
 			ds:  goqu.Dialect("sqlserver").Truncate("a", "b"),
-			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=sqlserver]",
+			err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=sqlserver]",
 		},
 		sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=sqlserver]"},
 		sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=sqlserver]"},

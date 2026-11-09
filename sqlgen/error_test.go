@@ -144,7 +144,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Select(goqu.Now(6))
 		}},
-		{"TRUNCATE several tables", "TRUNCATE of more than one table", func(o *sqlgen.SQLDialectOptions) {
+		{"TRUNCATE several tables", "multiple tables in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMultipleTruncateTables = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Truncate("a", "b")

@@ -289,7 +289,7 @@ func (mds *mysqlDialectSuite) TestTruncate() {
 			},
 			sqlTestCase{
 				ds:  goqu.Dialect(d).Truncate("a", "b"),
-				err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=" + d + "]",
+				err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=" + d + "]",
 			},
 			sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=" + d + "]"},
 			sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=" + d + "]"},
@@ -317,10 +317,22 @@ func (mds *mysqlDialectSuite) TestInsertRowAlias() {
 		},
 	)
 	for _, d := range []string{"mysql8", "mysql8nano"} {
-		mds.assertSQL(sqlTestCase{
-			ds:  goqu.Dialect(d).Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
-			sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
-		})
+		src := goqu.Dialect(d).From("src").Select("a")
+		mds.assertSQL(
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+				sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
+			},
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Insert("test").Cols("a").FromQuery(src).As("new"),
+				sql: "INSERT INTO `test` (`a`) SELECT * FROM (SELECT `a` FROM `src`) AS `new` (`a`)",
+			},
+			sqlTestCase{
+				ds: goqu.Dialect(d).Insert("test").FromQuery(src).As("new"),
+				err: "goqu: dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) " +
+					"[dialect=" + d + "]",
+			},
+		)
 	}
 }
 

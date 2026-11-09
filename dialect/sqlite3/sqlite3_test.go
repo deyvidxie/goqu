@@ -367,9 +367,9 @@ func (st *sqlite3Suite) TestOffsetWithoutLimit() {
 	ints = nil
 	st.Require().NoError(ds.Select("int").LimitAll().Offset(8).ScanVals(&ints))
 	st.Equal([]int64{8, 9}, ints)
-	count, err := ds.LimitAll().Count()
-	st.NoError(err)
-	st.Equal(int64(10), count)
+	ints = nil
+	st.Require().NoError(ds.Select("int").LimitAll().ScanVals(&ints))
+	st.Len(ints, 10)
 }
 
 func (st *sqlite3Suite) TestCount() {

@@ -37,12 +37,6 @@ type (
 		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit, or
 		// OffsetWithoutLimitFragment before an OFFSET (DEFAULT=true)
 		SupportsLimitAll bool
-		// Set to true if the dialect supports RESTART/CONTINUE IDENTITY in TRUNCATE (DEFAULT=true)
-		SupportsTruncateIdentity bool
-		// Set to true if the dialect supports CASCADE and RESTRICT in TRUNCATE (DEFAULT=true)
-		SupportsTruncateCascade bool
-		// Set to true if the dialect can TRUNCATE more than one table in one statement (DEFAULT=true)
-		SupportsMultipleTruncateTables bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
@@ -67,6 +61,12 @@ type (
 		SupportsWithCTERecursive bool
 		// Set to true if multiple tables are supported in UPDATE statement. (DEFAULT=true)
 		SupportsMultipleUpdateTables bool
+		// Set to true if the dialect supports RESTART/CONTINUE IDENTITY in TRUNCATE (DEFAULT=true)
+		SupportsTruncateIdentity bool
+		// Set to true if the dialect supports CASCADE and RESTRICT in TRUNCATE (DEFAULT=true)
+		SupportsTruncateCascade bool
+		// Set to true if the dialect can TRUNCATE more than one table in one statement (DEFAULT=true)
+		SupportsMultipleTruncateTables bool
 		// Set to true if DISTINCT ON is supported (DEFAULT=true)
 		SupportsDistinctOn bool
 		// Set to true if LATERAL queries are supported (DEFAULT=true)
@@ -531,9 +531,6 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsLimitOnDelete:             false,
 		SupportsLimitOnUpdate:             false,
 		SupportsLimitAll:                  true,
-		SupportsTruncateIdentity:          true,
-		SupportsTruncateCascade:           true,
-		SupportsMultipleTruncateTables:    true,
 		SupportsReturn:                    true,
 		SupportsConflictUpdateWhere:       true,
 		SupportsOnConflict:                true,
@@ -551,6 +548,9 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsLockOf:                    true,
 
 		SupportsMultipleUpdateTables:         true,
+		SupportsTruncateIdentity:             true,
+		SupportsTruncateCascade:              true,
+		SupportsMultipleTruncateTables:       true,
 		UseFromClauseForMultipleUpdateTables: true,
 
 		UpdateClause:              []byte("UPDATE"),

@@ -275,7 +275,7 @@ func (sds *duckdbDialectSuite) TestTruncate() {
 		sqlTestCase{ds: ds.Truncate().Identity("restart"), err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=duckdb]"},
 		sqlTestCase{
 			ds:  goqu.Dialect("duckdb").Truncate("a", "b"),
-			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=duckdb]",
+			err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=duckdb]",
 		},
 		sqlTestCase{ds: ds.Truncate().Cascade(), sql: "TRUNCATE \"test\" CASCADE"},
 		sqlTestCase{ds: ds.Truncate().Restrict(), sql: "TRUNCATE \"test\" RESTRICT"},

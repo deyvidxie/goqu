@@ -112,6 +112,13 @@ func errUpsertWithWhereNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
 }
 
+func errInsertRowAliasSelectNotSupported(dialect string) error {
+	return errors.NewUnsupportedError(
+		"dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]",
+		dialect,
+	)
+}
+
 func errExcludedInsertSelectNotSupported(dialect string) error {
 	return errors.NewUnsupportedError(
 		"dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]", dialect,
@@ -266,7 +273,7 @@ func errOffsetWithoutOrder(dialect string) error {
 }
 
 func errMultipleTruncateTablesNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support TRUNCATE of more than one table [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support multiple tables in TRUNCATE [dialect=%s]", dialect)
 }
 
 func errTruncateIdentityNotSupported(dialect, identity string) error {
