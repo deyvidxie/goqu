@@ -971,7 +971,7 @@ Output:
 SELECT * FROM "test" FOR UPDATE OF "test"
 ```
 
-**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths.
+**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths and for `NOWAIT`, `SKIP LOCKED` and `OF`.
 
 ## Executing Queries
 

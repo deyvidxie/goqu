@@ -78,9 +78,8 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.ConflictDoUpdateFragment = []byte(" DO UPDATE SET ")
 	opts.ConflictDoNothingFragment = []byte(" DO NOTHING ")
 	opts.ForUpdateFragment = []byte("")
-	opts.OfFragment = []byte("")
-	opts.NowaitFragment = []byte("")
-	opts.SkipLockedFragment = []byte("")
+	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait, exp.SkipLocked}
+	opts.SupportsLockOf = false
 	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 
 	opts.LikeEscapeKey = "ESCAPE"
