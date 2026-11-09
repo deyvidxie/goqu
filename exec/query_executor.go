@@ -155,8 +155,6 @@ func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bo
 //	if err := db.From("test").Select("id").ScanVals(&ids); err != nil{
 //	    panic(err.Error()
 //	}
-//
-// i: Takes a pointer to a slice of primitive values.
 func (q QueryExecutor) ScanVals(i interface{}) error {
 	return q.ScanValsContext(context.Background(), i)
 }
@@ -167,8 +165,6 @@ func (q QueryExecutor) ScanVals(i interface{}) error {
 //	if err := db.From("test").Select("id").ScanValsContext(ctx, &ids); err != nil{
 //	    panic(err.Error()
 //	}
-//
-// i: Takes a pointer to a slice of primitive values.
 func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error {
 	if _, err := checkScanValsTarget(i, q.tagName); err != nil {
 		return err

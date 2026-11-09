@@ -80,6 +80,31 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 	return cm
 }
 
+func HasTaggedField(t reflect.Type, tagName string) bool {
+	return hasTaggedField(t, tagName, map[reflect.Type]bool{})
+}
+
+func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
+	if seen[t] {
+		return false
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		fieldTag := tag.New(tagName, f.Tag)
+		sub, follow := followedType(&f, tagName)
+		switch {
+		case isEmbed(&f) && !follow, !isEmbed(&f) && (!f.IsExported() || shouldIgnoreField(fieldTag)):
+			continue
+		case !fieldTag.IsEmpty():
+			return true
+		case follow && IsStruct(sub.Kind()) && hasTaggedField(sub, tagName, seen):
+			return true
+		}
+	}
+	return false
+}
+
 func HasTaggedColumn(t reflect.Type, tagName string) bool {
 	for _, col := range StructColumnMap(t, tagName) {
 		owner := t

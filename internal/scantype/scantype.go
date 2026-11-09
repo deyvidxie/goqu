@@ -7,7 +7,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/doug-martin/goqu/v9/internal/tag"
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
@@ -131,31 +130,10 @@ func isRowStruct(t reflect.Type, tagName string) bool {
 	}
 	switch util.CheckColumnMap(t, tagName).Issue {
 	case util.ColumnMapNonStructEmbed, util.ColumnMapCycle:
-		return hasOwnTag(t, tagName, map[reflect.Type]bool{})
+		return util.HasTaggedField(t, tagName)
 	default:
 		return util.HasTaggedColumn(t, tagName)
 	}
-}
-
-func hasOwnTag(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
-	if seen[t] {
-		return false
-	}
-	seen[t] = true
-	for i := range t.NumField() {
-		f := t.Field(i)
-		fieldTag := tag.New(tagName, f.Tag)
-		if !f.IsExported() && !f.Anonymous || fieldTag.Contains("-") {
-			continue
-		}
-		if !fieldTag.IsEmpty() {
-			return true
-		}
-		if embedded := util.Deref(f.Type); f.Anonymous && util.IsStruct(embedded.Kind()) && hasOwnTag(embedded, tagName, seen) {
-			return true
-		}
-	}
-	return false
 }
 
 func IsUnscannableSlice(t reflect.Type) bool {
