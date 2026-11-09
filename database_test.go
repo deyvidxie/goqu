@@ -123,12 +123,6 @@ func (ds *databaseSuite) TestScanVals() {
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
-	mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 
 	db := goqu.New("mock", mDB)
 	var ids []uint32

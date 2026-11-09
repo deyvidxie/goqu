@@ -217,7 +217,7 @@ func (q QueryExecutor) ScanValContext(ctx context.Context, i interface{}) (bool,
 	if !util.IsPointer(t.Kind()) {
 		return false, errScanValTarget(i)
 	}
-	if elem := t.Elem(); util.IsSlice(elem.Kind()) && !util.IsScanner(elem) && !isByteSliceKind(elem) {
+	if scantype.IsUnscannableSlice(t.Elem()) {
 		return false, errScanValSliceTarget(i)
 	}
 	if err := scantype.Val("ScanVal", "ScanStruct", t.Elem(), q.tagName); err != nil {
@@ -357,8 +357,4 @@ func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool
 	}
 	found, err = q.ScanValContext(ctx, &val)
 	return val, found, err
-}
-
-func isByteSliceKind(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && t.Elem().Kind() == reflect.Uint8
 }

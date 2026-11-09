@@ -132,15 +132,15 @@ func (s *scanner) ScanVal(i interface{}) error {
 	return s.Err()
 }
 
-// ScanStructs scans results in slice of values
 func (s *scanner) ScanVals(i interface{}) error {
 	val, err := checkScanValsTarget(i, s.tagName)
 	if err != nil {
 		return err
 	}
 	elemType := val.Type().Elem()
+	namedScannerPointer := util.IsPointer(elemType.Kind()) && elemType.Name() != "" && util.IsScanner(elemType.Elem())
 	scanType := elemType
-	if namedPointer := util.IsPointer(elemType.Kind()) && elemType.Name() != ""; namedPointer {
+	if namedScannerPointer {
 		scanType = elemType.Elem()
 	}
 	for s.Next() {
@@ -148,10 +148,12 @@ func (s *scanner) ScanVals(i interface{}) error {
 		if err := s.ScanVal(row.Interface()); err != nil {
 			return err
 		}
-		if scanType == elemType {
+		if namedScannerPointer {
+			row = row.Convert(elemType)
+		} else {
 			row = row.Elem()
 		}
-		val.Set(reflect.Append(val, row.Convert(elemType)))
+		val.Set(reflect.Append(val, row))
 	}
 	return s.Err()
 }

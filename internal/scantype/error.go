@@ -60,13 +60,16 @@ func errNotScannable(fn string, shown, inner reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError("%s cannot scan into %s; use a concrete sql.Scanner", fn, scanTarget(shown, inner))
 }
 
-func errRowStructValue(fn, structsFn string, t, row reflect.Type) error {
+func errRowStructValue(c caller, t, row reflect.Type) error {
+	if !c.generic {
+		return errors.NewUnsupportedScanTypeError("%s cannot scan into %s: %s is a row struct; use %s", c.fn, t, row, c.structsFn)
+	}
 	structsT := t
 	if util.Deref(t) != row {
 		structsT = reflect.PointerTo(row)
 	}
 	return errors.NewUnsupportedScanTypeError(
-		"%s cannot scan into %s: %s is a row struct; use %s[%s]", fn, t, row, structsFn, structsT,
+		"%s cannot scan into %s: %s is a row struct; use %s[%s]", c.fn, t, row, c.structsFn, structsT,
 	)
 }
 

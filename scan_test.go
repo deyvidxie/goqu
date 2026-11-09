@@ -51,7 +51,6 @@ type (
 		Note    *string   `db:"note"`
 	}
 	scanTestByte        uint8
-	scanTestBlob        []byte
 	scanTestScannedBlob []byte
 	scanTestJSONSkip    struct {
 		*ScanTestID `json:"-"`
@@ -76,6 +75,9 @@ type (
 	ScanTestNode struct {
 		ID     int64 `db:"id"`
 		Parent *ScanTestNode
+	}
+	ScanTestUntaggedCycle struct {
+		*ScanTestUntaggedCycle
 	}
 	ScanTestTime      time.Time
 	scanTestSkippedID struct {
@@ -654,14 +656,6 @@ func (ss *scanSuite) TestScanOneVal_acceptsNamedByteSliceValues() {
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(json.RawMessage(`{"a":1}`), doc)
-
-	ss.mock.ExpectQuery(`SELECT "data" FROM "items" LIMIT 1`).
-		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")))
-	var blob scanTestBlob
-	found, err = ss.db.From("items").Select("data").ScanVal(&blob)
-	ss.NoError(err)
-	ss.True(found)
-	ss.Equal(scanTestBlob("abc"), blob)
 }
 
 func (ss *scanSuite) TestScanOneVal_rejectsRawBytes() {
@@ -680,7 +674,23 @@ func (ss *scanSuite) TestScanAllVals_rejectsRawBytes() {
 	}
 }
 
-func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
+func (ss *scanSuite) TestScanAllVals_pointersReceiveNilForNull() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)).AddRow(nil))
+	ids, err := ss.db.From("items").Select("id").ScanAllVals[*int64](context.Background())
+	ss.NoError(err)
+	ss.Require().Len(ids, 2)
+	ss.Equal(int64(3), *ids[0])
+	ss.Nil(ids[1])
+
+	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("a").AddRow(nil))
+	names, err := ss.db.From("items").Select("name").ScanAllVals[*string](context.Background())
+	ss.NoError(err)
+	ss.Require().Len(names, 2)
+	ss.Equal("a", *names[0])
+	ss.Nil(names[1])
+
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow([]byte("abc")).AddRow(nil))
 	data, err := ss.db.From("items").Select("data").ScanAllVals[*[]byte](context.Background())
@@ -699,48 +709,38 @@ func (ss *scanSuite) TestScanAllVals_acceptsNullablePointers() {
 
 	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
-	named, err := ss.db.From("items").Select("data").ScanAllVals[scanTestNullStringRef](context.Background())
-	ss.NoError(err)
-	ss.Equal([]scanTestNullStringRef{{String: "abc", Valid: true}, {}}, named)
-
-	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
 	nullStrings, err := ss.db.From("items").Select("data").ScanAllVals[*sql.NullString](context.Background())
 	ss.NoError(err)
 	ss.Equal([]*sql.NullString{{String: "abc", Valid: true}, nil}, nullStrings)
 
 	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)).AddRow(nil))
-	ids, err := ss.db.From("items").Select("id").ScanAllVals[**int64](context.Background())
+	idRefs, err := ss.db.From("items").Select("id").ScanAllVals[**int64](context.Background())
 	ss.NoError(err)
-	ss.Require().Len(ids, 2)
-	ss.Equal(int64(3), **ids[0])
-	ss.Nil(ids[1])
+	ss.Require().Len(idRefs, 2)
+	ss.Equal(int64(3), **idRefs[0])
+	ss.Nil(idRefs[1])
 }
 
-func (ss *scanSuite) TestScanAllVals_pointersReceiveNilForNull() {
-	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)).AddRow(nil))
-	ids, err := ss.db.From("items").Select("id").ScanAllVals[*int64](context.Background())
-	ss.NoError(err)
-	ss.Require().Len(ids, 2)
-	ss.Equal(int64(3), *ids[0])
-	ss.Nil(ids[1])
+func (ss *scanSuite) TestScanAllVals_leavesUntaggedStructsToTheDriver() {
+	ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
+	err := ss.allValsErr[ScanTestUntaggedCycle]()
+	ss.ErrorContains(err, "sql: Scan error on column index 0")
+	ss.False(goqu.IsUnsupportedScanType(err))
+}
 
-	ss.mock.ExpectQuery(`SELECT "name" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("a").AddRow(nil))
-	names, err := ss.db.From("items").Select("name").ScanAllVals[*string](context.Background())
+func (ss *scanSuite) TestScanAllVals_namedScannerPointersReceiveZeroValueForNull() {
+	ss.mock.ExpectQuery(`SELECT "data" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"data"}).AddRow("abc").AddRow(nil))
+	named, err := ss.db.From("items").Select("data").ScanAllVals[scanTestNullStringRef](context.Background())
 	ss.NoError(err)
-	ss.Require().Len(names, 2)
-	ss.Equal("a", *names[0])
-	ss.Nil(names[1])
+	ss.Equal([]scanTestNullStringRef{{String: "abc", Valid: true}, {}}, named)
 }
 
 func (ss *scanSuite) TestScanAllVals_rejectsUnscannablePointers() {
 	for msg, err := range map[string]error{
 		"*uintptr; use a concrete sql.Scanner":                            ss.allValsErr[*uintptr](),
 		"*complex128; use a concrete sql.Scanner":                         ss.allValsErr[*complex128](),
-		"*netip.Addr; use a concrete sql.Scanner":                         ss.allValsErr[*netip.Addr](),
 		"*[]int64; use []byte or a concrete sql.Scanner":                  ss.allValsErr[*[]int64](),
 		"**[]int64; use []byte or a concrete sql.Scanner":                 ss.allValsErr[**[]int64](),
 		"*[]goqu_test.scanTestByte; use []byte or a concrete sql.Scanner": ss.allValsErr[*[]scanTestByte](),
@@ -756,7 +756,6 @@ func (ss *scanSuite) TestScanAllVals_rejectsRowStructPointers() {
 		"goqu_test.ScanTestNode":          ss.allValsErr[*ScanTestNode](),
 		"goqu_test.scanTestEmbeddedID":    ss.allValsErr[*scanTestEmbeddedID](),
 		"goqu_test.scanTestUnexportedPtr": ss.allValsErr[*scanTestUnexportedPtr](),
-		"sql.TxOptions":                   ss.allValsErr[*sql.TxOptions](),
 	} {
 		ss.EqualError(err, "goqu: ScanAllVals cannot scan into *"+elem+": "+elem+
 			" is a row struct; use ScanAllStructs[*"+elem+"]", elem)
@@ -1201,22 +1200,19 @@ func (ss *scanSuite) TestValueScans_rejectRowStructs() {
 
 func (ss *scanSuite) TestValueScans_rejectTypesDatabaseSQLCannotFill() {
 	for want, err := range map[string]error{
-		"IterVals cannot scan into map[string]int":            ss.iterValsErr[map[string]int](),
 		"IterVals cannot scan into unsafe.Pointer":            ss.iterValsErr[unsafe.Pointer](),
 		"IterVals cannot scan into uintptr":                   ss.iterValsErr[uintptr](),
 		"IterVals cannot scan into sql.Scanner":               ss.iterValsErr[sql.Scanner](),
-		"IterVals cannot scan into netip.Addr":                ss.iterValsErr[netip.Addr](),
 		"IterVals cannot scan into [4]int":                    ss.iterValsErr[[4]int](),
 		"ScanOneVal cannot scan into func()":                  ss.oneValErr[func()](),
 		"ScanOneVal cannot scan into complex128":              ss.oneValErr[complex128](),
 		"ScanOneVal cannot scan into *sql.Scanner":            ss.oneValErr[*sql.Scanner](),
-		"ScanOneVal cannot scan into struct {}":               ss.oneValErr[struct{}](),
+		"ScanOneVal cannot scan into sql.TxOptions":           ss.oneValErr[sql.TxOptions](),
 		"ScanOneVal cannot scan into io.Reader":               ss.oneValErr[io.Reader](),
 		"ScanOneVal cannot scan into [16]uint8":               ss.oneValErr[[16]byte](),
 		"ScanAllVals cannot scan into chan int":               ss.allValsErr[chan int](),
 		"ScanAllVals cannot scan into **func()":               ss.allValsErr[**func()](),
 		"ScanAllVals cannot scan into complex64":              ss.allValsErr[complex64](),
-		"ScanAllVals cannot scan into netip.Addr":             ss.allValsErr[netip.Addr](),
 		"ScanAllVals cannot scan into goqu_test.ScanTestUUID": ss.allValsErr[ScanTestUUID](),
 		"ScanAllVals cannot scan into **error":                ss.allValsErr[**error](),
 	} {
@@ -1232,8 +1228,8 @@ func (ss *scanSuite) TestValueScans_checkTheValueOfSQLNull() {
 		err  error
 	}{
 		{
-			"IterVals cannot scan into the map[string]int of sql.Null[map[string]int]; use a concrete sql.Scanner",
-			ss.iterValsErr[sql.Null[map[string]int]](),
+			"IterVals cannot scan into the chan int of sql.Null[chan int]; use a concrete sql.Scanner",
+			ss.iterValsErr[sql.Null[chan int]](),
 		},
 		{
 			"IterVals cannot scan into the []int64 of *sql.Null[[]int64]; use []byte or a concrete sql.Scanner",

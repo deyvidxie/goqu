@@ -59,37 +59,42 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	}
 }
 
+type caller struct {
+	fn, structsFn string
+	generic       bool
+}
+
 func AllVals[T any](tagName string) error {
-	return Val("ScanAllVals", "ScanAllStructs", reflect.TypeFor[T](), tagName)
+	return scannableVal(caller{"ScanAllVals", "ScanAllStructs", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
 func OneVal[T any](tagName string) error {
-	return Val("ScanOneVal", "ScanOneStruct", reflect.TypeFor[T](), tagName)
+	return scannableVal(caller{"ScanOneVal", "ScanOneStruct", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
 func IterVal[T any](tagName string) error {
-	return Val("IterVals", "IterStructs", reflect.TypeFor[T](), tagName)
+	return scannableVal(caller{"IterVals", "IterStructs", true}, reflect.TypeFor[T](), reflect.TypeFor[T](), tagName)
 }
 
 func Val(fn, structsFn string, t reflect.Type, tagName string) error {
-	return scannableVal(fn, structsFn, t, t, tagName)
+	return scannableVal(caller{fn, structsFn, false}, t, t, tagName)
 }
 
-func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName string) error {
+func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	inner := util.DerefAll(check)
 	switch {
 	case inner == rawBytesType:
-		return errRawBytes(fn)
-	case isUnscannableSlice(inner):
-		return errUnscannableSlice(fn, shown, inner)
+		return errRawBytes(c.fn)
+	case IsUnscannableSlice(inner):
+		return errUnscannableSlice(c.fn, shown, inner)
 	case isSQLNull(inner):
-		return scannableVal(fn, structsFn, shown, inner.Field(0).Type, tagName)
+		return scannableVal(c, shown, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
 	case isRowStruct(inner, tagName):
-		return errRowStructValue(fn, structsFn, shown, inner)
+		return errRowStructValue(c, shown, inner)
 	case isUnassignable(inner):
-		return errNotScannable(fn, shown, inner)
+		return errNotScannable(c.fn, shown, inner)
 	default:
 		return nil
 	}
@@ -97,14 +102,14 @@ func scannableVal(fn, structsFn string, shown, check reflect.Type, tagName strin
 
 func isUnassignable(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Map, reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+	case reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
 		return true
 	case reflect.Array:
 		return t != uuidType
 	case reflect.Interface:
 		return !timeType.Implements(t)
 	case reflect.Struct:
-		return !isTime(t)
+		return t.PkgPath() == sqlPkgPath
 	default:
 		return false
 	}
@@ -119,12 +124,32 @@ func isTime(t reflect.Type) bool {
 }
 
 func isRowStruct(t reflect.Type, tagName string) bool {
-	return util.IsStruct(t.Kind()) &&
-		(util.CheckColumnMap(t, tagName).Issue != util.ColumnMapOK || len(util.StructColumnMap(t, tagName)) > 0)
+	return util.IsStruct(t.Kind()) && hasTaggedField(t, tagName, map[reflect.Type]bool{})
 }
 
-func isUnscannableSlice(t reflect.Type) bool {
-	return util.IsSlice(t.Kind()) && !isByteSlice(t) && !util.IsScanner(t)
+func hasTaggedField(t reflect.Type, tagName string, seen map[reflect.Type]bool) bool {
+	if seen[t] {
+		return false
+	}
+	seen[t] = true
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if tag, ok := f.Tag.Lookup(tagName); ok && tag != "-" {
+			return true
+		}
+		if embedded := util.Deref(f.Type); f.Anonymous && util.IsStruct(embedded.Kind()) && hasTaggedField(embedded, tagName, seen) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsUnscannableSlice(t reflect.Type) bool {
+	return util.IsSlice(t.Kind()) && !isByteSlice(t) && !isAnySlice(t) && !util.IsScanner(t)
+}
+
+func isAnySlice(t reflect.Type) bool {
+	return t.Elem().Kind() == reflect.Interface && t.Elem().NumMethod() == 0
 }
 
 func isByteSlice(t reflect.Type) bool {
