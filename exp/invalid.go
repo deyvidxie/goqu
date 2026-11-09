@@ -9,3 +9,5 @@ func (ie invalidExpression) Expression() Expression { return ie }
 func (ie invalidExpression) Clone() Expression { return ie }
 
 func (ie invalidExpression) Err() error { return ie.err }
+
+func (invalidExpression) isInvalid() {}

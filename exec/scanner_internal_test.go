@@ -94,5 +94,15 @@ func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	s.EqualError(err, "goqu: cannot scan rows into *sql.NullString, which scans as one column; "+
 		"use ScanVals/ScanVal, ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString] or IterVals[sql.NullString]")
 	s.True(errors.IsUnsupportedScanType(err))
+
+	type row struct {
+		Name string `db:"string"`
+	}
+	err = sc.ScanStruct((*row)(nil))
+	s.EqualError(err, "goqu: scan target must not be nil, got *exec.row")
+	s.True(errors.IsUnsupportedScanType(err))
+	err = sc.ScanStruct(row{})
+	s.EqualError(err, "goqu: cannot scan into exec.row, a pointer to a struct is required")
+	s.True(errors.IsUnsupportedScanType(err))
 	s.NoError(sc.Close())
 }

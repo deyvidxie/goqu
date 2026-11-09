@@ -36,7 +36,7 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	if !util.IsStruct(elem.Kind()) {
 		return errNotStructTarget(t)
 	}
-	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
+	switch problem := util.CheckScanColumnMap(elem, tagName); problem.Issue {
 	case util.ColumnMapNonStructEmbed:
 		return errNonStructEmbed(t, problem, tagName)
 	case util.ColumnMapUnexportedPointerEmbed:

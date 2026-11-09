@@ -160,8 +160,7 @@ type myStruct struct {
 	EmailAddress string `db:"email_address"`
 }
 
-// Pass with pointer
-sql, _, _ := ds.Select(&myStruct{}).ToSQL()
+sql, _, _ := ds.Select((*myStruct)(nil)).ToSQL()
 fmt.Println(sql)
 ```
 

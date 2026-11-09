@@ -132,6 +132,7 @@ type columnMapKey struct {
 
 var (
 	structMapCache     = make(map[columnMapKey]ColumnMap)
+	columnSourceCache  = make(map[columnMapKey]ColumnMapProblem)
 	structMapCacheLock = sync.Mutex{}
 )
 
@@ -150,6 +151,7 @@ func SetIgnoreUntaggedFields(ignore bool) {
 		defer structMapCacheLock.Unlock()
 
 		structMapCache = make(map[columnMapKey]ColumnMap)
+		columnSourceCache = make(map[columnMapKey]ColumnMapProblem)
 	}
 }
 
@@ -264,22 +266,40 @@ func AssignStructVals(i interface{}, rd rowData, cm ColumnMap) {
 
 func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedded reflect.Type, found bool) {
 	v = reflect.Indirect(v)
-	path := make([]string, 0, len(fieldIndex))
-	for _, i := range fieldIndex[:len(fieldIndex)-1] {
-		f := v.Field(i)
-		path = append(path, v.Type().Field(i).Name)
-		if f.Kind() == reflect.Ptr {
-			if f.IsNil() {
-				if !f.CanSet() {
-					return strings.Join(path, "."), f.Type().Elem(), true
+	root := v.Type()
+	t := root
+	allocated := false
+	for n, i := range fieldIndex[:len(fieldIndex)-1] {
+		sf := t.Field(i)
+		if IsPointer(sf.Type.Kind()) {
+			nilUnexported := allocated && !sf.IsExported()
+			if !allocated {
+				f := v.Field(i)
+				allocated = f.IsNil()
+				nilUnexported = allocated && !f.CanSet()
+				if !allocated {
+					v = f.Elem()
 				}
-				f = reflect.New(f.Type().Elem())
 			}
-			f = f.Elem()
+			if nilUnexported {
+				return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
+			}
+		} else if !allocated {
+			v = v.Field(i)
 		}
-		v = f
+		t = Deref(sf.Type)
 	}
 	return "", nil, false
+}
+
+func fieldPath(t reflect.Type, fieldIndex []int) string {
+	names := make([]string, 0, len(fieldIndex))
+	for _, i := range fieldIndex {
+		f := t.Field(i)
+		names = append(names, f.Name)
+		t = Deref(f.Type)
+	}
+	return strings.Join(names, ".")
 }
 
 func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {

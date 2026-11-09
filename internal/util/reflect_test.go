@@ -761,7 +761,7 @@ func (rt *reflectTest) TestAssignStructVals_withStructWithTaggedPointerField() {
 	})
 }
 
-func (rt *reflectTest) TestCheckColumnMap() {
+func (rt *reflectTest) TestCheckScanColumnMap() {
 	type (
 		ID    int
 		Point struct {
@@ -823,12 +823,12 @@ func (rt *reflectTest) TestCheckColumnMap() {
 		{reflect.TypeFor[Node](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Parent", reflect.TypeFor[Node]()}},
 		{reflect.TypeFor[struct{ Root Node }](), "db", util.ColumnMapProblem{util.ColumnMapCycle, "Root.Parent", reflect.TypeFor[Node]()}},
 	} {
-		rt.Equal(c.want, util.CheckColumnMap(c.t, c.tagName), c.t.String())
+		rt.Equal(c.want, util.CheckScanColumnMap(c.t, c.tagName), c.t.String())
 	}
 
 	util.SetIgnoreUntaggedFields(true)
 	defer util.SetIgnoreUntaggedFields(false)
-	rt.Equal(ok, util.CheckColumnMap(reflect.TypeFor[Node](), "db"))
+	rt.Equal(ok, util.CheckScanColumnMap(reflect.TypeFor[Node](), "db"))
 }
 
 func (rt *reflectTest) TestGetColumnMap_withStruct() {
@@ -1332,6 +1332,12 @@ func (rt *reflectTest) TestGetTypeInfo() {
 	t, k = util.GetTypeInfo(c)
 	rt.Equal(reflect.TypeOf(time.Time{}), t)
 	rt.Equal(reflect.Struct, k)
+
+	for _, source := range []interface{}{(*time.Time)(nil), (*[]time.Time)(nil), [2]time.Time{}, &[2]*time.Time{}} {
+		t, k = util.GetTypeInfo(source)
+		rt.Equal(reflect.TypeOf(time.Time{}), t)
+		rt.Equal(reflect.Struct, k)
+	}
 }
 
 func (rt *reflectTest) TestSafeGetFieldByIndex() {

@@ -134,10 +134,18 @@ type ColumnMapProblem struct {
 }
 
 func CheckColumnSource(t reflect.Type, tagName string) ColumnMapProblem {
-	return checkFollowedFields(t, tagName, "", map[reflect.Type]bool{})
+	structMapCacheLock.Lock()
+	defer structMapCacheLock.Unlock()
+	key := columnMapKey{t: t, tagName: tagName}
+	problem, ok := columnSourceCache[key]
+	if !ok {
+		problem = checkFollowedFields(t, tagName, "", map[reflect.Type]bool{})
+		columnSourceCache[key] = problem
+	}
+	return problem
 }
 
-func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
+func CheckScanColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
 	if problem := CheckColumnSource(t, tagName); problem.Issue != ColumnMapOK {
 		return problem
 	}

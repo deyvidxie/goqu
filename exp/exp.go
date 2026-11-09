@@ -329,6 +329,7 @@ type (
 	InvalidExpression interface {
 		Expression
 		Err() error
+		isInvalid()
 	}
 	ExcludedExpression interface {
 		Expression

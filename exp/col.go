@@ -15,7 +15,7 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 	cols := []Expression{}
 	for _, val := range vals {
 		switch t := val.(type) {
-		case nil: // do nothing
+		case nil:
 		case string:
 			cols = append(cols, ParseIdentifier(t))
 		case ColumnListExpression:

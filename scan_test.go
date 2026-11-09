@@ -35,14 +35,19 @@ type (
 	scanTestEmbeddedRow    struct{ ScanTestItem }
 	scanTestEmbeddedRowPtr struct{ *ScanTestItem }
 	scanTestUnexportedRow  struct{ dsTestActionItem }
-	scanTestUnexportedPtr  struct{ *dsTestActionItem }
-	ScanTestOuterPtr       struct{ *ScanTestInnerPtr }
-	ScanTestInnerPtr       struct{ *dsTestActionItem }
-	scanTestOpaqueScanner  struct{}
-	ScanTestID             int
-	ScanTestUUID           uuid.UUID
-	ScanTestName           string
-	scanTestEmbeddedID     struct {
+	scanTestIDWithNilEmbed struct {
+		ID int64 `db:"id"`
+		*dsTestActionItem
+	}
+	scanTestUnexportedPtr struct{ *dsTestActionItem }
+	scanTestOuterPtr      struct{ *ScanTestInnerPtr }
+	scanTestOuterValue    struct{ ScanTestInnerPtr }
+	ScanTestInnerPtr      struct{ *dsTestActionItem }
+	scanTestOpaqueScanner struct{}
+	ScanTestID            int
+	ScanTestUUID          uuid.UUID
+	ScanTestName          string
+	scanTestEmbeddedID    struct {
 		*ScanTestID
 		Name string `db:"name"`
 	}
@@ -92,7 +97,16 @@ type (
 		strings.Builder
 		Name string `db:"name"`
 	}
-	ScanTestSelfRef     struct{ *ScanTestSelfRef }
+	ScanTestSelfRef struct{ *ScanTestSelfRef }
+	ScanTestOwner   struct {
+		ID   int64 `db:"id"`
+		Pets []scanTestPet
+		Pet  *scanTestPet
+	}
+	scanTestPet struct {
+		Name  string `db:"name"`
+		Owner *ScanTestOwner
+	}
 	ScanTestOptionCycle struct {
 		Next *ScanTestOptionCycle
 		Name string `db:"name,-"`
@@ -254,14 +268,20 @@ func (ss *scanSuite) itemRows(csv string) *sqlmock.Rows {
 
 func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
 	const query = `SELECT "address", "name" FROM "items"`
-	for field, target := range map[string]interface{}{
-		"dsTestActionItem":                  &scanTestUnexportedPtr{},
-		"ScanTestInnerPtr.dsTestActionItem": &ScanTestOuterPtr{},
+	for _, c := range []struct {
+		field  string
+		target interface{}
+	}{
+		{"dsTestActionItem", &scanTestUnexportedPtr{}},
+		{"ScanTestInnerPtr.dsTestActionItem", &scanTestOuterPtr{}},
+		{"ScanTestInnerPtr.dsTestActionItem", &scanTestOuterPtr{&ScanTestInnerPtr{}}},
+		{"ScanTestInnerPtr.dsTestActionItem", &scanTestOuterValue{}},
 	} {
+		field := c.field
 		ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
-		found, err := ss.db.ScanStruct(target, query)
+		found, err := ss.db.ScanStruct(c.target, query)
 		ss.EqualError(err, `goqu: cannot scan column "address": embedded field `+field+` is a nil pointer to unexported `+
-			"goqu_test.dsTestActionItem; embed it by value, set it before scanning or tag it `db:\"-\"`", field)
+			"goqu_test.dsTestActionItem; embed it by value, set it before ScanStruct or tag it `db:\"-\"`", field)
 		ss.True(goqu.IsUnsupportedScanType(err), field)
 		ss.False(found, field)
 	}
@@ -269,8 +289,34 @@ func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
 	ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 	var rows []scanTestUnexportedPtr
 	err := ss.db.ScanStructs(&rows, query)
-	ss.True(goqu.IsUnsupportedScanType(err))
+	ss.EqualError(err, `goqu: cannot scan column "address": embedded field dsTestActionItem is a nil pointer to unexported `+
+		"goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`")
 	ss.Empty(rows)
+}
+
+func (ss *scanSuite) TestStructScans_rejectNilTargetsBeforeSelectingColumns() {
+	_, err := ss.db.From("items").ScanStruct((*dsTestActionItem)(nil))
+	ss.EqualError(err, "goqu: scan target must not be nil, got *goqu_test.dsTestActionItem")
+	ss.True(goqu.IsUnsupportedScanType(err))
+	err = ss.db.From("items").ScanStructs((*[]dsTestActionItem)(nil))
+	ss.EqualError(err, "goqu: scan target must not be nil, got *[]goqu_test.dsTestActionItem")
+	ss.True(goqu.IsUnsupportedScanType(err))
+}
+
+func (ss *scanSuite) TestScanStruct_scansColumnsOutsideNilUnexportedPointerEmbeds() {
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
+	var row scanTestIDWithNilEmbed
+	found, err := ss.db.ScanStruct(&row, `SELECT "id" FROM "items"`)
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestIDWithNilEmbed{ID: 7}, row)
+
+	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
+	var byValue scanTestUnexportedRow
+	found, err = ss.db.ScanStruct(&byValue, `SELECT "address", "name" FROM "items"`)
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(scanTestUnexportedRow{dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}}, byValue)
 }
 
 func (ss *scanSuite) TestScanStruct_fillsSetUnexportedPointerEmbeds() {
@@ -925,6 +971,7 @@ func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 		"scanTestUnexportedPtr: embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; " +
 			"embed it by value or tag it `db:\"-\"`": ss.allStructsErr[scanTestUnexportedPtr](),
 		"ScanTestSelfRef: field ScanTestSelfRef leads back to goqu_test.ScanTestSelfRef; tag it `db:\"-\"`": ss.allStructsErr[ScanTestSelfRef](),
+		"ScanTestOwner: field Pet.Owner leads back to goqu_test.ScanTestOwner; tag it `db:\"-\"`":           ss.allStructsErr[ScanTestOwner](),
 		"ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`":                ss.allStructsErr[ScanTestNode](),
 		"scanTestNodeRow: field Node.Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`":        ss.allStructsErr[scanTestNodeRow](),
 	} {

@@ -234,6 +234,19 @@ func (sds *selectDatasetSuite) TestSelect() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestSelect_withTypeOnlyAndArrayStructSources() {
+	for _, ds := range []*goqu.SelectDataset{
+		goqu.From("t").Select((*dsTestActionItem)(nil)),
+		goqu.From("t").Select((*[]dsTestActionItem)(nil)),
+		goqu.From("t").Select([2]dsTestActionItem{}),
+		goqu.From("t").Select(&[2]*dsTestActionItem{}),
+	} {
+		sql, _, err := ds.ToSQL()
+		sds.NoError(err)
+		sds.Equal(`SELECT "address", "name" FROM "t"`, sql)
+	}
+}
+
 func (sds *selectDatasetSuite) TestSelectDistinct() {
 	bd := goqu.From("test")
 	sds.assertCases(
