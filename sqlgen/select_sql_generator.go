@@ -71,7 +71,7 @@ func (ssg *selectSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.SelectClaus
 		case OrderWithOffsetFetchSQLFragment:
 			ssg.OrderWithOffsetFetchSQL(b, clauses.Order(), clauses.Offset(), clauses.Limit())
 		case LimitSQLFragment:
-			ssg.LimitSQL(b, clauses.Limit())
+			ssg.selectLimitSQL(b, clauses)
 		case OffsetSQLFragment:
 			ssg.OffsetSQL(b, clauses.Offset())
 		case ForSQLFragment:
@@ -123,6 +123,15 @@ func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.Sel
 func (ssg *selectSQLGenerator) SelectSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
 	b.Write(ssg.DialectOptions().SelectClause).WriteRunes(ssg.DialectOptions().SpaceRune)
 	ssg.selectSQLCommon(b, clauses)
+}
+
+func (ssg *selectSQLGenerator) selectLimitSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+	limit := clauses.Limit()
+	if clauses.Offset() > 0 && (limit == nil || isUnsupportedLimitAll(ssg.DialectOptions(), limit)) {
+		b.Write(ssg.DialectOptions().OffsetWithoutLimitFragment)
+		return
+	}
+	ssg.LimitSQL(b, limit)
 }
 
 // Adds the SELECT clause along with LIMIT to a SQL statement (e.g. MSSQL dialect: SELECT TOP 10 ...)

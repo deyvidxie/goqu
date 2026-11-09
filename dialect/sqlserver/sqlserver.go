@@ -34,6 +34,10 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsWindowFunction = false
 	opts.SurroundLimitWithParentheses = true
 	opts.SupportsLimitAll = false
+	opts.TruncateClause = []byte("TRUNCATE TABLE")
+	opts.SupportsTruncateIdentity = false
+	opts.SupportsTruncateCascade = false
+	opts.SupportsMultipleTruncateTables = false
 	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForUpdate, exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 
 	opts.PlaceHolderFragment = []byte("@p")

@@ -60,6 +60,12 @@ type (
 		SupportsWithCTERecursive bool
 		// Set to true if multiple tables are supported in UPDATE statement. (DEFAULT=true)
 		SupportsMultipleUpdateTables bool
+		// Set to true if the dialect supports RESTART/CONTINUE IDENTITY in TRUNCATE (DEFAULT=true)
+		SupportsTruncateIdentity bool
+		// Set to true if the dialect supports CASCADE and RESTRICT in TRUNCATE (DEFAULT=true)
+		SupportsTruncateCascade bool
+		// Set to true if the dialect can TRUNCATE more than one table in one statement (DEFAULT=true)
+		SupportsMultipleTruncateTables bool
 		// Set to true if DISTINCT ON is supported (DEFAULT=true)
 		SupportsDistinctOn bool
 		// Set to true if LATERAL queries are supported (DEFAULT=true)
@@ -146,6 +152,9 @@ type (
 		LimitFragment []byte
 		// The SQL OFFSET BY clause fragment(DEFAULT=[]byte(" OFFSET "))
 		OffsetFragment []byte
+		// Written in place of the LIMIT of a select that has an OFFSET and no limit or an unsupported LimitAll
+		// (e.g. mysql=[]byte(" LIMIT 18446744073709551615"), sqlite3=[]byte(" LIMIT -1")) (DEFAULT=nil)
+		OffsetWithoutLimitFragment []byte
 		// The fragment after the offset in ORDER BY … OFFSET n ROWS(DEFAULT=[]byte(" ROWS"))
 		OffsetRowsFragment []byte
 		// The fragment after the limit in OFFSET … FETCH FIRST n ROWS ONLY(DEFAULT=[]byte(" ROWS ONLY"))
@@ -342,7 +351,8 @@ type (
 		ConflictDoNothingFragment []byte
 		// The SQL fragment to use for CONFLICT DO UPDATE (Default=[]byte(" DO UPDATE SET"))
 		ConflictDoUpdateFragment []byte
-		// How goqu.Excluded references the row proposed for insertion (Default=ExcludedTableStyle)
+		// How goqu.Excluded references the row proposed for insertion; InsertDataset.As is only accepted with
+		// ExcludedRowAliasStyle (Default=ExcludedTableStyle)
 		ExcludedStyle ExcludedStyle
 		// The row alias ExcludedRowAliasStyle adds when the insert has none set with As (Default="excluded")
 		ExcludedRowAlias string
@@ -538,6 +548,9 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsLockOf:                    true,
 
 		SupportsMultipleUpdateTables:         true,
+		SupportsTruncateIdentity:             true,
+		SupportsTruncateCascade:              true,
+		SupportsMultipleTruncateTables:       true,
 		UseFromClauseForMultipleUpdateTables: true,
 
 		UpdateClause:              []byte("UPDATE"),

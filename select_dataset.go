@@ -479,7 +479,7 @@ func (sd *SelectDataset) Limit(limit uint) *SelectDataset {
 	return sd.copy(sd.clauses.ClearLimit())
 }
 
-// Adds a LIMIT ALL clause. If the LIMIT is currently set it replaces it. See examples.
+// Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it treats it as no limit. See examples.
 func (sd *SelectDataset) LimitAll() *SelectDataset {
 	return sd.copy(sd.clauses.SetLimit(L("ALL")))
 }

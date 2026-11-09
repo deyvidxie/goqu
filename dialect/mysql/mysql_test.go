@@ -413,6 +413,19 @@ func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
 	mt.Error(err)
 }
 
+func (mt *mysqlTest) TestLimitAllAndOffset() {
+	ds := mt.db.From("entry").Order(goqu.C("int").Asc())
+	var ints []int64
+	mt.Require().NoError(ds.Select("int").Offset(8).ScanVals(&ints))
+	mt.Equal([]int64{8, 9}, ints)
+	ints = nil
+	mt.Require().NoError(ds.Select("int").LimitAll().Offset(8).ScanVals(&ints))
+	mt.Equal([]int64{8, 9}, ints)
+	ints = nil
+	mt.Require().NoError(ds.Select("int").LimitAll().ScanVals(&ints))
+	mt.Len(ints, 10)
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()
@@ -658,6 +671,27 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.C("int").Eq(9))).
 		Executor().Exec()
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
+}
+
+func (mt *mysqlTest) TestInsertSelectWithRowAlias() {
+	if version := mt.serverVersion(); !versionAtLeast(version, [3]int{8, 0, 19}) {
+		mt.T().Skipf("row alias needs MySQL 8.0.19+, server is %v", version)
+	}
+	db := goqu.New("mysql8", mt.db.Db)
+	_, err := db.Insert("entry").
+		Cols("int", "float", "string", "time", "bool", "bytes").
+		FromQuery(db.From("entry").
+			Select("int", "float", goqu.V("aliased").As("string"), "time", "bool", "bytes").
+			Where(goqu.C("int").Eq(0))).
+		As("new").
+		OnConflict(goqu.DoUpdate("", goqu.Record{"string": goqu.I("new.string")})).
+		Executor().Exec()
+	mt.Require().NoError(err)
+	var str string
+	found, err := db.From("entry").Select("string").Where(goqu.C("int").Eq(0)).ScanVal(&str)
+	mt.Require().NoError(err)
+	mt.True(found)
+	mt.Equal("aliased", str)
 }
 
 func (mt *mysqlTest) TestLateralJoin() {

@@ -331,6 +331,20 @@ func (sst *sqlserverTest) TestQuoteCharacterInIdentifier() {
 	sst.Error(err)
 }
 
+func (sst *sqlserverTest) TestTruncate() {
+	ds := sst.db.From("entry")
+	count, err := ds.Count()
+	sst.NoError(err)
+	sst.Equal(int64(10), count)
+
+	_, err = ds.Truncate().Executor().Exec()
+	sst.NoError(err)
+
+	count, err = ds.Count()
+	sst.NoError(err)
+	sst.Equal(int64(0), count)
+}
+
 func (sst *sqlserverTest) TestCount() {
 	ds := sst.db.From("entry")
 	count, err := ds.Count()

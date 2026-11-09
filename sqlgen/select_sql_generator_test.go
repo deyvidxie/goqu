@@ -534,6 +534,25 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withOffset() {
 	)
 }
 
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_withOffsetWithoutLimit() {
+	from := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	limitAll := exp.NewLiteralExpression("ALL")
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsLimitAll = false
+	opts.OffsetWithoutLimitFragment = []byte(" limit max")
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		selectTestCase{clause: from.SetLimit(limitAll).SetOffset(2), sql: `SELECT * FROM "test" LIMIT ALL OFFSET 2`},
+	)
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", opts),
+		selectTestCase{clause: from.SetOffset(2), sql: `SELECT * FROM "test" limit max OFFSET 2`},
+		selectTestCase{clause: from.SetLimit(limitAll).SetOffset(2), sql: `SELECT * FROM "test" limit max OFFSET 2`},
+		selectTestCase{clause: from.SetLimit(limitAll), sql: `SELECT * FROM "test"`},
+		selectTestCase{clause: from.SetLimit(3).SetOffset(2), sql: `SELECT * FROM "test" LIMIT 3 OFFSET 2`},
+	)
+}
+
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_withCommonTables() {
 	tse := newTestAppendableExpression("select * from foo", emptyArgs, nil, nil)
 

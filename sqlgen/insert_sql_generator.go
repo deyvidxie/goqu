@@ -52,6 +52,10 @@ func (isg *insertSQLGenerator) Generate(
 		b.SetError(errNoSourceForInsert)
 		return
 	}
+	if clauses.HasAlias() && isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle {
+		b.SetError(errInsertRowAliasNotSupported(isg.Dialect()))
+		return
+	}
 	for _, f := range isg.DialectOptions().InsertSQLOrder {
 		if b.Error() != nil {
 			return
@@ -113,6 +117,10 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 		b.SetError(err)
 		return
 	}
+	if ic.HasAlias() && source == insertSourceQuery {
+		b.SetError(errInsertRowAliasSelectNotSupported(isg.Dialect()))
+		return
+	}
 	if rowAlias != nil && source == insertSourceQuery {
 		b.SetError(errExcludedInsertSelectNotSupported(isg.Dialect()))
 		return
@@ -156,7 +164,7 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.Inse
 	if b.Error() != nil {
 		return
 	}
-	if !isg.probesConflictUpdate(ic) {
+	if !ic.HasAlias() && !isg.probesConflictUpdate(ic) {
 		isg.insertFromSQL(b, ic.From())
 		isg.insertAliasAndConflictSQL(b, ic, nil, renderedConflictUpdate{})
 		return
@@ -177,6 +185,9 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.Inse
 	if err != nil {
 		b.SetError(err)
 		return
+	}
+	if rowAlias == nil && ic.HasAlias() {
+		rowAlias = rowAliasTable(ic.Alias())
 	}
 	if rowAlias == nil {
 		b.WriteRunes(isg.DialectOptions().SpaceRune)

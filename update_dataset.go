@@ -175,7 +175,7 @@ func (ud *UpdateDataset) Limit(limit uint) *UpdateDataset {
 	return ud.copy(ud.clauses.ClearLimit())
 }
 
-// Adds a LIMIT ALL clause. If the LIMIT is currently set it replaces it. See examples.
+// Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it renders no limit. See examples.
 func (ud *UpdateDataset) LimitAll() *UpdateDataset {
 	return ud.copy(ud.clauses.SetLimit(L("ALL")))
 }

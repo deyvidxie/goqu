@@ -115,6 +115,35 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithCascade() {
 	)
 }
 
+func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithUnsupportedOptions() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsTruncateIdentity = false
+	opts.SupportsTruncateCascade = false
+	opts.SupportsMultipleTruncateTables = false
+
+	tc := exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "a"))
+	tsgs.assertCases(
+		sqlgen.NewTruncateSQLGenerator("test", "db", opts),
+		truncateTestCase{clause: tc, sql: `TRUNCATE "a"`},
+		truncateTestCase{
+			clause: tc.SetTable(exp.NewColumnListExpression(nil, "db", "a", "b")),
+			err:    "goqu: dialect does not support multiple tables in TRUNCATE [dialect=test]",
+		},
+		truncateTestCase{
+			clause: tc.SetOptions(exp.TruncateOptions{Identity: "continue"}),
+			err:    "goqu: dialect does not support CONTINUE IDENTITY in TRUNCATE [dialect=test]",
+		},
+		truncateTestCase{
+			clause: tc.SetOptions(exp.TruncateOptions{Cascade: true}),
+			err:    "goqu: dialect does not support CASCADE in TRUNCATE [dialect=test]",
+		},
+		truncateTestCase{
+			clause: tc.SetOptions(exp.TruncateOptions{Restrict: true}),
+			err:    "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=test]",
+		},
+	)
+}
+
 func TestTruncateSQLGenerator(t *testing.T) {
 	suite.Run(t, new(truncateSQLGeneratorSuite))
 }

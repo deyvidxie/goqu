@@ -278,6 +278,64 @@ func (mds *mysqlDialectSuite) TestLateral() {
 	}
 }
 
+func (mds *mysqlDialectSuite) TestTruncate() {
+	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(d).From("test")
+		mds.assertSQL(
+			sqlTestCase{ds: ds.Truncate(), sql: "TRUNCATE `test`"},
+			sqlTestCase{
+				ds:  ds.Truncate().Identity("restart"),
+				err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=" + d + "]",
+			},
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Truncate("a", "b"),
+				err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=" + d + "]",
+			},
+			sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=" + d + "]"},
+			sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=" + d + "]"},
+		)
+	}
+}
+
+func (mds *mysqlDialectSuite) TestLimitAllAndOffset() {
+	for _, d := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(d).From("test")
+		mds.assertSQL(
+			sqlTestCase{ds: ds.LimitAll(), sql: "SELECT * FROM `test`"},
+			sqlTestCase{ds: ds.Offset(2), sql: "SELECT * FROM `test` LIMIT 18446744073709551615 OFFSET 2"},
+			sqlTestCase{ds: ds.LimitAll().Offset(2), sql: "SELECT * FROM `test` LIMIT 18446744073709551615 OFFSET 2"},
+			sqlTestCase{ds: ds.Limit(3).Offset(2), sql: "SELECT * FROM `test` LIMIT 3 OFFSET 2"},
+		)
+	}
+}
+
+func (mds *mysqlDialectSuite) TestInsertRowAlias() {
+	mds.assertSQL(
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			err: "goqu: dialect does not support an INSERT row alias [dialect=mysql]",
+		},
+	)
+	for _, d := range []string{"mysql8", "mysql8nano"} {
+		src := goqu.Dialect(d).From("src").Select("a")
+		mds.assertSQL(
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+				sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
+			},
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Insert("test").Cols("a").FromQuery(src).As("new"),
+				sql: "INSERT INTO `test` (`a`) SELECT * FROM (SELECT `a` FROM `src`) AS `new` (`a`)",
+			},
+			sqlTestCase{
+				ds: goqu.Dialect(d).Insert("test").FromQuery(src).As("new"),
+				err: "goqu: dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) " +
+					"[dialect=" + d + "]",
+			},
+		)
+	}
+}
+
 func (mds *mysqlDialectSuite) TestWithCTE() {
 	cte := func(dialect string) *goqu.SelectDataset {
 		return goqu.Dialect(dialect).From("a").Select("x")

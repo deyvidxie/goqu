@@ -74,6 +74,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").FromQuery(d.From("s")).OnConflict(goqu.DoUpdateExcluded("a", "b"))
 		}},
+		{"INSERT row alias with INSERT SELECT", "INSERT row alias with INSERT ... SELECT", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").FromQuery(d.From("s")).As("new")
+		}},
 		{"UPDATE multiple tables", "multiple tables in UPDATE", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMultipleUpdateTables = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -143,6 +148,31 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 			o.TimeStyle = sqlgen.SQLiteTimeStyle
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Select(goqu.Now(6))
+		}},
+		{"TRUNCATE several tables", "multiple tables in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsMultipleTruncateTables = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("a", "b")
+		}},
+		{"TRUNCATE identity", "CONTINUE IDENTITY in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateIdentity = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Identity("continue")
+		}},
+		{"TRUNCATE CASCADE", "CASCADE in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateCascade = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Cascade()
+		}},
+		{"TRUNCATE RESTRICT", "RESTRICT in TRUNCATE", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsTruncateCascade = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Truncate("t").Restrict()
+		}},
+		{"INSERT row alias", "INSERT row alias", func(o *sqlgen.SQLDialectOptions) {
+			o.ExcludedStyle = sqlgen.ExcludedTableStyle
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Rows(goqu.Record{"a": 1}).As("new")
 		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false

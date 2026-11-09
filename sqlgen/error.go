@@ -112,6 +112,13 @@ func errUpsertWithWhereNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support upsert with where clause [dialect=%s]", dialect)
 }
 
+func errInsertRowAliasSelectNotSupported(dialect string) error {
+	return errors.NewUnsupportedError(
+		"dialect does not support an INSERT row alias with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]",
+		dialect,
+	)
+}
+
 func errExcludedInsertSelectNotSupported(dialect string) error {
 	return errors.NewUnsupportedError(
 		"dialect does not support Excluded with INSERT ... SELECT without Cols(...).FromQuery(...) [dialect=%s]", dialect,
@@ -263,4 +270,26 @@ func errJSONCandidate(cause error) error {
 
 func errOffsetWithoutOrder(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support OFFSET without ORDER BY [dialect=%s]", dialect)
+}
+
+func errMultipleTruncateTablesNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support multiple tables in TRUNCATE [dialect=%s]", dialect)
+}
+
+func errTruncateIdentityNotSupported(dialect, identity string) error {
+	return errors.NewUnsupportedError(
+		"dialect does not support %s IDENTITY in TRUNCATE [dialect=%s]", strings.ToUpper(identity), dialect,
+	)
+}
+
+func errTruncateCascadeNotSupported(dialect string, cascade bool) error {
+	option := "RESTRICT"
+	if cascade {
+		option = "CASCADE"
+	}
+	return errors.NewUnsupportedError("dialect does not support %s in TRUNCATE [dialect=%s]", option, dialect)
+}
+
+func errInsertRowAliasNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support an INSERT row alias [dialect=%s]", dialect)
 }
