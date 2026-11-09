@@ -13,6 +13,8 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.TimeStyle = sqlgen.DuckDBTimeStyle
 
 	opts.SupportsReturn = true
+	opts.SupportsTruncateIdentity = false
+	opts.SupportsMultipleTruncateTables = false
 	opts.SupportsOrderByOnUpdate = true
 	opts.SupportsLimitOnUpdate = true
 	opts.SupportsOrderByOnDelete = false

@@ -6,6 +6,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInsertOnConflictDoNothingTarget(t *testing.T) {
@@ -70,6 +71,17 @@ func TestUpdateAndDeleteLimitAllIsDropped(t *testing.T) {
 	sql, _, err = goqu.Dialect("postgres").Delete("test").LimitAll().ToSQL()
 	assert.NoError(t, err)
 	assert.Equal(t, `DELETE FROM "test"`, sql)
+}
+
+func TestTruncateOptionsAndRowAlias(t *testing.T) {
+	ds := goqu.Dialect("postgres")
+	sql, _, err := ds.Truncate("a", "b").Identity("restart").Cascade().ToSQL()
+	require.NoError(t, err)
+	assert.Equal(t, `TRUNCATE "a", "b" RESTART IDENTITY CASCADE`, sql)
+
+	_, _, err = ds.Insert("test").Rows(goqu.Record{"a": 1}).As("new").ToSQL()
+	assert.EqualError(t, err, "goqu: dialect does not support an INSERT row alias [dialect=postgres]")
+	assert.True(t, goqu.IsUnsupported(err))
 }
 
 func TestEmptyInList(t *testing.T) {

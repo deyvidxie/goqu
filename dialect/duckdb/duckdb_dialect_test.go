@@ -268,6 +268,24 @@ func (sds *duckdbDialectSuite) TestFuns() {
 	)
 }
 
+func (sds *duckdbDialectSuite) TestTruncate() {
+	ds := goqu.Dialect("duckdb").From("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.Truncate(), sql: "TRUNCATE \"test\""},
+		sqlTestCase{ds: ds.Truncate().Identity("restart"), err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=duckdb]"},
+		sqlTestCase{
+			ds:  goqu.Dialect("duckdb").Truncate("a", "b"),
+			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=duckdb]",
+		},
+		sqlTestCase{ds: ds.Truncate().Cascade(), sql: "TRUNCATE \"test\" CASCADE"},
+		sqlTestCase{ds: ds.Truncate().Restrict(), sql: "TRUNCATE \"test\" RESTRICT"},
+		sqlTestCase{
+			ds:  goqu.Dialect("duckdb").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			err: "goqu: dialect does not support an INSERT row alias [dialect=duckdb]",
+		},
+	)
+}
+
 func (sds *duckdbDialectSuite) TestForUpdate() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Eq(1))
 	sds.assertSQL(

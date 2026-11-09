@@ -413,6 +413,19 @@ func (mt *mysqlTest) TestQuoteCharacterInIdentifier() {
 	mt.Error(err)
 }
 
+func (mt *mysqlTest) TestOffsetWithoutLimit() {
+	ds := mt.db.From("entry").Order(goqu.C("int").Asc())
+	var ints []int64
+	mt.Require().NoError(ds.Select("int").Offset(8).ScanVals(&ints))
+	mt.Equal([]int64{8, 9}, ints)
+	ints = nil
+	mt.Require().NoError(ds.Select("int").LimitAll().Offset(8).ScanVals(&ints))
+	mt.Equal([]int64{8, 9}, ints)
+	count, err := ds.LimitAll().Count()
+	mt.NoError(err)
+	mt.Equal(int64(10), count)
+}
+
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()

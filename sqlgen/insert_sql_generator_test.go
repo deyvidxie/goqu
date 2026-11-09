@@ -245,8 +245,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withFrom() {
 		insertTestCase{
 			clause: icCols.SetAlias(exp.NewIdentifierExpression("", "new", nil)).
 				SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")})),
-			sql: `INSERT INTO "test" ("a", "b") select c, d from test where a = 'b' AS "new" ` +
-				`ON CONFLICT (a) DO UPDATE SET "b"=EXCLUDED."b"`,
+			err: "goqu: dialect does not support an INSERT row alias [dialect=test]",
 		},
 	)
 }
@@ -295,13 +294,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 			args:       []interface{}{"a1", "b"},
 		},
 
-		insertTestCase{clause: icAsDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') AS "new" on conflict (test) do update set "a"="new"."a"`},
-		insertTestCase{
-			clause:     icAsDu,
-			sql:        `INSERT INTO "test" ("a") VALUES (?) AS "new" on conflict (test) do update set "a"="new"."a"`,
-			isPrepared: true,
-			args:       []interface{}{"a1"},
-		},
+		insertTestCase{clause: icAsDu, err: "goqu: dialect does not support an INSERT row alias [dialect=test]"},
+		insertTestCase{clause: icAsDu, err: "goqu: dialect does not support an INSERT row alias [dialect=test]", isPrepared: true},
 
 		insertTestCase{clause: icDoc, sql: `INSERT INTO "test" ("a") VALUES ('a1') on conflict on constraint test do update set "a"='b'`},
 		insertTestCase{
@@ -1136,6 +1130,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`},
 		insertTestCase{clause: emptyRows, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
 		insertTestCase{clause: targeted, err: unsupported},
+	)
+	rowAliasIgnoreOpts := sqlgen.DefaultDialectOptions()
+	rowAliasIgnoreOpts.SupportsConflictWithDefaultValues = false
+	rowAliasIgnoreOpts.SupportsInsertIgnoreSyntax = true
+	rowAliasIgnoreOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", rowAliasIgnoreOpts),
 		insertTestCase{
 			clause: doNothing.SetAlias(exp.NewIdentifierExpression("", "new", nil)),
 			sql:    `INSERT IGNORE INTO "test" DEFAULT VALUES AS "new"`,

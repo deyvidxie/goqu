@@ -46,6 +46,10 @@ func (tsg *truncateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.TruncateC
 
 // Generates a TRUNCATE statement
 func (tsg *truncateSQLGenerator) TruncateSQL(b sb.SQLBuilder, from exp.ColumnListExpression, opts exp.TruncateOptions) {
+	if err := tsg.unsupportedTruncateError(from, opts); err != nil {
+		b.SetError(err)
+		return
+	}
 	b.Write(tsg.DialectOptions().TruncateClause)
 	tsg.SourcesSQL(b, from)
 	if opts.Identity != tsg.DialectOptions().EmptyString {
@@ -57,5 +61,19 @@ func (tsg *truncateSQLGenerator) TruncateSQL(b sb.SQLBuilder, from exp.ColumnLis
 		b.Write(tsg.DialectOptions().CascadeFragment)
 	} else if opts.Restrict {
 		b.Write(tsg.DialectOptions().RestrictFragment)
+	}
+}
+
+func (tsg *truncateSQLGenerator) unsupportedTruncateError(from exp.ColumnListExpression, opts exp.TruncateOptions) error {
+	dialectOpts := tsg.DialectOptions()
+	switch {
+	case len(from.Columns()) > 1 && !dialectOpts.SupportsMultipleTruncateTables:
+		return errMultipleTruncateTablesNotSupported(tsg.Dialect())
+	case opts.Identity != dialectOpts.EmptyString && !dialectOpts.SupportsTruncateIdentity:
+		return errTruncateIdentityNotSupported(tsg.Dialect(), opts.Identity)
+	case (opts.Cascade || opts.Restrict) && !dialectOpts.SupportsTruncateCascade:
+		return errTruncateCascadeNotSupported(tsg.Dialect(), opts.Cascade)
+	default:
+		return nil
 	}
 }

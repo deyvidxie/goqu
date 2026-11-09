@@ -36,6 +36,15 @@ type (
 		ErrorOnUnsupportedLimitOnUpdate bool
 		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
 		SupportsLimitAll bool
+		// The LIMIT written before an OFFSET when the select has no limit, for dialects that reject OFFSET alone
+		// (e.g. mysql=" LIMIT 18446744073709551615", sqlite3=" LIMIT -1") (DEFAULT=nil)
+		OffsetWithoutLimitFragment []byte
+		// Set to true if the dialect supports RESTART/CONTINUE IDENTITY in TRUNCATE (DEFAULT=true)
+		SupportsTruncateIdentity bool
+		// Set to true if the dialect supports CASCADE and RESTRICT in TRUNCATE (DEFAULT=true)
+		SupportsTruncateCascade bool
+		// Set to true if the dialect can TRUNCATE more than one table in one statement (DEFAULT=true)
+		SupportsMultipleTruncateTables bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
@@ -521,6 +530,9 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsLimitOnDelete:             false,
 		SupportsLimitOnUpdate:             false,
 		SupportsLimitAll:                  true,
+		SupportsTruncateIdentity:          true,
+		SupportsTruncateCascade:           true,
+		SupportsMultipleTruncateTables:    true,
 		SupportsReturn:                    true,
 		SupportsConflictUpdateWhere:       true,
 		SupportsOnConflict:                true,

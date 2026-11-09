@@ -264,3 +264,25 @@ func errJSONCandidate(cause error) error {
 func errOffsetWithoutOrder(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support OFFSET without ORDER BY [dialect=%s]", dialect)
 }
+
+func errMultipleTruncateTablesNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support TRUNCATE of more than one table [dialect=%s]", dialect)
+}
+
+func errTruncateIdentityNotSupported(dialect, identity string) error {
+	return errors.NewUnsupportedError(
+		"dialect does not support %s IDENTITY in TRUNCATE [dialect=%s]", strings.ToUpper(identity), dialect,
+	)
+}
+
+func errTruncateCascadeNotSupported(dialect string, cascade bool) error {
+	option := "RESTRICT"
+	if cascade {
+		option = "CASCADE"
+	}
+	return errors.NewUnsupportedError("dialect does not support %s in TRUNCATE [dialect=%s]", option, dialect)
+}
+
+func errInsertRowAliasNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support an INSERT row alias [dialect=%s]", dialect)
+}

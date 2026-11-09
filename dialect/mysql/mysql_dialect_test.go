@@ -278,6 +278,50 @@ func (mds *mysqlDialectSuite) TestLateral() {
 	}
 }
 
+func (mds *mysqlDialectSuite) TestTruncate() {
+	for _, d := range []string{"mysql", "mysql8"} {
+		ds := goqu.Dialect(d).From("test")
+		mds.assertSQL(
+			sqlTestCase{ds: ds.Truncate(), sql: "TRUNCATE `test`"},
+			sqlTestCase{
+				ds:  ds.Truncate().Identity("restart"),
+				err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=" + d + "]",
+			},
+			sqlTestCase{
+				ds:  goqu.Dialect(d).Truncate("a", "b"),
+				err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=" + d + "]",
+			},
+			sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=" + d + "]"},
+			sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=" + d + "]"},
+		)
+	}
+}
+
+func (mds *mysqlDialectSuite) TestLimitAllAndOffset() {
+	for _, d := range []string{"mysql", "mysql8"} {
+		ds := goqu.Dialect(d).From("test")
+		mds.assertSQL(
+			sqlTestCase{ds: ds.LimitAll(), sql: "SELECT * FROM `test`"},
+			sqlTestCase{ds: ds.Offset(2), sql: "SELECT * FROM `test` LIMIT 18446744073709551615 OFFSET 2"},
+			sqlTestCase{ds: ds.LimitAll().Offset(2), sql: "SELECT * FROM `test` LIMIT 18446744073709551615 OFFSET 2"},
+			sqlTestCase{ds: ds.Limit(3).Offset(2), sql: "SELECT * FROM `test` LIMIT 3 OFFSET 2"},
+		)
+	}
+}
+
+func (mds *mysqlDialectSuite) TestInsertRowAlias() {
+	mds.assertSQL(
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			err: "goqu: dialect does not support an INSERT row alias [dialect=mysql]",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("mysql8").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			sql: "INSERT INTO `test` (`a`) VALUES (1) AS `new`",
+		},
+	)
+}
+
 func (mds *mysqlDialectSuite) TestWithCTE() {
 	cte := func(dialect string) *goqu.SelectDataset {
 		return goqu.Dialect(dialect).From("a").Select("x")

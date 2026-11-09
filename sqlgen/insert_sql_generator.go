@@ -52,6 +52,10 @@ func (isg *insertSQLGenerator) Generate(
 		b.SetError(errNoSourceForInsert)
 		return
 	}
+	if clauses.HasAlias() && isg.DialectOptions().ExcludedStyle != ExcludedRowAliasStyle {
+		b.SetError(errInsertRowAliasNotSupported(isg.Dialect()))
+		return
+	}
 	for _, f := range isg.DialectOptions().InsertSQLOrder {
 		if b.Error() != nil {
 			return

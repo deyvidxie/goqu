@@ -222,7 +222,7 @@ func ExampleDeleteDataset_LimitAll() {
 	sql, _, _ := ds.ToSQL()
 	fmt.Println(sql)
 	// Output:
-	// DELETE FROM `test` LIMIT ALL
+	// DELETE FROM `test`
 }
 
 func ExampleDeleteDataset_ClearLimit() {

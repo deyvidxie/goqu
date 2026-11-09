@@ -1,5 +1,9 @@
 # Unreleased
 
+* [FIX] TRUNCATE returns an `UnsupportedError` (`goqu.IsUnsupported`) for options the dialect lacks instead of rendering them: `RESTART`/`CONTINUE IDENTITY` on mysql, sqlserver, duckdb and sqlite3; `CASCADE`/`RESTRICT` on mysql, sqlserver and sqlite3 (sqlite3 used to drop them); more than one table on all but postgres. sqlserver renders `TRUNCATE TABLE` [deyvidxie#48](https://github.com/deyvidxie/goqu/issues/48), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
+* [FIX] `InsertDataset.As` returns an `UnsupportedError` on dialects without the `INSERT … AS alias` row alias (all but mysql8 and mysql8nano, the dialects whose `ExcludedStyle` is `ExcludedRowAliasStyle`) [deyvidxie#54](https://github.com/deyvidxie/goqu/issues/54), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
+* [FIX] mysql and sqlite3 drop `LimitAll` instead of rendering `LIMIT ALL`, and render `LIMIT 18446744073709551615` (mysql) or `LIMIT -1` (sqlite3) before an `OFFSET` without a limit, which both reject [deyvidxie#131](https://github.com/deyvidxie/goqu/issues/131), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
+* [FEATURE] Add the `SupportsTruncateIdentity`, `SupportsTruncateCascade`, `SupportsMultipleTruncateTables` and `OffsetWithoutLimitFragment` dialect options [deyvidxie#48](https://github.com/deyvidxie/goqu/issues/48), [deyvidxie#131](https://github.com/deyvidxie/goqu/issues/131), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
 * [FIX] sqlserver and mysql (MySQL 5.x) return an `UnsupportedError` (`goqu.IsUnsupported`) for `goqu.Lateral` instead of rendering `LATERAL`, which neither server accepts; mysql8 and mysql8nano still render it [deyvidxie#45](https://github.com/deyvidxie/goqu/issues/45), [deyvidxie#129](https://github.com/deyvidxie/goqu/pull/129)
 * [FIX] sqlserver returns an `UnsupportedError` (`goqu.IsUnsupported`) for an `Offset` without `Order` instead of dropping both the offset and the limit [deyvidxie#40](https://github.com/deyvidxie/goqu/issues/40), [deyvidxie#128](https://github.com/deyvidxie/goqu/pull/128)
 * [FEATURE] Add the `OffsetRowsFragment` and `FetchRowsOnlyFragment` dialect options for the `ROWS`/`ROWS ONLY` keywords of `OFFSET … FETCH` [deyvidxie#47](https://github.com/deyvidxie/goqu/issues/47), [deyvidxie#128](https://github.com/deyvidxie/goqu/pull/128)
@@ -23,6 +27,9 @@
 
 ## Behavior changes to be aware of
 
+* TRUNCATE with `Identity`, `Cascade`, `Restrict` or several tables fails with an `UnsupportedError` on dialects that lack the option (see the [FIX] entry) where it used to render SQL the server rejects; on sqlite3, `Cascade` and `Restrict` used to be dropped. sqlserver renders `TRUNCATE TABLE "t"` instead of `TRUNCATE "t"`.
+* `Insert(...).As(alias)` fails with `goqu: dialect does not support an INSERT row alias [dialect=…]` on every dialect but mysql8 and mysql8nano, where it used to render `… AS alias`.
+* On mysql and sqlite3, `LimitAll()` renders no limit and `Offset(n)` without `Limit` renders `LIMIT 18446744073709551615 OFFSET n` (mysql) or `LIMIT -1 OFFSET n` (sqlite3); both used to render SQL the server rejects.
 * `goqu.Lateral` on sqlserver and mysql fails with `goqu: dialect does not support lateral expressions [dialect=…]`, an `UnsupportedError`, where it used to render `LATERAL (…)` SQL the server rejects.
 * sqlserver `Offset(n)` without `Order(...)` fails with `goqu: dialect does not support OFFSET without ORDER BY [dialect=sqlserver]`, an `UnsupportedError`, where it used to render the query without the offset or the limit.
 * sqlite3 and duckdb fail `ForUpdate(goqu.NoWait)`, `ForUpdate(goqu.SkipLocked)` and `ForUpdate(…, tables…)` with `goqu: dialect does not support NOWAIT|SKIP LOCKED|OF in a locking clause [dialect=…]`, an `UnsupportedError`, where they used to render a plain `SELECT` (or, for `SKIP LOCKED`, invalid SQL).

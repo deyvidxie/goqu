@@ -117,9 +117,32 @@ func (sds *sqlite3DialectSuite) TestTruncate() {
 	ds := goqu.Dialect("sqlite3").From("test")
 	sds.assertSQL(
 		sqlTestCase{ds: ds.Truncate(), sql: "DELETE FROM `test`"},
-		// CASCADE and RESTRICT do not apply to DELETE and are dropped.
-		sqlTestCase{ds: ds.Truncate().Cascade(), sql: "DELETE FROM `test`"},
-		sqlTestCase{ds: ds.Truncate().Restrict(), sql: "DELETE FROM `test`"},
+		sqlTestCase{ds: ds.Truncate().Identity("restart"), err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=sqlite3]"},
+		sqlTestCase{
+			ds:  goqu.Dialect("sqlite3").Truncate("a", "b"),
+			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=sqlite3]",
+		},
+		sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=sqlite3]"},
+	)
+}
+
+func (sds *sqlite3DialectSuite) TestLimitAllAndOffset() {
+	ds := goqu.Dialect("sqlite3").From("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.LimitAll(), sql: "SELECT * FROM `test`"},
+		sqlTestCase{ds: ds.Offset(2), sql: "SELECT * FROM `test` LIMIT -1 OFFSET 2"},
+		sqlTestCase{ds: ds.LimitAll().Offset(2), sql: "SELECT * FROM `test` LIMIT -1 OFFSET 2"},
+		sqlTestCase{ds: ds.Limit(3).Offset(2), sql: "SELECT * FROM `test` LIMIT 3 OFFSET 2"},
+	)
+}
+
+func (sds *sqlite3DialectSuite) TestInsertRowAliasIsError() {
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  goqu.Dialect("sqlite3").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			err: "goqu: dialect does not support an INSERT row alias [dialect=sqlite3]",
+		},
 	)
 }
 

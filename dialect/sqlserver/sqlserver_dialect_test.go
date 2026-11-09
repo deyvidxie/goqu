@@ -179,6 +179,27 @@ func (sds *sqlserverDialectSuite) TestOffsetRequiresOrder() {
 	)
 }
 
+func (sds *sqlserverDialectSuite) TestTruncate() {
+	ds := goqu.Dialect("sqlserver").From("test")
+	sds.assertSQL(
+		sqlTestCase{ds: ds.Truncate(), sql: "TRUNCATE TABLE \"test\""},
+		sqlTestCase{
+			ds:  ds.Truncate().Identity("restart"),
+			err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=sqlserver]",
+		},
+		sqlTestCase{
+			ds:  goqu.Dialect("sqlserver").Truncate("a", "b"),
+			err: "goqu: dialect does not support TRUNCATE of more than one table [dialect=sqlserver]",
+		},
+		sqlTestCase{ds: ds.Truncate().Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=sqlserver]"},
+		sqlTestCase{ds: ds.Truncate().Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=sqlserver]"},
+		sqlTestCase{
+			ds:  goqu.Dialect("sqlserver").Insert("test").Rows(goqu.Record{"a": 1}).As("new"),
+			err: "goqu: dialect does not support an INSERT row alias [dialect=sqlserver]",
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestSelectLimitAll() {
 	ds := goqu.Dialect("sqlserver").From("test")
 	sds.assertSQL(

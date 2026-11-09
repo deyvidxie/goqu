@@ -246,7 +246,7 @@ func ExampleUpdateDataset_LimitAll() {
 	sql, _, _ := ds.ToSQL()
 	fmt.Println(sql)
 	// Output:
-	// UPDATE `test` SET `foo`='bar' LIMIT ALL
+	// UPDATE `test` SET `foo`='bar'
 }
 
 func ExampleUpdateDataset_ClearLimit() {

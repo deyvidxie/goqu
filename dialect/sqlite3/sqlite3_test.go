@@ -359,6 +359,19 @@ func (st *sqlite3Suite) TestQuoteCharacterInIdentifier() {
 	st.Error(err)
 }
 
+func (st *sqlite3Suite) TestOffsetWithoutLimit() {
+	ds := st.db.From("entry").Order(goqu.C("int").Asc())
+	var ints []int64
+	st.Require().NoError(ds.Select("int").Offset(8).ScanVals(&ints))
+	st.Equal([]int64{8, 9}, ints)
+	ints = nil
+	st.Require().NoError(ds.Select("int").LimitAll().Offset(8).ScanVals(&ints))
+	st.Equal([]int64{8, 9}, ints)
+	count, err := ds.LimitAll().Count()
+	st.NoError(err)
+	st.Equal(int64(10), count)
+}
+
 func (st *sqlite3Suite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()
