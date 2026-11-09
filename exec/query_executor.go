@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	gsql "database/sql"
+	"iter"
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/internal/scantype"
@@ -265,18 +266,74 @@ func (q QueryExecutor) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
 	return rows, nil
 }
 
+func (q QueryExecutor) IterStructs[T any](ctx context.Context) iter.Seq2[T, error] {
+	return iterRows(ctx, q, scantype.Struct[T](q.tagName), scanStructRow[T])
+}
+
+func (q QueryExecutor) IterVals[T any](ctx context.Context) iter.Seq2[T, error] {
+	return iterRows(ctx, q, scantype.IterVal[T](q.tagName), func(s Scanner) (val T, err error) {
+		err = s.ScanVal(&val)
+		return val, err
+	})
+}
+
+func iterRows[T any](
+	ctx context.Context, q QueryExecutor, typeErr error, scanRow func(Scanner) (T, error),
+) iter.Seq2[T, error] {
+	return func(yield func(T, error) bool) {
+		var zero T
+		if typeErr != nil {
+			yield(zero, typeErr)
+			return
+		}
+		scanner, err := q.ScannerContext(ctx)
+		if err != nil {
+			yield(zero, err)
+			return
+		}
+		defer func() { _ = scanner.Close() }()
+		for scanner.Next() {
+			row, err := scanRow(scanner)
+			if err != nil {
+				yield(zero, err)
+				return
+			}
+			if !yield(row, nil) {
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			yield(zero, err)
+		}
+	}
+}
+
+func scanStructRow[T any](s Scanner) (T, error) {
+	target, scanned := newStructRow[T]()
+	err := s.ScanStruct(target)
+	return scanned(), err
+}
+
+func newStructRow[T any]() (target interface{}, scanned func() T) {
+	var row T
+	t := reflect.TypeFor[T]()
+	if !util.IsPointer(t.Kind()) {
+		return &row, func() T { return row }
+	}
+	elem := reflect.New(t.Elem())
+	return elem.Interface(), func() T {
+		reflect.ValueOf(&row).Elem().Set(elem)
+		return row
+	}
+}
+
 func (q QueryExecutor) ScanOneStruct[T any](ctx context.Context) (row T, found bool, err error) {
 	if typeErr := scantype.Struct[T](q.tagName); typeErr != nil {
 		return row, false, typeErr
 	}
-	t := reflect.TypeFor[T]()
-	if !util.IsPointer(t.Kind()) {
-		found, err = q.ScanStructContext(ctx, &row)
-		return row, found, err
-	}
-	elem := reflect.New(t.Elem())
-	if found, err = q.ScanStructContext(ctx, elem.Interface()); found {
-		reflect.ValueOf(&row).Elem().Set(elem)
+	target, scanned := newStructRow[T]()
+	if found, err = q.ScanStructContext(ctx, target); found {
+		row = scanned()
 	}
 	return row, found, err
 }
@@ -293,7 +350,7 @@ func (q QueryExecutor) ScanAllVals[T any](ctx context.Context) ([]T, error) {
 }
 
 func (q QueryExecutor) ScanOneVal[T any](ctx context.Context) (val T, found bool, err error) {
-	if typeErr := scantype.OneVal[T](); typeErr != nil {
+	if typeErr := scantype.OneVal[T](q.tagName); typeErr != nil {
 		return val, false, typeErr
 	}
 	found, err = q.ScanValContext(ctx, &val)

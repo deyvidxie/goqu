@@ -21,6 +21,7 @@
   * [`ScanVals`](#scan-vals)- Scans a rows of 1 column into a slice of primitive values
   * [`ScanVal`](#scan-val) - Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
   * [`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](#generic-scan) - Generic versions that return the scanned structs or values
+  * [`IterStructs`, `IterVals`](#iter) - Generic iterators that scan one row at a time
   * [`Scanner`](#scanner) - Allows you to interatively scan rows into structs or values.
   * [`Count`](#count) - Returns the count for the current query
   * [`Exists`](#exists) - Reports whether the current query returns at least one row
@@ -1265,7 +1266,7 @@ if !found{
 <a name="generic-scan"></a>
 **[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
 
-They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` or a row struct for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice.
 
 ```go
 users, err := db.From("user").ScanAllStructs[User](context.Background())
@@ -1275,6 +1276,27 @@ user, found, err := db.From("user").Where(goqu.C("id").Eq(1)).ScanOneStruct[User
 ids, err := db.Insert("user").Rows(rows).Returning("id").Executor().ScanAllVals[int64](context.Background())
 
 id, found, err := db.From("user").Select("id").Where(goqu.C("first_name").Eq("Bob")).ScanOneVal[int64](context.Background())
+```
+
+<a name="iter"></a>
+**[`IterStructs`, `IterVals`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.IterStructs)**
+
+They are methods of `*SelectDataset` and of `exec.QueryExecutor`. The query runs when the loop starts, and again on every new loop over the same iterator. The rows are closed when the loop ends or breaks. An error is yielded once with the zero `T` and ends the iteration. `IterStructs` takes the same types as `ScanAllStructs`. `IterVals[*int64]` yields `nil` for `NULL`.
+
+```go
+for user, err := range db.From("user").IterStructs[User](context.Background()) {
+	if err != nil {
+		return err
+	}
+	fmt.Println(user)
+}
+
+for id, err := range db.From("user").Select("id").IterVals[int64](context.Background()) {
+	if err != nil {
+		return err
+	}
+	fmt.Println(id)
+}
 ```
 
 <a name="scanner"></a>

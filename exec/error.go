@@ -28,8 +28,8 @@ func errScanValSliceTarget(target interface{}) error {
 
 func errScannerFieldNeedsValue(col string, t reflect.Type) error {
 	return errors.NewUnsupportedScanTypeError(
-		`unable to scan column %q into %s field: it must hold a non-nil pointer to a value that `+
-			`implements sql.Scanner (ScanStructs cannot do this)`,
+		`unable to scan column %q into %s field: it must hold a non-nil pointer to a value that implements sql.Scanner `+
+			`(the rows that ScanStructs, ScanAllStructs, ScanOneStruct and IterStructs allocate leave it nil)`,
 		col, t,
 	)
 }

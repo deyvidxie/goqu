@@ -27,9 +27,9 @@ func TestStructTargetsMustBeRows(t *testing.T) {
 	}
 	for target, want := range map[interface{}]string{
 		&[]sql.NullString{}: "goqu: cannot scan rows into sql.NullString, which scans as one column; " +
-			"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]",
+			"use ScanVals/ScanVal, ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString] or IterVals[sql.NullString]",
 		&[]time.Time{}: "goqu: cannot scan rows into time.Time, which scans as one column; " +
-			"use ScanVals/ScanVal or ScanAllVals[time.Time]/ScanOneVal[time.Time]",
+			"use ScanVals/ScanVal, ScanAllVals[time.Time]/ScanOneVal[time.Time] or IterVals[time.Time]",
 		&[]netip.Addr{}: "goqu: cannot scan rows into netip.Addr, which has no fields goqu can scan into",
 	} {
 		_, err := checkScanStructsTarget(target, "db")
@@ -39,7 +39,7 @@ func TestStructTargetsMustBeRows(t *testing.T) {
 
 	_, err := QueryExecutor{}.ScanStruct(&sql.NullString{})
 	assert.EqualError(t, err, "goqu: cannot scan rows into sql.NullString, which scans as one column; "+
-		"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]")
+		"use ScanVals/ScanVal, ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString] or IterVals[sql.NullString]")
 	_, err = QueryExecutor{}.ScanStruct(&netip.Addr{})
 	assert.EqualError(t, err, "goqu: cannot scan rows into netip.Addr, which has no fields goqu can scan into")
 

@@ -3,6 +3,7 @@ package goqu
 import (
 	"context"
 	"fmt"
+	"iter"
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exec"
@@ -721,6 +722,14 @@ func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found
 		return row, false, errNoDatabase
 	}
 	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
+}
+
+func (sd *SelectDataset) IterStructs[T any](ctx context.Context) iter.Seq2[T, error] {
+	return sd.selectStructColumns(new([]T)).Executor().IterStructs[T](ctx)
+}
+
+func (sd *SelectDataset) IterVals[T any](ctx context.Context) iter.Seq2[T, error] {
+	return sd.Executor().IterVals[T](ctx)
 }
 
 func (sd *SelectDataset) ScanAllVals[T any](ctx context.Context) ([]T, error) {

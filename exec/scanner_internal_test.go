@@ -83,7 +83,7 @@ func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	s.Require().True(sc.Next())
 	err = sc.ScanStruct(&sql.NullString{})
 	s.EqualError(err, "goqu: cannot scan rows into *sql.NullString, which scans as one column; "+
-		"use ScanVals/ScanVal or ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString]")
+		"use ScanVals/ScanVal, ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString] or IterVals[sql.NullString]")
 	s.True(errors.IsUnsupportedScanType(err))
 	s.NoError(sc.Close())
 }
