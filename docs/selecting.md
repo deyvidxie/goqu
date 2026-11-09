@@ -328,6 +328,8 @@ SELECT * FROM "test" INNER JOIN "test2" ON ("test"."fkey" = "test2"."Id")
 
 [`FullOuterJoin`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.FullOuterJoin)
 
+**NOTE** The `mysql`, `mysql8` and `mysql8nano` dialects return a `goqu.UnsupportedError`; MySQL has no `FULL` join.
+
 ```go
 sql, _, _ := goqu.From("test").FullOuterJoin(
 	goqu.T("test2"),
@@ -378,6 +380,8 @@ SELECT * FROM "test" LEFT OUTER JOIN "test2" ON ("test"."fkey" = "test2"."Id")
 ```
 
 [`FullJoin`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.FullJoin)
+
+**NOTE** The `mysql`, `mysql8` and `mysql8nano` dialects return a `goqu.UnsupportedError`; MySQL has no `FULL` join.
 
 ```go
 sql, _, _ := goqu.From("test").FullJoin(
@@ -466,6 +470,8 @@ SELECT * FROM "test" NATURAL RIGHT LEFT JOIN "test2"
 ```
 
 [`NaturalFullJoin`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.NaturalFullJoin)
+
+**NOTE** The `mysql`, `mysql8` and `mysql8nano` dialects return a `goqu.UnsupportedError`; MySQL has no `FULL` join.
 
 ```go
 sql, _, _ := goqu.From("test").NaturalFullJoin(goqu.T("test2")).ToSQL()

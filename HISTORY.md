@@ -1,5 +1,6 @@
 # Unreleased
 
+* [FIX] `FullJoin`, `FullOuterJoin` and `NaturalFullJoin` return an `UnsupportedError` (`goqu.IsUnsupported`) on mysql, mysql8 and mysql8nano instead of rendering `FULL JOIN`, which MySQL rejects or parses as an alias of the left table followed by an inner join [deyvidxie#52](https://github.com/deyvidxie/goqu/issues/52), [deyvidxie#126](https://github.com/deyvidxie/goqu/pull/126)
 * [FEATURE] Add `IterStructs[T]` and `IterVals[T]` to `SelectDataset` and `exec.QueryExecutor`: `iter.Seq2[T, error]` iterators that scan one row at a time and close the rows when the loop ends or breaks [deyvidxie#75](https://github.com/deyvidxie/goqu/issues/75), [deyvidxie#125](https://github.com/deyvidxie/goqu/pull/125)
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
 * [FEATURE] Add the `ErrorOnUnsupportedConflictTarget` dialect option: a `DoUpdate`/`DoUpdateExcluded` target on a dialect without conflict targets (mysql, mysql8, mysql8nano) returns an `UnsupportedError` (`goqu.IsUnsupported`) instead of being dropped [deyvidxie#41](https://github.com/deyvidxie/goqu/issues/41), [deyvidxie#103](https://github.com/deyvidxie/goqu/pull/103)
@@ -18,6 +19,7 @@
 
 ## Behavior changes to be aware of
 
+* `FullJoin`, `FullOuterJoin` and `NaturalFullJoin` on mysql, mysql8 and mysql8nano fail with an `UnsupportedError` (`goqu: dialect does not support <JoinType> [dialect=…]`) where they used to generate `FULL [OUTER] JOIN` SQL.
 * `Insert().Rows(...)` with more than one row and no columns (e.g. `Rows(goqu.Record{}, goqu.Record{})`, or structs whose fields are all `skipinsert`) fails with `goqu: N insert rows have no columns, only one row of defaults can be inserted`, an `InvalidExpressionError` (was a single `DEFAULT VALUES` row on postgres, duckdb and the default dialect, and `INSERT INTO t` with nothing after it on mysql, sqlite3 and sqlserver).
 * The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
 * `exp.NewRecordFromStruct` with a non-struct fails with `goqu: cannot create a record from <type>, a struct is required` (was `goqu: cannot scan into this type: <type>`, or a panic for a slice of structs); a pointer to a struct, which used to panic, is dereferenced, and `nil` or a nil pointer fails with `goqu: record source must not be nil, got <type>` (`nil` used to return a nil record and no error).

@@ -247,6 +247,22 @@ func (mds *mysqlDialectSuite) TestStraightJoin() {
 	}
 }
 
+func (mds *mysqlDialectSuite) TestFullJoinsAreUnsupported() {
+	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(dialect).From("test")
+		on := goqu.On(goqu.I("test.id").Eq(goqu.I("foo.test_id")))
+		for joinType, joined := range map[string]*goqu.SelectDataset{
+			"FullJoinType":        ds.FullJoin(goqu.T("foo"), on),
+			"FullOuterJoinType":   ds.FullOuterJoin(goqu.T("foo"), on),
+			"NaturalFullJoinType": ds.NaturalFullJoin(goqu.T("foo")),
+		} {
+			_, _, err := joined.ToSQL()
+			mds.EqualError(err, "goqu: dialect does not support "+joinType+" [dialect="+dialect+"]")
+			mds.True(goqu.IsUnsupported(err), joinType)
+		}
+	}
+}
+
 func (mds *mysqlDialectSuite) TestWithCTE() {
 	cte := func(dialect string) *goqu.SelectDataset {
 		return goqu.Dialect(dialect).From("a").Select("x")
