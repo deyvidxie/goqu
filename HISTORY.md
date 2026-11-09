@@ -1,6 +1,6 @@
 # Unreleased
 
-* [FIX] sqlserver and mysql (MySQL 5.x) return an `UnsupportedError` (`goqu.IsUnsupported`) for `goqu.Lateral` instead of rendering `LATERAL`, which neither server accepts; mysql8 and mysql8nano still render it [deyvidxie#45](https://github.com/deyvidxie/goqu/issues/45), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
+* [FIX] sqlserver and mysql (MySQL 5.x) return an `UnsupportedError` (`goqu.IsUnsupported`) for `goqu.Lateral` instead of rendering `LATERAL`, which neither server accepts; mysql8 and mysql8nano still render it [deyvidxie#45](https://github.com/deyvidxie/goqu/issues/45), [deyvidxie#129](https://github.com/deyvidxie/goqu/pull/129)
 * [FIX] sqlserver returns an `UnsupportedError` (`goqu.IsUnsupported`) for an `Offset` without `Order` instead of dropping both the offset and the limit [deyvidxie#40](https://github.com/deyvidxie/goqu/issues/40), [deyvidxie#128](https://github.com/deyvidxie/goqu/pull/128)
 * [FEATURE] Add the `OffsetRowsFragment` and `FetchRowsOnlyFragment` dialect options for the `ROWS`/`ROWS ONLY` keywords of `OFFSET … FETCH` [deyvidxie#47](https://github.com/deyvidxie/goqu/issues/47), [deyvidxie#128](https://github.com/deyvidxie/goqu/pull/128)
 * [FIX] sqlite3 and duckdb return an `UnsupportedError` (`goqu.IsUnsupported`) for `NOWAIT`, `SKIP LOCKED` and `OF` in a locking clause instead of dropping them; a plain `ForUpdate` is still dropped [deyvidxie#39](https://github.com/deyvidxie/goqu/issues/39), [deyvidxie#127](https://github.com/deyvidxie/goqu/pull/127)
