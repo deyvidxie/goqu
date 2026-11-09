@@ -263,6 +263,21 @@ func (mds *mysqlDialectSuite) TestFullJoinsAreUnsupported() {
 	}
 }
 
+func (mds *mysqlDialectSuite) TestLateral() {
+	lateral := func(dialect string) exp.LateralExpression {
+		return goqu.Lateral(goqu.Dialect(dialect).From("other").Select("c").As("o"))
+	}
+	_, _, err := goqu.Dialect("mysql").From("test").Join(lateral("mysql"), goqu.On(goqu.V(true))).ToSQL()
+	mds.EqualError(err, "goqu: dialect does not support lateral expressions [dialect=mysql]")
+	mds.True(goqu.IsUnsupported(err))
+	for _, dialect := range []string{"mysql8", "mysql8nano"} {
+		mds.assertSQL(sqlTestCase{
+			ds:  goqu.Dialect(dialect).From("test").Join(lateral(dialect), goqu.On(goqu.V(true))),
+			sql: "SELECT * FROM `test` INNER JOIN LATERAL (SELECT `c` FROM `other`) AS `o` ON 1",
+		})
+	}
+}
+
 func (mds *mysqlDialectSuite) TestWithCTE() {
 	cte := func(dialect string) *goqu.SelectDataset {
 		return goqu.Dialect(dialect).From("a").Select("x")

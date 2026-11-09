@@ -264,6 +264,8 @@ SELECT * FROM (SELECT * FROM "test" WHERE ("age" > 10)) AS "test2"
 
 Lateral Query
 
+**NOTE** `sqlite3`, `sqlserver` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
+
 ```go
 maxEntry := goqu.From("entry").
 	Select(goqu.MAX("int").As("max_int")).
@@ -531,6 +533,8 @@ SELECT * FROM "test" ARRAY JOIN tags AS "tag"
 ```
 
 Join with a Lateral
+
+**NOTE** `sqlite3`, `sqlserver` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
 
 ```go
 maxEntry := goqu.From("entry").

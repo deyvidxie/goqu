@@ -29,6 +29,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsOnConflict = false
 	opts.SupportsWithCTE = false
 	opts.SupportsWithCTERecursive = false
+	opts.SupportsLateral = false
 	opts.SupportsDistinctOn = false
 	opts.SupportsWindowFunction = false
 	opts.SurroundLimitWithParentheses = true

@@ -21,6 +21,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsConflictTarget = false
 	opts.SupportsWithCTE = false
 	opts.SupportsWithCTERecursive = false
+	opts.SupportsLateral = false
 	opts.SupportsDistinctOn = false
 	opts.SupportsWindowFunction = false
 	opts.SupportsDeleteTableHint = true
@@ -96,6 +97,7 @@ func DialectOptionsV8() *goqu.SQLDialectOptions {
 	// MySQL 8.0 supports WITH and WITH RECURSIVE common table expressions.
 	opts.SupportsWithCTE = true
 	opts.SupportsWithCTERecursive = true
+	opts.SupportsLateral = true
 	opts.ForShareFragment = []byte(" FOR SHARE ")
 	opts.UnsupportedLockWaitOptions = nil
 	opts.SupportsLockOf = true
