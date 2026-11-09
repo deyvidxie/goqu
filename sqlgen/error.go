@@ -260,3 +260,7 @@ func errUnknownJSONFunction(function exp.JSONFunction) error {
 func errJSONCandidate(cause error) error {
 	return errors.NewInvalidExpressionErrorWithCause(cause, "JSONContains candidate")
 }
+
+func errOffsetWithoutOrder(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support OFFSET without ORDER BY [dialect=%s]", dialect)
+}

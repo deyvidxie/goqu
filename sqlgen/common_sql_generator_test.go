@@ -316,6 +316,46 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 	)
 }
 
+func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
+	offsetFetchGen := func(csg sqlgen.CommonSQLGenerator, order exp.ColumnListExpression, offset uint, limit interface{}) func(sb.SQLBuilder) {
+		return func(b sb.SQLBuilder) {
+			csg.OrderWithOffsetFetchSQL(b, order, offset, limit)
+		}
+	}
+
+	opts := sqlgen.DefaultDialectOptions()
+	opts.FetchFragment = []byte(" FETCH FIRST ")
+	csg := sqlgen.NewCommonSQLGenerator("test", "db", opts)
+
+	customOpts := sqlgen.DefaultDialectOptions()
+	customOpts.FetchFragment = []byte(" fetch next ")
+	customOpts.OffsetRowsFragment = []byte(" rows")
+	customOpts.FetchRowsOnlyFragment = []byte(" rows only")
+	csgCustom := sqlgen.NewCommonSQLGenerator("test", "db", customOpts)
+
+	order := exp.NewOrderedColumnList(exp.NewIdentifierExpression("", "", "a").Asc())
+	limit := int64(10)
+
+	csgs.assertCases(
+		commonSQLTestCase{gen: offsetFetchGen(csg, nil, 0, limit), sql: ``},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 0, limit), sql: ` ORDER BY "a" ASC`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, nil), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, limit), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS FETCH FIRST 10 ROWS ONLY`},
+		commonSQLTestCase{
+			gen: offsetFetchGen(csgCustom, order, 2, limit),
+			sql: ` ORDER BY "a" ASC OFFSET 2 rows fetch next 10 rows only`,
+		},
+		commonSQLTestCase{
+			gen: offsetFetchGen(csg, nil, 2, limit),
+			err: "goqu: dialect does not support OFFSET without ORDER BY [dialect=test]",
+		},
+		commonSQLTestCase{
+			gen: offsetFetchGen(csg, exp.NewOrderedColumnList(), 2, nil),
+			err: "goqu: dialect does not support OFFSET without ORDER BY [dialect=test]",
+		},
+	)
+}
+
 func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
 	limitGen := func(csgs sqlgen.CommonSQLGenerator, l interface{}) func(sb.SQLBuilder) {
 		return func(sb sb.SQLBuilder) {

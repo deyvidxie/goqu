@@ -109,7 +109,10 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	offset uint,
 	limit interface{},
 ) {
-	if order == nil {
+	if order == nil || len(order.Columns()) == 0 {
+		if offset > 0 {
+			b.SetError(errOffsetWithoutOrder(csg.dialect))
+		}
 		return
 	}
 
@@ -117,12 +120,12 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	if offset > 0 {
 		b.Write(csg.dialectOptions.OffsetFragment)
 		csg.esg.Generate(b, offset)
-		b.Write([]byte(" ROWS"))
+		b.Write(csg.dialectOptions.OffsetRowsFragment)
 
 		if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 			b.Write(csg.dialectOptions.FetchFragment)
 			csg.esg.Generate(b, limit)
-			b.Write([]byte(" ROWS ONLY"))
+			b.Write(csg.dialectOptions.FetchRowsOnlyFragment)
 		}
 	}
 }
