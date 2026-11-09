@@ -240,9 +240,9 @@ func (sds *sqlite3DialectSuite) TestForUpdate() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Eq(1))
 	sds.assertSQL(
 		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked, goqu.T("test")), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support NOWAIT [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), err: "goqu: dialect does not support SKIP LOCKED [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.Wait, goqu.T("test")), err: "goqu: dialect does not support OF in a locking clause [dialect=sqlite3]"},
 	)
 }
 

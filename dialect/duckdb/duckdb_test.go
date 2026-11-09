@@ -186,10 +186,14 @@ func (st *duckdbSuite) TestGreatestAndLeast() {
 	st.Equal([]int{0, 1, 2, 3, 4, 5, 5, 5, 5, 5}, least)
 }
 
-func (st *duckdbSuite) TestForUpdateSkipLockedRuns() {
+func (st *duckdbSuite) TestForUpdateRunsWithoutTheClause() {
 	var entries []entry
-	st.NoError(st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries))
+	st.NoError(st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries))
 	st.Len(entries, 10)
+
+	err := st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries)
+	st.EqualError(err, "goqu: dialect does not support SKIP LOCKED [dialect=duckdb]")
+	st.True(goqu.IsUnsupported(err))
 }
 
 func (st *duckdbSuite) TestILike() {

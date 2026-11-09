@@ -1,5 +1,6 @@
 # Unreleased
 
+* [FIX] sqlite3 and duckdb return an `UnsupportedError` (`goqu.IsUnsupported`) for `NOWAIT`, `SKIP LOCKED` and `OF` in a locking clause instead of dropping them; a plain `ForUpdate` is still dropped [deyvidxie#39](https://github.com/deyvidxie/goqu/issues/39), [deyvidxie#PRNUM](https://github.com/deyvidxie/goqu/pull/PRNUM)
 * [FIX] `FullJoin`, `FullOuterJoin` and `NaturalFullJoin` return an `UnsupportedError` (`goqu.IsUnsupported`) on mysql, mysql8 and mysql8nano instead of rendering `FULL JOIN`, which MySQL rejects or parses as an alias of the left table followed by an inner join [deyvidxie#52](https://github.com/deyvidxie/goqu/issues/52), [deyvidxie#126](https://github.com/deyvidxie/goqu/pull/126)
 * [FEATURE] Add `IterStructs[T]` and `IterVals[T]` to `SelectDataset` and `exec.QueryExecutor`: `iter.Seq2[T, error]` iterators that scan one row at a time and close the rows when the loop ends or breaks [deyvidxie#75](https://github.com/deyvidxie/goqu/issues/75), [deyvidxie#125](https://github.com/deyvidxie/goqu/pull/125)
 * [FEATURE] Add `goqu.Now`, `goqu.UTCTimestamp` and `goqu.Interval`, rendered per dialect through `SQLDialectOptions.TimeStyle` [deyvidxie#37](https://github.com/deyvidxie/goqu/issues/37), [deyvidxie#100](https://github.com/deyvidxie/goqu/pull/100)
@@ -19,6 +20,7 @@
 
 ## Behavior changes to be aware of
 
+* sqlite3 and duckdb fail `ForUpdate(goqu.NoWait)`, `ForUpdate(goqu.SkipLocked)` and `ForUpdate(…, tables…)` with `goqu: dialect does not support NOWAIT|SKIP LOCKED|OF in a locking clause [dialect=…]`, an `UnsupportedError`, where they used to render a plain `SELECT` (or, for `SKIP LOCKED`, invalid SQL).
 * `FullJoin`, `FullOuterJoin` and `NaturalFullJoin` on mysql, mysql8 and mysql8nano fail with an `UnsupportedError` (`goqu: dialect does not support <JoinType> [dialect=…]`) where they used to generate `FULL [OUTER] JOIN` SQL.
 * `Insert().Rows(...)` with more than one row and no columns (e.g. `Rows(goqu.Record{}, goqu.Record{})`, or structs whose fields are all `skipinsert`) fails with `goqu: N insert rows have no columns, only one row of defaults can be inserted`, an `InvalidExpressionError` (was a single `DEFAULT VALUES` row on postgres, duckdb and the default dialect, and `INSERT INTO t` with nothing after it on mysql, sqlite3 and sqlserver).
 * The panic from `InsertDataset.FromQuery` with a `SelectDataset` of another dialect is now an `InvalidExpressionError` and its message starts with `goqu: `.
