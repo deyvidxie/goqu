@@ -2,7 +2,6 @@ package sqlgen_test
 
 import (
 	"database/sql/driver"
-	"strings"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
@@ -197,10 +196,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withRows() {
 	)
 }
 
-type tagsValuer []string
-
-func (t tagsValuer) Value() (driver.Value, error) { return "{" + strings.Join(t, ",") + "}", nil }
-
 func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.DefaultFragment = []byte("default")
@@ -227,12 +222,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 			err:    "goqu: Default is only valid as an INSERT or UPDATE SET value",
 		},
 		insertTestCase{clause: withVals([]interface{}{[]byte("x"), 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('x', 1)`},
-		insertTestCase{clause: withVals([]interface{}{tagsValuer{"x", "y"}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{x,y}', 1)`},
+		insertTestCase{clause: withVals([]interface{}{emptyArrayValuer{1}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{}', 1)`},
 		insertTestCase{
-			clause:     withVals([]interface{}{tagsValuer{"x", "y"}, 1}),
+			clause:     withVals([]interface{}{emptyArrayValuer{1}, 1}),
 			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?)`,
 			isPrepared: true,
-			args:       []interface{}{"{x,y}", int64(1)},
+			args:       []interface{}{"{}", int64(1)},
 		},
 		insertTestCase{
 			clause: withVals([]interface{}{[]int{1, 2}, 1}),
