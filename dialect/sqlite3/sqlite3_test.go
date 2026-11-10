@@ -12,6 +12,7 @@ import (
 	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/doug-martin/goqu/v9/exp"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -515,9 +516,10 @@ func (st *sqlite3Suite) TestUpdate() {
 func (st *sqlite3Suite) TestUpdateFrom() {
 	_, err := st.db.Exec("CREATE TABLE entry_update (id INTEGER PRIMARY KEY, amount INTEGER NOT NULL)")
 	st.Require().NoError(err)
-	st.T().Cleanup(func() {
+	t := st.T()
+	t.Cleanup(func() {
 		_, err := st.db.Exec("DROP TABLE entry_update")
-		st.NoError(err)
+		assert.NoError(t, err)
 	})
 	_, err = st.db.Exec("INSERT INTO entry_update (id, amount) VALUES (1, 10), (2, 20), (3, 30)")
 	st.Require().NoError(err)
@@ -754,9 +756,10 @@ func (st *sqlite3Suite) TestInsert_OnConflict() {
 func (st *sqlite3Suite) TestInsert_withoutRows() {
 	_, err := st.db.Exec("CREATE TABLE empty_insert (id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT NOT NULL DEFAULT 'x')")
 	st.Require().NoError(err)
-	st.T().Cleanup(func() {
+	t := st.T()
+	t.Cleanup(func() {
 		_, err := st.db.Exec("DROP TABLE empty_insert")
-		st.NoError(err)
+		assert.NoError(t, err)
 	})
 	for _, prepared := range []bool{false, true} {
 		_, err = st.db.Insert("empty_insert").Prepared(prepared).Executor().Exec()

@@ -10,6 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	_ "github.com/microsoft/go-mssqldb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -539,9 +540,10 @@ func (sst *sqlserverTest) TestInsertReturningProducesError() {
 func (sst *sqlserverTest) TestInsert_withoutRows() {
 	_, err := sst.db.Exec("CREATE TABLE empty_insert (id INT IDENTITY PRIMARY KEY, a VARCHAR(5) NOT NULL DEFAULT 'x')")
 	sst.Require().NoError(err)
-	sst.T().Cleanup(func() {
+	t := sst.T()
+	t.Cleanup(func() {
 		_, err := sst.db.Exec("DROP TABLE empty_insert")
-		sst.NoError(err)
+		assert.NoError(t, err)
 	})
 	for _, prepared := range []bool{false, true} {
 		_, err = sst.db.Insert("empty_insert").Prepared(prepared).Executor().Exec()
