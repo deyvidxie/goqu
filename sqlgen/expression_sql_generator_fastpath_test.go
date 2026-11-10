@@ -59,14 +59,13 @@ func TestExpressionSQLGenerator_emptySlicesFailOnBothPaths(t *testing.T) {
 			b := sb.NewSQLBuilder(prepared)
 			esg.Generate(b, c.val)
 			_, _, err := b.ToSQL()
-			assert.EqualError(t, err, "goqu: an empty list ("+c.typeName+suffix, c.typeName)
-			assert.True(t, errors.IsInvalidExpression(err), c.typeName)
+			name := fmt.Sprintf("%s prepared=%v", c.typeName, prepared)
+			assert.EqualError(t, err, "goqu: an empty list ("+c.typeName+suffix, name)
+			assert.True(t, errors.IsInvalidExpression(err), name)
 		}
 	}
 }
 
-// The typed slice fast paths must generate exactly what the reflection path generates, for interpolated and prepared
-// statements, with and without numbered placeholders.
 func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 	ts := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
 	cases := []fastPathCases{

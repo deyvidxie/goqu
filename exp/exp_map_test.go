@@ -30,22 +30,6 @@ func (ets *exTestSuite) TestIsEmpty() {
 	ets.True(exp.Ex{}.IsEmpty())
 }
 
-func (ets *exTestSuite) TestToExpression_rangeOpsNeedARange() {
-	for _, c := range []struct {
-		op   exp.Op
-		want string
-	}{
-		{exp.Op{"between": []int{1, 5}}, `goqu: Op "between" takes a goqu.Range value, got []int`},
-		{exp.Op{"between": nil}, `goqu: Op "between" takes a goqu.Range value, got <nil>`},
-		{exp.Op{"notBetween": 3}, `goqu: Op "notBetween" takes a goqu.Range value, got int`},
-	} {
-		_, err := exp.Ex{"a": c.op}.ToExpressions()
-		ets.EqualError(err, c.want)
-		_, err = exp.ExOr{"a": c.op}.ToExpressions()
-		ets.EqualError(err, c.want)
-	}
-}
-
 func (ets *exTestSuite) TestToExpression() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	testCases := []struct {

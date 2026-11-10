@@ -225,8 +225,6 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	case util.IsBool(valKind):
 		esg.Generate(b, v.Bool())
 	default:
-		// In prepared mode, pass values of other kinds (structs, maps, arrays such as UUIDs)
-		// through as arguments and let the driver decide whether it can bind them.
 		if b.IsPrepared() && isBindableKind(valKind) {
 			esg.placeHolderSQL(b, val)
 
@@ -810,7 +808,6 @@ func (esg *expressionSQLGenerator) literalExpressionSQL(b sb.SQLBuilder, literal
 	b.WriteStrings(l)
 }
 
-// COUNT(I("a")) -> COUNT("a")
 func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sqlFunc exp.SQLFunctionExpression) {
 	name := sqlFunc.Name()
 	if val, ok := esg.dialectOptions.FunctionNameLookup[name]; ok {

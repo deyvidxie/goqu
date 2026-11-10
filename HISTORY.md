@@ -40,6 +40,7 @@
 
 ## Behavior changes to be aware of
 
+* Comparing a column with a list of several values (`C("p").Gt([]int{1, 2})`, `Op{"gte": []int{1, 2}}`) fails with `goqu: operator "gt" compares a column with a single value, got a list ([]int)` where it used to render `("p" > (1, 2))`, which PostgreSQL accepts for a composite-type column; write the left side as a literal, e.g. `L("?", I("p")).Gt([]int{1, 2})`.
 * A literal placeholder bound to an empty list (`L("a IN ?", []int{})`) fails with `goqu: an empty list ([]int) is only accepted as the whole right side of In or NotIn` where it used to render `a IN ()`, which SQLite accepts; use `C("a").In([]int{})`, which renders the dialect's empty-IN fragment.
 * `ScanVal(&raw)` with a `sql.RawBytes` fails with `goqu: ScanVal cannot return sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte`, an `UnsupportedScanTypeError`, where it used to return bytes the closed rows had already released; `ScanVals` (and `Pluck`) into `[]sql.RawBytes` fails the same way. Both used to succeed when no row came back.
 * `ScanVals` (and `Pluck`, and `exec.Scanner.ScanVals`) into `[]*T`, named or not, gives a `nil` element for `NULL`, without calling a `sql.Scanner`'s `Scan`. When `T` is a `sql.Scanner` that accepts `NULL`, `[]byte`, `any` or a pointer, it used to give a non-nil pointer, so `v.Valid` on a `[]*sql.NullString` element now panics; for other `T`, or a `sql.Scanner` that rejects `NULL`, it used to fail with a `database/sql` scan error.
