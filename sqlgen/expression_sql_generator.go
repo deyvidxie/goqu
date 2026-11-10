@@ -130,9 +130,6 @@ func valuerValue(v driver.Valuer) (driver.Value, error) {
 	return v.Value()
 }
 
-// typedSliceSQL handles the most common slice types without reflection. It returns false if val is not one of them.
-// Only exact types are matched (not named types such as pq.StringArray), exactly like the reflection path did for
-// []byte and []exp.CommonTableExpression.
 func (esg *expressionSQLGenerator) typedSliceSQL(b sb.SQLBuilder, val any) bool {
 	switch v := val.(type) {
 	case []any:
@@ -173,7 +170,6 @@ const (
 	sliceElemHintPrepared = 4
 )
 
-// sliceSQL writes (e1, e2, ...) for any slice, pre-sizing the buffer and the args for large slices.
 func sliceSQL[T any](esg *expressionSQLGenerator, b sb.SQLBuilder, s []T, hint int) {
 	if len(s) == 0 {
 		b.SetError(errEmptyListValue(s))
@@ -212,7 +208,6 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	case util.IsInvalid(valKind):
 		esg.literalNil(b)
 	case util.IsSlice(valKind):
-		// pointers to byte slices reach here (the pointer is dereferenced above)
 		if v.CanInterface() && esg.typedSliceSQL(b, v.Interface()) {
 			return
 		}
@@ -232,7 +227,6 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 	default:
 		// In prepared mode, pass values of other kinds (structs, maps, arrays such as UUIDs)
 		// through as arguments and let the driver decide whether it can bind them.
-		// Kinds that no driver can bind are still rejected here.
 		if b.IsPrepared() && isBindableKind(valKind) {
 			esg.placeHolderSQL(b, val)
 
@@ -559,11 +553,12 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 func comparesListToColumn(operator exp.BooleanExpression) bool {
 	_, column := operator.LHS().(exp.IdentifierExpression)
 	op := operator.Op()
-	return column && op != exp.InOp && op != exp.NotInOp && util.IsListValue(operator.RHS())
+	return column && op != exp.InOp && op != exp.NotInOp && util.IsListValue(operator.RHS()) &&
+		reflect.Indirect(reflect.ValueOf(operator.RHS())).Len() != 1
 }
 
 func isEmptyList(rhs interface{}) bool {
-	if _, valuer := rhs.(driver.Valuer); valuer || !util.IsListValue(rhs) {
+	if !util.IsListValue(rhs) {
 		return false
 	}
 	return reflect.Indirect(reflect.ValueOf(rhs)).Len() == 0
@@ -761,7 +756,7 @@ func writeValue(esg ExpressionSQLGenerator, opts *SQLDialectOptions, b sb.SQLBui
 		b.SetError(errDefaultValueNotSupported(esg.Dialect()))
 	case isDefault(val):
 		b.Write(opts.DefaultFragment)
-	case !util.IsValuerOrBytes(val) && util.IsListValue(val):
+	case util.IsListValue(val):
 		b.SetError(errListAsValue(val))
 	default:
 		esg.Generate(b, val)
@@ -815,9 +810,7 @@ func (esg *expressionSQLGenerator) literalExpressionSQL(b sb.SQLBuilder, literal
 	b.WriteStrings(l)
 }
 
-// Generates SQL for a SQLFunctionExpression
-//
-//	COUNT(I("a")) -> COUNT("a")
+// COUNT(I("a")) -> COUNT("a")
 func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sqlFunc exp.SQLFunctionExpression) {
 	name := sqlFunc.Name()
 	if val, ok := esg.dialectOptions.FunctionNameLookup[name]; ok {
@@ -828,14 +821,11 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sql
 }
 
 func (esg *expressionSQLGenerator) argumentsSQL(b sb.SQLBuilder, args []interface{}) {
-	b.WriteRunes(esg.dialectOptions.LeftParenRune)
-	for i, arg := range args {
-		if i > 0 {
-			b.WriteRunes(esg.dialectOptions.CommaRune, esg.dialectOptions.SpaceRune)
-		}
-		esg.Generate(b, arg)
+	if len(args) == 0 {
+		b.WriteRunes(esg.dialectOptions.LeftParenRune, esg.dialectOptions.RightParenRune)
+		return
 	}
-	b.WriteRunes(esg.dialectOptions.RightParenRune)
+	sliceSQL(esg, b, args, sliceElemHint)
 }
 
 func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {

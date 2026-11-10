@@ -99,8 +99,8 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_valuePositions() {
 			err:    "goqu: Default is only valid as an INSERT or UPDATE SET value",
 		},
 		updateTestCase{clause: set([]byte("x")), sql: `UPDATE "test" SET "a"='x'`},
-		updateTestCase{clause: set(emptyArrayValuer{1}), sql: `UPDATE "test" SET "a"='{}'`},
-		updateTestCase{clause: set(emptyArrayValuer{1}), sql: `UPDATE "test" SET "a"=?`, isPrepared: true, args: []interface{}{"{}"}},
+		updateTestCase{clause: set(arrayLiteralValuer{1}), sql: `UPDATE "test" SET "a"='{1}'`},
+		updateTestCase{clause: set(arrayLiteralValuer{1}), sql: `UPDATE "test" SET "a"=?`, isPrepared: true, args: []interface{}{"{1}"}},
 		updateTestCase{
 			clause: set([]int{}),
 			err:    "goqu: a list ([]int) is not an INSERT or UPDATE value; wrap it in a driver.Valuer to store it as one value",

@@ -7,6 +7,8 @@ import (
 	"math"
 	"net"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -753,10 +755,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpression() {
 	)
 }
 
-type emptyArrayValuer []int
+type arrayLiteralValuer []int
 
-func (v emptyArrayValuer) Value() (driver.Value, error) {
-	return "{}", nil
+func (v arrayLiteralValuer) Value() (driver.Value, error) {
+	parts := make([]string, len(v))
+	for i, n := range v {
+		parts[i] = strconv.Itoa(n)
+	}
+	return "{" + strings.Join(parts, ",") + "}", nil
 }
 
 type uint8Codes []uint8
@@ -908,12 +914,16 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionRejectsLi
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: ident.Gt([]int{}), err: gt},
+		expressionTestCase{val: ident.Gt([]int{1, 2}), err: gt},
 		expressionTestCase{val: ident.Gt([]int{1, 2}), err: gt, isPrepared: true},
-		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x"}}}, err: like},
+		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x", "y"}}}, err: like},
 		expressionTestCase{
-			val: exp.NewBooleanExpression(exp.EqOp, ident, []int{1}),
+			val: exp.NewBooleanExpression(exp.EqOp, ident, []int{1, 2}),
 			err: `goqu: operator "eq" compares a column with a single value, got a list ([]int)`,
 		},
+		expressionTestCase{val: ident.Gt([]int{5}), sql: `("a" > (5))`},
+		expressionTestCase{val: ident.Gt([]int{5}), sql: `("a" > (?))`, isPrepared: true, args: []interface{}{int64(5)}},
+		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x%"}}}, sql: `("a" LIKE ('x%'))`},
 		expressionTestCase{val: ident.Gt([]byte("x")), sql: `("a" > 'x')`},
 		expressionTestCase{val: exp.NewLiteralExpression("(a, b)").Gt([]int{1, 2}), sql: `((a, b) > (1, 2))`},
 		expressionTestCase{
@@ -950,14 +960,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 	var nilInt *int
 	var nilBytesPtr *[]byte
 	var nilJSONPtr *json.RawMessage
-	var nilArrayPtr *emptyArrayValuer
+	var nilValuerPtr *arrayLiteralValuer
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: ident.In(nilInt), sql: `("a" IN (NULL))`},
 		expressionTestCase{val: ident.In(nilInt), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{nil}},
 		expressionTestCase{val: ident.NotIn(nilBytesPtr), sql: `("a" NOT IN (NULL))`},
 		expressionTestCase{val: ident.NotIn(nilJSONPtr), sql: `("a" NOT IN (NULL))`},
-		expressionTestCase{val: ident.NotIn(nilArrayPtr), sql: `("a" NOT IN (NULL))`},
+		expressionTestCase{val: ident.NotIn(nilValuerPtr), sql: `("a" NOT IN (NULL))`},
 		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN '')`},
 		expressionTestCase{
 			val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN ?)`, isPrepared: true, args: []interface{}{[]byte{}},
@@ -969,16 +979,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 			isPrepared: true,
 			args:       []interface{}{[]byte{}},
 		},
-		expressionTestCase{val: ident.In(emptyArrayValuer{}), sql: `("a" IN ('{}'))`},
-		expressionTestCase{val: ident.In(emptyArrayValuer{}), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{"{}"}},
-		expressionTestCase{val: exp.Ex{"a": emptyArrayValuer{}}, sql: `("a" = '{}')`},
-		expressionTestCase{val: exp.Ex{"a": emptyArrayValuer{}}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{"{}"}},
+		expressionTestCase{val: ident.In(arrayLiteralValuer{}), sql: `("a" IN ('{}'))`},
+		expressionTestCase{val: ident.In(arrayLiteralValuer{}), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{"{}"}},
 	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyListOutsideInFails() {
 	ident := exp.NewIdentifierExpression("", "", "a")
-	const empty = "goqu: an empty list ([]int) renders (), which is only valid as the right side of IN or NOT IN"
+	const empty = "goqu: an empty list ([]int) is only accepted as the whole right side of In or NotIn"
 	for _, prepared := range []bool{false, true} {
 		esgs.assertCases(
 			sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
@@ -994,21 +1002,26 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyListOutsideInFails() 
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: ident.In([]interface{}{1, []int{2, 3}}), sql: `("a" IN (1, (2, 3)))`},
 		expressionTestCase{val: exp.NewLiteralExpression("a IN ?", []int{1}), sql: `a IN (1)`},
-		expressionTestCase{val: exp.NewSQLFunctionExpression("COALESCE"), sql: `COALESCE()`},
 	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionSliceValuerIsOneValue() {
 	ident := exp.NewIdentifierExpression("", "", "a")
-	valuer := emptyArrayValuer{1, 2}
+	valuer := arrayLiteralValuer{1, 2}
+	args := []interface{}{"{1,2}"}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: ident.In(valuer), sql: `("a" IN ('{}'))`},
-		expressionTestCase{val: ident.In(valuer), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{"{}"}},
-		expressionTestCase{val: ident.NotIn(valuer), sql: `("a" NOT IN ('{}'))`},
-		expressionTestCase{val: ident.Eq(valuer), sql: `("a" = '{}')`},
-		expressionTestCase{val: ident.Neq(valuer), sql: `("a" != '{}')`},
-		expressionTestCase{val: exp.Ex{"a": valuer}, sql: `("a" = ?)`, isPrepared: true, args: []interface{}{"{}"}},
+		expressionTestCase{val: ident.In(valuer), sql: `("a" IN ('{1,2}'))`},
+		expressionTestCase{val: ident.In(valuer), sql: `("a" IN (?))`, isPrepared: true, args: args},
+		expressionTestCase{val: ident.NotIn(valuer), sql: `("a" NOT IN ('{1,2}'))`},
+		expressionTestCase{val: ident.NotIn(valuer), sql: `("a" NOT IN (?))`, isPrepared: true, args: args},
+		expressionTestCase{val: ident.Eq(valuer), sql: `("a" = '{1,2}')`},
+		expressionTestCase{val: ident.Eq(valuer), sql: `("a" = ?)`, isPrepared: true, args: args},
+		expressionTestCase{val: ident.Neq(valuer), sql: `("a" != '{1,2}')`},
+		expressionTestCase{val: ident.Neq(valuer), sql: `("a" != ?)`, isPrepared: true, args: args},
+		expressionTestCase{val: exp.Ex{"a": valuer}, sql: `("a" = '{1,2}')`},
+		expressionTestCase{val: exp.Ex{"a": valuer}, sql: `("a" = ?)`, isPrepared: true, args: args},
+		expressionTestCase{val: exp.Ex{"a": arrayLiteralValuer{}}, sql: `("a" = '{}')`},
 	)
 }
 
@@ -1256,6 +1269,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpression() {
 
 		expressionTestCase{val: coalesce, sql: `COALESCE("a", 'a')`},
 		expressionTestCase{val: coalesce, sql: `COALESCE("a", ?)`, isPrepared: true, args: []interface{}{"a"}},
+
+		expressionTestCase{val: exp.NewSQLFunctionExpression("NOW"), sql: `NOW()`},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("NOW"), sql: `NOW()`, isPrepared: true},
 	)
 }
 

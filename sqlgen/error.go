@@ -307,7 +307,7 @@ func errDefaultValueNotSupported(dialect string) error {
 
 func errEmptyListValue(val interface{}) error {
 	return errors.NewInvalidExpressionError(
-		"an empty list (%T) renders (), which is only valid as the right side of IN or NOT IN", val,
+		"an empty list (%T) is only accepted as the whole right side of In or NotIn", val,
 	)
 }
 

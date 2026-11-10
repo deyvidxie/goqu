@@ -41,6 +41,30 @@ func fastPathGenerators() map[string]*sqlgen.SQLDialectOptions {
 	}
 }
 
+func TestExpressionSQLGenerator_emptySlicesFailOnBothPaths(t *testing.T) {
+	const suffix = ") is only accepted as the whole right side of In or NotIn"
+	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
+	for _, prepared := range []bool{false, true} {
+		for _, c := range []struct {
+			val      interface{}
+			typeName string
+		}{
+			{[]int64{}, "[]int64"},
+			{namedInt64s{}, "sqlgen_test.namedInt64s"},
+			{[]string(nil), "[]string"},
+			{namedStrings(nil), "sqlgen_test.namedStrings"},
+			{[]any{}, "[]interface {}"},
+			{namedAnys{}, "sqlgen_test.namedAnys"},
+		} {
+			b := sb.NewSQLBuilder(prepared)
+			esg.Generate(b, c.val)
+			_, _, err := b.ToSQL()
+			assert.EqualError(t, err, "goqu: an empty list ("+c.typeName+suffix, c.typeName)
+			assert.True(t, errors.IsInvalidExpression(err), c.typeName)
+		}
+	}
+}
+
 // The typed slice fast paths must generate exactly what the reflection path generates, for interpolated and prepared
 // statements, with and without numbered placeholders.
 func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
@@ -53,10 +77,6 @@ func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 		{"bool", []bool{true, false}, namedBools{true, false}, 2},
 		{"time", []time.Time{ts, ts.Add(time.Hour)}, namedTimes{ts, ts.Add(time.Hour)}, 2},
 		{"any", []any{1, "a", nil, 2.5, true}, namedAnys{1, "a", nil, 2.5, true}, 5},
-		{"empty int64", []int64{}, namedInt64s{}, 0},
-		{"empty string", []string{}, namedStrings{}, 0},
-		{"empty any", []any{}, namedAnys{}, 0},
-		{"nil string", []string(nil), namedStrings(nil), 0},
 		{"nested", []any{[]int{1, 2}, []string{"a"}}, namedAnys{namedInts{1, 2}, namedStrings{"a"}}, 3},
 	}
 	for optName, opts := range fastPathGenerators() {
@@ -73,11 +93,6 @@ func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 					esg.Generate(slowB, c.slow)
 					slowSQL, slowArgs, slowErr := slowB.ToSQL()
 
-					if c.count == 0 {
-						assert.True(t, errors.IsInvalidExpression(fastErr), "%v", fastErr)
-						assert.True(t, errors.IsInvalidExpression(slowErr), "%v", slowErr)
-						return
-					}
 					assert.NoError(t, fastErr)
 					assert.NoError(t, slowErr)
 					assert.Equal(t, slowSQL, fastSQL)

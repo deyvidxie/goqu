@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"regexp"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9/internal/util"
 )
@@ -85,7 +84,7 @@ func inNotIn(lhs Expression, op BooleanOperation, vals ...interface{}) BooleanEx
 			return NewBooleanExpression(op, lhs, vals[0])
 		}
 	}
-	return NewBooleanExpression(op, lhs, slices.Clone(vals))
+	return NewBooleanExpression(op, lhs, cloneArgs(vals))
 }
 
 func cloneArgs(args []interface{}) []interface{} {
@@ -221,8 +220,8 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 		case reflect.Slice, reflect.Array:
 			if util.IsListValue(rhs) {
 				op = InOp
-				rhs = cloneList(rhs)
 			}
+			rhs = cloneList(rhs)
 		case reflect.Struct:
 			switch rhs.(type) {
 			case SQLExpression:
