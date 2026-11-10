@@ -304,3 +304,13 @@ func errListAsValue(val interface{}) error {
 func errDefaultValueNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support DEFAULT as an INSERT or UPDATE value [dialect=%s]", dialect)
 }
+
+func errEmptyListValue(val interface{}) error {
+	return errors.NewInvalidExpressionError(
+		"an empty list (%T) renders (), which is only valid as the right side of IN or NOT IN", val,
+	)
+}
+
+func errListComparedToColumn(op exp.BooleanOperation, val interface{}) error {
+	return errors.NewInvalidExpressionError("operator %q compares a column with a single value, got a list (%T)", op, val)
+}

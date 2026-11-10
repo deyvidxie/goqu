@@ -403,12 +403,12 @@ func (rt *reflectTest) TestIsBytesValue() {
 }
 
 func (rt *reflectTest) TestIsListValue() {
-	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, intSliceValuer{}, [0]int{}, [2]string{}, &[2]int{}} {
+	for _, v := range []interface{}{[]int{}, &[]int{}, uint8Codes{}, [0]int{}, [2]string{}, &[2]int{}} {
 		rt.True(util.IsListValue(v), "%T", v)
 	}
 	var nilArrayPtr *[2]int
 	notLists := []interface{}{
-		[]byte{}, json.RawMessage{}, [16]byte{}, valuerPair{}, &valuerPair{}, &ptrValuerPair{}, nilArrayPtr, "s", 1, nil,
+		[]byte{}, json.RawMessage{}, [16]byte{}, intSliceValuer{}, valuerPair{}, &valuerPair{}, &ptrValuerPair{}, nilArrayPtr, "s", 1, nil,
 	}
 	for _, v := range notLists {
 		rt.False(util.IsListValue(v), "%T", v)

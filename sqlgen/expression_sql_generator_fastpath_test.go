@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
@@ -72,6 +73,11 @@ func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 					esg.Generate(slowB, c.slow)
 					slowSQL, slowArgs, slowErr := slowB.ToSQL()
 
+					if c.count == 0 {
+						assert.True(t, errors.IsInvalidExpression(fastErr), "%v", fastErr)
+						assert.True(t, errors.IsInvalidExpression(slowErr), "%v", slowErr)
+						return
+					}
 					assert.NoError(t, fastErr)
 					assert.NoError(t, slowErr)
 					assert.Equal(t, slowSQL, fastSQL)

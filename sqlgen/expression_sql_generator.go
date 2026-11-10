@@ -175,6 +175,10 @@ const (
 
 // sliceSQL writes (e1, e2, ...) for any slice, pre-sizing the buffer and the args for large slices.
 func sliceSQL[T any](esg *expressionSQLGenerator, b sb.SQLBuilder, s []T, hint int) {
+	if len(s) == 0 {
+		b.SetError(errEmptyListValue(s))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	if b.IsPrepared() {
 		b.GrowArgs(len(s))
@@ -478,6 +482,10 @@ func (esg *expressionSQLGenerator) literalBytes(b sb.SQLBuilder, bs []byte) {
 }
 
 func (esg *expressionSQLGenerator) sliceValueSQL(b sb.SQLBuilder, slice reflect.Value) {
+	if slice.Len() == 0 {
+		b.SetError(errEmptyListValue(slice.Interface()))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	for i, l := 0, slice.Len(); i < l; i++ {
 		esg.Generate(b, slice.Index(i).Interface())
@@ -499,6 +507,10 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 	operatorOp := operator.Op()
 	if (operatorOp == exp.InOp || operatorOp == exp.NotInOp) && isEmptyList(operator.RHS()) {
 		esg.emptyListSQL(b, operator)
+		return
+	}
+	if comparesListToColumn(operator) {
+		b.SetError(errListComparedToColumn(operatorOp, operator.RHS()))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -542,6 +554,12 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operato
 
 	esg.likeEscapeSQL(b, operatorOp)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
+}
+
+func comparesListToColumn(operator exp.BooleanExpression) bool {
+	_, column := operator.LHS().(exp.IdentifierExpression)
+	op := operator.Op()
+	return column && op != exp.InOp && op != exp.NotInOp && util.IsListValue(operator.RHS())
 }
 
 func isEmptyList(rhs interface{}) bool {
@@ -806,7 +824,18 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sql
 		name = string(val)
 	}
 	b.WriteStrings(name)
-	esg.Generate(b, sqlFunc.Args())
+	esg.argumentsSQL(b, sqlFunc.Args())
+}
+
+func (esg *expressionSQLGenerator) argumentsSQL(b sb.SQLBuilder, args []interface{}) {
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	for i, arg := range args {
+		if i > 0 {
+			b.WriteRunes(esg.dialectOptions.CommaRune, esg.dialectOptions.SpaceRune)
+		}
+		esg.Generate(b, arg)
+	}
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
 func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {
