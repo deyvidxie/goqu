@@ -128,5 +128,13 @@ func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	err = sc.ScanStruct(row{})
 	s.EqualError(err, "goqu: cannot scan into exec.row, a pointer to a struct is required")
 	s.True(errors.IsUnsupportedScanType(err))
+
+	type node struct {
+		Name string `db:"string"`
+		Next *node
+	}
+	err = sc.ScanStruct(&node{})
+	s.EqualError(err, "goqu: cannot scan rows into *exec.node: field Next leads back to exec.node; tag it `db:\"-\"`")
+	s.True(errors.IsUnsupportedScanType(err))
 	s.NoError(sc.Close())
 }

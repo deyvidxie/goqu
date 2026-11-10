@@ -968,6 +968,30 @@ func (ss *scanSuite) TestScanAllStructs_acceptsSkippedEmbeddedNonStructPointers(
 	ss.Equal([]scanTestSkippedNested{{ID: 6}}, nested)
 }
 
+func (ss *scanSuite) TestStructScans_rejectUncolumnableTargetsBeforeQuerying() {
+	const (
+		query = `SELECT "id" FROM "items"`
+		cycle = "goqu: cannot scan rows into goqu_test.ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`"
+	)
+	_, structErr := ss.db.ScanStruct(&ScanTestNode{}, query)
+	for name, c := range map[string]struct {
+		want string
+		err  error
+	}{
+		"database ScanStructs": {cycle, ss.db.ScanStructs(&[]ScanTestNode{}, query)},
+		"database ScanStruct":  {cycle, structErr},
+		"explicit select":      {cycle, ss.db.From("items").Select("id").ScanStructs(&[]ScanTestNode{})},
+		"default select embed": {
+			"goqu: cannot scan rows into goqu_test.scanTestUnexportedPtr: embedded field dsTestActionItem is a pointer to unexported " +
+				"goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`",
+			ss.db.From("items").ScanStructs(&[]scanTestUnexportedPtr{}),
+		},
+	} {
+		ss.EqualError(c.err, c.want, name)
+		ss.True(goqu.IsUnsupportedScanType(c.err), name)
+	}
+}
+
 func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 	_, _, err := ss.db.From("items").ScanOneStruct[scanTestNestedIDPtr](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestNestedIDPtr: embedded field scanTestEmbeddedID.ScanTestID "+

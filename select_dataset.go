@@ -221,7 +221,7 @@ func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *Se
 //	column name.
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
-//	Struct: If passing in an instance of a struct, we will parse the struct for the column names to select.
+//	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 	if len(selects) == 0 {
@@ -238,7 +238,7 @@ func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 //	column name.
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
-//	Struct: If passing in an instance of a struct, we will parse the struct for the column names to select.
+//	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 //
 // Deprecated: Use Distinct() instead.
