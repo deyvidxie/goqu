@@ -1595,6 +1595,13 @@ func (qes *queryExecutorSuite) TestValueScans_fillNamedPointers() {
 	qes.True(found)
 	qes.True(*flag)
 
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(rows())
+	var plain bool
+	found, err = e.ScanVal(boolRef(&plain))
+	qes.NoError(err)
+	qes.True(found)
+	qes.True(plain)
+
 	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("true"))
 	one, found, err := e.ScanOneVal[boolRef](context.Background())
 	qes.NoError(err)

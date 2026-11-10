@@ -24,12 +24,18 @@ func Struct[T any](tagName string) error {
 
 func StrictRowStruct(t reflect.Type, tagName string) error {
 	columns, _, err := rowStructColumns(t, tagName, false)
-	return rejectRawBytesFields(t, columns, tagName, err)
+	if err != nil {
+		return err
+	}
+	return rejectRawBytesFields(t, columns, tagName)
 }
 
 func RowStruct(t reflect.Type, tagName string) error {
 	columns, _, err := rowStructColumns(t, tagName, true)
-	return rejectRawBytesFields(t, columns, tagName, err)
+	if err != nil {
+		return err
+	}
+	return rejectRawBytesFields(t, columns, tagName)
 }
 
 func ScanRowStruct(t reflect.Type, tagName string) (columns util.ColumnMap, unexportedPointerEmbeds bool, err error) {
@@ -109,10 +115,7 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	}
 }
 
-func rejectRawBytesFields(t reflect.Type, columns util.ColumnMap, tagName string, err error) error {
-	if err != nil {
-		return err
-	}
+func rejectRawBytesFields(t reflect.Type, columns util.ColumnMap, tagName string) error {
 	names, _ := columns.Cols()
 	for _, name := range names {
 		if col := columns[name]; holdsRawBytes(col.GoType) {

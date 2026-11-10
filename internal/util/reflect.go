@@ -297,10 +297,9 @@ func FieldPath(t reflect.Type, fieldIndex []int) string {
 }
 
 func IsSQLNull(t reflect.Type) bool {
-	return IsStruct(t.Kind()) && t.PkgPath() == "database/sql" && strings.HasPrefix(t.Name(), "Null[")
+	return IsStruct(t.Kind()) && t.PkgPath() == scannerType.PkgPath() && strings.HasPrefix(t.Name(), "Null[")
 }
 
-// ScanType is t with every pointer unnamed; a sql.Null[T] whose T changes becomes a pointer to T's scan type.
 func ScanType(t reflect.Type) reflect.Type {
 	switch {
 	case IsPointer(t.Kind()):

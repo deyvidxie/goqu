@@ -162,7 +162,12 @@ func (s *scannerSuite) scanner(columns []string, rows ...[]driver.Value) Scanner
 	mock.ExpectQuery(`SELECT`).WillReturnRows(mockRows)
 	result, err := db.QueryContext(context.Background(), `SELECT`)
 	s.Require().NoError(err)
-	return NewScanner(result, "db")
+	sc := NewScanner(result, "db")
+	s.T().Cleanup(func() {
+		s.NoError(sc.Close())
+		s.NoError(mock.ExpectationsWereMet())
+	})
+	return sc
 }
 
 func (s *scannerSuite) TestScanVal_fillsNamedPointersAtAnyDepth() {
@@ -217,7 +222,6 @@ func (s *scannerSuite) TestRawBytesFields_scanOneRowAtATimeOnly() {
 	var row rawBytesRow
 	s.Require().NoError(sc.ScanStruct(&row))
 	s.Equal(sql.RawBytes("a"), row.Data)
-	s.NoError(sc.Close())
 
 	err := s.scanner([]string{"data"}, []driver.Value{[]byte("a")}).ScanStructs(&[]rawBytesRow{})
 	s.EqualError(err, "goqu: cannot scan rows into exec.rawBytesRow: field Data holds a sql.RawBytes, "+
