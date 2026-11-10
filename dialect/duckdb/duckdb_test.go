@@ -574,6 +574,16 @@ func (st *duckdbSuite) TestValueScansIntoDriverNativeValues() {
 	st.NoError(err)
 	st.True(found)
 	st.Equal("170141183460469231731687303715884105727", huge.String())
+
+	var signed interface{ Sign() int }
+	found, err = st.db.Select(goqu.L("-5::HUGEINT")).ScanVal(&signed)
+	st.NoError(err)
+	st.True(found)
+	st.Equal(-1, signed.Sign())
+	signs, err := st.db.Select(goqu.L("7::HUGEINT")).ScanAllVals[interface{ Sign() int }](context.Background())
+	st.NoError(err)
+	st.Require().Len(signs, 1)
+	st.Equal(1, signs[0].Sign())
 }
 
 func (st *duckdbSuite) TestCount() {

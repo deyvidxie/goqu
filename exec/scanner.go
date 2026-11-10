@@ -98,7 +98,7 @@ func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 				return errScannerFieldNeedsValue(col, data.GoType)
 			}
 		}
-		scans = append(scans, reflect.New(data.GoType).Interface())
+		scans = append(scans, reflect.New(util.UnnamedPointer(data.GoType)).Interface())
 	}
 
 	if err := s.rows.Scan(scans...); err != nil {
@@ -137,8 +137,17 @@ func (s *scanner) ScanVal(i interface{}) error {
 	if util.IsNilOrNilPointer(i) {
 		return errNilScanTarget(i)
 	}
-	if !util.IsPointer(reflect.TypeOf(i).Kind()) {
+	t := reflect.TypeOf(i)
+	if !util.IsPointer(t.Kind()) {
 		return errScanValTarget(i)
+	}
+	if scanType := util.UnnamedPointer(t.Elem()); scanType != t.Elem() {
+		row := reflect.New(scanType)
+		if err := s.rows.Scan(row.Interface()); err != nil {
+			return err
+		}
+		reflect.ValueOf(i).Elem().Set(row.Elem())
+		return s.Err()
 	}
 	if err := s.rows.Scan(i); err != nil {
 		return err
@@ -153,12 +162,8 @@ func (s *scanner) ScanVals(i interface{}) error {
 		return err
 	}
 	elemType := val.Type().Elem()
-	scanType := elemType
-	if util.IsPointer(elemType.Kind()) {
-		scanType = reflect.PointerTo(elemType.Elem())
-	}
 	for s.Next() {
-		row := reflect.New(scanType)
+		row := reflect.New(elemType)
 		if err := s.ScanVal(row.Interface()); err != nil {
 			return err
 		}

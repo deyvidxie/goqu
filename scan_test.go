@@ -35,6 +35,20 @@ type (
 	scanTestEmbeddedRow    struct{ ScanTestItem }
 	scanTestEmbeddedRowPtr struct{ *ScanTestItem }
 	scanTestUnexportedRow  struct{ dsTestActionItem }
+	scanTestBoolRef        *bool
+	scanTestNullStringPtr  *sql.NullString
+	scanTestRefRow         struct {
+		Flag scanTestBoolRef       `db:"flag"`
+		Name scanTestNullStringPtr `db:"name"`
+	}
+	scanTestRawBytesRow struct {
+		ID   int64        `db:"id"`
+		Data sql.RawBytes `db:"data"`
+	}
+	scanTestRawBytesPtrRow struct {
+		ID   int64         `db:"id"`
+		Data *sql.RawBytes `db:"data"`
+	}
 	scanTestIDWithNilEmbed struct {
 		ID int64 `db:"id"`
 		*dsTestActionItem
@@ -347,6 +361,68 @@ func (ss *scanSuite) TestScanStruct_fillsSetUnexportedPointerEmbeds() {
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, *row.dsTestActionItem)
+}
+
+func (ss *scanSuite) TestValueScans_fillNamedPointers() {
+	const query = `SELECT "v" FROM "items"`
+	rows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"v"}).AddRow(int64(1)).AddRow(int64(0)).AddRow(nil)
+	}
+	ss.mock.ExpectQuery(query).WillReturnRows(rows())
+	var flag scanTestBoolRef
+	found, err := ss.db.ScanVal(&flag, query)
+	ss.NoError(err)
+	ss.True(found)
+	ss.True(*flag)
+
+	ss.mock.ExpectQuery(`SELECT "v" FROM "items" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow(nil))
+	none, found, err := ss.db.From("items").Select("v").ScanOneVal[scanTestBoolRef](context.Background())
+	ss.NoError(err)
+	ss.True(found)
+	ss.Nil(none)
+
+	ss.mock.ExpectQuery(query).WillReturnRows(rows())
+	flags, errs := ss.collect(ss.db.From("items").Select("v").IterVals[scanTestBoolRef](context.Background()))
+	ss.Empty(errs)
+	ss.Require().Len(flags, 3)
+	ss.True(*flags[0])
+	ss.False(*flags[1])
+	ss.Nil(flags[2])
+
+	ss.mock.ExpectQuery(`SELECT "flag", "name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"flag", "name"}).AddRow(int64(1), "a").AddRow(nil, nil))
+	var structs []scanTestRefRow
+	ss.NoError(ss.db.ScanStructs(&structs, `SELECT "flag", "name" FROM "items"`))
+	ss.Require().Len(structs, 2)
+	ss.True(*structs[0].Flag)
+	ss.Equal(sql.NullString{String: "a", Valid: true}, *structs[0].Name)
+	ss.Nil(structs[1].Flag)
+	ss.Nil(structs[1].Name)
+}
+
+func (ss *scanSuite) TestStructScans_rejectRawBytesFields() {
+	const query = `SELECT "id", "data" FROM "items"`
+	const want = "field Data is a sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte"
+	_, structErr := ss.db.ScanStruct(&scanTestRawBytesRow{}, query)
+	for name, c := range map[string]struct {
+		target string
+		err    error
+	}{
+		"ScanStructs":    {"goqu_test.scanTestRawBytesRow", ss.db.ScanStructs(&[]scanTestRawBytesRow{}, query)},
+		"ScanStruct":     {"goqu_test.scanTestRawBytesRow", structErr},
+		"ScanAllStructs": {"goqu_test.scanTestRawBytesRow", ss.allStructsErr[scanTestRawBytesRow]()},
+		"pointer field":  {"goqu_test.scanTestRawBytesPtrRow", ss.allStructsErr[scanTestRawBytesPtrRow]()},
+	} {
+		ss.EqualError(c.err, "goqu: cannot scan rows into "+c.target+": "+want, name)
+		ss.True(goqu.IsUnsupportedScanType(c.err), name)
+	}
+}
+
+func (ss *scanSuite) TestValueScans_leaveNonScannerInterfacesToTheDriver() {
+	ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
+	err := ss.allValsErr[io.Reader]()
+	ss.ErrorContains(err, "sql: Scan error on column index 0")
+	ss.False(goqu.IsUnsupportedScanType(err))
 }
 
 func (ss *scanSuite) TestScanAllStructs() {
@@ -1402,13 +1478,11 @@ func (ss *scanSuite) TestValueScans_rejectTypesDatabaseSQLCannotFill() {
 		"ScanOneVal cannot scan into complex128":              ss.oneValErr[complex128](),
 		"ScanOneVal cannot scan into *sql.Scanner":            ss.oneValErr[*sql.Scanner](),
 		"ScanOneVal cannot scan into sql.TxOptions":           ss.oneValErr[sql.TxOptions](),
-		"ScanOneVal cannot scan into io.Reader":               ss.oneValErr[io.Reader](),
 		"ScanOneVal cannot scan into [16]uint8":               ss.oneValErr[[16]byte](),
 		"ScanAllVals cannot scan into chan int":               ss.allValsErr[chan int](),
 		"ScanAllVals cannot scan into **func()":               ss.allValsErr[**func()](),
 		"ScanAllVals cannot scan into complex64":              ss.allValsErr[complex64](),
 		"ScanAllVals cannot scan into goqu_test.ScanTestUUID": ss.allValsErr[ScanTestUUID](),
-		"ScanAllVals cannot scan into **error":                ss.allValsErr[**error](),
 	} {
 		ss.EqualError(err, "goqu: "+want+"; use a concrete sql.Scanner")
 		ss.True(goqu.IsUnsupportedScanType(err))

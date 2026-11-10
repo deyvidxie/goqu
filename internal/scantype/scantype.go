@@ -61,6 +61,9 @@ func rowStructColumns(
 	sqlValue := oneColumn && elem.PkgPath() == sqlPkgPath
 	switch {
 	case len(columns) > 0 && !sqlValue:
+		if field, ok := rawBytesField(elem, columns); ok {
+			return nil, problem, errRawBytesField(t, field)
+		}
 		return columns, problem, nil
 	case oneColumn:
 		return nil, problem, errOneColumnStruct(t, elem)
@@ -110,6 +113,16 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	}
 }
 
+func rawBytesField(t reflect.Type, columns util.ColumnMap) (string, bool) {
+	names, _ := columns.Cols()
+	for _, name := range names {
+		if col := columns[name]; util.DerefAll(col.GoType) == rawBytesType {
+			return util.FieldPath(t, col.FieldIndex), true
+		}
+	}
+	return "", false
+}
+
 func isUnassignable(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
@@ -117,7 +130,7 @@ func isUnassignable(t reflect.Type) bool {
 	case reflect.Array:
 		return t != uuidType
 	case reflect.Interface:
-		return !timeType.Implements(t)
+		return util.IsScannerInterface(t)
 	case reflect.Struct:
 		return t.PkgPath() == sqlPkgPath
 	default:

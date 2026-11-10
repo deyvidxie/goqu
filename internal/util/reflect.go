@@ -279,14 +279,14 @@ func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedd
 			}
 		}
 		if isPointer && nilAbove && !sf.IsExported() {
-			return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
+			return FieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
 		}
 		t = Deref(sf.Type)
 	}
 	return "", nil, false
 }
 
-func fieldPath(t reflect.Type, fieldIndex []int) string {
+func FieldPath(t reflect.Type, fieldIndex []int) string {
 	names := make([]string, 0, len(fieldIndex))
 	for _, i := range fieldIndex {
 		f := t.Field(i)
@@ -294,6 +294,13 @@ func fieldPath(t reflect.Type, fieldIndex []int) string {
 		t = Deref(f.Type)
 	}
 	return strings.Join(names, ".")
+}
+
+func UnnamedPointer(t reflect.Type) reflect.Type {
+	if IsPointer(t.Kind()) {
+		return reflect.PointerTo(t.Elem())
+	}
+	return t
 }
 
 func IsScanner(t reflect.Type) bool {
