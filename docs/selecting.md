@@ -182,7 +182,7 @@ Output:
 SELECT DISTINCT "a", "b" FROM "test"
 ```
 
-If you dialect supports `DISTINCT ON` you provide arguments to the `Distinct` method, or to `DistinctOn`, which returns an `InvalidExpressionError` instead of a plain `DISTINCT` when it is given no columns.
+If your dialect supports `DISTINCT ON`, pass columns to `Distinct`, or to `DistinctOn`, which returns an `InvalidExpressionError` when given no columns; `Distinct()` with no columns is a plain `DISTINCT`.
 
 **NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
 

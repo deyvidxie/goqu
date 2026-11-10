@@ -265,7 +265,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
 	const noRows = "goqu: no rows found when generating insert sql"
 	const colsWithoutVals = "goqu: insert Cols requires Vals or FromQuery"
-	cases := make([]insertTestCase, 0, 12)
+	const emptyCols = "goqu: insert Cols requires at least one column"
+	cases := make([]insertTestCase, 0, 16)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
 			insertTestCase{clause: ic.SetRows([]interface{}{}), err: noRows, isPrepared: prepared},
@@ -273,7 +274,17 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 			insertTestCase{clause: ic.SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(cols).SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(cols), err: colsWithoutVals, isPrepared: prepared},
-			insertTestCase{clause: ic.SetRows(nil).SetVals(nil), sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: prepared},
+			insertTestCase{
+				clause:     ic.SetRows([]interface{}{}).SetRows(nil).SetVals([][]interface{}{}).SetVals(nil),
+				sql:        `INSERT INTO "test" DEFAULT VALUES`,
+				isPrepared: prepared,
+			},
+			insertTestCase{clause: ic.SetCols(exp.NewColumnListExpression(nil, "db")), err: emptyCols, isPrepared: prepared},
+			insertTestCase{
+				clause:     ic.SetCols(exp.NewColumnListExpression(nil, "db")).SetVals([][]interface{}{{1}}),
+				err:        emptyCols,
+				isPrepared: prepared,
+			},
 		)
 	}
 	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()), cases...)
@@ -932,28 +943,24 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedFragments() {
 	}
 }
 
-func (igs *insertSQLGeneratorSuite) TestGenerate_insertSourcePrecedenceWithRowAlias() {
-	opts := sqlgen.DefaultDialectOptions()
-	opts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
+func (igs *insertSQLGeneratorSuite) TestGenerate_multipleInsertSources() {
 	from := newTestAppendableExpression(`select c, d from test2`, nil, nil, nil)
-	base := exp.NewInsertClauses().
+	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
-		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b")).
-		SetFrom(from).
-		SetOnConflict(exp.NewDoUpdateConflictExpression("a", exp.Record{"b": exp.NewExcludedExpression("b")}))
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{
-			clause: base.SetVals([][]interface{}{{"a1", "b1"}}),
-			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "excluded" ` +
-				`ON CONFLICT (a) DO UPDATE SET "b"="excluded"."b"`,
-		},
-		insertTestCase{
-			clause: base.SetRows([]interface{}{exp.Record{"a": "a1", "b": "b1"}}),
-			sql: `INSERT INTO "test" ("a", "b") VALUES ('a1', 'b1') AS "excluded" ` +
-				`ON CONFLICT (a) DO UPDATE SET "b"="excluded"."b"`,
-		},
-	)
+		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
+	vals := [][]interface{}{{"a1", "b1"}}
+	rows := []interface{}{exp.Record{"a": "a1", "b": "b1"}}
+	const multiple = "goqu: insert accepts only one of Rows, Vals and FromQuery"
+	cases := make([]insertTestCase, 0, 8)
+	for _, prepared := range []bool{false, true} {
+		cases = append(cases,
+			insertTestCase{clause: ic.SetFrom(from).SetVals(vals), err: multiple, isPrepared: prepared},
+			insertTestCase{clause: ic.SetFrom(from).SetRows(rows), err: multiple, isPrepared: prepared},
+			insertTestCase{clause: ic.SetVals(vals).SetRows(rows), err: multiple, isPrepared: prepared},
+			insertTestCase{clause: ic.SetFrom(from).SetVals([][]interface{}{}), err: multiple, isPrepared: prepared},
+		)
+	}
+	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()), cases...)
 }
 
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasQualifiedAndErrorOrder() {

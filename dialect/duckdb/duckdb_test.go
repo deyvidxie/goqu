@@ -840,6 +840,35 @@ func (st *duckdbSuite) TestInsert_OnConflict() {
 	st.Equal("upsert", entryActual.String)
 }
 
+func (st *duckdbSuite) TestEmptySourcesAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := st.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec("DROP TABLE vals_insert")
+		st.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = st.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		st.Require().NoError(err, "prepared=%v", prepared)
+
+		_, err = st.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
+		st.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
+
+		var none []valsRow
+		st.Require().NoError(st.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		st.Empty(none, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	st.Require().NoError(st.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	st.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
+}
+
 func TestDuckdbSuite(t *testing.T) {
 	suite.Run(t, new(duckdbSuite))
 }

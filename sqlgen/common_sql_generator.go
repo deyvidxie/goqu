@@ -1,6 +1,8 @@
 package sqlgen
 
 import (
+	"reflect"
+
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
@@ -122,8 +124,8 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 		csg.esg.Generate(b, offset)
 		b.Write(csg.dialectOptions.OffsetRowsFragment)
 
-		if limit == uint(0) {
-			b.SetError(errFetchZeroRowsNotSupported(csg.dialect))
+		if isZeroLimit(limit) {
+			b.SetError(errLimitZeroWithOffsetNotSupported(csg.dialect))
 			return
 		}
 		if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
@@ -131,6 +133,18 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 			csg.esg.Generate(b, limit)
 			b.Write(csg.dialectOptions.FetchRowsOnlyFragment)
 		}
+	}
+}
+
+func isZeroLimit(limit interface{}) bool {
+	v := reflect.ValueOf(limit)
+	switch {
+	case v.CanInt():
+		return v.Int() == 0
+	case v.CanUint():
+		return v.Uint() == 0
+	default:
+		return false
 	}
 }
 

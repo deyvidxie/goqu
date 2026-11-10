@@ -282,8 +282,14 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimit() {
 		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=? LIMIT ?`, isPrepared: true, args: []interface{}{"b", "c", int64(10)}},
 	)
 
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		updateTestCase{clause: uc, err: "goqu: dialect does not support LIMIT on UPDATE [dialect=test]"},
+		updateTestCase{clause: uc.SetLimit(uint(0)), err: "goqu: dialect does not support LIMIT on UPDATE [dialect=test]"},
+	)
+
 	opts = sqlgen.DefaultDialectOptions()
-	opts.SupportsLimitOnUpdate = false
+	opts.ErrorOnUnsupportedLimitOnUpdate = false
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
 		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c'`},

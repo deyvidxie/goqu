@@ -97,6 +97,10 @@ func (ic *insertClauses) HasCols() bool {
 
 func (ic *insertClauses) ColsAppend(cl ColumnListExpression) InsertClauses {
 	ret := ic.clone()
+	if ret.cols == nil {
+		ret.cols = cl
+		return ret
+	}
 	ret.cols = ret.cols.Append(cl.Columns()...)
 	return ret
 }

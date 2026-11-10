@@ -448,9 +448,9 @@ UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" 
 ```
 
 <a name="limit"></a>
-**[Order](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
+**[Limit](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error. `Limit(0)` renders `LIMIT 0`; use `ClearLimit` to drop the clause.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"

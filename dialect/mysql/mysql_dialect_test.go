@@ -309,6 +309,22 @@ func (mds *mysqlDialectSuite) TestLimitAllAndOffset() {
 	}
 }
 
+func (mds *mysqlDialectSuite) TestLimitZero() {
+	d := goqu.Dialect("mysql")
+	mds.assertSQL(
+		sqlTestCase{ds: d.From("test").Limit(0), sql: "SELECT * FROM `test` LIMIT 0"},
+		sqlTestCase{ds: d.From("test").Limit(0).Offset(2), sql: "SELECT * FROM `test` LIMIT 0 OFFSET 2"},
+		sqlTestCase{ds: d.Update("test").Set(goqu.Record{"a": 1}).Limit(0), sql: "UPDATE `test` SET `a`=1 LIMIT 0"},
+		sqlTestCase{ds: d.Delete("test").Where(goqu.C("a").Eq(1)).Limit(0), sql: "DELETE FROM `test` WHERE (`a` = 1) LIMIT 0"},
+		sqlTestCase{
+			ds:         d.Delete("test").Prepared(true).Where(goqu.C("a").Eq(1)).Limit(0),
+			sql:        "DELETE FROM `test` WHERE (`a` = ?) LIMIT ?",
+			isPrepared: true,
+			args:       []interface{}{int64(1), int64(0)},
+		},
+	)
+}
+
 func (mds *mysqlDialectSuite) TestInsertRowAlias() {
 	mds.assertSQL(
 		sqlTestCase{

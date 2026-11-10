@@ -130,6 +130,8 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 
 func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
 	switch {
+	case insertSourceCount(ic) > 1:
+		b.SetError(errMultipleInsertSources)
 	case ic.HasRows():
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {
@@ -147,6 +149,8 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		if ie.IsEmpty() {
 			return insertSourceDefaults
 		}
+	case ic.Cols() != nil && !ic.HasCols():
+		b.SetError(errEmptyInsertCols)
 	case ic.HasVals():
 		isg.insertValsSQL(b, ic)
 	case ic.HasCols() && ic.HasFrom():
@@ -162,6 +166,16 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		return insertSourceDefaults
 	}
 	return insertSourceValues
+}
+
+func insertSourceCount(ic exp.InsertClauses) int {
+	count := 0
+	for _, has := range []bool{ic.HasRows(), ic.HasVals(), ic.HasFrom()} {
+		if has {
+			count++
+		}
+	}
+	return count
 }
 
 func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClauses) {

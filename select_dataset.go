@@ -213,7 +213,7 @@ func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *Se
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
-// Replaces columns of the SELECT clause. Empty list resets the clause. See examples
+// Replaces columns of the SELECT clause. See examples
 // You can pass in the following.
 //
 //	string: Will automatically be turned into an identifier
@@ -224,13 +224,14 @@ func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *Se
 //	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
-	if len(selects) == 0 {
-		return sd.ClearSelect()
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelect)
 	}
-	return sd.copy(sd.clauses.SetSelect(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
+	return sd.copy(sd.clauses.SetSelect(cols))
 }
 
-// Replaces columns of the SELECT DISTINCT clause. Empty list resets the clause. See examples
+// Replaces columns of the SELECT DISTINCT clause. See examples
 // You can pass in the following.
 //
 //	string: Will automatically be turned into an identifier
@@ -243,15 +244,13 @@ func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 //
 // Deprecated: Use Distinct() instead.
 func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
-	if len(selects) == 0 {
-		cleared := sd.ClearSelect()
-		return cleared.copy(cleared.clauses.SetDistinct(nil))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelect)
 	}
 	return sd.copy(
 		sd.clauses.
-			SetSelect(
-				exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...),
-			).
+			SetSelect(cols).
 			SetDistinct(
 				exp.NewColumnListExpression(sd.subqueries, sd.tagName),
 			),
@@ -281,10 +280,11 @@ func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
 }
 
 func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
-	if len(on) == 0 {
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)
+	if cols.IsEmpty() {
 		return sd.copy(sd.clauses).SetError(errDistinctOnWithoutColumns)
 	}
-	return sd.Distinct(on...)
+	return sd.copy(sd.clauses.SetDistinct(cols))
 }
 
 // Adds a FROM clause. This return a new dataset with the original sources replaced. See examples.
@@ -402,6 +402,9 @@ func (sd *SelectDataset) joinTable(join exp.JoinExpression) *SelectDataset {
 
 // Adds a WHERE clause. See examples.
 func (sd *SelectDataset) Where(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 && sd.clauses.Where() == nil {
+		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
+	}
 	return sd.copy(sd.clauses.WhereAppend(expressions...))
 }
 
@@ -436,12 +439,20 @@ func (sd *SelectDataset) withLock(strength exp.LockStrength, option exp.WaitOpti
 
 // Adds a GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupBy(groupBy ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SetGroupBy(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyGroupBy)
+	}
+	return sd.copy(sd.clauses.SetGroupBy(cols))
 }
 
 // Adds more columns to the current GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.GroupByAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyGroupBy)
+	}
+	return sd.copy(sd.clauses.GroupByAppend(cols))
 }
 
 // Adds a HAVING clause. See examples.
@@ -458,18 +469,27 @@ func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
+	if len(order) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	}
 	return sd.copy(sd.clauses.SetOrder(order...))
 }
 
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectDataset {
+	if len(order) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	}
 	return sd.copy(sd.clauses.OrderAppend(order...))
 }
 
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderPrepend(order ...exp.OrderedExpression) *SelectDataset {
+	if len(order) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	}
 	return sd.copy(sd.clauses.OrderPrepend(order...))
 }
 

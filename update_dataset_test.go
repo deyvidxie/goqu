@@ -520,8 +520,48 @@ func (uds *updateDatasetSuite) TestSetError() {
 	uds.Equal(err1, err)
 }
 
-func (uds *updateDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
-	sql, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+func (uds *updateDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
+	_, _, err := goqu.Dialect("postgres").Update("test").Set(goqu.Record{"a": 1}).Limit(0).ToSQL()
+	uds.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]")
+}
+
+func (uds *updateDatasetSuite) TestToSQL_emptyWhere() {
+	var none []exp.Expression
+	for name, d := range map[string]interface {
+		ToSQL() (string, []interface{}, error)
+	}{
+		"no conditions":        goqu.Update("test").Set(goqu.Record{"a": 1}).Where(),
+		"nil spread":           goqu.Update("test").Set(goqu.Record{"a": 1}).Where(none...),
+		"empty Ex":             goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.Ex{}),
+		"empty And":            goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.And()),
+		"empty literal":        goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.L("")),
+		"from select":          goqu.From("test").Where(none...).Update().Set(goqu.Record{"a": 1}),
+		"from select empty Ex": goqu.From("test").Where(goqu.Ex{}).Update().Set(goqu.Record{"a": 1}),
+	} {
+		_, _, err := d.ToSQL()
+		uds.EqualError(err, "goqu: empty WHERE found when generating update sql", name)
+	}
+
+	for name, d := range map[string]interface {
+		ToSQL() (string, []interface{}, error)
+	}{
+		"no Where":                 goqu.Update("test").Set(goqu.Record{"a": 1}),
+		"cleared":                  goqu.Update("test").Set(goqu.Record{"a": 1}).Where().ClearWhere(),
+		"empty then real":          goqu.Update("test").Set(goqu.Record{"a": 1}).Where(none...).Where(goqu.C("a").Eq(1)),
+		"real then empty":          goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.C("a").Eq(1)).Where(none...),
+		"empty Or matches nothing": goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.Or()),
+	} {
+		_, _, err := d.ToSQL()
+		uds.NoError(err, name)
+	}
+}
+
+func (uds *updateDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {
+	for _, limit := range []uint{0, 1} {
+		_, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(limit).ToSQL()
+		uds.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=default]")
+	}
+	sql, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).LimitAll().Order(goqu.C("a").Asc()).ToSQL()
 	uds.NoError(err)
 	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
 }

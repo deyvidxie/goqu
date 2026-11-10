@@ -379,7 +379,13 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"empty array":             goqu.Insert("t").Rows([0]row{}),
 		"pointer to empty slice":  goqu.Insert("t").Rows(&[]goqu.Record{}),
 		"no rows":                 goqu.Insert("t").Rows(),
-		"empty spread":            goqu.Insert("t").Rows(noRows...),
+		"nil spread":              goqu.Insert("t").Rows(noRows...),
+		"empty spread":            goqu.Insert("t").Rows([]interface{}{}...),
+		"empty cols":              goqu.Insert("t").Cols(),
+		"empty cols with vals":    goqu.Insert("t").Cols().Vals(goqu.Vals{1}),
+		"empty cols with query":   goqu.Insert("t").Cols().FromQuery(goqu.From("s")),
+		"vals and query":          goqu.Insert("t").Vals(goqu.Vals{1}).FromQuery(goqu.From("s")),
+		"rows and query":          goqu.Insert("t").Rows(goqu.Record{"a": 1}).FromQuery(goqu.From("s")),
 		"cols with no vals":       goqu.Insert("t").Cols("a", "b").Vals(),
 		"no vals":                 goqu.Insert("t").Vals(),
 		"cols without vals":       goqu.Insert("t").Cols("a", "b"),
@@ -427,7 +433,6 @@ func (ids *insertDatasetSuite) TestValsWithoutCols() {
 			sql:  `INSERT INTO "t" VALUES (?, ?), (?, ?)`,
 			args: []interface{}{int64(1), "a", int64(2), "b"},
 		},
-		{ds: goqu.Insert("t").Cols().Vals(goqu.Vals{1}), sql: `INSERT INTO "t" VALUES (1)`},
 		{ds: goqu.Dialect("mysql").Insert("t").Vals(goqu.Vals{1}), sql: "INSERT INTO `t` VALUES (1)"},
 	} {
 		sql, args, err := c.ds.ToSQL()

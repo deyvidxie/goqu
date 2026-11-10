@@ -867,7 +867,7 @@ func (mt *mysqlTest) TestInsertFromSelect() {
 		goqu.C("bytes"),
 	).From(goqu.T("entry")).Where(goqu.C("int").Eq(9))
 
-	query := ds.Insert().Cols().FromQuery(subquery)
+	query := ds.Insert().FromQuery(subquery)
 	_, _, err := query.ToSQL()
 
 	mt.NoError(err)
@@ -889,6 +889,39 @@ func (mt *mysqlTest) TestInsert_withoutRows() {
 	var as []string
 	mt.Require().NoError(mt.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
 	mt.Equal([]string{"x", "x"}, as)
+}
+
+func (mt *mysqlTest) TestEmptySourcesAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := mt.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := mt.db.Exec("DROP TABLE vals_insert")
+		mt.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = mt.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+
+		_, err = mt.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
+		mt.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
+
+		var none []valsRow
+		mt.Require().NoError(mt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		mt.Empty(none, "prepared=%v", prepared)
+		_, err = mt.db.Update("vals_insert").Prepared(prepared).Set(goqu.Record{"b": "z"}).Limit(0).Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+		_, err = mt.db.Delete("vals_insert").Prepared(prepared).Where(goqu.C("a").Gt(0)).Limit(0).Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	mt.Require().NoError(mt.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	mt.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestMysqlSuite(t *testing.T) {

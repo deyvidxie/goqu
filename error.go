@@ -39,7 +39,12 @@ var errNoDatabase = errors.NewNoDatabaseError(
 	"no database to execute the query, create the dataset with goqu.Database#From",
 )
 
-var errDistinctOnWithoutColumns = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
+var (
+	errDistinctOnWithoutColumns = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
+	errEmptySelect              = errors.NewInvalidExpressionError("Select requires at least one column; use ClearSelect for SELECT *")
+	errEmptyGroupBy             = errors.NewInvalidExpressionError("GroupBy requires at least one column")
+	errEmptyOrder               = errors.NewInvalidExpressionError("Order requires at least one expression; use ClearOrder to drop ORDER BY")
+)
 
 func errUnsupportedFromArgument(from interface{}) error {
 	return errors.NewInvalidExpressionError(

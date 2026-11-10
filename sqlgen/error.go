@@ -15,9 +15,13 @@ var (
 	errNoSourceForDelete            = errors.NewInvalidExpressionError("no source found when generating delete sql")
 	errNoSourceForTruncate          = errors.NewInvalidExpressionError("no source found when generating truncate sql")
 	errNoSetValuesForUpdate         = errors.NewInvalidExpressionError("no set values found when generating update sql")
+	errEmptyWhereForUpdate          = errors.NewInvalidExpressionError("empty WHERE found when generating update sql")
+	errEmptyWhereForDelete          = errors.NewInvalidExpressionError("empty WHERE found when generating delete sql")
 	errNoRowsForInsert              = errors.NewInvalidExpressionError("no rows found when generating insert sql")
 	errInsertColsWithoutValues      = errors.NewInvalidExpressionError("insert Cols requires Vals or FromQuery")
 	errEmptyValsWithoutCols         = errors.NewInvalidExpressionError("insert Vals without Cols requires a non-empty row")
+	errEmptyInsertCols              = errors.NewInvalidExpressionError("insert Cols requires at least one column")
+	errMultipleInsertSources        = errors.NewInvalidExpressionError("insert accepts only one of Rows, Vals and FromQuery")
 	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
 	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
@@ -100,8 +104,8 @@ func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
 }
 
-func errFetchZeroRowsNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support FETCH of zero rows after an OFFSET [dialect=%s]", dialect)
+func errLimitZeroWithOffsetNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support LIMIT 0 with an OFFSET [dialect=%s]", dialect)
 }
 
 func errOnConflictNotSupported(dialect string) error {

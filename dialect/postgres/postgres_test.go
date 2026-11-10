@@ -682,6 +682,35 @@ func (pt *postgresTest) TestOrderByFunction() {
 	}, entries)
 }
 
+func (pt *postgresTest) TestEmptySourcesAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := pt.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	pt.Require().NoError(err)
+	defer func() {
+		_, err := pt.db.Exec("DROP TABLE vals_insert")
+		pt.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = pt.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		pt.Require().NoError(err, "prepared=%v", prepared)
+
+		_, err = pt.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
+		pt.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
+
+		var none []valsRow
+		pt.Require().NoError(pt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		pt.Empty(none, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	pt.Require().NoError(pt.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	pt.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
+}
+
 func TestPostgresSuite(t *testing.T) {
 	suite.Run(t, new(postgresTest))
 }

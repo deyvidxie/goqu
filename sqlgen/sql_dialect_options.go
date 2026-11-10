@@ -27,12 +27,12 @@ type (
 		// Set to true if the dialect supports LIMIT expressions in DELETE statements (DEFAULT=false)
 		SupportsLimitOnDelete bool
 		// Set to true to return an error, instead of silently dropping the clause, when LIMIT is used on a
-		// DELETE and SupportsLimitOnDelete is false; LimitAll() is still dropped (DEFAULT=false)
+		// DELETE and SupportsLimitOnDelete is false; LimitAll() is still dropped (DEFAULT=true)
 		ErrorOnUnsupportedLimitOnDelete bool
 		// Set to true if the dialect supports LIMIT expressions in UPDATE statements (DEFAULT=false)
 		SupportsLimitOnUpdate bool
 		// Set to true to return an error, instead of silently dropping the clause, when LIMIT is used on an
-		// UPDATE and SupportsLimitOnUpdate is false; LimitAll() is still dropped (DEFAULT=false)
+		// UPDATE and SupportsLimitOnUpdate is false; LimitAll() is still dropped (DEFAULT=true)
 		ErrorOnUnsupportedLimitOnUpdate bool
 		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
 		SupportsLimitAll bool
@@ -539,6 +539,8 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsOrderByOnUpdate:           false,
 		SupportsLimitOnDelete:             false,
 		SupportsLimitOnUpdate:             false,
+		ErrorOnUnsupportedLimitOnDelete:   true,
+		ErrorOnUnsupportedLimitOnUpdate:   true,
 		SupportsLimitAll:                  true,
 		SupportsReturn:                    true,
 		SupportsConflictUpdateWhere:       true,

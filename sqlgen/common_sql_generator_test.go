@@ -317,6 +317,7 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
+	const zeroLimitWithOffset = "goqu: dialect does not support LIMIT 0 with an OFFSET [dialect=test]"
 	offsetFetchGen := func(csg sqlgen.CommonSQLGenerator, order exp.ColumnListExpression, offset uint, limit interface{}) func(sb.SQLBuilder) {
 		return func(b sb.SQLBuilder) {
 			csg.OrderWithOffsetFetchSQL(b, order, offset, limit)
@@ -341,6 +342,10 @@ func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 0, limit), sql: ` ORDER BY "a" ASC`},
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, nil), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS`},
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, limit), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS FETCH FIRST 10 ROWS ONLY`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 0, uint(0)), sql: ` ORDER BY "a" ASC`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, uint(0)), err: zeroLimitWithOffset},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, 0), err: zeroLimitWithOffset},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, int64(0)), err: zeroLimitWithOffset},
 		commonSQLTestCase{
 			gen: offsetFetchGen(csgCustom, order, 2, limit),
 			sql: ` ORDER BY "a" ASC OFFSET 2 rows fetch next 10 rows only`,

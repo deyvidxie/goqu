@@ -504,8 +504,48 @@ func (dds *deleteDatasetSuite) TestSetError() {
 	dds.Equal(err1, err)
 }
 
-func (dds *deleteDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
-	sql, _, err := goqu.Delete("test").Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+func (dds *deleteDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
+	_, _, err := goqu.Dialect("postgres").Delete("test").Limit(0).ToSQL()
+	dds.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]")
+}
+
+func (dds *deleteDatasetSuite) TestToSQL_emptyWhere() {
+	var none []exp.Expression
+	for name, d := range map[string]interface {
+		ToSQL() (string, []interface{}, error)
+	}{
+		"no conditions":        goqu.Delete("test").Where(),
+		"nil spread":           goqu.Delete("test").Where(none...),
+		"empty Ex":             goqu.Delete("test").Where(goqu.Ex{}),
+		"empty And":            goqu.Delete("test").Where(goqu.And()),
+		"empty literal":        goqu.Delete("test").Where(goqu.L("")),
+		"from select":          goqu.From("test").Where(none...).Delete(),
+		"from select empty Ex": goqu.From("test").Where(goqu.Ex{}).Delete(),
+	} {
+		_, _, err := d.ToSQL()
+		dds.EqualError(err, "goqu: empty WHERE found when generating delete sql", name)
+	}
+
+	for name, d := range map[string]interface {
+		ToSQL() (string, []interface{}, error)
+	}{
+		"no Where":                 goqu.Delete("test"),
+		"cleared":                  goqu.Delete("test").Where().ClearWhere(),
+		"empty then real":          goqu.Delete("test").Where(none...).Where(goqu.C("a").Eq(1)),
+		"real then empty":          goqu.Delete("test").Where(goqu.C("a").Eq(1)).Where(none...),
+		"empty Or matches nothing": goqu.Delete("test").Where(goqu.Or()),
+	} {
+		_, _, err := d.ToSQL()
+		dds.NoError(err, name)
+	}
+}
+
+func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {
+	for _, limit := range []uint{0, 1} {
+		_, _, err := goqu.Delete("test").Limit(limit).ToSQL()
+		dds.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=default]")
+	}
+	sql, _, err := goqu.Delete("test").LimitAll().Order(goqu.C("a").Asc()).ToSQL()
 	dds.NoError(err)
 	dds.Equal(`DELETE FROM "test"`, sql)
 }

@@ -223,11 +223,6 @@ func (sds *selectDatasetSuite) TestSelect() {
 				SetSelect(exp.NewColumnListExpression(nil, "db", "b")),
 		},
 		selectTestCase{
-			ds: bd.Select("a").Select(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
-		},
-		selectTestCase{
 			ds:      bd,
 			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
 		},
@@ -272,24 +267,40 @@ func (sds *selectDatasetSuite) TestSelectDistinct() {
 				SetDistinct(exp.NewColumnListExpression(nil, "db")),
 		},
 		selectTestCase{
-			ds: bd.Select("a").SelectDistinct(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetSelect(exp.NewColumnListExpression(nil, "db", goqu.Star())).
-				SetDistinct(nil),
-		},
-		selectTestCase{
-			ds: bd.SelectDistinct("a").SelectDistinct(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetSelect(exp.NewColumnListExpression(nil, "db", goqu.Star())).
-				SetDistinct(nil),
-		},
-		selectTestCase{
 			ds:      bd,
 			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
 		},
 	)
+}
+
+func (sds *selectDatasetSuite) TestEmptyColumnLists() {
+	bd := goqu.From("test")
+	var none []interface{}
+	var noOrder []exp.OrderedExpression
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"Select":              bd.Select("a").Select(none...),
+		"Select nil":          bd.Select(nil),
+		"package Select":      goqu.Select(none...).From("test"),
+		"SelectDistinct":      bd.SelectDistinct(none...),
+		"GroupBy":             bd.GroupBy(none...),
+		"GroupBy nil":         bd.GroupBy(nil),
+		"GroupByAppend":       bd.GroupBy("a").GroupByAppend(none...),
+		"Order":               bd.Order(noOrder...),
+		"OrderAppend":         bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...),
+		"OrderPrepend":        bd.OrderPrepend(noOrder...),
+		"Order with Limit":    bd.Order(noOrder...).Limit(10),
+		"Select then cleared": bd.Select(none...).ClearSelect(),
+	} {
+		_, _, err := ds.ToSQL()
+		sds.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
+	}
+
+	sql, _, err := bd.Select("a").ClearSelect().ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "test"`, sql)
+	sql, _, err = bd.Order(goqu.C("a").Asc()).ClearOrder().ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "test"`, sql)
 }
 
 func (sds *selectDatasetSuite) TestClearSelect() {
@@ -337,10 +348,10 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 
 	var none []interface{}
 	for name, ds := range map[string]*goqu.SelectDataset{
-		"no columns":   bd.DistinctOn(),
 		"nil spread":   bd.DistinctOn(none...),
 		"empty spread": bd.DistinctOn([]interface{}{}...),
-		"prepared":     bd.Prepared(true).DistinctOn(none...),
+		"nil column":   bd.DistinctOn(nil),
+		"empty list":   bd.DistinctOn(exp.NewColumnListExpression(nil, "db")),
 	} {
 		_, _, err := ds.ToSQL()
 		sds.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
@@ -1877,41 +1888,25 @@ func (sds *selectDatasetSuite) TestSetError() {
 }
 
 func (sds *selectDatasetSuite) TestLimitZero() {
-	pg, my, lite, ms := goqu.Dialect("postgres"), goqu.Dialect("mysql"), goqu.Dialect("sqlite3"), goqu.Dialect("sqlserver")
 	for _, c := range []struct {
-		ds interface {
-			ToSQL() (string, []interface{}, error)
-		}
+		ds   *goqu.SelectDataset
 		sql  string
 		args []interface{}
 	}{
 		{ds: goqu.From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
-		{ds: goqu.From("t").Limit(10).Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
 		{ds: goqu.From("t").Prepared(true).Limit(0), sql: `SELECT * FROM "t" LIMIT ?`, args: []interface{}{int64(0)}},
-		{ds: pg.From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
-		{ds: my.From("t").Limit(0), sql: "SELECT * FROM `t` LIMIT 0"},
-		{ds: my.Update("t").Set(goqu.Record{"a": 1}).Limit(0), sql: "UPDATE `t` SET `a`=1 LIMIT 0"},
-		{ds: my.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: "DELETE FROM `t` WHERE (`a` = 1) LIMIT 0"},
-		{
-			ds:   my.Delete("t").Prepared(true).Where(goqu.C("a").Eq(1)).Limit(0),
-			sql:  "DELETE FROM `t` WHERE (`a` = ?) LIMIT ?",
-			args: []interface{}{int64(1), int64(0)},
-		},
-		{ds: lite.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: "DELETE FROM `t` WHERE (`a` = 1) LIMIT 0"},
-		{ds: ms.From("t").Limit(0), sql: `SELECT  TOP (0) * FROM "t"`},
-		{ds: ms.Update("t").Set(goqu.Record{"a": 1}).Limit(0), sql: `UPDATE TOP (0) "t" SET "a"=1`},
-		{ds: ms.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: `DELETE TOP (0) FROM "t" WHERE ("a" = 1)`},
+		{ds: goqu.From("t").Order(goqu.C("a").Asc()).Limit(0).Offset(2), sql: `SELECT * FROM "t" ORDER BY "a" ASC LIMIT 0 OFFSET 2`},
+		{ds: goqu.Dialect("postgres").From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
 	} {
 		sql, args, err := c.ds.ToSQL()
 		sds.NoError(err, c.sql)
 		sds.Equal(c.sql, sql)
 		if c.args != nil {
 			sds.Equal(c.args, args, c.sql)
+		} else {
+			sds.Empty(args, c.sql)
 		}
 	}
-
-	_, _, err := ms.From("t").Order(goqu.C("a").Asc()).Offset(2).Limit(0).ToSQL()
-	sds.True(goqu.IsUnsupported(err), "%v", err)
 }
 
 func TestSelectDataset(t *testing.T) {

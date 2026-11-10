@@ -772,32 +772,33 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 	st.Equal([]string{"x", "x", "x"}, as)
 }
 
-func (st *sqlite3Suite) TestInsert_valsWithoutCols() {
-	for _, prepared := range []bool{false, true} {
-		_, err := st.db.Insert("entry").Prepared(prepared).
-			Vals(goqu.Vals{nil, 100, 1.5, "vals", "2015-02-22 18:19:55", true, []byte("v")}).
+func (st *sqlite3Suite) TestEmptySourcesAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := st.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec("DROP TABLE vals_insert")
+		st.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = st.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
 			Executor().Exec()
 		st.Require().NoError(err, "prepared=%v", prepared)
-	}
-	count, err := st.db.From("entry").Where(goqu.C("int").Eq(100)).Count()
-	st.Require().NoError(err)
-	st.Equal(int64(2), count)
-}
 
-func (st *sqlite3Suite) TestInsert_emptyRowsInsertsNothing() {
-	_, err := st.db.Insert("entry").Rows([]entry{}).Executor().Exec()
-	st.True(goqu.IsInvalidExpression(err), "%v", err)
-	count, err := st.db.From("entry").Count()
-	st.Require().NoError(err)
-	st.Equal(int64(10), count)
-}
+		_, err = st.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
+		st.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
 
-func (st *sqlite3Suite) TestLimitZero() {
-	for _, prepared := range []bool{false, true} {
-		var ints []int64
-		st.Require().NoError(st.db.From("entry").Prepared(prepared).Select("int").Limit(0).ScanVals(&ints))
-		st.Empty(ints, "prepared=%v", prepared)
+		var none []valsRow
+		st.Require().NoError(st.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		st.Empty(none, "prepared=%v", prepared)
 	}
+	var rows []valsRow
+	st.Require().NoError(st.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	st.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestSqlite3Suite(t *testing.T) {
