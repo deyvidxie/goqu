@@ -227,10 +227,6 @@ func SafeSetFieldByIndex(v reflect.Value, fieldIndex []int, src interface{}) (re
 	return v
 }
 
-// InterfaceScanTarget returns the value stored in an interface typed struct field of i when it can be used as the
-// destination of a scan: a non-nil pointer implementing sql.Scanner. This lets callers scan into fields such as
-// sql.Scanner, whose concrete type is only known from the value of the field and so cannot be part of the cached
-// ColumnMap.
 func InterfaceScanTarget(i interface{}, fieldIndex []int) (interface{}, bool) {
 	f, err := reflect.Indirect(reflect.ValueOf(i)).FieldByIndexErr(fieldIndex)
 	if err != nil || f.Kind() != reflect.Interface || f.IsNil() {
@@ -243,8 +239,6 @@ func InterfaceScanTarget(i interface{}, fieldIndex []int) (interface{}, bool) {
 	return elem.Interface(), true
 }
 
-// IsScannerInterface returns true if t is an interface type that sql.Scanner values can be stored in (e.g. sql.Scanner),
-// i.e. one that a driver value can never be assigned to directly.
 func IsScannerInterface(t reflect.Type) bool {
 	return t.Kind() == reflect.Interface && t.Implements(scannerType)
 }
@@ -279,14 +273,14 @@ func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedd
 			}
 		}
 		if isPointer && nilAbove && !sf.IsExported() {
-			return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
+			return FieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
 		}
 		t = Deref(sf.Type)
 	}
 	return "", nil, false
 }
 
-func fieldPath(t reflect.Type, fieldIndex []int) string {
+func FieldPath(t reflect.Type, fieldIndex []int) string {
 	names := make([]string, 0, len(fieldIndex))
 	for _, i := range fieldIndex {
 		f := t.Field(i)
@@ -294,6 +288,41 @@ func fieldPath(t reflect.Type, fieldIndex []int) string {
 		t = Deref(f.Type)
 	}
 	return strings.Join(names, ".")
+}
+
+func IsSQLNull(t reflect.Type) bool {
+	return IsStruct(t.Kind()) && t.PkgPath() == scannerType.PkgPath() && strings.HasPrefix(t.Name(), "Null[")
+}
+
+func ScanType(t reflect.Type) reflect.Type {
+	switch {
+	case IsPointer(t.Kind()):
+		return reflect.PointerTo(ScanType(t.Elem()))
+	case IsSQLNull(t):
+		if v := t.Field(0).Type; ScanType(v) != v {
+			return reflect.PointerTo(ScanType(v))
+		}
+	}
+	return t
+}
+
+func AssignScanned(dst, scanned reflect.Value) {
+	if scanned.Type() == dst.Type() {
+		dst.Set(scanned)
+		return
+	}
+	if scanned.IsNil() {
+		dst.SetZero()
+		return
+	}
+	if IsSQLNull(dst.Type()) {
+		AssignScanned(dst.Field(0), scanned.Elem())
+		dst.Field(1).SetBool(true)
+		return
+	}
+	pointee := reflect.New(dst.Type().Elem())
+	AssignScanned(pointee.Elem(), scanned.Elem())
+	dst.Set(pointee)
 }
 
 func IsScanner(t reflect.Type) bool {

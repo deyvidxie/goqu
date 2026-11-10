@@ -1580,6 +1580,62 @@ func (qes *queryExecutorSuite) TestScanVals_namedPointersReceiveNilForNull() {
 	qes.Nil(flags[2])
 }
 
+func (qes *queryExecutorSuite) TestValueScans_fillNamedPointers() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	e := newQueryExecutor("db", db, nil, `SELECT "v" FROM "items"`)
+	rows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"v"}).AddRow(int64(1)).AddRow(int64(0)).AddRow(nil)
+	}
+
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(rows())
+	var flag boolRef
+	found, err := e.ScanVal(&flag)
+	qes.NoError(err)
+	qes.True(found)
+	qes.True(*flag)
+
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(rows())
+	var plain bool
+	found, err = e.ScanVal(boolRef(&plain))
+	qes.NoError(err)
+	qes.True(found)
+	qes.True(plain)
+
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("true"))
+	one, found, err := e.ScanOneVal[boolRef](context.Background())
+	qes.NoError(err)
+	qes.True(found)
+	qes.True(*one)
+
+	mock.ExpectQuery(`SELECT "v" FROM "items"`).WillReturnRows(rows())
+	var flags []boolRef
+	for v, err := range e.IterVals[boolRef](context.Background()) {
+		qes.Require().NoError(err)
+		flags = append(flags, v)
+	}
+	qes.Require().Len(flags, 3)
+	qes.True(*flags[0])
+	qes.False(*flags[1])
+	qes.Nil(flags[2])
+}
+
+func (qes *queryExecutorSuite) TestScanStructs_fillNamedPointerFields() {
+	db, mock, err := sqlmock.New()
+	qes.NoError(err)
+	e := newQueryExecutor("db", db, nil, `SELECT "flag", "name" FROM "items"`)
+
+	mock.ExpectQuery(`SELECT "flag", "name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"flag", "name"}).AddRow(int64(1), "a").AddRow(nil, nil))
+	var rows []namedPointerRow
+	qes.NoError(e.ScanStructs(&rows))
+	qes.Require().Len(rows, 2)
+	qes.True(*rows[0].Flag)
+	qes.Equal(sql.NullString{String: "a", Valid: true}, *rows[0].Name)
+	qes.Nil(rows[1].Flag)
+	qes.Nil(rows[1].Name)
+}
+
 func (qes *queryExecutorSuite) TestScanVals_withJSONRawMessages() {
 	db, mock, err := sqlmock.New()
 	qes.NoError(err)
@@ -1615,8 +1671,12 @@ type (
 	scanValRow struct {
 		Name string `db:"name"`
 	}
-	nullStringRef *sql.NullString
-	boolRef       *bool
+	nullStringRef   *sql.NullString
+	boolRef         *bool
+	namedPointerRow struct {
+		Flag boolRef       `db:"flag"`
+		Name nullStringRef `db:"name"`
+	}
 )
 
 type JSONBoolArray []bool

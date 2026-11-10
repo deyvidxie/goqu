@@ -98,7 +98,7 @@ func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 				return errScannerFieldNeedsValue(col, data.GoType)
 			}
 		}
-		scans = append(scans, reflect.New(data.GoType).Interface())
+		scans = append(scans, reflect.New(util.ScanType(data.GoType)).Interface())
 	}
 
 	if err := s.rows.Scan(scans...); err != nil {
@@ -108,7 +108,7 @@ func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 	record := exp.Record{}
 	for index, col := range s.columns {
 		if len(scannedInPlace) == 0 || !scannedInPlace[index] {
-			record[col] = scans[index]
+			record[col] = fieldValue(scans[index], s.columnMap[col].GoType)
 		}
 	}
 
@@ -137,8 +137,17 @@ func (s *scanner) ScanVal(i interface{}) error {
 	if util.IsNilOrNilPointer(i) {
 		return errNilScanTarget(i)
 	}
-	if !util.IsPointer(reflect.TypeOf(i).Kind()) {
+	t := reflect.TypeOf(i)
+	if !util.IsPointer(t.Kind()) {
 		return errScanValTarget(i)
+	}
+	if scanType := util.ScanType(t); scanType != t {
+		row := reflect.New(scanType.Elem())
+		if err := s.rows.Scan(row.Interface()); err != nil {
+			return err
+		}
+		util.AssignScanned(reflect.ValueOf(i).Elem(), row.Elem())
+		return s.Err()
 	}
 	if err := s.rows.Scan(i); err != nil {
 		return err
@@ -153,12 +162,8 @@ func (s *scanner) ScanVals(i interface{}) error {
 		return err
 	}
 	elemType := val.Type().Elem()
-	scanType := elemType
-	if util.IsPointer(elemType.Kind()) {
-		scanType = reflect.PointerTo(elemType.Elem())
-	}
 	for s.Next() {
-		row := reflect.New(scanType)
+		row := reflect.New(elemType)
 		if err := s.ScanVal(row.Interface()); err != nil {
 			return err
 		}
@@ -171,6 +176,16 @@ func (s *scanner) ScanVals(i interface{}) error {
 // for more info.
 func (s *scanner) Close() error {
 	return s.rows.Close()
+}
+
+func fieldValue(scanned interface{}, fieldType reflect.Type) interface{} {
+	v := reflect.ValueOf(scanned)
+	if v.Type().Elem() == fieldType {
+		return scanned
+	}
+	field := reflect.New(fieldType)
+	util.AssignScanned(field.Elem(), v.Elem())
+	return field.Interface()
 }
 
 func checkScanStructsTarget(i interface{}, tagName string) (reflect.Value, error) {

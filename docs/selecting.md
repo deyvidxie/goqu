@@ -1011,9 +1011,9 @@ if err := db.From("user").Select("first_name").ScanStructs(&users); err != nil{
 fmt.Printf("\n%+v", users)
 ```
 
-`ScanStructs` and `ScanStruct` return `goqu.UnsupportedScanTypeError` for a target that is not a row struct (`time.Time`, a `database/sql` type such as `sql.NullString`, a struct with no scannable fields, a non-struct); scan one-column types with `ScanVals`/`ScanVal`.
+`ScanStructs` and `ScanStruct` return `goqu.UnsupportedScanTypeError` for a target that is not a row struct (`time.Time`, a `database/sql` type such as `sql.NullString`, a struct with no scannable fields, a non-struct); scan one-column types with `ScanVals`/`ScanVal`. They return the same error for a struct with a `sql.RawBytes` field; use `[]byte` or tag it `db:"-"`.
 
-Fields whose type is a non-empty interface that `sql.Scanner` values can be stored in (such as `sql.Scanner` itself) can be scanned into by setting the field to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. If the field is `nil`, holds a non-pointer, or you use `ScanStructs`, `ScanAllStructs` or `ScanOneStruct` (which create new structs), these methods return an error. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
+A field whose type is a non-empty interface (such as `sql.Scanner`) can be scanned into by setting it to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. Otherwise, and always with `ScanStructs`, `ScanAllStructs`, `ScanOneStruct` and `IterStructs` (which create new structs), a field whose interface only `sql.Scanner` values satisfy (such as `sql.Scanner` itself) returns an error; any other interface field is left to the driver. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
 
 **NOTE** Fields of type `interface{}` are not scanned in place: they keep receiving the value returned by the driver (even when they already hold a pointer), and a `nil` `interface{}` field is fine.
 
@@ -1279,7 +1279,7 @@ if !found{
 <a name="generic-scan"></a>
 **[`ScanAllStructs`, `ScanOneStruct`, `ScanAllVals`, `ScanOneVal`](http://godoc.org/github.com/doug-martin/goqu#SelectDataset.ScanAllStructs)**
 
-They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time` or `sql.NullString` for the struct methods and `sql.RawBytes` or a struct with a column named by a struct tag (`db` by default) for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice. `ScanVals` and `ScanVal` run the same value checks.
+They are methods of `*SelectDataset` and of `exec.QueryExecutor` (for `Insert(...).Returning(...).Executor()` and the like). `ScanAllStructs`/`ScanOneStruct` take a row struct or a pointer to one. Types they can recognise as unscannable, such as `time.Time`, `sql.NullString` or a struct with a `sql.RawBytes` field for the struct methods and `sql.RawBytes` or a struct with a column named by a struct tag (`db` by default) for the value methods, return `goqu.UnsupportedScanTypeError` (`goqu.IsUnsupportedScanType`) before the query runs; a `sql.Scanner` interface field fails with the same type after the query has run, and a column with no matching field fails with `goqu.ColumnMismatchError` (`goqu.IsColumnMismatch`). An empty result is a `nil` slice. `ScanVals` and `ScanVal` run the same value checks.
 
 ```go
 users, err := db.From("user").ScanAllStructs[User](context.Background())

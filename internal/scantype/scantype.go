@@ -3,7 +3,6 @@ package scantype
 import (
 	"database/sql"
 	"reflect"
-	"strings"
 	"time"
 	"uuid"
 
@@ -24,13 +23,19 @@ func Struct[T any](tagName string) error {
 }
 
 func StrictRowStruct(t reflect.Type, tagName string) error {
-	_, _, err := rowStructColumns(t, tagName, false)
-	return err
+	columns, _, err := rowStructColumns(t, tagName, false)
+	if err != nil {
+		return err
+	}
+	return rejectRawBytesFields(t, columns, tagName)
 }
 
 func RowStruct(t reflect.Type, tagName string) error {
-	_, _, err := ScanRowStruct(t, tagName)
-	return err
+	columns, _, err := rowStructColumns(t, tagName, true)
+	if err != nil {
+		return err
+	}
+	return rejectRawBytesFields(t, columns, tagName)
 }
 
 func ScanRowStruct(t reflect.Type, tagName string) (columns util.ColumnMap, unexportedPointerEmbeds bool, err error) {
@@ -97,7 +102,7 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 		return errRawBytes(c.fn)
 	case IsUnscannableSlice(inner):
 		return errUnscannableSlice(c.fn, shown, inner)
-	case isSQLNull(inner):
+	case util.IsSQLNull(inner):
 		return scannableVal(c, shown, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
@@ -110,6 +115,24 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	}
 }
 
+func rejectRawBytesFields(t reflect.Type, columns util.ColumnMap, tagName string) error {
+	names, _ := columns.Cols()
+	for _, name := range names {
+		if col := columns[name]; holdsRawBytes(col.GoType) {
+			return errRawBytesField(t, util.FieldPath(util.Deref(t), col.FieldIndex), tagName)
+		}
+	}
+	return nil
+}
+
+func holdsRawBytes(t reflect.Type) bool {
+	inner := util.DerefAll(t)
+	if util.IsSQLNull(inner) {
+		return holdsRawBytes(inner.Field(0).Type)
+	}
+	return inner == rawBytesType
+}
+
 func isUnassignable(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
@@ -117,16 +140,12 @@ func isUnassignable(t reflect.Type) bool {
 	case reflect.Array:
 		return t != uuidType
 	case reflect.Interface:
-		return !timeType.Implements(t)
+		return util.IsScannerInterface(t)
 	case reflect.Struct:
 		return t.PkgPath() == sqlPkgPath
 	default:
 		return false
 	}
-}
-
-func isSQLNull(t reflect.Type) bool {
-	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlPkgPath && strings.HasPrefix(t.Name(), "Null[")
 }
 
 func isTime(t reflect.Type) bool {
