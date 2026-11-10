@@ -981,8 +981,13 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 			isPrepared: true,
 			args:       []interface{}{[]byte{}},
 		},
-		expressionTestCase{val: ident.In(arrayLiteralValuer{}), sql: `("a" IN ('{}'))`},
-		expressionTestCase{val: ident.In(arrayLiteralValuer{}), sql: `("a" IN (?))`, isPrepared: true, args: []interface{}{"{}"}},
+		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, arrayLiteralValuer{}), sql: `("a" IN '{}')`},
+		expressionTestCase{
+			val:        exp.NewBooleanExpression(exp.InOp, ident, arrayLiteralValuer{}),
+			sql:        `("a" IN ?)`,
+			isPrepared: true,
+			args:       []interface{}{"{}"},
+		},
 	)
 }
 
@@ -1024,6 +1029,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionSliceValu
 		expressionTestCase{val: exp.Ex{"a": valuer}, sql: `("a" = '{1,2}')`},
 		expressionTestCase{val: exp.Ex{"a": valuer}, sql: `("a" = ?)`, isPrepared: true, args: args},
 		expressionTestCase{val: exp.Ex{"a": arrayLiteralValuer{}}, sql: `("a" = '{}')`},
+		expressionTestCase{val: ident.Eq(exp.NewSQLFunctionExpression("ANY ", valuer)), sql: `("a" = ANY ('{1,2}'))`},
+		expressionTestCase{val: ident.Eq(exp.NewSQLFunctionExpression("ANY ", valuer)), sql: `("a" = ANY (?))`, isPrepared: true, args: args},
 	)
 }
 
