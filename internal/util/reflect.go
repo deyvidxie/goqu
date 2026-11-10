@@ -143,7 +143,6 @@ var (
 )
 
 func SetIgnoreUntaggedFields(ignore bool) {
-	// If the value here is changing, reset the struct map cache
 	if ignore != ignoreUntaggedFields {
 		ignoreUntaggedFields = ignore
 
@@ -268,24 +267,19 @@ func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedd
 	v = reflect.Indirect(v)
 	root := v.Type()
 	t := root
-	allocated := false
+	nilAbove := false
 	for n, i := range fieldIndex[:len(fieldIndex)-1] {
 		sf := t.Field(i)
-		if IsPointer(sf.Type.Kind()) {
-			nilUnexported := allocated && !sf.IsExported()
-			if !allocated {
-				f := v.Field(i)
-				allocated = f.IsNil()
-				nilUnexported = allocated && !f.CanSet()
-				if !allocated {
-					v = f.Elem()
-				}
-			}
-			if nilUnexported {
-				return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
-			}
-		} else if !allocated {
+		isPointer := IsPointer(sf.Type.Kind())
+		if !nilAbove {
 			v = v.Field(i)
+			nilAbove = isPointer && v.IsNil()
+			if isPointer && !nilAbove {
+				v = v.Elem()
+			}
+		}
+		if isPointer && nilAbove && !sf.IsExported() {
+			return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
 		}
 		t = Deref(sf.Type)
 	}

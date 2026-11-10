@@ -60,10 +60,9 @@ func (s *scanner) ScanStruct(i interface{}) error {
 
 func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 	if s.columnMap == nil || s.columns == nil {
-		if t := reflect.TypeOf(i); t != nil {
-			if err := scantype.RowStruct(t, s.tagName); err != nil {
-				return err
-			}
+		t := reflect.TypeOf(i)
+		if err := scantype.RowStruct(t, s.tagName); err != nil {
+			return err
 		}
 		cm, err := util.GetColumnMap(i, s.tagName)
 		if err != nil {
@@ -77,7 +76,7 @@ func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 
 		s.columnMap = cm
 		s.columns = cols
-		problem := util.CheckScanColumnMap(util.Deref(reflect.TypeOf(i)), s.tagName)
+		problem := util.CheckScanColumnMap(util.Deref(t), s.tagName)
 		s.unexportedPointerEmbeds = problem.Issue == util.ColumnMapUnexportedPointerEmbed
 	}
 
@@ -94,7 +93,6 @@ func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 			}
 		}
 		if data.GoType.Kind() == reflect.Interface && data.GoType.NumMethod() > 0 {
-			// The column map is cached per struct type so it only knows the interface, not the concrete type.
 			if target, ok := util.InterfaceScanTarget(i, data.FieldIndex); ok {
 				if scannedInPlace == nil {
 					scannedInPlace = make([]bool, len(s.columns))

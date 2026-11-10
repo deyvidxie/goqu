@@ -27,10 +27,10 @@ func NewRecordFromStruct(i interface{}, forInsert, forUpdate bool, tagName strin
 	if value.Kind() != reflect.Struct {
 		return nil, errRecordNotStruct(i)
 	}
-	if problem := util.CheckColumnSource(value.Type(), tagName); problem.Issue != util.ColumnMapOK {
+	cm, problem := util.ColumnSource(value.Type(), tagName)
+	if problem.Issue != util.ColumnMapOK {
 		return nil, errColumnSource(value.Type(), problem, tagName)
 	}
-	cm := util.StructColumnMap(value.Type(), tagName)
 	cols, _ := cm.Cols()
 	r = make(map[string]interface{}, len(cols))
 	for _, col := range cols {

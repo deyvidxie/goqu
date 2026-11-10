@@ -39,6 +39,11 @@ type (
 		ID int64 `db:"id"`
 		*dsTestActionItem
 	}
+	scanTestNext         struct{ Item *dsTestActionItem }
+	scanTestEmbedAndNext struct {
+		*dsTestActionItem
+		Next *scanTestNext
+	}
 	scanTestUnexportedPtr struct{ *dsTestActionItem }
 	scanTestOuterPtr      struct{ *ScanTestInnerPtr }
 	scanTestOuterValue    struct{ ScanTestInnerPtr }
@@ -294,7 +299,7 @@ func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
 	ss.Empty(rows)
 }
 
-func (ss *scanSuite) TestStructScans_rejectNilTargetsBeforeSelectingColumns() {
+func (ss *scanSuite) TestStructScans_rejectNilTargetsBeforeQuerying() {
 	_, err := ss.db.From("items").ScanStruct((*dsTestActionItem)(nil))
 	ss.EqualError(err, "goqu: scan target must not be nil, got *goqu_test.dsTestActionItem")
 	ss.True(goqu.IsUnsupportedScanType(err))
@@ -311,9 +316,19 @@ func (ss *scanSuite) TestScanStruct_scansColumnsOutsideNilUnexportedPointerEmbed
 	ss.True(found)
 	ss.Equal(scanTestIDWithNilEmbed{ID: 7}, row)
 
+	ss.mock.ExpectQuery(`SELECT "next.item.address", "next.item.name" FROM "items"`).
+		WillReturnRows(sqlmock.NewRows([]string{"next.item.address", "next.item.name"}).AddRow("111 Test Addr", "Test1"))
+	var chained scanTestEmbedAndNext
+	found, err = ss.db.ScanStruct(&chained, `SELECT "next.item.address", "next.item.name" FROM "items"`)
+	ss.NoError(err)
+	ss.True(found)
+	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, *chained.Next.Item)
+}
+
+func (ss *scanSuite) TestScanStruct_fillsUnexportedValueEmbeds() {
 	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 	var byValue scanTestUnexportedRow
-	found, err = ss.db.ScanStruct(&byValue, `SELECT "address", "name" FROM "items"`)
+	found, err := ss.db.ScanStruct(&byValue, `SELECT "address", "name" FROM "items"`)
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(scanTestUnexportedRow{dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}}, byValue)
