@@ -1120,8 +1120,7 @@ func ExampleSelectDataset_Select_withStruct() {
 		EmailAddress string `db:"email_address"`
 	}
 
-	// Pass with pointer
-	sql, _, _ := ds.Select(&myStruct{}).ToSQL()
+	sql, _, _ := ds.Select((*myStruct)(nil)).ToSQL()
 	fmt.Println(sql)
 
 	// Pass instance of

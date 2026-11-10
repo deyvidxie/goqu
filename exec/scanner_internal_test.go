@@ -80,6 +80,30 @@ func (s *scannerSuite) TestScanVals() {
 	s.Require().ElementsMatch([]int{1, 2}, result)
 }
 
+func (s *scannerSuite) TestScanVal_rejectsNilAndNonPointerTargets() {
+	db, mock, err := sqlmock.New()
+	s.Require().NoError(err)
+	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	rows, err := db.QueryContext(context.Background(), `SELECT "id" FROM "items"`)
+	s.Require().NoError(err)
+
+	sc := NewScanner(rows, "db")
+	s.Require().True(sc.Next())
+	for target, want := range map[interface{}]string{
+		nil:           "goqu: scan target must not be nil, got <nil>",
+		(*int64)(nil): "goqu: scan target must not be nil, got *int64",
+		int64(1):      "goqu: cannot scan into int64, a pointer is required",
+	} {
+		err = sc.ScanVal(target)
+		s.EqualError(err, want)
+		s.True(errors.IsUnsupportedScanType(err))
+	}
+	var id int64
+	s.NoError(sc.ScanVal(&id))
+	s.Equal(int64(1), id)
+	s.NoError(sc.Close())
+}
+
 func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	db, mock, err := sqlmock.New()
 	s.Require().NoError(err)
@@ -93,6 +117,24 @@ func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	err = sc.ScanStruct(&sql.NullString{})
 	s.EqualError(err, "goqu: cannot scan rows into *sql.NullString, which scans as one column; "+
 		"use ScanVals/ScanVal, ScanAllVals[sql.NullString]/ScanOneVal[sql.NullString] or IterVals[sql.NullString]")
+	s.True(errors.IsUnsupportedScanType(err))
+
+	type row struct {
+		Name string `db:"string"`
+	}
+	err = sc.ScanStruct((*row)(nil))
+	s.EqualError(err, "goqu: scan target must not be nil, got *exec.row")
+	s.True(errors.IsUnsupportedScanType(err))
+	err = sc.ScanStruct(row{})
+	s.EqualError(err, "goqu: cannot scan into exec.row, a pointer to a struct is required")
+	s.True(errors.IsUnsupportedScanType(err))
+
+	type node struct {
+		Name string `db:"string"`
+		Next *node
+	}
+	err = sc.ScanStruct(&node{})
+	s.EqualError(err, "goqu: cannot scan rows into *exec.node: field Next leads back to exec.node; tag it `db:\"-\"`")
 	s.True(errors.IsUnsupportedScanType(err))
 	s.NoError(sc.Close())
 }

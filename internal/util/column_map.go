@@ -133,11 +133,32 @@ type ColumnMapProblem struct {
 	Type  reflect.Type
 }
 
-func CheckColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
-	if problem := checkFollowedFields(t, tagName, "", map[reflect.Type]bool{}); problem.Issue != ColumnMapOK {
-		return problem
+func ColumnSource(t reflect.Type, tagName string) (ColumnMap, ColumnMapProblem) {
+	structMapCacheLock.Lock()
+	defer structMapCacheLock.Unlock()
+	key := columnMapKey{t: t, tagName: tagName}
+	problem, ok := columnSourceCache[key]
+	if !ok {
+		problem = checkFollowedFields(t, tagName, "", map[reflect.Type]bool{})
+		columnSourceCache[key] = problem
 	}
-	return checkUnexportedPointerEmbeds(t, StructColumnMap(t, tagName))
+	if problem.Issue != ColumnMapOK {
+		return nil, problem
+	}
+	cm, ok := structMapCache[key]
+	if !ok {
+		cm = newColumnMap(t, []int{}, []string{}, tagName)
+		structMapCache[key] = cm
+	}
+	return cm, problem
+}
+
+func CheckScanColumnMap(t reflect.Type, tagName string) (ColumnMap, ColumnMapProblem) {
+	cm, problem := ColumnSource(t, tagName)
+	if problem.Issue != ColumnMapOK {
+		return nil, problem
+	}
+	return cm, checkUnexportedPointerEmbeds(t, cm)
 }
 
 func checkFollowedFields(t reflect.Type, tagName, prefix string, ancestors map[reflect.Type]bool) ColumnMapProblem {

@@ -76,8 +76,12 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		return err
 	}
 	const (
-		tableType = "goqu: unsupported table type bool, a string or expression is required"
-		badFrom   = "goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required"
+		derive         = "goqu: cannot derive columns from goqu_test."
+		tagIt          = "; tag it `db:\"-\"`"
+		cyclicNode     = derive + "ScanTestNode: field Parent leads back to goqu_test.ScanTestNode" + tagIt
+		nonStructEmbed = derive + "scanTestEmbeddedID: embedded field ScanTestID is a pointer to non-struct goqu_test.ScanTestID" + tagIt
+		tableType      = "goqu: unsupported table type bool, a string or expression is required"
+		badFrom        = "goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required"
 	)
 	for _, c := range []struct {
 		name string
@@ -126,6 +130,25 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			toSQL(goqu.Insert("t").FromQuery((*goqu.SelectDataset)(nil))),
 		},
 		{"nil pointer update", "goqu: update values must not be nil, got *goqu_test.row", toSQL(goqu.Update("t").Set((*row)(nil)))},
+		{"cyclic select", cyclicNode, toSQL(goqu.From("t").Select(&ScanTestNode{}))},
+		{"cyclic select append", cyclicNode, toSQL(goqu.From("t").SelectAppend(ScanTestNode{}))},
+		{"cyclic insert returning", cyclicNode, toSQL(goqu.Insert("t").Rows(goqu.Record{"a": 1}).Returning(ScanTestNode{}))},
+		{"cyclic update returning", cyclicNode, toSQL(goqu.Update("t").Set(goqu.Record{"a": 1}).Returning(ScanTestNode{}))},
+		{"cyclic delete returning", cyclicNode, toSQL(goqu.Delete("t").Returning(ScanTestNode{}))},
+		{"cyclic insert rows", cyclicNode, toSQL(goqu.Insert("t").Rows(ScanTestNode{ID: 1}))},
+		{"cyclic insert cols", cyclicNode, toSQL(goqu.Insert("t").Cols(ScanTestNode{}).Vals([]interface{}{1}))},
+		{"cyclic update set", cyclicNode, toSQL(goqu.Update("t").Set(ScanTestNode{ID: 1}))},
+		{"cyclic group by", cyclicNode, toSQL(goqu.From("t").GroupBy(ScanTestNode{}))},
+		{
+			"self embed", derive + "ScanTestSelfRef: field ScanTestSelfRef leads back to goqu_test.ScanTestSelfRef" + tagIt,
+			toSQL(goqu.From("t").Select(ScanTestSelfRef{})),
+		},
+		{
+			"mutual recursion", derive + "ScanTestOwner: field Pet.Owner leads back to goqu_test.ScanTestOwner" + tagIt,
+			toSQL(goqu.Insert("t").Rows(ScanTestOwner{ID: 1})),
+		},
+		{"non-struct embed select", nonStructEmbed, toSQL(goqu.From("t").Select(scanTestEmbeddedID{}))},
+		{"non-struct embed row", nonStructEmbed, toSQL(goqu.Insert("t").Rows(scanTestEmbeddedID{Name: "a"}))},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, goqu.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)

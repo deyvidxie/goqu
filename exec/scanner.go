@@ -26,6 +26,8 @@ type (
 		columnMap util.ColumnMap
 		columns   []string
 		tagName   string
+
+		unexportedPointerEmbeds bool
 	}
 )
 
@@ -46,41 +48,44 @@ func (s *scanner) Err() error {
 	return s.rows.Err()
 }
 
-// ScanStruct will scan the current row into i.
 func (s *scanner) ScanStruct(i interface{}) error {
-	// Setup columnMap and columns, but only once.
+	if util.IsNilOrNilPointer(i) {
+		return errNilScanTarget(i)
+	}
+	if !util.IsPointer(reflect.TypeOf(i).Kind()) {
+		return errScanStructTarget(i)
+	}
+	return s.scanStruct(i, "embed it by value, set it before ScanStruct or tag it")
+}
+
+func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 	if s.columnMap == nil || s.columns == nil {
-		if t := reflect.TypeOf(i); t != nil {
-			if err := scantype.RowStruct(t, s.tagName); err != nil {
-				return err
-			}
-		}
-		cm, err := util.GetColumnMap(i, s.tagName)
+		cm, unexportedPointerEmbeds, err := scantype.ScanRowStruct(reflect.TypeOf(i), s.tagName)
 		if err != nil {
 			return err
 		}
-
 		cols, err := s.rows.Columns()
 		if err != nil {
 			return err
 		}
-
 		s.columnMap = cm
 		s.columns = cols
+		s.unexportedPointerEmbeds = unexportedPointerEmbeds
 	}
 
 	scans := make([]interface{}, 0, len(s.columns))
-	// columns that were scanned straight into a value that is already set on the struct (allocated when needed)
 	var scannedInPlace []bool
 	for index, col := range s.columns {
 		data, ok := s.columnMap[col]
 		if !ok {
 			return errNoFieldForColumn(col)
 		}
+		if s.unexportedPointerEmbeds {
+			if field, embedded, found := util.NilUnexportedEmbed(reflect.ValueOf(i), data.FieldIndex); found {
+				return errNilUnexportedEmbed(col, field, embedded, nilEmbedRemedy, s.tagName)
+			}
+		}
 		if data.GoType.Kind() == reflect.Interface && data.GoType.NumMethod() > 0 {
-			// The column map is cached per struct type so it only knows the interface, not the concrete type.
-			// Scan into the value the caller already put in the field (e.g. &sql.NullString{}). Empty interfaces
-			// (interface{}) keep receiving the driver value.
 			if target, ok := util.InterfaceScanTarget(i, data.FieldIndex); ok {
 				if scannedInPlace == nil {
 					scannedInPlace = make([]bool, len(s.columns))
@@ -120,7 +125,7 @@ func (s *scanner) ScanStructs(i interface{}) error {
 	elemType := util.GetSliceElementType(val)
 	for s.Next() {
 		row := reflect.New(elemType)
-		if err := s.ScanStruct(row.Interface()); err != nil {
+		if err := s.scanStruct(row.Interface(), "embed it by value or tag it"); err != nil {
 			return err
 		}
 		util.AppendSliceElement(val, row)
@@ -128,8 +133,13 @@ func (s *scanner) ScanStructs(i interface{}) error {
 	return s.Err()
 }
 
-// ScanVal will scan the current row and column into i.
 func (s *scanner) ScanVal(i interface{}) error {
+	if util.IsNilOrNilPointer(i) {
+		return errNilScanTarget(i)
+	}
+	if !util.IsPointer(reflect.TypeOf(i).Kind()) {
+		return errScanValTarget(i)
+	}
 	if err := s.rows.Scan(i); err != nil {
 		return err
 	}

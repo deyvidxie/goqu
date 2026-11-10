@@ -280,6 +280,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 		esg.excludedExpressionSQL(b, e)
 	case exp.DefaultExpression:
 		b.SetError(errDefaultOutsideValues)
+	case exp.InvalidExpression:
+		b.SetError(e.Err())
 	case exp.JSONExpression:
 		esg.jsonExpressionSQL(b, e)
 	case exp.TimeFunctionExpression:

@@ -132,6 +132,7 @@ type columnMapKey struct {
 
 var (
 	structMapCache     = make(map[columnMapKey]ColumnMap)
+	columnSourceCache  = make(map[columnMapKey]ColumnMapProblem)
 	structMapCacheLock = sync.Mutex{}
 )
 
@@ -142,7 +143,6 @@ var (
 )
 
 func SetIgnoreUntaggedFields(ignore bool) {
-	// If the value here is changing, reset the struct map cache
 	if ignore != ignoreUntaggedFields {
 		ignoreUntaggedFields = ignore
 
@@ -150,6 +150,7 @@ func SetIgnoreUntaggedFields(ignore bool) {
 		defer structMapCacheLock.Unlock()
 
 		structMapCache = make(map[columnMapKey]ColumnMap)
+		columnSourceCache = make(map[columnMapKey]ColumnMapProblem)
 	}
 }
 
@@ -177,23 +178,12 @@ func AppendSliceElement(slice, val reflect.Value) {
 	}
 }
 
-func GetTypeInfo(i interface{}, val reflect.Value) (reflect.Type, reflect.Kind) {
-	var t reflect.Type
-	valKind := val.Kind()
-	if valKind == reflect.Slice {
-		if reflect.ValueOf(i).Kind() == reflect.Ptr {
-			t = reflect.TypeOf(i).Elem().Elem()
-		} else {
-			t = reflect.TypeOf(i).Elem()
-		}
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		valKind = t.Kind()
-	} else {
-		t = val.Type()
+func GetTypeInfo(i interface{}) (reflect.Type, reflect.Kind) {
+	t := Deref(reflect.TypeOf(i))
+	if kind := t.Kind(); kind == reflect.Slice || kind == reflect.Array {
+		t = Deref(t.Elem())
 	}
-	return t, valKind
+	return t, t.Kind()
 }
 
 func SafeGetFieldByIndex(v reflect.Value, fieldIndex []int) (result reflect.Value, isAvailable bool) {
@@ -273,24 +263,37 @@ func AssignStructVals(i interface{}, rd rowData, cm ColumnMap) {
 	}
 }
 
-func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
-	val := reflect.Indirect(reflect.ValueOf(i))
-	t, valKind := GetTypeInfo(i, val)
-	if valKind != reflect.Struct {
-		return nil, errColumnMapNotStruct(t)
+func NilUnexportedEmbed(v reflect.Value, fieldIndex []int) (field string, embedded reflect.Type, found bool) {
+	v = reflect.Indirect(v)
+	root := v.Type()
+	t := root
+	nilAbove := false
+	for n, i := range fieldIndex[:len(fieldIndex)-1] {
+		sf := t.Field(i)
+		isPointer := IsPointer(sf.Type.Kind())
+		if !nilAbove {
+			v = v.Field(i)
+			nilAbove = isPointer && v.IsNil()
+			if isPointer && !nilAbove {
+				v = v.Elem()
+			}
+		}
+		if isPointer && nilAbove && !sf.IsExported() {
+			return fieldPath(root, fieldIndex[:n+1]), sf.Type.Elem(), true
+		}
+		t = Deref(sf.Type)
 	}
-
-	return StructColumnMap(t, tagName), nil
+	return "", nil, false
 }
 
-func StructColumnMap(t reflect.Type, tagName string) ColumnMap {
-	structMapCacheLock.Lock()
-	defer structMapCacheLock.Unlock()
-	key := columnMapKey{t: t, tagName: tagName}
-	if _, ok := structMapCache[key]; !ok {
-		structMapCache[key] = newColumnMap(t, []int{}, []string{}, tagName)
+func fieldPath(t reflect.Type, fieldIndex []int) string {
+	names := make([]string, 0, len(fieldIndex))
+	for _, i := range fieldIndex {
+		f := t.Field(i)
+		names = append(names, f.Name)
+		t = Deref(f.Type)
 	}
-	return structMapCache[key]
+	return strings.Join(names, ".")
 }
 
 func IsScanner(t reflect.Type) bool {

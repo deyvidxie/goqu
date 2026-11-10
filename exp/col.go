@@ -15,7 +15,7 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 	cols := []Expression{}
 	for _, val := range vals {
 		switch t := val.(type) {
-		case nil: // do nothing
+		case nil:
 		case string:
 			cols = append(cols, ParseIdentifier(t))
 		case ColumnListExpression:
@@ -23,12 +23,13 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 		case Expression:
 			cols = append(cols, t)
 		default:
-			_, valKind := util.GetTypeInfo(val, reflect.Indirect(reflect.ValueOf(val)))
+			structType, valKind := util.GetTypeInfo(val)
 
 			if valKind == reflect.Struct {
-				cm, err := util.GetColumnMap(val, tagName)
-				if err != nil {
-					panic(err.Error())
+				cm, problem := util.ColumnSource(structType, tagName)
+				if problem.Issue != util.ColumnMapOK {
+					cols = append(cols, newInvalidExpression(errColumnSource(structType, problem, tagName)))
+					continue
 				}
 				structCols, subqueryKeys := cm.Cols()
 				for _, col := range structCols {

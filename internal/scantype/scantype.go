@@ -24,39 +24,48 @@ func Struct[T any](tagName string) error {
 }
 
 func StrictRowStruct(t reflect.Type, tagName string) error {
-	return rowStruct(t, tagName, false)
+	_, _, err := rowStructColumns(t, tagName, false)
+	return err
 }
 
 func RowStruct(t reflect.Type, tagName string) error {
-	return rowStruct(t, tagName, true)
+	_, _, err := ScanRowStruct(t, tagName)
+	return err
 }
 
-func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool) error {
+func ScanRowStruct(t reflect.Type, tagName string) (columns util.ColumnMap, unexportedPointerEmbeds bool, err error) {
+	columns, problem, err := rowStructColumns(t, tagName, true)
+	return columns, problem.Issue == util.ColumnMapUnexportedPointerEmbed, err
+}
+
+func rowStructColumns(
+	t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool,
+) (util.ColumnMap, util.ColumnMapProblem, error) {
 	elem := util.Deref(t)
 	if !util.IsStruct(elem.Kind()) {
-		return errNotStructTarget(t)
+		return nil, util.ColumnMapProblem{}, errNotStructTarget(t)
 	}
-	switch problem := util.CheckColumnMap(elem, tagName); problem.Issue {
+	columns, problem := util.CheckScanColumnMap(elem, tagName)
+	switch problem.Issue {
 	case util.ColumnMapNonStructEmbed:
-		return errNonStructEmbed(t, problem, tagName)
+		return nil, problem, errNonStructEmbed(t, problem, tagName)
 	case util.ColumnMapUnexportedPointerEmbed:
 		if !allowUnexportedPointerEmbeds {
-			return errUnexportedPointerEmbed(t, problem, tagName)
+			return nil, problem, errUnexportedPointerEmbed(t, problem, tagName)
 		}
 	case util.ColumnMapCycle:
-		return errFieldCycle(t, problem, tagName)
+		return nil, problem, errFieldCycle(t, problem, tagName)
 	case util.ColumnMapOK:
 	}
 	oneColumn := isTime(elem) || util.IsScanner(elem)
 	sqlValue := oneColumn && elem.PkgPath() == sqlPkgPath
-	columns := util.StructColumnMap(elem, tagName)
 	switch {
 	case len(columns) > 0 && !sqlValue:
-		return nil
+		return columns, problem, nil
 	case oneColumn:
-		return errOneColumnStruct(t, elem)
+		return nil, problem, errOneColumnStruct(t, elem)
 	default:
-		return errNoScannableFields(t)
+		return nil, problem, errNoScannableFields(t)
 	}
 }
 

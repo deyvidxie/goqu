@@ -449,6 +449,12 @@ func (ids *insertDatasetSuite) TestClearOnConflict() {
 	)
 }
 
+func (ids *insertDatasetSuite) TestReturning_withTypeOnlyStructSource() {
+	sql, _, err := goqu.Insert("t").Rows(goqu.Record{"a": 1}).Returning((*dsTestActionItem)(nil)).ToSQL()
+	ids.NoError(err)
+	ids.Equal(`INSERT INTO "t" ("a") VALUES (1) RETURNING "address", "name"`, sql)
+}
+
 func (ids *insertDatasetSuite) TestReturning() {
 	bd := goqu.Insert("items")
 	ids.assertCases(

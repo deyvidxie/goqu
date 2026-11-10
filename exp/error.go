@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/internal/errors"
+	"github.com/doug-martin/goqu/v9/internal/util"
 )
 
 func errNilInsertRow(row interface{}) error {
@@ -52,4 +53,16 @@ func errUnsupportedOpKey(key string) error {
 
 func errEmptyOp(key string) error {
 	return errors.NewInvalidExpressionError("Op for %q has no operators", key)
+}
+
+func errColumnSource(t reflect.Type, problem util.ColumnMapProblem, tagName string) error {
+	if problem.Issue == util.ColumnMapCycle {
+		return errors.NewInvalidExpressionError(
+			"cannot derive columns from %s: field %s leads back to %s; tag it `%s:\"-\"`", t, problem.Path, problem.Type, tagName,
+		)
+	}
+	return errors.NewInvalidExpressionError(
+		"cannot derive columns from %s: embedded field %s is a pointer to non-struct %s; tag it `%s:\"-\"`",
+		t, problem.Path, problem.Type, tagName,
+	)
 }
