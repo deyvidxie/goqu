@@ -243,8 +243,6 @@ func InterfaceScanTarget(i interface{}, fieldIndex []int) (interface{}, bool) {
 	return elem.Interface(), true
 }
 
-// IsScannerInterface returns true if t is an interface type that sql.Scanner values can be stored in (e.g. sql.Scanner),
-// i.e. one that a driver value can never be assigned to directly.
 func IsScannerInterface(t reflect.Type) bool {
 	return t.Kind() == reflect.Interface && t.Implements(scannerType)
 }

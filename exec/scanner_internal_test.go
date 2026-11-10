@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/doug-martin/goqu/v9/internal/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -163,14 +164,15 @@ func (s *scannerSuite) scanner(columns []string, rows ...[]driver.Value) Scanner
 	result, err := db.QueryContext(context.Background(), `SELECT`)
 	s.Require().NoError(err)
 	sc := NewScanner(result, "db")
-	s.T().Cleanup(func() {
-		s.NoError(sc.Close())
-		s.NoError(mock.ExpectationsWereMet())
+	t := s.T()
+	t.Cleanup(func() {
+		assert.NoError(t, sc.Close())
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 	return sc
 }
 
-func (s *scannerSuite) TestScanVal_fillsNamedPointersAtAnyDepth() {
+func (s *scannerSuite) TestValueScans_fillNamedPointersAtAnyDepth() {
 	sc := s.scanner([]string{"v"}, []driver.Value{int64(1)}, []driver.Value{nil})
 	var (
 		flag  bool
