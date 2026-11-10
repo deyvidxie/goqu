@@ -60,19 +60,17 @@ func (s *scanner) ScanStruct(i interface{}) error {
 
 func (s *scanner) scanStruct(i interface{}, nilEmbedRemedy string) error {
 	if s.columnMap == nil || s.columns == nil {
-		t := reflect.TypeOf(i)
-		if err := scantype.RowStruct(t, s.tagName); err != nil {
+		cm, unexportedPointerEmbeds, err := scantype.ScanRowStruct(reflect.TypeOf(i), s.tagName)
+		if err != nil {
 			return err
 		}
 		cols, err := s.rows.Columns()
 		if err != nil {
 			return err
 		}
-
-		cm, problem := util.CheckScanColumnMap(util.Deref(t), s.tagName)
 		s.columnMap = cm
 		s.columns = cols
-		s.unexportedPointerEmbeds = problem.Issue == util.ColumnMapUnexportedPointerEmbed
+		s.unexportedPointerEmbeds = unexportedPointerEmbeds
 	}
 
 	scans := make([]interface{}, 0, len(s.columns))
@@ -135,7 +133,6 @@ func (s *scanner) ScanStructs(i interface{}) error {
 	return s.Err()
 }
 
-// ScanVal will scan the current row and column into i.
 func (s *scanner) ScanVal(i interface{}) error {
 	if util.IsNilOrNilPointer(i) {
 		return errNilScanTarget(i)

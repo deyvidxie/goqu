@@ -302,6 +302,7 @@ func (ss *scanSuite) TestStructScans_rejectNilUnexportedPointerEmbeds() {
 	err := ss.db.ScanStructs(&rows, query)
 	ss.EqualError(err, `goqu: cannot scan column "address": embedded field dsTestActionItem is a nil pointer to unexported `+
 		"goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`")
+	ss.True(goqu.IsUnsupportedScanType(err))
 	ss.Empty(rows)
 }
 
