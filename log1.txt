@@ -1,0 +1,16 @@
+ok  	github.com/doug-martin/goqu/v9	1.433s
+ok  	github.com/doug-martin/goqu/v9/dialect/duckdb	1.287s
+ok  	github.com/doug-martin/goqu/v9/dialect/mysql	1.360s
+ok  	github.com/doug-martin/goqu/v9/dialect/postgres	0.921s
+ok  	github.com/doug-martin/goqu/v9/dialect/sqlite3	1.248s
+ok  	github.com/doug-martin/goqu/v9/dialect/sqlserver	1.784s
+ok  	github.com/doug-martin/goqu/v9/exec	0.625s
+ok  	github.com/doug-martin/goqu/v9/exp	(cached)
+?   	github.com/doug-martin/goqu/v9/internal/errors	[no test files]
+ok  	github.com/doug-martin/goqu/v9/internal/sb	(cached)
+?   	github.com/doug-martin/goqu/v9/internal/scantype	[no test files]
+?   	github.com/doug-martin/goqu/v9/internal/tag	[no test files]
+ok  	github.com/doug-martin/goqu/v9/internal/util	(cached)
+?   	github.com/doug-martin/goqu/v9/mocks	[no test files]
+ok  	github.com/doug-martin/goqu/v9/sqlgen	1.302s
+?   	github.com/doug-martin/goqu/v9/sqlgen/mocks	[no test files]

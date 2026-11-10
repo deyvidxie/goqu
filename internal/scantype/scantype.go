@@ -116,11 +116,19 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 func rawBytesField(t reflect.Type, columns util.ColumnMap) (string, bool) {
 	names, _ := columns.Cols()
 	for _, name := range names {
-		if col := columns[name]; util.DerefAll(col.GoType) == rawBytesType {
+		if col := columns[name]; holdsRawBytes(col.GoType) {
 			return util.FieldPath(t, col.FieldIndex), true
 		}
 	}
 	return "", false
+}
+
+func holdsRawBytes(t reflect.Type) bool {
+	inner := util.DerefAll(t)
+	if isSQLNull(inner) {
+		return holdsRawBytes(inner.Field(0).Type)
+	}
+	return inner == rawBytesType
 }
 
 func isUnassignable(t reflect.Type) bool {

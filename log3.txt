@@ -1,0 +1,5 @@
+ok  	github.com/doug-martin/goqu/v9/dialect/duckdb	(cached)
+ok  	github.com/doug-martin/goqu/v9/dialect/mysql	(cached)
+ok  	github.com/doug-martin/goqu/v9/dialect/postgres	(cached)
+ok  	github.com/doug-martin/goqu/v9/dialect/sqlite3	(cached)
+ok  	github.com/doug-martin/goqu/v9/dialect/sqlserver	(cached)

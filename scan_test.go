@@ -3,6 +3,7 @@ package goqu_test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,19 +36,20 @@ type (
 	scanTestEmbeddedRow    struct{ ScanTestItem }
 	scanTestEmbeddedRowPtr struct{ *ScanTestItem }
 	scanTestUnexportedRow  struct{ dsTestActionItem }
-	scanTestBoolRef        *bool
-	scanTestNullStringPtr  *sql.NullString
-	scanTestRefRow         struct {
-		Flag scanTestBoolRef       `db:"flag"`
-		Name scanTestNullStringPtr `db:"name"`
-	}
-	scanTestRawBytesRow struct {
+	scanTestRawBytesRow    struct {
 		ID   int64        `db:"id"`
 		Data sql.RawBytes `db:"data"`
 	}
 	scanTestRawBytesPtrRow struct {
 		ID   int64         `db:"id"`
 		Data *sql.RawBytes `db:"data"`
+	}
+	scanTestNullRawBytesRow struct {
+		ID   int64                  `db:"id"`
+		Data sql.Null[sql.RawBytes] `db:"data"`
+	}
+	scanTestRawBytesNestedRow struct {
+		Inner scanTestRawBytesRow `db:"inner"`
 	}
 	scanTestIDWithNilEmbed struct {
 		ID int64 `db:"id"`
@@ -361,68 +363,6 @@ func (ss *scanSuite) TestScanStruct_fillsSetUnexportedPointerEmbeds() {
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, *row.dsTestActionItem)
-}
-
-func (ss *scanSuite) TestValueScans_fillNamedPointers() {
-	const query = `SELECT "v" FROM "items"`
-	rows := func() *sqlmock.Rows {
-		return sqlmock.NewRows([]string{"v"}).AddRow(int64(1)).AddRow(int64(0)).AddRow(nil)
-	}
-	ss.mock.ExpectQuery(query).WillReturnRows(rows())
-	var flag scanTestBoolRef
-	found, err := ss.db.ScanVal(&flag, query)
-	ss.NoError(err)
-	ss.True(found)
-	ss.True(*flag)
-
-	ss.mock.ExpectQuery(`SELECT "v" FROM "items" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow(nil))
-	none, found, err := ss.db.From("items").Select("v").ScanOneVal[scanTestBoolRef](context.Background())
-	ss.NoError(err)
-	ss.True(found)
-	ss.Nil(none)
-
-	ss.mock.ExpectQuery(query).WillReturnRows(rows())
-	flags, errs := ss.collect(ss.db.From("items").Select("v").IterVals[scanTestBoolRef](context.Background()))
-	ss.Empty(errs)
-	ss.Require().Len(flags, 3)
-	ss.True(*flags[0])
-	ss.False(*flags[1])
-	ss.Nil(flags[2])
-
-	ss.mock.ExpectQuery(`SELECT "flag", "name" FROM "items"`).
-		WillReturnRows(sqlmock.NewRows([]string{"flag", "name"}).AddRow(int64(1), "a").AddRow(nil, nil))
-	var structs []scanTestRefRow
-	ss.NoError(ss.db.ScanStructs(&structs, `SELECT "flag", "name" FROM "items"`))
-	ss.Require().Len(structs, 2)
-	ss.True(*structs[0].Flag)
-	ss.Equal(sql.NullString{String: "a", Valid: true}, *structs[0].Name)
-	ss.Nil(structs[1].Flag)
-	ss.Nil(structs[1].Name)
-}
-
-func (ss *scanSuite) TestStructScans_rejectRawBytesFields() {
-	const query = `SELECT "id", "data" FROM "items"`
-	const want = "field Data is a sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte"
-	_, structErr := ss.db.ScanStruct(&scanTestRawBytesRow{}, query)
-	for name, c := range map[string]struct {
-		target string
-		err    error
-	}{
-		"ScanStructs":    {"goqu_test.scanTestRawBytesRow", ss.db.ScanStructs(&[]scanTestRawBytesRow{}, query)},
-		"ScanStruct":     {"goqu_test.scanTestRawBytesRow", structErr},
-		"ScanAllStructs": {"goqu_test.scanTestRawBytesRow", ss.allStructsErr[scanTestRawBytesRow]()},
-		"pointer field":  {"goqu_test.scanTestRawBytesPtrRow", ss.allStructsErr[scanTestRawBytesPtrRow]()},
-	} {
-		ss.EqualError(c.err, "goqu: cannot scan rows into "+c.target+": "+want, name)
-		ss.True(goqu.IsUnsupportedScanType(c.err), name)
-	}
-}
-
-func (ss *scanSuite) TestValueScans_leaveNonScannerInterfacesToTheDriver() {
-	ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
-	err := ss.allValsErr[io.Reader]()
-	ss.ErrorContains(err, "sql: Scan error on column index 0")
-	ss.False(goqu.IsUnsupportedScanType(err))
 }
 
 func (ss *scanSuite) TestScanAllStructs() {
@@ -956,7 +896,7 @@ func (ss *scanSuite) TestScanAllVals_ignoredUntaggedFieldsNameNoColumns() {
 	ss.False(goqu.IsUnsupportedScanType(err))
 }
 
-func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToTheDriver() {
+func (ss *scanSuite) TestScanAllVals_leavesMapsStructsAndNonScannerInterfacesToTheDriver() {
 	for name, scan := range map[string]func() error{
 		"ScanTestSelfRef":           ss.allValsErr[ScanTestSelfRef],
 		"scanTestMeta":              ss.allValsErr[scanTestMeta],
@@ -969,6 +909,7 @@ func (ss *scanSuite) TestScanAllVals_leavesMapsAndStructsWithoutTaggedColumnsToT
 		"ScanTestTaggedSelfRef":     ss.allValsErr[ScanTestTaggedSelfRef],
 		"scanTestUntaggedInner":     ss.allValsErr[scanTestUntaggedInner],
 		"map[string]int":            ss.allValsErr[map[string]int],
+		"io.Reader":                 ss.allValsErr[io.Reader],
 	} {
 		ss.mock.ExpectQuery(`SELECT * FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"v"}).AddRow("a"))
 		err := scan()
@@ -1049,7 +990,10 @@ func (ss *scanSuite) TestStructScans_rejectUncolumnableTargetsBeforeQuerying() {
 		query = `SELECT "id" FROM "items"`
 		cycle = "goqu: cannot scan rows into goqu_test.ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`"
 	)
+	const rawBytes = "goqu: cannot scan rows into goqu_test.scanTestRawBytesRow: field Data holds a sql.RawBytes, " +
+		"which is only valid until the next row is read or the rows are closed; use []byte"
 	_, structErr := ss.db.ScanStruct(&ScanTestNode{}, query)
+	_, rawBytesStructErr := ss.db.ScanStruct(&scanTestRawBytesRow{}, query)
 	for name, c := range map[string]struct {
 		want string
 		err  error
@@ -1062,6 +1006,8 @@ func (ss *scanSuite) TestStructScans_rejectUncolumnableTargetsBeforeQuerying() {
 				"goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`",
 			ss.db.From("items").ScanStructs(&[]scanTestUnexportedPtr{}),
 		},
+		"database ScanStructs raw bytes": {rawBytes, ss.db.ScanStructs(&[]scanTestRawBytesRow{}, query)},
+		"database ScanStruct raw bytes":  {rawBytes, rawBytesStructErr},
 	} {
 		ss.EqualError(c.err, c.want, name)
 		ss.True(goqu.IsUnsupportedScanType(c.err), name)
@@ -1082,12 +1028,20 @@ func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 	ss.EqualError(ss.allStructsErr[*scanTestUnexportedPtr](), "goqu: cannot scan rows into *goqu_test.scanTestUnexportedPtr: "+
 		"embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`")
 
+	rawBytes := "holds a sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte"
+	_, _, err = ss.db.From("items").ScanOneStruct[scanTestRawBytesRow](context.Background())
+	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestRawBytesRow: field Data "+rawBytes)
+
 	nonStruct := "is a pointer to non-struct goqu_test.ScanTestID; tag it `db:\"-\"`"
 	for msg, err := range map[string]error{
 		"scanTestEmbeddedID: embedded field ScanTestID " + nonStruct:                  ss.allStructsErr[scanTestEmbeddedID](),
 		"scanTestNestedID: embedded field scanTestEmbeddedID.ScanTestID " + nonStruct: ss.allStructsErr[scanTestNestedID](),
 		"scanTestJSONSkip: embedded field ScanTestID " + nonStruct:                    ss.allStructsErr[scanTestJSONSkip](),
 		"scanTestAuditRow: embedded field Audit.ScanTestID " + nonStruct:              ss.allStructsErr[scanTestAuditRow](),
+		"scanTestRawBytesRow: field Data " + rawBytes:                                 ss.iterStructsErr[scanTestRawBytesRow](),
+		"scanTestRawBytesPtrRow: field Data " + rawBytes:                              ss.allStructsErr[scanTestRawBytesPtrRow](),
+		"scanTestNullRawBytesRow: field Data " + rawBytes:                             ss.allStructsErr[scanTestNullRawBytesRow](),
+		"scanTestRawBytesNestedRow: field Inner.Data " + rawBytes:                     ss.allStructsErr[scanTestRawBytesNestedRow](),
 		"scanTestUnexportedPtr: embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; " +
 			"embed it by value or tag it `db:\"-\"`": ss.allStructsErr[scanTestUnexportedPtr](),
 		"ScanTestSelfRef: field ScanTestSelfRef leads back to goqu_test.ScanTestSelfRef; tag it `db:\"-\"`": ss.allStructsErr[ScanTestSelfRef](),
@@ -1470,9 +1424,13 @@ func (ss *scanSuite) TestValueScans_rejectRowStructs() {
 
 func (ss *scanSuite) TestValueScans_rejectTypesDatabaseSQLCannotFill() {
 	for want, err := range map[string]error{
-		"IterVals cannot scan into unsafe.Pointer":            ss.iterValsErr[unsafe.Pointer](),
-		"IterVals cannot scan into uintptr":                   ss.iterValsErr[uintptr](),
-		"IterVals cannot scan into sql.Scanner":               ss.iterValsErr[sql.Scanner](),
+		"IterVals cannot scan into unsafe.Pointer": ss.iterValsErr[unsafe.Pointer](),
+		"IterVals cannot scan into uintptr":        ss.iterValsErr[uintptr](),
+		"IterVals cannot scan into sql.Scanner":    ss.iterValsErr[sql.Scanner](),
+		"IterVals cannot scan into interface { Scan(interface {}) error; Value() (driver.Value, error) }": ss.iterValsErr[interface {
+			sql.Scanner
+			driver.Valuer
+		}](),
 		"IterVals cannot scan into [4]int":                    ss.iterValsErr[[4]int](),
 		"ScanOneVal cannot scan into func()":                  ss.oneValErr[func()](),
 		"ScanOneVal cannot scan into complex128":              ss.oneValErr[complex128](),
