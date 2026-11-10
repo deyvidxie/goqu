@@ -43,7 +43,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 		case FromSQLFragment:
 			dsg.FromSQL(b, exp.NewColumnListExpression(nil, "db", clauses.From()))
 		case WhereSQLFragment:
-			if w := clauses.Where(); w != nil && w.IsEmpty() {
+			if w := clauses.Where(); w != nil && matchesEveryRow(w) {
 				b.SetError(errEmptyWhereForDelete)
 				return
 			}

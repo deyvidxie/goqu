@@ -2,6 +2,7 @@ package sqlgen
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -143,6 +144,22 @@ func isZeroLimit(limit interface{}) bool {
 		return v.Int() == 0
 	case v.CanUint():
 		return v.Uint() == 0
+	default:
+		return false
+	}
+}
+
+func matchesEveryRow(e exp.Expression) bool {
+	switch t := e.(type) {
+	case exp.ExpressionList:
+		if t.Type() == exp.OrType {
+			return slices.ContainsFunc(t.Expressions(), matchesEveryRow)
+		}
+		return !slices.ContainsFunc(t.Expressions(), func(e exp.Expression) bool { return !matchesEveryRow(e) })
+	case exp.Ex:
+		return len(t) == 0
+	case exp.LiteralExpression:
+		return t.Literal() == "" && len(t.Args()) == 0
 	default:
 		return false
 	}

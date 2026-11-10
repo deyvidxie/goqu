@@ -150,7 +150,7 @@ func (ud *UpdateDataset) ClearWhere() *UpdateDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (ud *UpdateDataset) Order(order ...exp.OrderedExpression) *UpdateDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return ud.copy(ud.clauses).SetError(errEmptyOrder)
 	}
 	return ud.copy(ud.clauses.SetOrder(order...))
@@ -159,7 +159,7 @@ func (ud *UpdateDataset) Order(order ...exp.OrderedExpression) *UpdateDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (ud *UpdateDataset) OrderAppend(order ...exp.OrderedExpression) *UpdateDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return ud.copy(ud.clauses).SetError(errEmptyOrder)
 	}
 	return ud.copy(ud.clauses.OrderAppend(order...))
@@ -168,7 +168,7 @@ func (ud *UpdateDataset) OrderAppend(order ...exp.OrderedExpression) *UpdateData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (ud *UpdateDataset) OrderPrepend(order ...exp.OrderedExpression) *UpdateDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return ud.copy(ud.clauses).SetError(errEmptyOrder)
 	}
 	return ud.copy(ud.clauses.OrderPrepend(order...))

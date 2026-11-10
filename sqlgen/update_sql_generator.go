@@ -57,7 +57,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 		case UpdateFromSQLFragment:
 			usg.updateFromSQL(b, clauses.From())
 		case WhereSQLFragment:
-			if w := clauses.Where(); w != nil && w.IsEmpty() {
+			if w := clauses.Where(); w != nil && matchesEveryRow(w) {
 				b.SetError(errEmptyWhereForUpdate)
 				return
 			}

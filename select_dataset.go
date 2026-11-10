@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"reflect"
+	"slices"
 
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -272,7 +273,11 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
 func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SelectAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelect)
+	}
+	return sd.copy(sd.clauses.SelectAppend(cols))
 }
 
 func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
@@ -282,7 +287,7 @@ func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
 func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
 	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)
 	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errDistinctOnWithoutColumns)
+		return sd.copy(sd.clauses).SetError(errEmptyDistinctOn)
 	}
 	return sd.copy(sd.clauses.SetDistinct(cols))
 }
@@ -469,7 +474,7 @@ func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return sd.copy(sd.clauses).SetError(errEmptyOrder)
 	}
 	return sd.copy(sd.clauses.SetOrder(order...))
@@ -478,7 +483,7 @@ func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return sd.copy(sd.clauses).SetError(errEmptyOrder)
 	}
 	return sd.copy(sd.clauses.OrderAppend(order...))
@@ -487,10 +492,14 @@ func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderPrepend(order ...exp.OrderedExpression) *SelectDataset {
-	if len(order) == 0 {
+	if noOrder(order) {
 		return sd.copy(sd.clauses).SetError(errEmptyOrder)
 	}
 	return sd.copy(sd.clauses.OrderPrepend(order...))
+}
+
+func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
+	return sd.copy(sd.clauses.SetGroupBy(nil))
 }
 
 // Removes the ORDER BY clause. See examples.
@@ -760,6 +769,10 @@ func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bo
 		return val, false, errNoDatabase
 	}
 	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
+}
+
+func noOrder(order []exp.OrderedExpression) bool {
+	return len(order) == 0 || slices.Contains(order, nil)
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {

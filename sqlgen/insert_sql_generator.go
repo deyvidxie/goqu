@@ -160,7 +160,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		isg.insertFromSQL(b, ic.From())
 		return insertSourceQuery
 	case ic.Cols() != nil:
-		b.SetError(errInsertColsWithoutValues)
+		b.SetError(errInsertColsWithoutVals)
 	default:
 		isg.defaultValuesSQL(b)
 		return insertSourceDefaults

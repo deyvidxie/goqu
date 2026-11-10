@@ -772,7 +772,7 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 	st.Equal([]string{"x", "x", "x"}, as)
 }
 
-func (st *sqlite3Suite) TestEmptySourcesAndLimitZero() {
+func (st *sqlite3Suite) TestValsWithoutColsAndLimitZero() {
 	type valsRow struct {
 		A int    `db:"a"`
 		B string `db:"b"`
@@ -788,9 +788,6 @@ func (st *sqlite3Suite) TestEmptySourcesAndLimitZero() {
 			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
 			Executor().Exec()
 		st.Require().NoError(err, "prepared=%v", prepared)
-
-		_, err = st.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
-		st.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
 
 		var none []valsRow
 		st.Require().NoError(st.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))

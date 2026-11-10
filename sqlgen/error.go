@@ -10,15 +10,19 @@ import (
 )
 
 var (
-	errNoSourceForInsert            = errors.NewInvalidExpressionError("no source found when generating insert sql")
-	errNoSourceForUpdate            = errors.NewInvalidExpressionError("no source found when generating update sql")
-	errNoSourceForDelete            = errors.NewInvalidExpressionError("no source found when generating delete sql")
-	errNoSourceForTruncate          = errors.NewInvalidExpressionError("no source found when generating truncate sql")
-	errNoSetValuesForUpdate         = errors.NewInvalidExpressionError("no set values found when generating update sql")
-	errEmptyWhereForUpdate          = errors.NewInvalidExpressionError("empty WHERE found when generating update sql")
-	errEmptyWhereForDelete          = errors.NewInvalidExpressionError("empty WHERE found when generating delete sql")
+	errNoSourceForInsert    = errors.NewInvalidExpressionError("no source found when generating insert sql")
+	errNoSourceForUpdate    = errors.NewInvalidExpressionError("no source found when generating update sql")
+	errNoSourceForDelete    = errors.NewInvalidExpressionError("no source found when generating delete sql")
+	errNoSourceForTruncate  = errors.NewInvalidExpressionError("no source found when generating truncate sql")
+	errNoSetValuesForUpdate = errors.NewInvalidExpressionError("no set values found when generating update sql")
+	errEmptyWhereForUpdate  = errors.NewInvalidExpressionError(
+		"WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row",
+	)
+	errEmptyWhereForDelete = errors.NewInvalidExpressionError(
+		"WHERE matches every row when generating delete sql; omit Where or call ClearWhere to delete every row",
+	)
 	errNoRowsForInsert              = errors.NewInvalidExpressionError("no rows found when generating insert sql")
-	errInsertColsWithoutValues      = errors.NewInvalidExpressionError("insert Cols requires Vals or FromQuery")
+	errInsertColsWithoutVals        = errors.NewInvalidExpressionError("insert Cols requires Vals or FromQuery")
 	errEmptyValsWithoutCols         = errors.NewInvalidExpressionError("insert Vals without Cols requires a non-empty row")
 	errEmptyInsertCols              = errors.NewInvalidExpressionError("insert Cols requires at least one column")
 	errMultipleInsertSources        = errors.NewInvalidExpressionError("insert accepts only one of Rows, Vals and FromQuery")

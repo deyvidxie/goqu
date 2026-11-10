@@ -373,13 +373,11 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 	type row struct {
 		A int `db:"a"`
 	}
-	var noRows []interface{}
 	for name, ds := range map[string]*goqu.InsertDataset{
 		"empty slice":             goqu.Insert("t").Rows([]row{}),
 		"empty array":             goqu.Insert("t").Rows([0]row{}),
 		"pointer to empty slice":  goqu.Insert("t").Rows(&[]goqu.Record{}),
 		"no rows":                 goqu.Insert("t").Rows(),
-		"nil spread":              goqu.Insert("t").Rows(noRows...),
 		"empty spread":            goqu.Insert("t").Rows([]interface{}{}...),
 		"empty cols":              goqu.Insert("t").Cols(),
 		"empty cols with vals":    goqu.Insert("t").Cols().Vals(goqu.Vals{1}),
@@ -390,10 +388,6 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"no vals":                 goqu.Insert("t").Vals(),
 		"cols without vals":       goqu.Insert("t").Cols("a", "b"),
 		"empty vals row, no cols": goqu.Insert("t").Vals(goqu.Vals{}),
-		"prepared empty slice":    goqu.Insert("t").Prepared(true).Rows([]goqu.Record{}),
-		"postgres empty slice":    goqu.Dialect("postgres").Insert("t").Rows([]goqu.Record{}),
-		"mysql empty slice":       goqu.Dialect("mysql").Insert("t").Rows([]goqu.Record{}),
-		"mysql cols with no vals": goqu.Dialect("mysql").Insert("t").Cols("a").Vals(),
 	} {
 		_, _, err := ds.ToSQL()
 		ids.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)

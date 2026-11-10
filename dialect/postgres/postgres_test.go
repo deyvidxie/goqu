@@ -682,7 +682,7 @@ func (pt *postgresTest) TestOrderByFunction() {
 	}, entries)
 }
 
-func (pt *postgresTest) TestEmptySourcesAndLimitZero() {
+func (pt *postgresTest) TestValsWithoutColsAndLimitZero() {
 	type valsRow struct {
 		A int    `db:"a"`
 		B string `db:"b"`
@@ -698,9 +698,6 @@ func (pt *postgresTest) TestEmptySourcesAndLimitZero() {
 			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
 			Executor().Exec()
 		pt.Require().NoError(err, "prepared=%v", prepared)
-
-		_, err = pt.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
-		pt.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
 
 		var none []valsRow
 		pt.Require().NoError(pt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))

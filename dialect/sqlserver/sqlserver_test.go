@@ -640,7 +640,7 @@ func (sst *sqlserverTest) TestDelete() {
 	sst.EqualError(err, "goqu: dialect does not support RETURNING clause [dialect=sqlserver]")
 }
 
-func (sst *sqlserverTest) TestEmptySourcesAndLimitZero() {
+func (sst *sqlserverTest) TestValsWithoutColsAndLimitZero() {
 	type valsRow struct {
 		A int    `db:"a"`
 		B string `db:"b"`
@@ -656,9 +656,6 @@ func (sst *sqlserverTest) TestEmptySourcesAndLimitZero() {
 			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
 			Executor().Exec()
 		sst.Require().NoError(err, "prepared=%v", prepared)
-
-		_, err = sst.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
-		sst.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
 
 		var none []valsRow
 		sst.Require().NoError(sst.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))

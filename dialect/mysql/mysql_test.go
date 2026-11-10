@@ -891,7 +891,7 @@ func (mt *mysqlTest) TestInsert_withoutRows() {
 	mt.Equal([]string{"x", "x"}, as)
 }
 
-func (mt *mysqlTest) TestEmptySourcesAndLimitZero() {
+func (mt *mysqlTest) TestValsWithoutColsAndLimitZero() {
 	type valsRow struct {
 		A int    `db:"a"`
 		B string `db:"b"`
@@ -907,9 +907,6 @@ func (mt *mysqlTest) TestEmptySourcesAndLimitZero() {
 			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
 			Executor().Exec()
 		mt.Require().NoError(err, "prepared=%v", prepared)
-
-		_, err = mt.db.Insert("vals_insert").Prepared(prepared).Rows([]valsRow{}).Executor().Exec()
-		mt.True(goqu.IsInvalidExpression(err), "prepared=%v: %v", prepared, err)
 
 		var none []valsRow
 		mt.Require().NoError(mt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))

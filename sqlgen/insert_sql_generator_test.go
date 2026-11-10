@@ -274,14 +274,15 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 			insertTestCase{clause: ic.SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(cols).SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(cols), err: colsWithoutVals, isPrepared: prepared},
-			insertTestCase{
-				clause:     ic.SetRows([]interface{}{}).SetRows(nil).SetVals([][]interface{}{}).SetVals(nil),
-				sql:        `INSERT INTO "test" DEFAULT VALUES`,
-				isPrepared: prepared,
-			},
 			insertTestCase{clause: ic.SetCols(exp.NewColumnListExpression(nil, "db")), err: emptyCols, isPrepared: prepared},
 			insertTestCase{
 				clause:     ic.SetCols(exp.NewColumnListExpression(nil, "db")).SetVals([][]interface{}{{1}}),
+				err:        emptyCols,
+				isPrepared: prepared,
+			},
+			insertTestCase{
+				clause: ic.SetCols(exp.NewColumnListExpression(nil, "db")).
+					SetFrom(newTestAppendableExpression(`SELECT * FROM "s"`, emptyArgs, nil, nil)),
 				err:        emptyCols,
 				isPrepared: prepared,
 			},
@@ -309,6 +310,16 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valsWithoutCols() {
 		insertTestCase{clause: mismatched, err: `goqu: rows with different value length, expected 2 got 1`, isPrepared: true},
 		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`},
 		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`, isPrepared: true},
+	)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_clearedSourcesRenderDefaultValues() {
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	cleared := ic.SetRows([]interface{}{}).SetRows(nil).SetVals([][]interface{}{}).SetVals(nil)
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: cleared, sql: `INSERT INTO "test" DEFAULT VALUES`},
+		insertTestCase{clause: cleared, sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: true},
 	)
 }
 

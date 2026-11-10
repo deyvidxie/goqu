@@ -525,34 +525,58 @@ func (uds *updateDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
 	uds.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]")
 }
 
+func (uds *updateDatasetSuite) TestEmptyOrder() {
+	var noOrder []exp.OrderedExpression
+	for name, ds := range map[string]interface {
+		ToSQL() (string, []interface{}, error)
+	}{
+		"Order":            goqu.Update("test").Set(goqu.Record{"a": 1}).Order(noOrder...),
+		"Order nil":        goqu.Update("test").Set(goqu.Record{"a": 1}).Order(nil),
+		"OrderAppend":      goqu.Update("test").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc()).OrderAppend(noOrder...),
+		"OrderAppend nil":  goqu.Update("test").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc()).OrderAppend(nil),
+		"OrderPrepend":     goqu.Update("test").Set(goqu.Record{"a": 1}).OrderPrepend(noOrder...),
+		"OrderPrepend nil": goqu.Update("test").Set(goqu.Record{"a": 1}).OrderPrepend(goqu.C("a").Asc(), nil),
+	} {
+		_, _, err := ds.ToSQL()
+		uds.EqualError(err, "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY", name)
+	}
+}
+
 func (uds *updateDatasetSuite) TestToSQL_emptyWhere() {
 	var none []exp.Expression
+	ud := goqu.Update("test").Set(goqu.Record{"a": 1})
 	for name, d := range map[string]interface {
 		ToSQL() (string, []interface{}, error)
 	}{
-		"no conditions":        goqu.Update("test").Set(goqu.Record{"a": 1}).Where(),
-		"nil spread":           goqu.Update("test").Set(goqu.Record{"a": 1}).Where(none...),
-		"empty Ex":             goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.Ex{}),
-		"empty And":            goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.And()),
-		"empty literal":        goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.L("")),
+		"no conditions":        ud.Where(),
+		"empty Ex":             ud.Where(goqu.Ex{}),
+		"empty And":            ud.Where(goqu.And()),
+		"empty literal":        ud.Where(goqu.L("")),
+		"Or of empty Ex":       ud.Where(goqu.Or(goqu.Ex{})),
+		"Or with empty And":    ud.Where(goqu.Or(goqu.C("a").Eq(1), goqu.And())),
+		"And of empty groups":  ud.Where(goqu.And(goqu.And(), goqu.Ex{})),
 		"from select":          goqu.From("test").Where(none...).Update().Set(goqu.Record{"a": 1}),
 		"from select empty Ex": goqu.From("test").Where(goqu.Ex{}).Update().Set(goqu.Record{"a": 1}),
 	} {
 		_, _, err := d.ToSQL()
-		uds.EqualError(err, "goqu: empty WHERE found when generating update sql", name)
+		uds.EqualError(err, "goqu: WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row", name)
 	}
 
-	for name, d := range map[string]interface {
-		ToSQL() (string, []interface{}, error)
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		sql string
 	}{
-		"no Where":                 goqu.Update("test").Set(goqu.Record{"a": 1}),
-		"cleared":                  goqu.Update("test").Set(goqu.Record{"a": 1}).Where().ClearWhere(),
-		"empty then real":          goqu.Update("test").Set(goqu.Record{"a": 1}).Where(none...).Where(goqu.C("a").Eq(1)),
-		"real then empty":          goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.C("a").Eq(1)).Where(none...),
-		"empty Or matches nothing": goqu.Update("test").Set(goqu.Record{"a": 1}).Where(goqu.Or()),
+		"no Where":                 {ud, `UPDATE "test" SET "a"=1`},
+		"cleared":                  {ud.Where().ClearWhere(), `UPDATE "test" SET "a"=1`},
+		"empty then real":          {ud.Where(none...).Where(goqu.C("a").Eq(1)), `UPDATE "test" SET "a"=1 WHERE ("a" = 1)`},
+		"real then empty":          {ud.Where(goqu.C("a").Eq(1)).Where(none...), `UPDATE "test" SET "a"=1 WHERE ("a" = 1)`},
+		"empty Or matches nothing": {ud.Where(goqu.Or()), `UPDATE "test" SET "a"=1 WHERE (1=0)`},
 	} {
-		_, _, err := d.ToSQL()
+		sql, _, err := c.ds.ToSQL()
 		uds.NoError(err, name)
+		uds.Equal(c.sql, sql, name)
 	}
 }
 
