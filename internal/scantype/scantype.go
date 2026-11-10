@@ -36,7 +36,8 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	if !util.IsStruct(elem.Kind()) {
 		return errNotStructTarget(t)
 	}
-	switch problem := util.CheckScanColumnMap(elem, tagName); problem.Issue {
+	columns, problem := util.CheckScanColumnMap(elem, tagName)
+	switch problem.Issue {
 	case util.ColumnMapNonStructEmbed:
 		return errNonStructEmbed(t, problem, tagName)
 	case util.ColumnMapUnexportedPointerEmbed:
@@ -49,7 +50,6 @@ func rowStruct(t reflect.Type, tagName string, allowUnexportedPointerEmbeds bool
 	}
 	oneColumn := isTime(elem) || util.IsScanner(elem)
 	sqlValue := oneColumn && elem.PkgPath() == sqlPkgPath
-	columns := util.StructColumnMap(elem, tagName)
 	switch {
 	case len(columns) > 0 && !sqlValue:
 		return nil

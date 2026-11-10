@@ -80,6 +80,30 @@ func (s *scannerSuite) TestScanVals() {
 	s.Require().ElementsMatch([]int{1, 2}, result)
 }
 
+func (s *scannerSuite) TestScanVal_rejectsNilAndNonPointerTargets() {
+	db, mock, err := sqlmock.New()
+	s.Require().NoError(err)
+	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	rows, err := db.QueryContext(context.Background(), `SELECT "id" FROM "items"`)
+	s.Require().NoError(err)
+
+	sc := NewScanner(rows, "db")
+	s.Require().True(sc.Next())
+	for target, want := range map[interface{}]string{
+		nil:           "goqu: scan target must not be nil, got <nil>",
+		(*int64)(nil): "goqu: scan target must not be nil, got *int64",
+		int64(1):      "goqu: cannot scan into int64, a pointer is required",
+	} {
+		err = sc.ScanVal(target)
+		s.EqualError(err, want)
+		s.True(errors.IsUnsupportedScanType(err))
+	}
+	var id int64
+	s.NoError(sc.ScanVal(&id))
+	s.Equal(int64(1), id)
+	s.NoError(sc.Close())
+}
+
 func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	db, mock, err := sqlmock.New()
 	s.Require().NoError(err)

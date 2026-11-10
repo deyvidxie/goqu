@@ -153,12 +153,12 @@ func ColumnSource(t reflect.Type, tagName string) (ColumnMap, ColumnMapProblem) 
 	return cm, problem
 }
 
-func CheckScanColumnMap(t reflect.Type, tagName string) ColumnMapProblem {
+func CheckScanColumnMap(t reflect.Type, tagName string) (ColumnMap, ColumnMapProblem) {
 	cm, problem := ColumnSource(t, tagName)
 	if problem.Issue != ColumnMapOK {
-		return problem
+		return nil, problem
 	}
-	return checkUnexportedPointerEmbeds(t, cm)
+	return cm, checkUnexportedPointerEmbeds(t, cm)
 }
 
 func checkFollowedFields(t reflect.Type, tagName, prefix string, ancestors map[reflect.Type]bool) ColumnMapProblem {

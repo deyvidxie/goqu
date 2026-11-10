@@ -296,25 +296,6 @@ func fieldPath(t reflect.Type, fieldIndex []int) string {
 	return strings.Join(names, ".")
 }
 
-func GetColumnMap(i interface{}, tagName string) (ColumnMap, error) {
-	t, valKind := GetTypeInfo(i)
-	if valKind != reflect.Struct {
-		return nil, errColumnMapNotStruct(t)
-	}
-
-	return StructColumnMap(t, tagName), nil
-}
-
-func StructColumnMap(t reflect.Type, tagName string) ColumnMap {
-	structMapCacheLock.Lock()
-	defer structMapCacheLock.Unlock()
-	key := columnMapKey{t: t, tagName: tagName}
-	if _, ok := structMapCache[key]; !ok {
-		structMapCache[key] = newColumnMap(t, []int{}, []string{}, tagName)
-	}
-	return structMapCache[key]
-}
-
 func IsScanner(t reflect.Type) bool {
 	return reflect.PointerTo(t).Implements(scannerType)
 }

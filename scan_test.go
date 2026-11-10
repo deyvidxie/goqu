@@ -44,6 +44,14 @@ type (
 		*dsTestActionItem
 		Next *scanTestNext
 	}
+	ScanTestMid     struct{ scanTestInnerID }
+	scanTestInnerID struct {
+		ID int64 `db:"id"`
+	}
+	scanTestMidAndHidden struct {
+		*ScanTestMid
+		*dsTestActionItem
+	}
 	scanTestUnexportedPtr struct{ *dsTestActionItem }
 	scanTestOuterPtr      struct{ *ScanTestInnerPtr }
 	scanTestOuterValue    struct{ ScanTestInnerPtr }
@@ -104,9 +112,8 @@ type (
 	}
 	ScanTestSelfRef struct{ *ScanTestSelfRef }
 	ScanTestOwner   struct {
-		ID   int64 `db:"id"`
-		Pets []scanTestPet
-		Pet  *scanTestPet
+		ID  int64 `db:"id"`
+		Pet *scanTestPet
 	}
 	scanTestPet struct {
 		Name  string `db:"name"`
@@ -271,7 +278,7 @@ func (ss *scanSuite) itemRows(csv string) *sqlmock.Rows {
 	return sqlmock.NewRows([]string{"address", "name"}).FromCSVString(csv)
 }
 
-func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
+func (ss *scanSuite) TestStructScans_rejectNilUnexportedPointerEmbeds() {
 	const query = `SELECT "address", "name" FROM "items"`
 	for _, c := range []struct {
 		field  string
@@ -282,13 +289,12 @@ func (ss *scanSuite) TestScanStruct_rejectsNilUnexportedPointerEmbeds() {
 		{"ScanTestInnerPtr.dsTestActionItem", &scanTestOuterPtr{&ScanTestInnerPtr{}}},
 		{"ScanTestInnerPtr.dsTestActionItem", &scanTestOuterValue{}},
 	} {
-		field := c.field
 		ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
 		found, err := ss.db.ScanStruct(c.target, query)
-		ss.EqualError(err, `goqu: cannot scan column "address": embedded field `+field+` is a nil pointer to unexported `+
-			"goqu_test.dsTestActionItem; embed it by value, set it before ScanStruct or tag it `db:\"-\"`", field)
-		ss.True(goqu.IsUnsupportedScanType(err), field)
-		ss.False(found, field)
+		ss.EqualError(err, `goqu: cannot scan column "address": embedded field `+c.field+` is a nil pointer to unexported `+
+			"goqu_test.dsTestActionItem; embed it by value, set it before ScanStruct or tag it `db:\"-\"`", c.field)
+		ss.True(goqu.IsUnsupportedScanType(err), c.field)
+		ss.False(found, c.field)
 	}
 
 	ss.mock.ExpectQuery(query).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
@@ -323,15 +329,13 @@ func (ss *scanSuite) TestScanStruct_scansColumnsOutsideNilUnexportedPointerEmbed
 	ss.NoError(err)
 	ss.True(found)
 	ss.Equal(dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}, *chained.Next.Item)
-}
 
-func (ss *scanSuite) TestScanStruct_fillsUnexportedValueEmbeds() {
-	ss.mock.ExpectQuery(`SELECT "address", "name" FROM "items"`).WillReturnRows(ss.itemRows("111 Test Addr,Test1"))
-	var byValue scanTestUnexportedRow
-	found, err := ss.db.ScanStruct(&byValue, `SELECT "address", "name" FROM "items"`)
+	ss.mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(9))
+	var mid scanTestMidAndHidden
+	found, err = ss.db.ScanStruct(&mid, `SELECT "id" FROM "items"`)
 	ss.NoError(err)
 	ss.True(found)
-	ss.Equal(scanTestUnexportedRow{dsTestActionItem{Address: "111 Test Addr", Name: "Test1"}}, byValue)
+	ss.Equal(int64(9), mid.ID)
 }
 
 func (ss *scanSuite) TestScanStruct_fillsSetUnexportedPointerEmbeds() {
