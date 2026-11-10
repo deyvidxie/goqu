@@ -3,7 +3,6 @@ package scantype
 import (
 	"database/sql"
 	"reflect"
-	"strings"
 	"time"
 	"uuid"
 
@@ -24,13 +23,13 @@ func Struct[T any](tagName string) error {
 }
 
 func StrictRowStruct(t reflect.Type, tagName string) error {
-	_, _, err := rowStructColumns(t, tagName, false)
-	return err
+	columns, _, err := rowStructColumns(t, tagName, false)
+	return rejectRawBytesFields(t, columns, tagName, err)
 }
 
 func RowStruct(t reflect.Type, tagName string) error {
-	_, _, err := ScanRowStruct(t, tagName)
-	return err
+	columns, _, err := rowStructColumns(t, tagName, true)
+	return rejectRawBytesFields(t, columns, tagName, err)
 }
 
 func ScanRowStruct(t reflect.Type, tagName string) (columns util.ColumnMap, unexportedPointerEmbeds bool, err error) {
@@ -61,9 +60,6 @@ func rowStructColumns(
 	sqlValue := oneColumn && elem.PkgPath() == sqlPkgPath
 	switch {
 	case len(columns) > 0 && !sqlValue:
-		if field, ok := rawBytesField(elem, columns); ok {
-			return nil, problem, errRawBytesField(t, field, tagName)
-		}
 		return columns, problem, nil
 	case oneColumn:
 		return nil, problem, errOneColumnStruct(t, elem)
@@ -100,7 +96,7 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 		return errRawBytes(c.fn)
 	case IsUnscannableSlice(inner):
 		return errUnscannableSlice(c.fn, shown, inner)
-	case isSQLNull(inner):
+	case util.IsSQLNull(inner):
 		return scannableVal(c, shown, inner.Field(0).Type, tagName)
 	case util.IsScanner(inner):
 		return nil
@@ -113,19 +109,22 @@ func scannableVal(c caller, shown, check reflect.Type, tagName string) error {
 	}
 }
 
-func rawBytesField(t reflect.Type, columns util.ColumnMap) (string, bool) {
+func rejectRawBytesFields(t reflect.Type, columns util.ColumnMap, tagName string, err error) error {
+	if err != nil {
+		return err
+	}
 	names, _ := columns.Cols()
 	for _, name := range names {
 		if col := columns[name]; holdsRawBytes(col.GoType) {
-			return util.FieldPath(t, col.FieldIndex), true
+			return errRawBytesField(t, util.FieldPath(util.Deref(t), col.FieldIndex), tagName)
 		}
 	}
-	return "", false
+	return nil
 }
 
 func holdsRawBytes(t reflect.Type) bool {
 	inner := util.DerefAll(t)
-	if isSQLNull(inner) {
+	if util.IsSQLNull(inner) {
 		return holdsRawBytes(inner.Field(0).Type)
 	}
 	return inner == rawBytesType
@@ -144,10 +143,6 @@ func isUnassignable(t reflect.Type) bool {
 	default:
 		return false
 	}
-}
-
-func isSQLNull(t reflect.Type) bool {
-	return util.IsStruct(t.Kind()) && t.PkgPath() == sqlPkgPath && strings.HasPrefix(t.Name(), "Null[")
 }
 
 func isTime(t reflect.Type) bool {

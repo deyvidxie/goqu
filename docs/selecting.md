@@ -1011,7 +1011,7 @@ if err := db.From("user").Select("first_name").ScanStructs(&users); err != nil{
 fmt.Printf("\n%+v", users)
 ```
 
-`ScanStructs` and `ScanStruct` return `goqu.UnsupportedScanTypeError` for a target that is not a row struct (`time.Time`, a `database/sql` type such as `sql.NullString`, a struct with no scannable fields, a non-struct), scan one-column types with `ScanVals`/`ScanVal`; and for a struct with a `sql.RawBytes` field, use `[]byte`.
+`ScanStructs` and `ScanStruct` return `goqu.UnsupportedScanTypeError` for a target that is not a row struct (`time.Time`, a `database/sql` type such as `sql.NullString`, a struct with no scannable fields, a non-struct); scan one-column types with `ScanVals`/`ScanVal`. They return the same error for a struct with a `sql.RawBytes` field; use `[]byte` or tag it `db:"-"`.
 
 Fields whose type is a non-empty interface that `sql.Scanner` values can be stored in (such as `sql.Scanner` itself) can be scanned into by setting the field to a **non-nil pointer to a value that implements `sql.Scanner`** before calling `ScanStruct`; the column is scanned straight into that value. If the field is `nil`, holds a non-pointer, or you use `ScanStructs`, `ScanAllStructs` or `ScanOneStruct` (which create new structs), these methods return an error. The value is scanned in place, so when iterating with a [`Scanner`](#scanner) set a new value for every row, otherwise all of the items you collect share the same value.
 

@@ -296,11 +296,40 @@ func FieldPath(t reflect.Type, fieldIndex []int) string {
 	return strings.Join(names, ".")
 }
 
-func UnnamedPointer(t reflect.Type) reflect.Type {
-	if IsPointer(t.Kind()) {
-		return reflect.PointerTo(t.Elem())
+func IsSQLNull(t reflect.Type) bool {
+	return IsStruct(t.Kind()) && t.PkgPath() == "database/sql" && strings.HasPrefix(t.Name(), "Null[")
+}
+
+// ScanType is t with every pointer unnamed; a sql.Null[T] whose T changes becomes a pointer to T's scan type.
+func ScanType(t reflect.Type) reflect.Type {
+	switch {
+	case IsPointer(t.Kind()):
+		return reflect.PointerTo(ScanType(t.Elem()))
+	case IsSQLNull(t):
+		if v := t.Field(0).Type; ScanType(v) != v {
+			return reflect.PointerTo(ScanType(v))
+		}
 	}
 	return t
+}
+
+func AssignScanned(dst, scanned reflect.Value) {
+	if scanned.Type() == dst.Type() {
+		dst.Set(scanned)
+		return
+	}
+	if scanned.IsNil() {
+		dst.SetZero()
+		return
+	}
+	if IsSQLNull(dst.Type()) {
+		AssignScanned(dst.Field(0), scanned.Elem())
+		dst.Field(1).SetBool(true)
+		return
+	}
+	pointee := reflect.New(dst.Type().Elem())
+	AssignScanned(pointee.Elem(), scanned.Elem())
+	dst.Set(pointee)
 }
 
 func IsScanner(t reflect.Type) bool {

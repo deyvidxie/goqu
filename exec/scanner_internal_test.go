@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -137,4 +138,89 @@ func (s *scannerSuite) TestScanStruct_rejectsTargetsThatAreNotRows() {
 	s.EqualError(err, "goqu: cannot scan rows into *exec.node: field Next leads back to exec.node; tag it `db:\"-\"`")
 	s.True(errors.IsUnsupportedScanType(err))
 	s.NoError(sc.Close())
+}
+
+type (
+	boolRefRef         *boolRef
+	nestedNamedPointer struct {
+		Flag  *boolRef          `db:"flag"`
+		Chain boolRefRef        `db:"chain"`
+		Null  sql.Null[boolRef] `db:"null"`
+	}
+	rawBytesRow struct {
+		Data sql.RawBytes `db:"data"`
+	}
+)
+
+func (s *scannerSuite) scanner(columns []string, rows ...[]driver.Value) Scanner {
+	db, mock, err := sqlmock.New()
+	s.Require().NoError(err)
+	mockRows := sqlmock.NewRows(columns)
+	for _, row := range rows {
+		mockRows.AddRow(row...)
+	}
+	mock.ExpectQuery(`SELECT`).WillReturnRows(mockRows)
+	result, err := db.QueryContext(context.Background(), `SELECT`)
+	s.Require().NoError(err)
+	return NewScanner(result, "db")
+}
+
+func (s *scannerSuite) TestScanVal_fillsNamedPointersAtAnyDepth() {
+	sc := s.scanner([]string{"v"}, []driver.Value{int64(1)}, []driver.Value{nil})
+	var (
+		flag  bool
+		ptr   *boolRef
+		chain boolRefRef
+		null  sql.Null[boolRef]
+	)
+	s.Require().True(sc.Next())
+	s.Require().NoError(sc.ScanVal(boolRef(&flag)))
+	s.Require().NoError(sc.ScanVal(&ptr))
+	s.Require().NoError(sc.ScanVal(&chain))
+	s.Require().NoError(sc.ScanVal(&null))
+	s.True(flag)
+	s.True(**ptr)
+	s.True(**chain)
+	s.True(null.Valid)
+	s.True(*null.V)
+
+	s.Require().True(sc.Next())
+	s.Require().NoError(sc.ScanVal(&ptr))
+	s.Require().NoError(sc.ScanVal(&chain))
+	s.Require().NoError(sc.ScanVal(&null))
+	s.Nil(ptr)
+	s.Nil(chain)
+	s.Equal(sql.Null[boolRef]{}, null)
+
+	var flags []*boolRef
+	s.Require().NoError(s.scanner([]string{"v"}, []driver.Value{int64(1)}, []driver.Value{nil}).ScanVals(&flags))
+	s.Require().Len(flags, 2)
+	s.True(**flags[0])
+	s.Nil(flags[1])
+}
+
+func (s *scannerSuite) TestScanStructs_fillNamedPointerFieldsAtAnyDepth() {
+	sc := s.scanner([]string{"flag", "chain", "null"}, []driver.Value{int64(1), int64(1), int64(1)}, []driver.Value{nil, nil, nil})
+	var rows []nestedNamedPointer
+	s.Require().NoError(sc.ScanStructs(&rows))
+	s.Require().Len(rows, 2)
+	s.True(**rows[0].Flag)
+	s.True(**rows[0].Chain)
+	s.True(rows[0].Null.Valid)
+	s.True(*rows[0].Null.V)
+	s.Equal(nestedNamedPointer{}, rows[1])
+}
+
+func (s *scannerSuite) TestRawBytesFields_scanOneRowAtATimeOnly() {
+	sc := s.scanner([]string{"data"}, []driver.Value{[]byte("a")})
+	s.Require().True(sc.Next())
+	var row rawBytesRow
+	s.Require().NoError(sc.ScanStruct(&row))
+	s.Equal(sql.RawBytes("a"), row.Data)
+	s.NoError(sc.Close())
+
+	err := s.scanner([]string{"data"}, []driver.Value{[]byte("a")}).ScanStructs(&[]rawBytesRow{})
+	s.EqualError(err, "goqu: cannot scan rows into exec.rawBytesRow: field Data holds a sql.RawBytes, "+
+		"which is only valid until the next row is read or the rows are closed; use []byte or tag it `db:\"-\"`")
+	s.True(errors.IsUnsupportedScanType(err))
 }
