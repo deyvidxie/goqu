@@ -914,6 +914,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionRejectsLi
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: ident.Gt([]int{}), err: gt},
+		expressionTestCase{val: ident.Gt([]int{}), err: gt, isPrepared: true},
 		expressionTestCase{val: ident.Gt([]int{1, 2}), err: gt},
 		expressionTestCase{val: ident.Gt([]int{1, 2}), err: gt, isPrepared: true},
 		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x", "y"}}}, err: like},
