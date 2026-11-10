@@ -39,6 +39,8 @@ var errNoDatabase = errors.NewNoDatabaseError(
 	"no database to execute the query, create the dataset with goqu.Database#From",
 )
 
+var errDistinctOnWithoutColumns = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
+
 func errUnsupportedFromArgument(from interface{}) error {
 	return errors.NewInvalidExpressionError(
 		"unsupported DeleteDataset#From argument %T, a string or identifier expression is required", from,

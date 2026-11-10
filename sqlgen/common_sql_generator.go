@@ -122,6 +122,10 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 		csg.esg.Generate(b, offset)
 		b.Write(csg.dialectOptions.OffsetRowsFragment)
 
+		if limit == uint(0) {
+			b.SetError(errFetchZeroRowsNotSupported(csg.dialect))
+			return
+		}
 		if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 			b.Write(csg.dialectOptions.FetchFragment)
 			csg.esg.Generate(b, limit)

@@ -280,6 +280,13 @@ func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
 	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)))
 }
 
+func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
+	if len(on) == 0 {
+		return sd.copy(sd.clauses).SetError(errDistinctOnWithoutColumns)
+	}
+	return sd.Distinct(on...)
+}
+
 // Adds a FROM clause. This return a new dataset with the original sources replaced. See examples.
 // You can pass in the following.
 //
@@ -473,10 +480,7 @@ func (sd *SelectDataset) ClearOrder() *SelectDataset {
 
 // Adds a LIMIT clause. If the LIMIT is currently set it replaces it. See examples.
 func (sd *SelectDataset) Limit(limit uint) *SelectDataset {
-	if limit > 0 {
-		return sd.copy(sd.clauses.SetLimit(limit))
-	}
-	return sd.copy(sd.clauses.ClearLimit())
+	return sd.copy(sd.clauses.SetLimit(limit))
 }
 
 // Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it treats it as no limit. See examples.

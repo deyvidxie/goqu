@@ -3,7 +3,7 @@
 * [Creating a SelectDataset](#create)
 * Building SQL
   * [`Select`](#select)
-  * [`Distinct`](#distinct)
+  * [`Distinct`, `DistinctOn`](#distinct)
   * [`From`](#from)
   * [`Join`](#joins)
   * [`Where`](#where)
@@ -182,7 +182,7 @@ Output:
 SELECT DISTINCT "a", "b" FROM "test"
 ```
 
-If you dialect supports `DISTINCT ON` you provide arguments to the `Distinct` method.
+If you dialect supports `DISTINCT ON` you provide arguments to the `Distinct` method, or to `DistinctOn`, which returns an `InvalidExpressionError` instead of a plain `DISTINCT` when it is given no columns.
 
 **NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
 

@@ -15,6 +15,9 @@ var (
 	errNoSourceForDelete            = errors.NewInvalidExpressionError("no source found when generating delete sql")
 	errNoSourceForTruncate          = errors.NewInvalidExpressionError("no source found when generating truncate sql")
 	errNoSetValuesForUpdate         = errors.NewInvalidExpressionError("no set values found when generating update sql")
+	errNoRowsForInsert              = errors.NewInvalidExpressionError("no rows found when generating insert sql")
+	errInsertColsWithoutValues      = errors.NewInvalidExpressionError("insert Cols requires Vals or FromQuery")
+	errEmptyValsWithoutCols         = errors.NewInvalidExpressionError("insert Vals without Cols requires a non-empty row")
 	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
 	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
@@ -95,6 +98,10 @@ func errFragmentNotSupported(dialect, sqlType string, f SQLFragmentType) error {
 
 func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
+}
+
+func errFetchZeroRowsNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support FETCH of zero rows after an OFFSET [dialect=%s]", dialect)
 }
 
 func errOnConflictNotSupported(dialect string) error {

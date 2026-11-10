@@ -772,6 +772,34 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 	st.Equal([]string{"x", "x", "x"}, as)
 }
 
+func (st *sqlite3Suite) TestInsert_valsWithoutCols() {
+	for _, prepared := range []bool{false, true} {
+		_, err := st.db.Insert("entry").Prepared(prepared).
+			Vals(goqu.Vals{nil, 100, 1.5, "vals", "2015-02-22 18:19:55", true, []byte("v")}).
+			Executor().Exec()
+		st.Require().NoError(err, "prepared=%v", prepared)
+	}
+	count, err := st.db.From("entry").Where(goqu.C("int").Eq(100)).Count()
+	st.Require().NoError(err)
+	st.Equal(int64(2), count)
+}
+
+func (st *sqlite3Suite) TestInsert_emptyRowsInsertsNothing() {
+	_, err := st.db.Insert("entry").Rows([]entry{}).Executor().Exec()
+	st.True(goqu.IsInvalidExpression(err), "%v", err)
+	count, err := st.db.From("entry").Count()
+	st.Require().NoError(err)
+	st.Equal(int64(10), count)
+}
+
+func (st *sqlite3Suite) TestLimitZero() {
+	for _, prepared := range []bool{false, true} {
+		var ints []int64
+		st.Require().NoError(st.db.From("entry").Prepared(prepared).Select("int").Limit(0).ScanVals(&ints))
+		st.Empty(ints, "prepared=%v", prepared)
+	}
+}
+
 func TestSqlite3Suite(t *testing.T) {
 	suite.Run(t, new(sqlite3Suite))
 }

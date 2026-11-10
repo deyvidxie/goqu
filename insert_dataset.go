@@ -173,6 +173,9 @@ func (id *InsertDataset) ClearVals() *InsertDataset {
 
 // Insert rows. Rows can be a map, goqu.Record or struct. See examples.
 func (id *InsertDataset) Rows(rows ...interface{}) *InsertDataset {
+	if rows == nil {
+		rows = []interface{}{}
+	}
 	return id.copy(id.clauses.SetRows(rows))
 }
 

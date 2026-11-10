@@ -323,7 +323,7 @@ func (uds *updateDatasetSuite) TestLimit() {
 		},
 		updateTestCase{
 			ds:      bd.Limit(0),
-			clauses: exp.NewUpdateClauses().SetTable(goqu.C("items")),
+			clauses: exp.NewUpdateClauses().SetTable(goqu.C("items")).SetLimit(uint(0)),
 		},
 		updateTestCase{
 			ds:      bd,

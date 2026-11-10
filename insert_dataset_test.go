@@ -355,8 +355,6 @@ func (ids *insertDatasetSuite) TestRows_withRowLists() {
 	}
 	want, _, err := goqu.Insert("t").Rows([]row{{A: 1}, {A: 2}}).ToSQL()
 	ids.Require().NoError(err)
-	wantEmpty, _, err := goqu.Insert("t").Rows([]row{}).ToSQL()
-	ids.Require().NoError(err)
 	for name, c := range map[string]struct {
 		rows interface{}
 		want string
@@ -364,12 +362,85 @@ func (ids *insertDatasetSuite) TestRows_withRowLists() {
 		"array":            {rows: [2]row{{A: 1}, {A: 2}}, want: want},
 		"pointer to array": {rows: &[2]row{{A: 1}, {A: 2}}, want: want},
 		"pointer to slice": {rows: &[]row{{A: 1}, {A: 2}}, want: want},
-		"empty array":      {rows: [0]row{}, want: wantEmpty},
 	} {
 		sql, _, err := goqu.Insert("t").Rows(c.rows).ToSQL()
 		ids.NoError(err, name)
 		ids.Equal(c.want, sql, name)
 	}
+}
+
+func (ids *insertDatasetSuite) TestEmptySources() {
+	type row struct {
+		A int `db:"a"`
+	}
+	var noRows []interface{}
+	for name, ds := range map[string]*goqu.InsertDataset{
+		"empty slice":             goqu.Insert("t").Rows([]row{}),
+		"empty array":             goqu.Insert("t").Rows([0]row{}),
+		"pointer to empty slice":  goqu.Insert("t").Rows(&[]goqu.Record{}),
+		"no rows":                 goqu.Insert("t").Rows(),
+		"empty spread":            goqu.Insert("t").Rows(noRows...),
+		"cols with no vals":       goqu.Insert("t").Cols("a", "b").Vals(),
+		"no vals":                 goqu.Insert("t").Vals(),
+		"cols without vals":       goqu.Insert("t").Cols("a", "b"),
+		"empty vals row, no cols": goqu.Insert("t").Vals(goqu.Vals{}),
+		"prepared empty slice":    goqu.Insert("t").Prepared(true).Rows([]goqu.Record{}),
+		"postgres empty slice":    goqu.Dialect("postgres").Insert("t").Rows([]goqu.Record{}),
+		"mysql empty slice":       goqu.Dialect("mysql").Insert("t").Rows([]goqu.Record{}),
+		"mysql cols with no vals": goqu.Dialect("mysql").Insert("t").Cols("a").Vals(),
+	} {
+		_, _, err := ds.ToSQL()
+		ids.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
+	}
+}
+
+func (ids *insertDatasetSuite) TestDefaultValuesSources() {
+	for name, ds := range map[string]*goqu.InsertDataset{
+		"no source":    goqu.Insert("t"),
+		"empty record": goqu.Insert("t").Rows(goqu.Record{}),
+		"cleared rows": goqu.Insert("t").Rows([]goqu.Record{}).ClearRows(),
+		"cleared vals": goqu.Insert("t").Vals().ClearVals(),
+		"cleared cols": goqu.Insert("t").Cols("a").ClearCols(),
+	} {
+		sql, _, err := ds.ToSQL()
+		ids.NoError(err, name)
+		ids.Equal(`INSERT INTO "t" DEFAULT VALUES`, sql, name)
+	}
+}
+
+func (ids *insertDatasetSuite) TestValsWithoutCols() {
+	ids.assertCases(
+		insertTestCase{
+			ds:      goqu.Insert("t").Vals(goqu.Vals{1, "a"}),
+			clauses: exp.NewInsertClauses().SetInto(goqu.C("t")).SetVals([][]interface{}{{1, "a"}}),
+		},
+	)
+	for _, c := range []struct {
+		ds   *goqu.InsertDataset
+		sql  string
+		args []interface{}
+	}{
+		{ds: goqu.Insert("t").Vals(goqu.Vals{1, "a"}), sql: `INSERT INTO "t" VALUES (1, 'a')`},
+		{ds: goqu.Insert("t").Vals(goqu.Vals{1, "a"}, goqu.Vals{2, "b"}), sql: `INSERT INTO "t" VALUES (1, 'a'), (2, 'b')`},
+		{
+			ds:   goqu.Insert("t").Prepared(true).Vals(goqu.Vals{1, "a"}, goqu.Vals{2, "b"}),
+			sql:  `INSERT INTO "t" VALUES (?, ?), (?, ?)`,
+			args: []interface{}{int64(1), "a", int64(2), "b"},
+		},
+		{ds: goqu.Insert("t").Cols().Vals(goqu.Vals{1}), sql: `INSERT INTO "t" VALUES (1)`},
+		{ds: goqu.Dialect("mysql").Insert("t").Vals(goqu.Vals{1}), sql: "INSERT INTO `t` VALUES (1)"},
+	} {
+		sql, args, err := c.ds.ToSQL()
+		ids.NoError(err, c.sql)
+		ids.Equal(c.sql, sql)
+		if c.args != nil {
+			ids.Equal(c.args, args, c.sql)
+		} else {
+			ids.Empty(args, c.sql)
+		}
+	}
+	_, _, err := goqu.Insert("t").Vals(goqu.Vals{1, "a"}, goqu.Vals{2}).ToSQL()
+	ids.True(goqu.IsInvalidExpression(err), "%v", err)
 }
 
 func (ids *insertDatasetSuite) TestOnConflict() {

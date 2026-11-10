@@ -136,6 +136,10 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 			b.SetError(err)
 			return insertSourceValues
 		}
+		if !ie.IsInsertFrom() && len(ie.Vals()) == 0 {
+			b.SetError(errNoRowsForInsert)
+			return insertSourceValues
+		}
 		isg.InsertExpressionSQL(b, ie)
 		if ie.IsInsertFrom() {
 			return insertSourceQuery
@@ -143,20 +147,36 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		if ie.IsEmpty() {
 			return insertSourceDefaults
 		}
-	case ic.HasCols() && ic.HasVals():
-		isg.insertColumnsSQL(b, ic.Cols())
-		isg.insertValuesSQL(b, len(ic.Cols().Columns()), ic.Vals())
+	case ic.HasVals():
+		isg.insertValsSQL(b, ic)
 	case ic.HasCols() && ic.HasFrom():
 		isg.insertColumnsFromSQL(b, ic)
 		return insertSourceComplete
 	case ic.HasFrom():
 		isg.insertFromSQL(b, ic.From())
 		return insertSourceQuery
+	case ic.Cols() != nil:
+		b.SetError(errInsertColsWithoutValues)
 	default:
 		isg.defaultValuesSQL(b)
 		return insertSourceDefaults
 	}
 	return insertSourceValues
+}
+
+func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+	vals := ic.Vals()
+	switch {
+	case len(vals) == 0:
+		b.SetError(errNoRowsForInsert)
+	case ic.HasCols():
+		isg.insertColumnsSQL(b, ic.Cols())
+		isg.insertValuesSQL(b, len(ic.Cols().Columns()), vals)
+	case len(vals[0]) == 0:
+		b.SetError(errEmptyValsWithoutCols)
+	default:
+		isg.insertValuesSQL(b, len(vals[0]), vals)
+	}
 }
 
 func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.InsertClauses) {

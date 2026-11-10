@@ -1182,6 +1182,17 @@ func ExampleSelectDataset_Distinct_onCoalesce() {
 	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
 }
 
+func ExampleSelectDataset_DistinctOn() {
+	sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
+	fmt.Println(sql)
+	var none []interface{}
+	_, _, err := goqu.From("test").DistinctOn(none...).ToSQL()
+	fmt.Println(err)
+	// Output:
+	// SELECT DISTINCT ON ("a") * FROM "test"
+	// goqu: DistinctOn requires at least one column
+}
+
 func ExampleSelectDataset_SelectAppend() {
 	ds := goqu.From("test").Select("a", "b")
 	sql, _, _ := ds.SelectAppend("c").ToSQL()

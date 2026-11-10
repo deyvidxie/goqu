@@ -260,6 +260,47 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withEmptyRows() {
 	)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
+	const noRows = "goqu: no rows found when generating insert sql"
+	const colsWithoutVals = "goqu: insert Cols requires Vals or FromQuery"
+	cases := make([]insertTestCase, 0, 12)
+	for _, prepared := range []bool{false, true} {
+		cases = append(cases,
+			insertTestCase{clause: ic.SetRows([]interface{}{}), err: noRows, isPrepared: prepared},
+			insertTestCase{clause: ic.SetRows([]interface{}{[]exp.Record{}}), err: noRows, isPrepared: prepared},
+			insertTestCase{clause: ic.SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
+			insertTestCase{clause: ic.SetCols(cols).SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
+			insertTestCase{clause: ic.SetCols(cols), err: colsWithoutVals, isPrepared: prepared},
+			insertTestCase{clause: ic.SetRows(nil).SetVals(nil), sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: prepared},
+		)
+	}
+	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()), cases...)
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_valsWithoutCols() {
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	rows := ic.SetVals([][]interface{}{{1, "a"}, {2, "b"}})
+	mismatched := ic.SetVals([][]interface{}{{1, "a"}, {2}})
+	emptyRow := ic.SetVals([][]interface{}{{}})
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: ic.SetVals([][]interface{}{{1}}), sql: `INSERT INTO "test" VALUES (1)`},
+		insertTestCase{clause: rows, sql: `INSERT INTO "test" VALUES (1, 'a'), (2, 'b')`},
+		insertTestCase{
+			clause:     rows,
+			sql:        `INSERT INTO "test" VALUES (?, ?), (?, ?)`,
+			isPrepared: true,
+			args:       []interface{}{int64(1), "a", int64(2), "b"},
+		},
+		insertTestCase{clause: mismatched, err: `goqu: rows with different value length, expected 2 got 1`},
+		insertTestCase{clause: mismatched, err: `goqu: rows with different value length, expected 2 got 1`, isPrepared: true},
+		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`},
+		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`, isPrepared: true},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_withRowsAppendableExpression() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).

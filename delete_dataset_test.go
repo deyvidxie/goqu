@@ -296,7 +296,7 @@ func (dds *deleteDatasetSuite) TestLimit() {
 		},
 		deleteTestCase{
 			ds:      bd.Limit(0),
-			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")),
+			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")).SetLimit(uint(0)),
 		},
 		deleteTestCase{
 			ds: bd.Limit(10).Limit(2),
@@ -306,7 +306,7 @@ func (dds *deleteDatasetSuite) TestLimit() {
 		},
 		deleteTestCase{
 			ds:      bd.Limit(10).Limit(0),
-			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")),
+			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")).SetLimit(uint(0)),
 		},
 		deleteTestCase{
 			ds:      bd,

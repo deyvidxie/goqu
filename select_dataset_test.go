@@ -327,6 +327,27 @@ func (sds *selectDatasetSuite) TestSelectAppend() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestDistinctOn() {
+	bd := goqu.Dialect("postgres").From("test")
+	sds.Equal(bd.Distinct("a", "b"), bd.DistinctOn("a", "b"))
+
+	sql, _, err := bd.DistinctOn("a").ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT DISTINCT ON ("a") * FROM "test"`, sql)
+
+	var none []interface{}
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"no columns":   bd.DistinctOn(),
+		"nil spread":   bd.DistinctOn(none...),
+		"empty spread": bd.DistinctOn([]interface{}{}...),
+		"prepared":     bd.Prepared(true).DistinctOn(none...),
+	} {
+		_, _, err := ds.ToSQL()
+		sds.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
+	}
+	sds.NoError(bd.Error())
+}
+
 func (sds *selectDatasetSuite) TestDistinct() {
 	bd := goqu.From("test")
 	sds.assertCases(
@@ -1101,7 +1122,8 @@ func (sds *selectDatasetSuite) TestLimit() {
 		selectTestCase{
 			ds: bd.Limit(0),
 			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetLimit(uint(0)),
 		},
 		selectTestCase{
 			ds: bd.Limit(10).Limit(2),
@@ -1112,7 +1134,8 @@ func (sds *selectDatasetSuite) TestLimit() {
 		selectTestCase{
 			ds: bd.Limit(10).Limit(0),
 			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetLimit(uint(0)),
 		},
 		selectTestCase{
 			ds:      bd,
@@ -1851,6 +1874,44 @@ func (sds *selectDatasetSuite) TestSetError() {
 	sds.Empty(sql)
 	sds.Empty(args)
 	sds.Equal(err1, err)
+}
+
+func (sds *selectDatasetSuite) TestLimitZero() {
+	pg, my, lite, ms := goqu.Dialect("postgres"), goqu.Dialect("mysql"), goqu.Dialect("sqlite3"), goqu.Dialect("sqlserver")
+	for _, c := range []struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		sql  string
+		args []interface{}
+	}{
+		{ds: goqu.From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
+		{ds: goqu.From("t").Limit(10).Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
+		{ds: goqu.From("t").Prepared(true).Limit(0), sql: `SELECT * FROM "t" LIMIT ?`, args: []interface{}{int64(0)}},
+		{ds: pg.From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
+		{ds: my.From("t").Limit(0), sql: "SELECT * FROM `t` LIMIT 0"},
+		{ds: my.Update("t").Set(goqu.Record{"a": 1}).Limit(0), sql: "UPDATE `t` SET `a`=1 LIMIT 0"},
+		{ds: my.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: "DELETE FROM `t` WHERE (`a` = 1) LIMIT 0"},
+		{
+			ds:   my.Delete("t").Prepared(true).Where(goqu.C("a").Eq(1)).Limit(0),
+			sql:  "DELETE FROM `t` WHERE (`a` = ?) LIMIT ?",
+			args: []interface{}{int64(1), int64(0)},
+		},
+		{ds: lite.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: "DELETE FROM `t` WHERE (`a` = 1) LIMIT 0"},
+		{ds: ms.From("t").Limit(0), sql: `SELECT  TOP (0) * FROM "t"`},
+		{ds: ms.Update("t").Set(goqu.Record{"a": 1}).Limit(0), sql: `UPDATE TOP (0) "t" SET "a"=1`},
+		{ds: ms.Delete("t").Where(goqu.C("a").Eq(1)).Limit(0), sql: `DELETE TOP (0) FROM "t" WHERE ("a" = 1)`},
+	} {
+		sql, args, err := c.ds.ToSQL()
+		sds.NoError(err, c.sql)
+		sds.Equal(c.sql, sql)
+		if c.args != nil {
+			sds.Equal(c.args, args, c.sql)
+		}
+	}
+
+	_, _, err := ms.From("t").Order(goqu.C("a").Asc()).Offset(2).Limit(0).ToSQL()
+	sds.True(goqu.IsUnsupported(err), "%v", err)
 }
 
 func TestSelectDataset(t *testing.T) {
