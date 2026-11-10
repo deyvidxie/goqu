@@ -100,11 +100,11 @@ func createOredExpressionFromMap(lhs IdentifierExpression, op Op) ([]Expression,
 	opKeys := getExMapKeys(op)
 	ors := make([]Expression, 0, len(opKeys))
 	for _, opKey := range opKeys {
-		if exp, err := createExpressionFromOp(lhs, opKey, op); err != nil {
+		exp, err := createExpressionFromOp(lhs, opKey, op)
+		if err != nil {
 			return nil, err
-		} else if exp != nil {
-			ors = append(ors, exp)
 		}
+		ors = append(ors, exp)
 	}
 	return ors, nil
 }

@@ -925,6 +925,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionRejectsLi
 		expressionTestCase{val: ident.Gt([]int{5}), sql: `("a" > (?))`, isPrepared: true, args: []interface{}{int64(5)}},
 		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x%"}}}, sql: `("a" LIKE ('x%'))`},
 		expressionTestCase{val: ident.Gt([]byte("x")), sql: `("a" > 'x')`},
+		expressionTestCase{val: ident.Gt(arrayLiteralValuer{1, 2}), sql: `("a" > '{1,2}')`},
 		expressionTestCase{val: exp.NewLiteralExpression("(a, b)").Gt([]int{1, 2}), sql: `((a, b) > (1, 2))`},
 		expressionTestCase{
 			val:        exp.NewLiteralExpression("(a, b)").Gt([]int{1, 2}),
