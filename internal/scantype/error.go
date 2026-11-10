@@ -79,10 +79,10 @@ func errRawBytes(fn string) error {
 	)
 }
 
-func errRawBytesField(t reflect.Type, field string) error {
+func errRawBytesField(t reflect.Type, field, tagName string) error {
 	return errors.NewUnsupportedScanTypeError(
 		"cannot scan rows into %s: field %s holds a sql.RawBytes, "+
-			"which is only valid until the next row is read or the rows are closed; use []byte",
-		t, field,
+			"which is only valid until the next row is read or the rows are closed; use []byte or tag it `%s:\"-\"`",
+		t, field, tagName,
 	)
 }

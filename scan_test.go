@@ -985,13 +985,13 @@ func (ss *scanSuite) TestScanAllStructs_acceptsSkippedEmbeddedNonStructPointers(
 	ss.Equal([]scanTestSkippedNested{{ID: 6}}, nested)
 }
 
-func (ss *scanSuite) TestStructScans_rejectUncolumnableTargetsBeforeQuerying() {
+func (ss *scanSuite) TestStructScans_rejectTargetsBeforeQuerying() {
 	const (
 		query = `SELECT "id" FROM "items"`
 		cycle = "goqu: cannot scan rows into goqu_test.ScanTestNode: field Parent leads back to goqu_test.ScanTestNode; tag it `db:\"-\"`"
 	)
 	const rawBytes = "goqu: cannot scan rows into goqu_test.scanTestRawBytesRow: field Data holds a sql.RawBytes, " +
-		"which is only valid until the next row is read or the rows are closed; use []byte"
+		"which is only valid until the next row is read or the rows are closed; use []byte or tag it `db:\"-\"`"
 	_, structErr := ss.db.ScanStruct(&ScanTestNode{}, query)
 	_, rawBytesStructErr := ss.db.ScanStruct(&scanTestRawBytesRow{}, query)
 	for name, c := range map[string]struct {
@@ -1028,7 +1028,8 @@ func (ss *scanSuite) TestStructScans_rejectsUnscannableFields() {
 	ss.EqualError(ss.allStructsErr[*scanTestUnexportedPtr](), "goqu: cannot scan rows into *goqu_test.scanTestUnexportedPtr: "+
 		"embedded field dsTestActionItem is a pointer to unexported goqu_test.dsTestActionItem; embed it by value or tag it `db:\"-\"`")
 
-	rawBytes := "holds a sql.RawBytes, which is only valid until the next row is read or the rows are closed; use []byte"
+	rawBytes := "holds a sql.RawBytes, which is only valid until the next row is read or the rows are closed; " +
+		"use []byte or tag it `db:\"-\"`"
 	_, _, err = ss.db.From("items").ScanOneStruct[scanTestRawBytesRow](context.Background())
 	ss.EqualError(err, "goqu: cannot scan rows into goqu_test.scanTestRawBytesRow: field Data "+rawBytes)
 

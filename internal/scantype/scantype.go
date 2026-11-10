@@ -62,7 +62,7 @@ func rowStructColumns(
 	switch {
 	case len(columns) > 0 && !sqlValue:
 		if field, ok := rawBytesField(elem, columns); ok {
-			return nil, problem, errRawBytesField(t, field)
+			return nil, problem, errRawBytesField(t, field, tagName)
 		}
 		return columns, problem, nil
 	case oneColumn:
