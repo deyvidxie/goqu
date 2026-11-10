@@ -276,6 +276,14 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		{"unencodable value", "unable to encode value {}", expression(struct{}{})},
 		{"Default outside a value", "Default is only valid as an INSERT or UPDATE SET value", expression(exp.Default())},
 		{"empty Op", `Op for "t.a" has no operators`, expression(exp.Ex{"t.a": exp.Op{}})},
+		{
+			"list compared to a column", `operator "gt" compares a column with a single value, got a list ([]int)`,
+			expression(exp.NewIdentifierExpression("", "", "a").Gt([]int{1, 2})),
+		},
+		{
+			"empty list outside IN", "an empty list ([]int) is only accepted as the whole right side of In or NotIn",
+			expression(exp.NewLiteralExpression("?", []int{})),
+		},
 		{"list as an UPDATE value", "a list ([]int) is not an INSERT or UPDATE value", toSQL(func(b sb.SQLBuilder) {
 			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, exp.NewUpdateClauses().
 				SetTable(exp.NewIdentifierExpression("", "t", "")).SetSetValues(exp.Record{"a": []int{1}}))

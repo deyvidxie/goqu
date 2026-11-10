@@ -100,11 +100,11 @@ func createOredExpressionFromMap(lhs IdentifierExpression, op Op) ([]Expression,
 	opKeys := getExMapKeys(op)
 	ors := make([]Expression, 0, len(opKeys))
 	for _, opKey := range opKeys {
-		if exp, err := createExpressionFromOp(lhs, opKey, op); err != nil {
+		exp, err := createExpressionFromOp(lhs, opKey, op)
+		if err != nil {
 			return nil, err
-		} else if exp != nil {
-			ors = append(ors, exp)
 		}
+		ors = append(ors, exp)
 	}
 	return ors, nil
 }
@@ -149,14 +149,16 @@ func createExpressionFromOp(lhs IdentifierExpression, opKey string, op Op) (exp 
 	case RegexpNotILikeOp.String():
 		exp = lhs.RegexpNotILike(op[opKey])
 	case betweenStr:
-		rangeVal, ok := op[opKey].(RangeVal)
-		if ok {
+		if rangeVal, ok := op[opKey].(RangeVal); ok {
 			exp = lhs.Between(rangeVal)
+		} else {
+			err = errRangeOpValue(opKey, op[opKey])
 		}
 	case "notbetween":
-		rangeVal, ok := op[opKey].(RangeVal)
-		if ok {
+		if rangeVal, ok := op[opKey].(RangeVal); ok {
 			exp = lhs.NotBetween(rangeVal)
+		} else {
+			err = errRangeOpValue(opKey, op[opKey])
 		}
 	default:
 		err = errUnsupportedOpKey(opKey)

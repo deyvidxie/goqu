@@ -222,12 +222,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 			err:    "goqu: Default is only valid as an INSERT or UPDATE SET value",
 		},
 		insertTestCase{clause: withVals([]interface{}{[]byte("x"), 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('x', 1)`},
-		insertTestCase{clause: withVals([]interface{}{emptyArrayValuer{1}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{}', 1)`},
+		insertTestCase{clause: withVals([]interface{}{arrayLiteralValuer{1}, 1}), sql: `INSERT INTO "test" ("a", "b") VALUES ('{1}', 1)`},
 		insertTestCase{
-			clause:     withVals([]interface{}{emptyArrayValuer{1}, 1}),
+			clause:     withVals([]interface{}{arrayLiteralValuer{1}, 1}),
 			sql:        `INSERT INTO "test" ("a", "b") VALUES (?, ?)`,
 			isPrepared: true,
-			args:       []interface{}{"{}", int64(1)},
+			args:       []interface{}{"{1}", int64(1)},
 		},
 		insertTestCase{
 			clause: withVals([]interface{}{[]int{1, 2}, 1}),

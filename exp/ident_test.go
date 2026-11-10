@@ -85,6 +85,18 @@ func (ies *identifierExpressionSuite) TestInNilAndPointerArgs() {
 	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{nilBytes16Ptr}), ident.In(nilBytes16Ptr))
 }
 
+func (ies *identifierExpressionSuite) TestSliceValuerIsOneValue() {
+	ident := exp.ParseIdentifier("a")
+	valuer := intSliceValuer{1}
+	in, notIn, eq, neq := ident.In(valuer), ident.NotIn(valuer), ident.Eq(valuer), ident.Neq(valuer)
+	valuer[0] = 9
+
+	ies.Equal(exp.NewBooleanExpression(exp.InOp, ident, []interface{}{intSliceValuer{1}}), in)
+	ies.Equal(exp.NewBooleanExpression(exp.NotInOp, ident, []interface{}{intSliceValuer{1}}), notIn)
+	ies.Equal(exp.NewBooleanExpression(exp.EqOp, ident, intSliceValuer{1}), eq)
+	ies.Equal(exp.NewBooleanExpression(exp.NeqOp, ident, intSliceValuer{1}), neq)
+}
+
 func (ies *identifierExpressionSuite) TestArrayComparisonOps() {
 	ident := exp.ParseIdentifier("a")
 	ies.Equal(exp.InOp, ident.Eq([2]int{1, 2}).Op())

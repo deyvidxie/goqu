@@ -1,6 +1,7 @@
 package exp_test
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"testing"
 
@@ -131,6 +132,23 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withNoValues() {
 	iets.Nil(ie.Vals())
 	iets.True(ie.IsEmpty())
 	iets.False(ie.IsInsertFrom())
+}
+
+type insertValuerRow struct {
+	A int `db:"a"`
+}
+
+type insertValuerRows []insertValuerRow
+
+func (insertValuerRows) Value() (driver.Value, error) { return "[]", nil }
+
+func (iets *insertExpressionTestSuite) TestNewInsertExpression_expandsASliceValuerOfRows() {
+	rows := insertValuerRows{{A: 1}, {A: 2}}
+	for _, source := range []interface{}{rows, &rows} {
+		ie, err := exp.NewInsertExpression("db", source)
+		iets.Require().NoError(err)
+		iets.Equal([][]interface{}{{1}, {2}}, ie.Vals())
+	}
 }
 
 func (iets *insertExpressionTestSuite) TestNewInsertExpression_Vals() {

@@ -149,6 +149,18 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		},
 		{"non-struct embed select", nonStructEmbed, toSQL(goqu.From("t").Select(scanTestEmbeddedID{}))},
 		{"non-struct embed row", nonStructEmbed, toSQL(goqu.Insert("t").Rows(scanTestEmbeddedID{Name: "a"}))},
+		{
+			"between list", `goqu: Op "between" takes a goqu.Range value, got []int`,
+			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"between": []int{1, 5}}, "b": 1})),
+		},
+		{
+			"between nil", `goqu: Op "between" takes a goqu.Range value, got <nil>`,
+			toSQL(goqu.From("t").Where(goqu.Ex{"a": goqu.Op{"between": nil}})),
+		},
+		{
+			"notBetween scalar", `goqu: Op "notBetween" takes a goqu.Range value, got int`,
+			toSQL(goqu.From("t").Where(goqu.ExOr{"a": goqu.Op{"notBetween": 3}})),
+		},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, goqu.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)

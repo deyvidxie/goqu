@@ -72,7 +72,7 @@ Output:
 SELECT * FROM "items" WHERE ((1=0) AND (1=1))
 ```
 
-Arrays (`[N]T`) are lists like slices; byte arrays such as `[16]byte` and array `driver.Valuer`s are single values.
+Arrays (`[N]T`) are lists like slices; byte arrays such as `[16]byte` and any `driver.Valuer` (e.g. `pq.Int64Array`) are single values; use `goqu.Any(pq.Int64Array{…})` for array membership.
 
 For a more complete examples see the [`Op`](https://godoc.org/github.com/doug-martin/goqu#Op) and [`Ex`](https://godoc.org/github.com/doug-martin/goqu#Ex) docs
 

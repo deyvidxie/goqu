@@ -66,3 +66,7 @@ func errColumnSource(t reflect.Type, problem util.ColumnMapProblem, tagName stri
 		t, problem.Path, problem.Type, tagName,
 	)
 }
+
+func errRangeOpValue(key string, val interface{}) error {
+	return errors.NewInvalidExpressionError("Op %q takes a goqu.Range value, got %T", key, val)
+}

@@ -42,7 +42,7 @@ func IsListValue(v any) bool {
 	if !rv.IsValid() {
 		return false
 	}
-	if _, valuer := v.(driver.Valuer); valuer && rv.Kind() == reflect.Array {
+	if _, valuer := v.(driver.Valuer); valuer {
 		return false
 	}
 	return IsListType(rv.Type())
