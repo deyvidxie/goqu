@@ -12,9 +12,13 @@ import (
 )
 
 func noDatabaseExecutor(tagName string) exec.QueryExecutor {
-	b := sb.NewSQLBuilder(false).SetError(errNoDatabase)
+	return erroredExecutor(tagName, nil, errNoDatabase)
+}
+
+func erroredExecutor(tagName string, de exec.DbExecutor, err error) exec.QueryExecutor {
+	b := sb.NewSQLBuilder(false).SetError(err)
 	defer sb.ReleaseSQLBuilder(b)
-	return exec.NewQueryFactory(tagName, nil).FromSQLBuilder(b)
+	return exec.NewQueryFactory(tagName, de).FromSQLBuilder(b)
 }
 
 type (
@@ -398,6 +402,9 @@ func (d *Database) GetTagName() string {
 }
 
 func (d *Database) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
+	if _, err := dialectFor(d.dialect, d.tagName); err != nil {
+		return erroredExecutor(d.tagName, d, err)
+	}
 	return d.queryFactory().FromSQL(query, args...)
 }
 
@@ -653,6 +660,9 @@ func (td *TxDatabase) GetTagName() string {
 }
 
 func (td *TxDatabase) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
+	if _, err := dialectFor(td.dialect, td.tagName); err != nil {
+		return erroredExecutor(td.tagName, td, err)
+	}
 	return td.queryFactory().FromSQL(query, args...)
 }
 

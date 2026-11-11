@@ -227,6 +227,25 @@ func TestUnregisteredDialectNameIsAnError(t *testing.T) {
 	assert.True(t, goqu.IsUnknownDialect(err))
 	_, _, err = goqu.New(typo, nil).PreparedExpressionSQL(goqu.C("a").Eq(1))
 	assert.True(t, goqu.IsUnknownDialect(err))
+	_, _, err = goqu.NewTx(typo, nil).ExpressionSQL(goqu.C("a").Eq(1))
+	assert.True(t, goqu.IsUnknownDialect(err))
+}
+
+func TestUnregisteredDialectNameFailsRawSQLScans(t *testing.T) {
+	const typo = "mysqll"
+	mDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	mock.ExpectBegin()
+	tx, err := mDB.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+
+	_, err = goqu.New(typo, mDB).FromSQL(`SELECT "db_id", "db_name" FROM "items"`).ScanAllStructs[taggedItem](context.Background())
+	assert.True(t, goqu.IsUnknownDialect(err))
+
+	var items []taggedItem
+	assert.True(t, goqu.IsUnknownDialect(goqu.New(typo, mDB).ScanStructs(&items, `SELECT "db_id", "db_name" FROM "items"`)))
+	assert.True(t, goqu.IsUnknownDialect(goqu.NewTx(typo, tx).ScanStructs(&items, `SELECT "db_id", "db_name" FROM "items"`)))
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFromQueryAcrossTagNamesOfOneDialect(t *testing.T) {
