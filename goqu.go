@@ -75,6 +75,14 @@ func (dw DialectWrapper) Truncate(table ...interface{}) *TruncateDataset {
 	return newTruncateDataset(dw.dialect, dw.tag, nil).Table(table...)
 }
 
+func ExpressionSQL(e exp.Expression) (sql string, args []interface{}, err error) {
+	return Dialect("default").ExpressionSQL(e)
+}
+
+func PreparedExpressionSQL(e exp.Expression) (sql string, args []interface{}, err error) {
+	return Dialect("default").PreparedExpressionSQL(e)
+}
+
 func (dw DialectWrapper) ExpressionSQL(e exp.Expression) (sql string, args []interface{}, err error) {
 	return dw.expressionSQL(e, false)
 }

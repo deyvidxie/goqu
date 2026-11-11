@@ -157,6 +157,54 @@ func (ds *databaseSuite) TestScanVal() {
 	ds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 }
 
+func (ds *databaseSuite) TestFromSQL() {
+	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	ds.Require().NoError(err)
+	const itemsQuery = `SELECT "address", "name" FROM "items" WHERE "id" > ?`
+	const countQuery = `SELECT COUNT(*) FROM "items" WHERE "id" > ?`
+	itemRows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"address", "name"}).FromCSVString("111 Test Addr,Test1\n211 Test Addr,Test2")
+	}
+	mock.ExpectQuery(itemsQuery).WithArgs(10).WillReturnRows(itemRows())
+	mock.ExpectQuery(itemsQuery).WithArgs(10).WillReturnRows(itemRows())
+	mock.ExpectQuery(countQuery).WithArgs(10).WillReturnRows(sqlmock.NewRows([]string{"count"}).FromCSVString("2"))
+	mock.ExpectQuery(countQuery).WithArgs(10).WillReturnRows(sqlmock.NewRows([]string{"count"}).FromCSVString("2"))
+	db := goqu.New("mock", mDB)
+	ctx := context.Background()
+
+	items, err := db.FromSQL(itemsQuery, 10).ScanAllStructs[testActionItem](ctx)
+	ds.NoError(err)
+	ds.Equal([]testActionItem{{Address: "111 Test Addr", Name: "Test1"}, {Address: "211 Test Addr", Name: "Test2"}}, items)
+
+	item, found, err := db.FromSQL(itemsQuery, 10).ScanOneStruct[testActionItem](ctx)
+	ds.NoError(err)
+	ds.True(found)
+	ds.Equal(testActionItem{Address: "111 Test Addr", Name: "Test1"}, item)
+
+	counts, err := db.FromSQL(countQuery, 10).ScanAllVals[int64](ctx)
+	ds.NoError(err)
+	ds.Equal([]int64{2}, counts)
+
+	count, found, err := db.FromSQL(countQuery, 10).ScanOneVal[int64](ctx)
+	ds.NoError(err)
+	ds.True(found)
+	ds.Equal(int64(2), count)
+	ds.NoError(mock.ExpectationsWereMet())
+}
+
+func (ds *databaseSuite) TestExpressionSQL() {
+	db := goqu.New("mysql", nil)
+	sql, args, err := db.ExpressionSQL(goqu.C("a").Eq(1))
+	ds.NoError(err)
+	ds.Equal("(`a` = 1)", sql)
+	ds.Empty(args)
+
+	sql, args, err = db.PreparedExpressionSQL(goqu.C("a").Eq(1))
+	ds.NoError(err)
+	ds.Equal("(`a` = ?)", sql)
+	ds.Equal([]interface{}{int64(1)}, args)
+}
+
 func (ds *databaseSuite) TestExec() {
 	mDB, mock, err := sqlmock.New()
 	ds.NoError(err)
@@ -597,6 +645,37 @@ func (tds *txdatabaseSuite) TestScanVal() {
 	tds.False(found)
 	tds.EqualError(err, "goqu: cannot scan into int, a pointer is required")
 	tds.NoError(tx.Commit())
+}
+
+func (tds *txdatabaseSuite) TestFromSQL() {
+	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	tds.Require().NoError(err)
+	const query = `SELECT "address", "name" FROM "items" WHERE "id" > ?`
+	mock.ExpectBegin()
+	mock.ExpectQuery(query).WithArgs(10).
+		WillReturnRows(sqlmock.NewRows([]string{"address", "name"}).FromCSVString("111 Test Addr,Test1"))
+	mock.ExpectCommit()
+	tx, err := goqu.New("mock", mDB).Begin()
+	tds.Require().NoError(err)
+
+	items, err := tx.FromSQL(query, 10).ScanAllStructs[testActionItem](context.Background())
+	tds.NoError(err)
+	tds.Equal([]testActionItem{{Address: "111 Test Addr", Name: "Test1"}}, items)
+	tds.NoError(tx.Commit())
+	tds.NoError(mock.ExpectationsWereMet())
+}
+
+func (tds *txdatabaseSuite) TestExpressionSQL() {
+	tx := goqu.NewTx("mysql", nil)
+	sql, args, err := tx.ExpressionSQL(goqu.C("a").Eq(1))
+	tds.NoError(err)
+	tds.Equal("(`a` = 1)", sql)
+	tds.Empty(args)
+
+	sql, args, err = tx.PreparedExpressionSQL(goqu.C("a").Eq(1))
+	tds.NoError(err)
+	tds.Equal("(`a` = ?)", sql)
+	tds.Equal([]interface{}{int64(1)}, args)
 }
 
 func (tds *txdatabaseSuite) TestExec() {

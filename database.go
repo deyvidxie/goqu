@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/doug-martin/goqu/v9/exec"
+	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
 
@@ -396,6 +397,22 @@ func (d *Database) GetTagName() string {
 	return d.tagName
 }
 
+func (d *Database) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
+	return d.queryFactory().FromSQL(query, args...)
+}
+
+func (d *Database) ExpressionSQL(e exp.Expression) (query string, args []interface{}, err error) {
+	return d.dialectWrapper().ExpressionSQL(e)
+}
+
+func (d *Database) PreparedExpressionSQL(e exp.Expression) (query string, args []interface{}, err error) {
+	return d.dialectWrapper().PreparedExpressionSQL(e)
+}
+
+func (d *Database) dialectWrapper() DialectWrapper {
+	return DialectWrapper{dialect: d.dialect, tag: explicitTag(d.tagName)}
+}
+
 func (d *Database) queryFactory() exec.QueryFactory {
 	d.qfOnce.Do(func() {
 		d.qf = exec.NewQueryFactory(d.tagName, d)
@@ -424,7 +441,7 @@ func (d *Database) ScanStructs(i interface{}, query string, args ...interface{})
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) ScanStructsContext(ctx context.Context, i interface{}, query string, args ...interface{}) error {
-	return d.queryFactory().FromSQL(query, args...).ScanStructsContext(ctx, i)
+	return d.FromSQL(query, args...).ScanStructsContext(ctx, i)
 }
 
 // Queries the database using the supplied query, and args and uses CrudExec.ScanStruct to scan the results into a
@@ -448,7 +465,7 @@ func (d *Database) ScanStruct(i interface{}, query string, args ...interface{}) 
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) ScanStructContext(ctx context.Context, i interface{}, query string, args ...interface{}) (bool, error) {
-	return d.queryFactory().FromSQL(query, args...).ScanStructContext(ctx, i)
+	return d.FromSQL(query, args...).ScanStructContext(ctx, i)
 }
 
 // Queries the database using the supplied query, and args and uses CrudExec.ScanVals to scan the results into a slice
@@ -468,7 +485,7 @@ func (d *Database) ScanVals(i interface{}, query string, args ...interface{}) er
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) ScanValsContext(ctx context.Context, i interface{}, query string, args ...interface{}) error {
-	return d.queryFactory().FromSQL(query, args...).ScanValsContext(ctx, i)
+	return d.FromSQL(query, args...).ScanValsContext(ctx, i)
 }
 
 // Queries the database using the supplied query, and args and uses CrudExec.ScanVal to scan the results into a
@@ -488,7 +505,7 @@ func (d *Database) ScanVal(i interface{}, query string, args ...interface{}) (bo
 //
 // args...: for any placeholder parameters in the query
 func (d *Database) ScanValContext(ctx context.Context, i interface{}, query string, args ...interface{}) (bool, error) {
-	return d.queryFactory().FromSQL(query, args...).ScanValContext(ctx, i)
+	return d.FromSQL(query, args...).ScanValContext(ctx, i)
 }
 
 // A wrapper around a sql.Tx and works the same way as Database
@@ -635,6 +652,22 @@ func (td *TxDatabase) GetTagName() string {
 	return td.tagName
 }
 
+func (td *TxDatabase) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
+	return td.queryFactory().FromSQL(query, args...)
+}
+
+func (td *TxDatabase) ExpressionSQL(e exp.Expression) (query string, args []interface{}, err error) {
+	return td.dialectWrapper().ExpressionSQL(e)
+}
+
+func (td *TxDatabase) PreparedExpressionSQL(e exp.Expression) (query string, args []interface{}, err error) {
+	return td.dialectWrapper().PreparedExpressionSQL(e)
+}
+
+func (td *TxDatabase) dialectWrapper() DialectWrapper {
+	return DialectWrapper{dialect: td.dialect, tag: explicitTag(td.tagName)}
+}
+
 func (td *TxDatabase) queryFactory() exec.QueryFactory {
 	td.qfOnce.Do(func() {
 		td.qf = exec.NewQueryFactory(td.tagName, td)
@@ -649,7 +682,7 @@ func (td *TxDatabase) ScanStructs(i interface{}, query string, args ...interface
 
 // See Database#ScanStructsContext
 func (td *TxDatabase) ScanStructsContext(ctx context.Context, i interface{}, query string, args ...interface{}) error {
-	return td.queryFactory().FromSQL(query, args...).ScanStructsContext(ctx, i)
+	return td.FromSQL(query, args...).ScanStructsContext(ctx, i)
 }
 
 // See Database#ScanStruct
@@ -659,7 +692,7 @@ func (td *TxDatabase) ScanStruct(i interface{}, query string, args ...interface{
 
 // See Database#ScanStructContext
 func (td *TxDatabase) ScanStructContext(ctx context.Context, i interface{}, query string, args ...interface{}) (bool, error) {
-	return td.queryFactory().FromSQL(query, args...).ScanStructContext(ctx, i)
+	return td.FromSQL(query, args...).ScanStructContext(ctx, i)
 }
 
 // See Database#ScanVals
@@ -669,7 +702,7 @@ func (td *TxDatabase) ScanVals(i interface{}, query string, args ...interface{})
 
 // See Database#ScanValsContext
 func (td *TxDatabase) ScanValsContext(ctx context.Context, i interface{}, query string, args ...interface{}) error {
-	return td.queryFactory().FromSQL(query, args...).ScanValsContext(ctx, i)
+	return td.FromSQL(query, args...).ScanValsContext(ctx, i)
 }
 
 // See Database#ScanVal
@@ -679,7 +712,7 @@ func (td *TxDatabase) ScanVal(i interface{}, query string, args ...interface{}) 
 
 // See Database#ScanValContext
 func (td *TxDatabase) ScanValContext(ctx context.Context, i interface{}, query string, args ...interface{}) (bool, error) {
-	return td.queryFactory().FromSQL(query, args...).ScanValContext(ctx, i)
+	return td.FromSQL(query, args...).ScanValContext(ctx, i)
 }
 
 // COMMIT the transaction

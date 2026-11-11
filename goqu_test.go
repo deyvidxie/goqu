@@ -118,6 +118,29 @@ func (dws *dialectWrapperSuite) TestExpressionSQL() {
 	}
 }
 
+func (dws *dialectWrapperSuite) TestPackageExpressionSQL() {
+	sql, args, err := goqu.ExpressionSQL(goqu.C("a").Eq(1))
+	dws.NoError(err)
+	dws.Equal(`("a" = 1)`, sql)
+	dws.Empty(args)
+
+	sql, args, err = goqu.PreparedExpressionSQL(goqu.C("a").Eq(1))
+	dws.NoError(err)
+	dws.Equal(`("a" = ?)`, sql)
+	dws.Equal([]interface{}{int64(1)}, args)
+}
+
+func (dws *dialectWrapperSuite) TestPackageExpressionSQL_followsRegisteredDefault() {
+	opts := goqu.DefaultDialectOptions()
+	opts.QuoteRune = '`'
+	goqu.RegisterDialect("default", "db", opts)
+	defer goqu.RegisterDialect("default", "db", goqu.DefaultDialectOptions())
+
+	sql, _, err := goqu.ExpressionSQL(goqu.C("a").Eq(1))
+	dws.NoError(err)
+	dws.Equal("(`a` = 1)", sql)
+}
+
 func (dws *dialectWrapperSuite) TestPreparedExpressionSQL() {
 	for _, c := range []struct {
 		dialect string
