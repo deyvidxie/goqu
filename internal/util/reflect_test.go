@@ -503,6 +503,42 @@ func (rt *reflectTest) TestColumnRename() {
 	util.SetColumnRenameFunction(util.DefaultColumnRenameFunction)
 }
 
+func (rt *reflectTest) TestSetColumnRenameFunction_rebuildsCachedMaps() {
+	type renamed struct{ FirstName string }
+	defer util.SetColumnRenameFunction(util.DefaultColumnRenameFunction)
+
+	rt.Contains(rt.columnMap(renamed{}, "db"), "firstname")
+	util.SetColumnRenameFunction(strings.ToUpper)
+	cm := rt.columnMap(renamed{}, "db")
+	rt.Contains(cm, "FIRSTNAME")
+	rt.NotContains(cm, "firstname")
+}
+
+func (rt *reflectTest) TestColumnMapSettersAreSafeDuringMapBuilds() {
+	type tagged struct {
+		A string `db:"a"`
+		B string
+	}
+	defer util.SetColumnRenameFunction(util.DefaultColumnRenameFunction)
+	defer util.SetIgnoreUntaggedFields(false)
+	t := reflect.TypeFor[tagged]()
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			util.SetIgnoreUntaggedFields(i%2 == 0)
+			util.SetColumnRenameFunction(strings.ToUpper)
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = util.ColumnSource(t, "db")
+			_ = util.HasTaggedField(t, "db")
+		}()
+	}
+	wg.Wait()
+}
+
 func (rt *reflectTest) TestParallelColumnSource() {
 	type item struct {
 		id   uint

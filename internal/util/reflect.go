@@ -144,19 +144,22 @@ var (
 )
 
 func SetIgnoreUntaggedFields(ignore bool) {
-	if ignore != ignoreUntaggedFields {
-		ignoreUntaggedFields = ignore
-
-		structMapCacheLock.Lock()
-		defer structMapCacheLock.Unlock()
-
-		structMapCache = make(map[columnMapKey]ColumnMap)
-		columnSourceCache = make(map[columnMapKey]ColumnMapProblem)
-	}
+	structMapCacheLock.Lock()
+	defer structMapCacheLock.Unlock()
+	ignoreUntaggedFields = ignore
+	resetColumnMapCaches()
 }
 
 func SetColumnRenameFunction(newFunction func(string) string) {
+	structMapCacheLock.Lock()
+	defer structMapCacheLock.Unlock()
 	columnRenameFunction = newFunction
+	resetColumnMapCaches()
+}
+
+func resetColumnMapCaches() {
+	structMapCache = make(map[columnMapKey]ColumnMap)
+	columnSourceCache = make(map[columnMapKey]ColumnMapProblem)
 }
 
 // GetSliceElementType returns the type for a slices elements.
