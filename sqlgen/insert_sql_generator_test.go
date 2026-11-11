@@ -246,7 +246,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 		noRows = "goqu: empty Rows list"
 		noVals = "goqu: empty Vals list"
 	)
-	const rowWithoutCols = "goqu: Rows row without columns found when generating insert sql"
+	const rowWithoutCols = "goqu: insert rows have no columns"
 	const colsWithoutVals = "goqu: Cols without Vals or FromQuery found when generating insert sql"
 	const emptyCols = "goqu: empty Cols list"
 	cases := make([]insertTestCase, 0, 16)
@@ -268,6 +268,16 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 				clause: ic.SetCols(exp.NewColumnListExpression(nil, "db")).
 					SetFrom(newTestAppendableExpression(`SELECT * FROM "s"`, emptyArgs, nil, nil)),
 				err:        emptyCols,
+				isPrepared: prepared,
+			},
+			insertTestCase{
+				clause:     ic.SetCols(cols).ColsAppend(exp.NewColumnListExpression(nil, "db")).SetVals([][]interface{}{{1, 2}}),
+				err:        "goqu: ColsAppend requires at least one argument",
+				isPrepared: prepared,
+			},
+			insertTestCase{
+				clause:     ic.SetCols(cols).SetVals([][]interface{}{{1, 2}}).ValsAppend(nil),
+				err:        "goqu: ValsAppend requires at least one argument",
 				isPrepared: prepared,
 			},
 		)

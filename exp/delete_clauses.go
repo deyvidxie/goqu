@@ -93,7 +93,7 @@ func (dc *deleteClauses) ClearWhere() DeleteClauses {
 
 func (dc *deleteClauses) WhereAppend(expressions ...Expression) DeleteClauses {
 	if len(expressions) == 0 {
-		expressions = []Expression{NewExpressionList(AndType)}
+		expressions = []Expression{newInvalidExpression(errEmptyAppend("WhereAppend"))}
 	}
 	ret := dc.clone()
 	if ret.where == nil {
@@ -125,6 +125,11 @@ func (dc *deleteClauses) SetOrder(oes ...OrderedExpression) DeleteClauses {
 }
 
 func (dc *deleteClauses) OrderAppend(oes ...OrderedExpression) DeleteClauses {
+	if len(oes) == 0 {
+		ret := dc.clone()
+		ret.order = emptyAppendList(ret.order, "OrderAppend")
+		return ret
+	}
 	if dc.order == nil {
 		return dc.SetOrder(oes...)
 	}
@@ -134,6 +139,11 @@ func (dc *deleteClauses) OrderAppend(oes ...OrderedExpression) DeleteClauses {
 }
 
 func (dc *deleteClauses) OrderPrepend(oes ...OrderedExpression) DeleteClauses {
+	if len(oes) == 0 {
+		ret := dc.clone()
+		ret.order = emptyAppendList(ret.order, "OrderPrepend")
+		return ret
+	}
 	if dc.order == nil {
 		return dc.SetOrder(oes...)
 	}

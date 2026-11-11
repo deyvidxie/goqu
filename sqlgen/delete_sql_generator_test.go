@@ -201,10 +201,10 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		deleteTestCase{clause: dc.WhereAppend(), err: "goqu: empty AND condition"},
+		deleteTestCase{clause: dc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument"},
 		deleteTestCase{
 			clause: dc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
-			err:    "goqu: empty AND condition",
+			err:    "goqu: WhereAppend requires at least one argument",
 		},
 	)
 }

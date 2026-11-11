@@ -46,6 +46,20 @@ func TestInvalidExpressionErrors(t *testing.T) {
 			errJSONCandidateCondition,
 		},
 		{"errEmptyInsertAlias", "goqu: Excluded requires a non-empty insert alias", errEmptyInsertAlias},
+		{"errColsWithoutValsForInsert", "goqu: Cols without Vals or FromQuery found when generating insert sql", errColsWithoutValsForInsert},
+		{"errEmptyValsRowForInsert", "goqu: empty Vals row without Cols found when generating insert sql", errEmptyValsRowForInsert},
+		{
+			"errMultipleSourcesForInsert", "goqu: more than one of Rows, Vals and FromQuery found when generating insert sql",
+			errMultipleSourcesForInsert,
+		},
+		{"errEmptyAndCondition", "goqu: empty AND condition", errEmptyAndCondition},
+		{"errEmptyOrCondition", "goqu: empty OR condition", errEmptyOrCondition},
+		{"errEmptyRowsList", "goqu: empty Rows list", errEmptyRowsList},
+		{"errEmptyValsList", "goqu: empty Vals list", errEmptyValsList},
+		{"errEmptyColsList", "goqu: empty Cols list", errEmptyColsList},
+		{"errEmptyOrderList", "goqu: empty ORDER BY list", errEmptyOrderList},
+		{"errEmptyGroupByList", "goqu: empty GROUP BY list", errEmptyGroupByList},
+		{"errEmptySelectList", "goqu: empty SELECT column list", errEmptySelectList},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, errors.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)

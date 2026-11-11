@@ -251,7 +251,7 @@ func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.Inser
 	case ie.IsInsertFrom():
 		isg.insertFromSQL(b, ie.From())
 	case ie.IsEmpty():
-		b.SetError(errRowWithoutColumnsForInsert)
+		b.SetError(errEmptyRowsList)
 	default:
 		isg.insertColumnsSQL(b, ie.Cols())
 		isg.insertValuesSQL(b, len(ie.Cols().Columns()), ie.Vals())
@@ -307,6 +307,12 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, colCount int, va
 	opts := isg.DialectOptions()
 	b.Write(opts.ValuesFragment)
 	for i, row := range values {
+		for _, val := range row {
+			if invalid, ok := val.(exp.InvalidExpression); ok {
+				b.SetError(invalid.Err())
+				return
+			}
+		}
 		if len(row) != colCount {
 			b.SetError(errRowLengthMismatch(colCount, len(row)))
 			return

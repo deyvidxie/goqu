@@ -19,8 +19,10 @@ func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
 }
 
-func errRowsWithoutColumns(n int) error {
-	return errors.NewInvalidExpressionError("%d insert rows have no columns, only one row of defaults can be inserted", n)
+var errRowsWithoutColumns = errors.NewInvalidExpressionError("insert rows have no columns")
+
+func errEmptyAppend(method string) error {
+	return errors.NewInvalidExpressionError("%s requires at least one argument", method)
 }
 
 func errRowKeysMismatch(expected, actual string) error {

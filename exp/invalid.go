@@ -11,3 +11,11 @@ func (ie invalidExpression) Clone() Expression { return ie }
 func (ie invalidExpression) Err() error { return ie.err }
 
 func (invalidExpression) isInvalid() {}
+
+func emptyAppendList(cl ColumnListExpression, method string) ColumnListExpression {
+	invalid := newInvalidExpression(errEmptyAppend(method))
+	if cl == nil {
+		return NewColumnListExpression(nil, "db", invalid)
+	}
+	return cl.Append(invalid)
+}

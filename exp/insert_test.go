@@ -92,21 +92,22 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowsWithoutCo
 	type skipped struct {
 		ID int `db:"id" goqu:"skipinsert"`
 	}
-	ie, err := exp.NewInsertExpression("db", exp.Record{})
-	iets.NoError(err)
-	iets.True(ie.IsEmpty())
-
+	var err error
 	for name, c := range map[string]struct {
 		rows []interface{}
 		want string
 	}{
+		"record": {
+			rows: []interface{}{exp.Record{}},
+			want: "goqu: insert rows have no columns",
+		},
 		"records": {
 			rows: []interface{}{exp.Record{}, exp.Record{}},
-			want: "goqu: 2 insert rows have no columns, only one row of defaults can be inserted",
+			want: "goqu: insert rows have no columns",
 		},
 		"structs": {
 			rows: []interface{}{[]skipped{{ID: 1}, {ID: 2}, {ID: 3}}},
-			want: "goqu: 3 insert rows have no columns, only one row of defaults can be inserted",
+			want: "goqu: insert rows have no columns",
 		},
 	} {
 		_, err = exp.NewInsertExpression("db", c.rows...)

@@ -18,12 +18,14 @@ var (
 	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
 	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
-	errRowWithoutColumnsForInsert = errors.NewInvalidExpressionError("Rows row without columns found when generating insert sql")
-	errColsWithoutValsForInsert   = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
-	errEmptyValsRowForInsert      = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
-	errMultipleSourcesForInsert   = errors.NewInvalidExpressionError(
+	errColsWithoutValsForInsert = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
+	errEmptyValsRowForInsert    = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
+	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
 		"more than one of Rows, Vals and FromQuery found when generating insert sql",
 	)
+	errEmptyRowsList = errors.NewInvalidExpressionError(`empty Rows list`)
+	errEmptyValsList = errors.NewInvalidExpressionError(`empty Vals list`)
+	errEmptyColsList = errors.NewInvalidExpressionError(`empty Cols list`)
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
@@ -31,9 +33,6 @@ var (
 	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
 	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition`)
 	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition`)
-	errEmptyRowsList         = errors.NewInvalidExpressionError(`empty Rows list`)
-	errEmptyValsList         = errors.NewInvalidExpressionError(`empty Vals list`)
-	errEmptyColsList         = errors.NewInvalidExpressionError(`empty Cols list`)
 	errEmptyOrderList        = errors.NewInvalidExpressionError(`empty ORDER BY list`)
 	errEmptyGroupByList      = errors.NewInvalidExpressionError(`empty GROUP BY list`)
 	errEmptySelectList       = errors.NewInvalidExpressionError(`empty SELECT column list`)

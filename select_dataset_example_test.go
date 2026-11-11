@@ -1186,6 +1186,27 @@ func ExampleSelectDataset_DistinctOn() {
 	// goqu: DistinctOn requires at least one column
 }
 
+func ExampleSelectDataset_ClearGroupBy() {
+	sql, _, _ := goqu.From("test").GroupBy("a").ClearGroupBy().ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT * FROM "test"
+}
+
+func ExampleSelectDataset_ClearHaving() {
+	sql, _, _ := goqu.From("test").GroupBy("a").Having(goqu.SUM("b").Gt(10)).ClearHaving().ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT * FROM "test" GROUP BY "a"
+}
+
+func ExampleSelectDataset_ClearQualify() {
+	sql, _, _ := goqu.From("test").Qualify(goqu.C("a").Eq(1)).ClearQualify().ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT * FROM "test"
+}
+
 func ExampleSelectDataset_SelectAppend() {
 	ds := goqu.From("test").Select("a", "b")
 	sql, _, _ := ds.SelectAppend("c").ToSQL()

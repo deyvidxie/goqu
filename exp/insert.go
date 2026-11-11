@@ -125,8 +125,8 @@ func newInsert(tagName string, rows ...interface{}) (insertExp InsertExpression,
 			return nil, errUnsupportedInsertRowType(row)
 		}
 	}
-	if len(mapKeys) == 0 && len(vals) > 1 {
-		return nil, errRowsWithoutColumns(len(vals))
+	if len(mapKeys) == 0 && len(vals) > 0 {
+		return nil, errRowsWithoutColumns
 	}
 	return &insert{cols: columns, vals: vals}, nil
 }

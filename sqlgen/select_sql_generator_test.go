@@ -334,14 +334,21 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWhere() {
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
 	empty := exp.NewColumnListExpression(nil, "db")
+	set := sc.SetSelect(exp.NewColumnListExpression(nil, "db", "a")).
+		SetGroupBy(exp.NewColumnListExpression(nil, "db", "a")).
+		SetOrder(exp.NewIdentifierExpression("", "", "a").Asc())
 	for _, prepared := range []bool{false, true} {
 		ssgs.assertCases(
 			sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 			selectTestCase{clause: sc.SetSelect(empty), err: "goqu: empty SELECT column list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetGroupBy(empty), err: "goqu: empty GROUP BY list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetOrder(), err: "goqu: empty ORDER BY list", isPrepared: prepared},
-			selectTestCase{clause: sc.WhereAppend(), err: "goqu: empty AND condition", isPrepared: prepared},
-			selectTestCase{clause: sc.HavingAppend(), err: "goqu: empty AND condition", isPrepared: prepared},
+			selectTestCase{clause: sc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: sc.HavingAppend(), err: "goqu: HavingAppend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: set.OrderAppend(), err: "goqu: OrderAppend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: set.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: set.GroupByAppend(empty), err: "goqu: GroupByAppend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: set.SelectAppend(empty), err: "goqu: SelectAppend requires at least one argument", isPrepared: prepared},
 		)
 	}
 }
@@ -771,7 +778,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withQualify() {
 			clause: scAfterHaving,
 			sql:    `SELECT * FROM "test" HAVING ("a" = 'b') qualify ("b" = 'c') ORDER BY "a" ASC`,
 		},
-		selectTestCase{clause: sc.QualifyAppend(), err: "goqu: empty AND condition"},
+		selectTestCase{clause: sc.QualifyAppend(), err: "goqu: QualifyAppend requires at least one argument"},
 	)
 }
 

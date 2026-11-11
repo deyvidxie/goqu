@@ -244,10 +244,10 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
 		SetSetValues(exp.Record{"a": "b"})
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		updateTestCase{clause: uc.WhereAppend(), err: "goqu: empty AND condition"},
+		updateTestCase{clause: uc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument"},
 		updateTestCase{
 			clause: uc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
-			err:    "goqu: empty AND condition",
+			err:    "goqu: WhereAppend requires at least one argument",
 		},
 	)
 }
