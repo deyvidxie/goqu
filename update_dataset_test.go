@@ -323,7 +323,7 @@ func (uds *updateDatasetSuite) TestLimit() {
 		},
 		updateTestCase{
 			ds:      bd.Limit(0),
-			clauses: exp.NewUpdateClauses().SetTable(goqu.C("items")),
+			clauses: exp.NewUpdateClauses().SetTable(goqu.C("items")).SetLimit(uint(0)),
 		},
 		updateTestCase{
 			ds:      bd,
@@ -520,8 +520,81 @@ func (uds *updateDatasetSuite) TestSetError() {
 	uds.Equal(err1, err)
 }
 
-func (uds *updateDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
-	sql, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+func (uds *updateDatasetSuite) TestEmptyOrder() {
+	const (
+		emptyOrderAppend  = "goqu: OrderAppend requires at least one expression"
+		emptyOrderPrepend = "goqu: OrderPrepend requires at least one expression"
+	)
+	var noOrder []exp.OrderedExpression
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
+	const (
+		emptyOrder = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder   = "goqu: Order expressions must not be nil"
+	)
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
+	}{
+		"Order":                       {bd.Order(noOrder...), emptyOrder},
+		"Order nil":                   {bd.Order(nil), nilOrder},
+		"OrderAppend":                 {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrderAppend},
+		"OrderAppend nil":             {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
+		"OrderPrepend":                {bd.OrderPrepend(noOrder...), emptyOrderPrepend},
+		"OrderPrepend nil":            {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
+		"OrderAppend then ClearOrder": {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...).ClearOrder(), emptyOrderAppend},
+		"OrderPrepend then Order":     {bd.OrderPrepend(noOrder...).Order(goqu.C("a").Asc()), emptyOrderPrepend},
+		"from select": {
+			goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Update().Set(goqu.Record{"a": 1}),
+			emptyOrder,
+		},
+	} {
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
+func (uds *updateDatasetSuite) TestEmptyWhere() {
+	var none []exp.Expression
+	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
+	}{
+		"no conditions": {bd.Where(), emptyWhere},
+		"empty spread":  {bd.Where(none...), emptyWhere},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition`},
+	} {
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsInvalidExpression(err), name)
+	}
+
+	sql, _, err := bd.Where(goqu.C("a").Eq(1)).ClearWhere().ToSQL()
+	uds.NoError(err)
+	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
+}
+
+func (uds *updateDatasetSuite) TestToSQL_defaultDialectRejectsLimitAndOrder() {
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
+	for name, c := range map[string]struct {
+		ds  *goqu.UpdateDataset
+		err string
+	}{
+		"Limit(0)": {bd.Limit(0), "goqu: dialect does not support LIMIT on UPDATE [dialect=default]"},
+		"Limit(1)": {bd.Limit(1), "goqu: dialect does not support LIMIT on UPDATE [dialect=default]"},
+		"Order":    {bd.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on UPDATE [dialect=default]"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsUnsupported(err), name)
+	}
+	sql, _, err := bd.LimitAll().ToSQL()
 	uds.NoError(err)
 	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
 }

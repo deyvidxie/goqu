@@ -379,21 +379,6 @@ func (st *sqlite3Suite) TestDefaultValueIsUnsupported() {
 	st.True(goqu.IsUnsupported(err))
 }
 
-func (st *sqlite3Suite) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := st.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	st.Require().NoError(err)
-	count, err := st.db.From("entry").Count()
-	st.Require().NoError(err)
-	st.Equal(int64(10), count)
-
-	var ints []int64
-	err = st.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	st.Require().NoError(err)
-	st.Len(ints, 10)
-	st.Equal(int64(1), ints[0])
-}
-
 func (st *sqlite3Suite) TestCount() {
 	ds := st.db.From("entry")
 	count, err := ds.Count()
@@ -770,6 +755,32 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 	var as []string
 	st.Require().NoError(st.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
 	st.Equal([]string{"x", "x", "x"}, as)
+}
+
+func (st *sqlite3Suite) TestValsWithoutColsAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := st.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	st.Require().NoError(err)
+	defer func() {
+		_, err := st.db.Exec("DROP TABLE vals_insert")
+		st.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = st.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		st.Require().NoError(err, "prepared=%v", prepared)
+
+		var none []valsRow
+		st.Require().NoError(st.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		st.Empty(none, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	st.Require().NoError(st.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	st.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestSqlite3Suite(t *testing.T) {

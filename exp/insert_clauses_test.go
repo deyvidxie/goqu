@@ -94,6 +94,7 @@ func (ics *insertClausesSuite) TestColsAppend() {
 	ics.Equal(cle, c.Cols())
 
 	ics.Equal(exp.NewColumnListExpression(nil, "db", "a", "b"), c2.Cols())
+	ics.Equal(cle2, exp.NewInsertClauses().ColsAppend(cle2).Cols())
 }
 
 func (ics *insertClausesSuite) TestVals() {
@@ -104,16 +105,6 @@ func (ics *insertClausesSuite) TestVals() {
 	ics.Nil(c.Vals())
 
 	ics.Equal(vals, c2.Vals())
-}
-
-func (ics *insertClausesSuite) TestHasVals() {
-	c := exp.NewInsertClauses()
-	vals := [][]interface{}{{"a", "b"}}
-	c2 := c.SetVals(vals)
-
-	ics.False(c.HasVals())
-
-	ics.True(c2.HasVals())
 }
 
 func (ics *insertClausesSuite) TestValsAppend() {
@@ -138,16 +129,6 @@ func (ics *insertClausesSuite) TestRows() {
 	ics.Nil(c.Rows())
 
 	ics.Equal(rs, c2.Rows())
-}
-
-func (ics *insertClausesSuite) TestHasRows() {
-	c := exp.NewInsertClauses()
-	rs := []interface{}{exp.Record{"a": "a1", "b": "b1"}}
-	c2 := c.SetRows(rs)
-
-	ics.False(c.HasRows())
-
-	ics.True(c2.HasRows())
 }
 
 func (ics *insertClausesSuite) TestSetRows() {

@@ -48,7 +48,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 			switch {
 			case dsg.DialectOptions().SupportsOrderByOnDelete:
 				dsg.OrderSQL(b, clauses.Order())
-			case clauses.HasOrder() && dsg.DialectOptions().ErrorOnUnsupportedOrderByOnDelete:
+			case clauses.HasOrder():
 				b.SetError(errOrderByOnDeleteNotSupported(dsg.Dialect()))
 				return
 			}
@@ -56,7 +56,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 			switch {
 			case dsg.DialectOptions().SupportsLimitOnDelete:
 				dsg.LimitSQL(b, clauses.Limit())
-			case hasRealLimit(clauses.Limit()) && dsg.DialectOptions().ErrorOnUnsupportedLimitOnDelete:
+			case hasRealLimit(clauses.Limit()):
 				b.SetError(errLimitOnDeleteNotSupported(dsg.Dialect()))
 				return
 			}

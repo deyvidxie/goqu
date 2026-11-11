@@ -157,15 +157,47 @@ func (sds *sqlserverDialectSuite) TestSelectDistinctWithLimit() {
 		},
 		// DISTINCT ON is still not supported.
 		sqlTestCase{
-			ds:  ds.Select("a").Distinct("a").Limit(1),
+			ds:  ds.Select("a").DistinctOn("a").Limit(1),
 			err: "goqu: dialect does not support DISTINCT ON clause [dialect=sqlserver]",
 		},
 	)
 }
 
+func (sds *sqlserverDialectSuite) TestLimitZero() {
+	d := goqu.Dialect("sqlserver")
+	sel := d.From("test")
+	upd := d.Update("test").Set(goqu.Record{"a": 1})
+	del := d.Delete("test").Where(goqu.C("a").Eq(1))
+	const zeroFetch = "goqu: dialect does not support LIMIT 0 with an OFFSET [dialect=sqlserver]"
+	sds.assertSQL(
+		sqlTestCase{ds: sel.Limit(0), sql: `SELECT  TOP (0) * FROM "test"`},
+		sqlTestCase{ds: sel.Prepared(true).Limit(0), sql: `SELECT  TOP (@p1) * FROM "test"`, isPrepared: true, args: []interface{}{int64(0)}},
+		sqlTestCase{ds: upd.Limit(0), sql: `UPDATE TOP (0) "test" SET "a"=1`},
+		sqlTestCase{
+			ds:         upd.Prepared(true).Limit(0),
+			sql:        `UPDATE TOP (@p1) "test" SET "a"=@p2`,
+			isPrepared: true,
+			args:       []interface{}{int64(0), int64(1)},
+		},
+		sqlTestCase{ds: del.Limit(0), sql: `DELETE TOP (0) FROM "test" WHERE ("a" = 1)`},
+		sqlTestCase{
+			ds:         del.Prepared(true).Limit(0),
+			sql:        `DELETE TOP (@p1) FROM "test" WHERE ("a" = @p2)`,
+			isPrepared: true,
+			args:       []interface{}{int64(0), int64(1)},
+		},
+		sqlTestCase{ds: sel.Order(goqu.C("a").Asc()).Limit(0).Offset(20), err: zeroFetch},
+		sqlTestCase{ds: sel.Prepared(true).Order(goqu.C("a").Asc()).Limit(0).Offset(20), err: zeroFetch, isPrepared: true},
+	)
+	for _, prepared := range []bool{false, true} {
+		_, _, err := sel.Prepared(prepared).Order(goqu.C("a").Asc()).Limit(0).Offset(20).ToSQL()
+		sds.True(goqu.IsUnsupported(err), "prepared=%v: %v", prepared, err)
+	}
+}
+
 func (sds *sqlserverDialectSuite) TestOffsetRequiresOrder() {
 	ds := goqu.Dialect("sqlserver").From("test")
-	for _, offset := range []*goqu.SelectDataset{ds.Offset(20), ds.Limit(10).Offset(20), ds.Order().Offset(20)} {
+	for _, offset := range []*goqu.SelectDataset{ds.Offset(20), ds.Limit(10).Offset(20)} {
 		_, _, err := offset.ToSQL()
 		sds.EqualError(err, "goqu: dialect does not support OFFSET without ORDER BY [dialect=sqlserver]")
 		sds.True(goqu.IsUnsupported(err))

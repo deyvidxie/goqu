@@ -214,20 +214,11 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrder() {
 			args:       []interface{}{"b", "c"},
 		},
 	)
-
-	opts = sqlgen.DefaultDialectOptions()
-	opts.SupportsOrderByOnUpdate = false
-	usgs.assertCases(
-		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c'`},
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=?`, isPrepared: true, args: []interface{}{"b", "c"}},
-	)
 }
 
-func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderErrorOnUnsupported() {
+func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.SupportsOrderByOnUpdate = false
-	opts.ErrorOnUnsupportedOrderByOnUpdate = true
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b"})
@@ -247,9 +238,36 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderErrorOnUnsupported() 
 	)
 }
 
-func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitErrorOnUnsupported() {
+func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
+	uc := exp.NewUpdateClauses().
+		SetTable(exp.NewIdentifierExpression("", "test", "")).
+		SetSetValues(exp.Record{"a": "b"})
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		updateTestCase{clause: uc.WhereAppend(), err: "goqu: WhereAppend requires at least one expression"},
+		updateTestCase{
+			clause: uc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
+			err:    "goqu: WhereAppend requires at least one expression",
+		},
+	)
 	opts := sqlgen.DefaultDialectOptions()
-	opts.ErrorOnUnsupportedLimitOnUpdate = true
+	opts.SupportsOrderByOnUpdate = true
+	a := exp.NewIdentifierExpression("", "", "a")
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
+		updateTestCase{clause: uc.OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		updateTestCase{clause: uc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(), err: "goqu: Order requires at least one expression"},
+	)
+}
+
+func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitUnsupported() {
+	opts := sqlgen.DefaultDialectOptions()
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b"})
@@ -262,6 +280,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitErrorOnUnsupported() 
 			err:        "goqu: dialect does not support LIMIT on UPDATE [dialect=test]",
 			isPrepared: true,
 		},
+		updateTestCase{clause: uc.SetLimit(uint(0)), err: "goqu: dialect does not support LIMIT on UPDATE [dialect=test]"},
 		updateTestCase{clause: uc.SetLimit(exp.NewLiteralExpression("ALL")), sql: `UPDATE "test" SET "a"='b'`},
 		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b'`},
 	)
@@ -280,14 +299,6 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimit() {
 		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
 		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c' LIMIT 10`},
 		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=? LIMIT ?`, isPrepared: true, args: []interface{}{"b", "c", int64(10)}},
-	)
-
-	opts = sqlgen.DefaultDialectOptions()
-	opts.SupportsLimitOnUpdate = false
-	usgs.assertCases(
-		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c'`},
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=?`, isPrepared: true, args: []interface{}{"b", "c"}},
 	)
 }
 

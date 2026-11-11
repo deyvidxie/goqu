@@ -186,12 +186,16 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 	opts.WhereFragment = []byte(" where ")
 	csgWhereFrag := sqlgen.NewCommonSQLGenerator("test", "db", opts)
 
+	const (
+		emptyAnd = `goqu: empty AND condition`
+		emptyOr  = `goqu: empty OR condition`
+	)
 	w := exp.Ex{"a": "b"}
 	w2 := exp.Ex{"b": "c"}
 
 	csgs.assertCases(
-		commonSQLTestCase{gen: whereAndGen(csg), sql: ``},
-		commonSQLTestCase{gen: whereAndGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereAndGen(csg), err: emptyAnd},
+		commonSQLTestCase{gen: whereAndGen(csg), err: emptyAnd, isPrepared: true},
 
 		commonSQLTestCase{gen: whereAndGen(csg, w), sql: ` WHERE ("a" = 'b')`},
 		commonSQLTestCase{gen: whereAndGen(csg, w), sql: ` WHERE ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -199,8 +203,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 		commonSQLTestCase{gen: whereAndGen(csg, w, w2), sql: ` WHERE (("a" = 'b') AND ("b" = 'c'))`},
 		commonSQLTestCase{gen: whereAndGen(csg, w, w2), sql: ` WHERE (("a" = ?) AND ("b" = ?))`, isPrepared: true, args: []interface{}{"b", "c"}},
 
-		commonSQLTestCase{gen: whereOrGen(csg), sql: ``},
-		commonSQLTestCase{gen: whereOrGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereOrGen(csg), err: emptyOr},
+		commonSQLTestCase{gen: whereOrGen(csg), err: emptyOr, isPrepared: true},
 
 		commonSQLTestCase{gen: whereOrGen(csg, w), sql: ` WHERE ("a" = 'b')`},
 		commonSQLTestCase{gen: whereOrGen(csg, w), sql: ` WHERE ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -208,8 +212,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 		commonSQLTestCase{gen: whereOrGen(csg, w, w2), sql: ` WHERE (("a" = 'b') OR ("b" = 'c'))`},
 		commonSQLTestCase{gen: whereOrGen(csg, w, w2), sql: ` WHERE (("a" = ?) OR ("b" = ?))`, isPrepared: true, args: []interface{}{"b", "c"}},
 
-		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), sql: ``},
-		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), err: emptyAnd},
+		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), err: emptyAnd, isPrepared: true},
 
 		commonSQLTestCase{gen: whereAndGen(csgWhereFrag, w), sql: ` where ("a" = 'b')`},
 		commonSQLTestCase{gen: whereAndGen(csgWhereFrag, w), sql: ` where ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -222,8 +226,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 			args:       []interface{}{"b", "c"},
 		},
 
-		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), sql: ``},
-		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), err: emptyOr},
+		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), err: emptyOr, isPrepared: true},
 
 		commonSQLTestCase{gen: whereOrGen(csgWhereFrag, w), sql: ` where ("a" = 'b')`},
 		commonSQLTestCase{gen: whereOrGen(csgWhereFrag, w), sql: ` where ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -266,8 +270,8 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 	odnl := ident.Desc().NullsLast()
 
 	csgs.assertCases(
-		commonSQLTestCase{gen: orderGen(csg), sql: ``},
-		commonSQLTestCase{gen: orderGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: orderGen(csg), err: "goqu: Order requires at least one expression"},
+		commonSQLTestCase{gen: orderGen(csg), err: "goqu: Order requires at least one expression", isPrepared: true},
 
 		commonSQLTestCase{gen: orderGen(csg, oa), sql: ` ORDER BY "a" ASC`},
 		commonSQLTestCase{gen: orderGen(csg, oa), sql: ` ORDER BY "a" ASC`, isPrepared: true, args: emptyArgs},
@@ -290,8 +294,8 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 		commonSQLTestCase{gen: orderGen(csg, oa, od), sql: ` ORDER BY "a" ASC, "a" DESC`},
 		commonSQLTestCase{gen: orderGen(csg, oa, od), sql: ` ORDER BY "a" ASC, "a" DESC`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: orderGen(csgCustom), sql: ``},
-		commonSQLTestCase{gen: orderGen(csgCustom), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: orderGen(csgCustom), err: "goqu: Order requires at least one expression"},
+		commonSQLTestCase{gen: orderGen(csgCustom), err: "goqu: Order requires at least one expression", isPrepared: true},
 
 		commonSQLTestCase{gen: orderGen(csgCustom, oa), sql: ` order by "a" asc`},
 		commonSQLTestCase{gen: orderGen(csgCustom, oa), sql: ` order by "a" asc`, isPrepared: true, args: emptyArgs},
@@ -317,6 +321,7 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
+	const zeroLimitWithOffset = "goqu: dialect does not support LIMIT 0 with an OFFSET [dialect=test]"
 	offsetFetchGen := func(csg sqlgen.CommonSQLGenerator, order exp.ColumnListExpression, offset uint, limit interface{}) func(sb.SQLBuilder) {
 		return func(b sb.SQLBuilder) {
 			csg.OrderWithOffsetFetchSQL(b, order, offset, limit)
@@ -341,6 +346,10 @@ func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 0, limit), sql: ` ORDER BY "a" ASC`},
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, nil), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS`},
 		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, limit), sql: ` ORDER BY "a" ASC OFFSET 2 ROWS FETCH FIRST 10 ROWS ONLY`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 0, uint(0)), sql: ` ORDER BY "a" ASC`},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, uint(0)), err: zeroLimitWithOffset},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, 0), err: zeroLimitWithOffset},
+		commonSQLTestCase{gen: offsetFetchGen(csg, order, 2, int64(0)), err: zeroLimitWithOffset},
 		commonSQLTestCase{
 			gen: offsetFetchGen(csgCustom, order, 2, limit),
 			sql: ` ORDER BY "a" ASC OFFSET 2 rows fetch next 10 rows only`,
@@ -351,7 +360,7 @@ func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 		},
 		commonSQLTestCase{
 			gen: offsetFetchGen(csg, exp.NewOrderedColumnList(), 2, nil),
-			err: "goqu: dialect does not support OFFSET without ORDER BY [dialect=test]",
+			err: "goqu: Order requires at least one expression",
 		},
 	)
 }

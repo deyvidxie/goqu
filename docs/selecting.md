@@ -3,7 +3,7 @@
 * [Creating a SelectDataset](#create)
 * Building SQL
   * [`Select`](#select)
-  * [`Distinct`](#distinct)
+  * [`Distinct`, `DistinctOn`](#distinct)
   * [`From`](#from)
   * [`Join`](#joins)
   * [`Where`](#where)
@@ -182,12 +182,12 @@ Output:
 SELECT DISTINCT "a", "b" FROM "test"
 ```
 
-If you dialect supports `DISTINCT ON` you provide arguments to the `Distinct` method.
+If your dialect supports `DISTINCT ON`, pass the columns to `DistinctOn`.
 
 **NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
 
 ```go
-sql, _, _ := goqu.From("test").Distinct("a").ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
 fmt.Println(sql)
 ```
 Output:
@@ -201,7 +201,7 @@ You can also provide other expression arguments
 With `goqu.L`
 
 ```go
-sql, _, _ := goqu.From("test").Distinct(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
 fmt.Println(sql)
 ```
 Output:
@@ -210,7 +210,7 @@ SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
 ```
 With `goqu.Coalesce`
 ```go
-sql, _, _ := goqu.From("test").Distinct(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
 fmt.Println(sql)
 ```
 Output:
@@ -1261,7 +1261,7 @@ fmt.Printf("\n%+v", ids)
 
 Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
 
-**Note** when using the dataset a `LIMIT` of 1 is automatically applied.
+**Note** when using the dataset a `LIMIT` of 1 is automatically applied unless the dataset has `Limit(0)`.
 ```go
 var id int64
 found, err := db.From("user").Select("id").ScanVal(&id)

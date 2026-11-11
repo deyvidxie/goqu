@@ -129,8 +129,18 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 }
 
 func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
+	if cols := ic.Cols(); cols != nil {
+		for _, col := range cols.Columns() {
+			if invalid, ok := col.(exp.InvalidExpression); ok {
+				b.SetError(invalid.Err())
+				return insertSourceValues
+			}
+		}
+	}
 	switch {
-	case ic.HasRows():
+	case insertSourceCount(ic) > 1:
+		b.SetError(errMultipleSourcesForInsert)
+	case ic.Rows() != nil:
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {
 			b.SetError(err)
@@ -140,23 +150,48 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		if ie.IsInsertFrom() {
 			return insertSourceQuery
 		}
-		if ie.IsEmpty() {
-			return insertSourceDefaults
-		}
-	case ic.HasCols() && ic.HasVals():
-		isg.insertColumnsSQL(b, ic.Cols())
-		isg.insertValuesSQL(b, len(ic.Cols().Columns()), ic.Vals())
+	case ic.Cols() != nil && !ic.HasCols():
+		b.SetError(errEmptyCols)
+	case ic.Vals() != nil:
+		isg.insertValsSQL(b, ic)
 	case ic.HasCols() && ic.HasFrom():
 		isg.insertColumnsFromSQL(b, ic)
 		return insertSourceComplete
 	case ic.HasFrom():
 		isg.insertFromSQL(b, ic.From())
 		return insertSourceQuery
+	case ic.Cols() != nil:
+		b.SetError(errColsWithoutValsForInsert)
 	default:
 		isg.defaultValuesSQL(b)
 		return insertSourceDefaults
 	}
 	return insertSourceValues
+}
+
+func insertSourceCount(ic exp.InsertClauses) int {
+	count := 0
+	for _, has := range []bool{ic.Rows() != nil, ic.Vals() != nil, ic.HasFrom()} {
+		if has {
+			count++
+		}
+	}
+	return count
+}
+
+func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+	vals := ic.Vals()
+	switch {
+	case len(vals) == 0:
+		b.SetError(errEmptyVals)
+	case ic.HasCols():
+		isg.insertColumnsSQL(b, ic.Cols())
+		isg.insertValuesSQL(b, len(ic.Cols().Columns()), vals)
+	case len(vals[0]) == 0:
+		b.SetError(errEmptyValsRowForInsert)
+	default:
+		isg.insertValuesSQL(b, len(vals[0]), vals)
+	}
 }
 
 func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
@@ -220,7 +255,7 @@ func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.Inser
 	case ie.IsInsertFrom():
 		isg.insertFromSQL(b, ie.From())
 	case ie.IsEmpty():
-		isg.defaultValuesSQL(b)
+		b.SetError(errEmptyRows)
 	default:
 		isg.insertColumnsSQL(b, ie.Cols())
 		isg.insertValuesSQL(b, len(ie.Cols().Columns()), ie.Vals())
@@ -276,6 +311,12 @@ func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, colCount int, va
 	opts := isg.DialectOptions()
 	b.Write(opts.ValuesFragment)
 	for i, row := range values {
+		for _, val := range row {
+			if invalid, ok := val.(exp.InvalidExpression); ok {
+				b.SetError(invalid.Err())
+				return
+			}
+		}
 		if len(row) != colCount {
 			b.SetError(errRowLengthMismatch(colCount, len(row)))
 			return
@@ -385,7 +426,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 		} else {
 			b.WriteRunes(opts.LeftParenRune).WriteStrings(target).WriteRunes(opts.RightParenRune)
 		}
-	case opts.ErrorOnUnsupportedConflictTarget:
+	default:
 		b.SetError(errConflictTargetNotSupported(isg.Dialect()))
 	}
 }
@@ -426,7 +467,7 @@ func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp
 		}
 	}
 	isg.UpdateExpressionSQL(b, ue...)
-	if b.Error() == nil && o.WhereClause() != nil && !o.WhereClause().IsEmpty() {
+	if b.Error() == nil && o.WhereClause() != nil {
 		if !isg.DialectOptions().SupportsConflictUpdateWhere {
 			b.SetError(errUpsertWithWhereNotSupported(isg.Dialect()))
 			return

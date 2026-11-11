@@ -136,7 +136,7 @@ func (sd *SelectDataset) Update() *UpdateDataset {
 		}
 	}
 	u.clauses = c
-	return u
+	return u.SetError(sd.err)
 }
 
 // Creates a new InsertDataset using the FROM of this dataset. This method will also copy over the `WITH` clause to the
@@ -152,7 +152,7 @@ func (sd *SelectDataset) Insert() *InsertDataset {
 		c = c.CommonTablesAppend(ce)
 	}
 	i.clauses = c
-	return i
+	return i.SetError(sd.err)
 }
 
 // Creates a new DeleteDataset using the FROM of this dataset. This method will also copy over the `WITH`, `WHERE`,
@@ -179,7 +179,7 @@ func (sd *SelectDataset) Delete() *DeleteDataset {
 		}
 	}
 	d.clauses = c
-	return d
+	return d.SetError(sd.err)
 }
 
 // Creates a new TruncateDataset using the FROM of this dataset.
@@ -188,7 +188,7 @@ func (sd *SelectDataset) Truncate() *TruncateDataset {
 	if sd.clauses.HasSources() {
 		td = td.Table(sd.clauses.From())
 	}
-	return td
+	return td.SetError(sd.err)
 }
 
 // Creates a WITH clause for a common table expression (CTE).
@@ -213,7 +213,7 @@ func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *Se
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
-// Replaces columns of the SELECT clause. Empty list resets the clause. See examples
+// Replaces columns of the SELECT clause. See examples
 // You can pass in the following.
 //
 //	string: Will automatically be turned into an identifier
@@ -224,13 +224,14 @@ func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *Se
 //	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
-	if len(selects) == 0 {
-		return sd.ClearSelect()
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelect)
 	}
-	return sd.copy(sd.clauses.SetSelect(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
+	return sd.copy(sd.clauses.SetSelect(cols))
 }
 
-// Replaces columns of the SELECT DISTINCT clause. Empty list resets the clause. See examples
+// Replaces columns of the SELECT DISTINCT clause. See examples
 // You can pass in the following.
 //
 //	string: Will automatically be turned into an identifier
@@ -241,17 +242,15 @@ func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 //	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 //
-// Deprecated: Use Distinct() instead.
+// Deprecated: Use Select(...).Distinct() instead.
 func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
-	if len(selects) == 0 {
-		cleared := sd.ClearSelect()
-		return cleared.copy(cleared.clauses.SetDistinct(nil))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelectDistinct)
 	}
 	return sd.copy(
 		sd.clauses.
-			SetSelect(
-				exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...),
-			).
+			SetSelect(cols).
 			SetDistinct(
 				exp.NewColumnListExpression(sd.subqueries, sd.tagName),
 			),
@@ -273,11 +272,23 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
 func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SelectAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelectAppend)
+	}
+	return sd.copy(sd.clauses.SelectAppend(cols))
 }
 
-func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)))
+func (sd *SelectDataset) Distinct() *SelectDataset {
+	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName)))
+}
+
+func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyDistinctOn)
+	}
+	return sd.copy(sd.clauses.SetDistinct(cols))
 }
 
 // Adds a FROM clause. This return a new dataset with the original sources replaced. See examples.
@@ -395,6 +406,9 @@ func (sd *SelectDataset) joinTable(join exp.JoinExpression) *SelectDataset {
 
 // Adds a WHERE clause. See examples.
 func (sd *SelectDataset) Where(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyWhere)
+	}
 	return sd.copy(sd.clauses.WhereAppend(expressions...))
 }
 
@@ -429,40 +443,75 @@ func (sd *SelectDataset) withLock(strength exp.LockStrength, option exp.WaitOpti
 
 // Adds a GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupBy(groupBy ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SetGroupBy(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyGroupBy)
+	}
+	return sd.copy(sd.clauses.SetGroupBy(cols))
 }
 
 // Adds more columns to the current GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.GroupByAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyGroupByAppend)
+	}
+	return sd.copy(sd.clauses.GroupByAppend(cols))
+}
+
+func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
+	return sd.copy(sd.clauses.ClearGroupBy())
 }
 
 // Adds a HAVING clause. See examples.
 func (sd *SelectDataset) Having(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyHaving)
+	}
 	return sd.copy(sd.clauses.HavingAppend(expressions...))
+}
+
+func (sd *SelectDataset) ClearHaving() *SelectDataset {
+	return sd.copy(sd.clauses.ClearHaving())
 }
 
 // Adds a QUALIFY clause, which filters on the result of window functions. Of the built in dialects only duckdb supports
 // QUALIFY; the others return an error unless registered with SQLDialectOptions.SupportsQualify set to true.
 // See examples.
 func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyQualify)
+	}
 	return sd.copy(sd.clauses.QualifyAppend(expressions...))
+}
+
+func (sd *SelectDataset) ClearQualify() *SelectDataset {
+	return sd.copy(sd.clauses.ClearQualify())
 }
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
+	if err := checkOrder(order, errEmptyOrder, errNilOrder); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
+	}
 	return sd.copy(sd.clauses.SetOrder(order...))
 }
 
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectDataset {
+	if err := checkOrder(order, errEmptyOrderAppend, errNilOrderAppend); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
+	}
 	return sd.copy(sd.clauses.OrderAppend(order...))
 }
 
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderPrepend(order ...exp.OrderedExpression) *SelectDataset {
+	if err := checkOrder(order, errEmptyOrderPrepend, errNilOrderPrepend); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
+	}
 	return sd.copy(sd.clauses.OrderPrepend(order...))
 }
 
@@ -473,10 +522,7 @@ func (sd *SelectDataset) ClearOrder() *SelectDataset {
 
 // Adds a LIMIT clause. If the LIMIT is currently set it replaces it. See examples.
 func (sd *SelectDataset) Limit(limit uint) *SelectDataset {
-	if limit > 0 {
-		return sd.copy(sd.clauses.SetLimit(limit))
-	}
-	return sd.copy(sd.clauses.ClearLimit())
+	return sd.copy(sd.clauses.SetLimit(limit))
 }
 
 // Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it treats it as no limit. See examples.
@@ -672,7 +718,7 @@ func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (
 	if sd.queryFactory == nil {
 		return false, errNoDatabase
 	}
-	return sd.selectStructColumns(i).Limit(1).Executor().ScanStructContext(ctx, i)
+	return sd.selectStructColumns(i).limitOne().Executor().ScanStructContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVals to scan the results into a slice of primitive values
@@ -699,7 +745,7 @@ func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (boo
 	if sd.queryFactory == nil {
 		return false, errNoDatabase
 	}
-	return sd.Limit(1).Executor().ScanValContext(ctx, i)
+	return sd.limitOne().Executor().ScanValContext(ctx, i)
 }
 
 func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
@@ -713,7 +759,7 @@ func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found
 	if sd.queryFactory == nil {
 		return row, false, errNoDatabase
 	}
-	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
+	return sd.selectStructColumns(new([]T)).limitOne().Executor().ScanOneStruct[T](ctx)
 }
 
 func (sd *SelectDataset) IterStructs[T any](ctx context.Context) iter.Seq2[T, error] {
@@ -735,7 +781,14 @@ func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bo
 	if sd.queryFactory == nil {
 		return val, false, errNoDatabase
 	}
-	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
+	return sd.limitOne().Executor().ScanOneVal[T](ctx)
+}
+
+func (sd *SelectDataset) limitOne() *SelectDataset {
+	if limit, ok := sd.clauses.Limit().(uint); ok && limit == 0 {
+		return sd
+	}
+	return sd.Limit(1)
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {

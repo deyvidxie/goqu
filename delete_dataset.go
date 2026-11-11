@@ -135,6 +135,9 @@ func (dd *DeleteDataset) From(table interface{}) *DeleteDataset {
 
 // Adds a WHERE clause. See examples.
 func (dd *DeleteDataset) Where(expressions ...exp.Expression) *DeleteDataset {
+	if len(expressions) == 0 {
+		return dd.copy(dd.clauses).SetError(errEmptyWhere)
+	}
 	return dd.copy(dd.clauses.WhereAppend(expressions...))
 }
 
@@ -145,18 +148,27 @@ func (dd *DeleteDataset) ClearWhere() *DeleteDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (dd *DeleteDataset) Order(order ...exp.OrderedExpression) *DeleteDataset {
+	if err := checkOrder(order, errEmptyOrder, errNilOrder); err != nil {
+		return dd.copy(dd.clauses).SetError(err)
+	}
 	return dd.copy(dd.clauses.SetOrder(order...))
 }
 
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (dd *DeleteDataset) OrderAppend(order ...exp.OrderedExpression) *DeleteDataset {
+	if err := checkOrder(order, errEmptyOrderAppend, errNilOrderAppend); err != nil {
+		return dd.copy(dd.clauses).SetError(err)
+	}
 	return dd.copy(dd.clauses.OrderAppend(order...))
 }
 
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (dd *DeleteDataset) OrderPrepend(order ...exp.OrderedExpression) *DeleteDataset {
+	if err := checkOrder(order, errEmptyOrderPrepend, errNilOrderPrepend); err != nil {
+		return dd.copy(dd.clauses).SetError(err)
+	}
 	return dd.copy(dd.clauses.OrderPrepend(order...))
 }
 
@@ -167,10 +179,7 @@ func (dd *DeleteDataset) ClearOrder() *DeleteDataset {
 
 // Adds a LIMIT clause. If the LIMIT is currently set it replaces it. See examples.
 func (dd *DeleteDataset) Limit(limit uint) *DeleteDataset {
-	if limit > 0 {
-		return dd.copy(dd.clauses.SetLimit(limit))
-	}
-	return dd.copy(dd.clauses.ClearLimit())
+	return dd.copy(dd.clauses.SetLimit(limit))
 }
 
 // Replaces any LIMIT with LIMIT ALL; a dialect that cannot render it renders no limit. See examples.

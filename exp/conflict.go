@@ -89,10 +89,10 @@ func (c conflictUpdate) Update() interface{} {
 	return c.update
 }
 
-// Append to the existing Where clause for an ON CONFLICT DO UPDATE ... WHERE ...
-//
-//	InsertConflict(DoNothing(),...) -> INSERT INTO ... ON CONFLICT DO NOTHING
 func (c *conflictUpdate) Where(expressions ...Expression) ConflictUpdateExpression {
+	if len(expressions) == 0 {
+		expressions = emptyAppendExpressions("DoUpdate(...).Where")
+	}
 	if c.whereClause == nil {
 		c.whereClause = NewExpressionList(AndType, expressions...)
 	} else {
@@ -101,9 +101,6 @@ func (c *conflictUpdate) Where(expressions ...Expression) ConflictUpdateExpressi
 	return c
 }
 
-// Append to the existing Where clause for an ON CONFLICT DO UPDATE ... WHERE ...
-//
-//	InsertConflict(DoNothing(),...) -> INSERT INTO ... ON CONFLICT DO NOTHING
 func (c *conflictUpdate) WhereClause() ExpressionList {
 	return c.whereClause
 }

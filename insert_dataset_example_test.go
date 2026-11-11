@@ -783,7 +783,6 @@ func ExampleInsertDataset_Vals() {
 
 func ExampleInsertDataset_ClearVals() {
 	insertSQL, _, _ := goqu.Insert("test").
-		Cols("a", "b", "c").
 		Vals(
 			[]interface{}{"a1", "b1", "c1"},
 			[]interface{}{"a2", "b1", "c1"},
@@ -794,7 +793,6 @@ func ExampleInsertDataset_ClearVals() {
 	fmt.Println(insertSQL)
 
 	insertSQL, _, _ = goqu.Insert("test").
-		Cols("a", "b", "c").
 		Vals([]interface{}{"a1", "b1", "c1"}).
 		Vals([]interface{}{"a2", "b2", "c2"}).
 		Vals([]interface{}{"a3", "b3", "c3"}).

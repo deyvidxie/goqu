@@ -1,6 +1,8 @@
 package sqlgen
 
 import (
+	"reflect"
+
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 )
@@ -89,7 +91,7 @@ func (csg *commonSQLGenerator) SourcesSQL(b sb.SQLBuilder, from exp.ColumnListEx
 
 // Generates the WHERE clause for an SQL statement
 func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionList) {
-	if where != nil && !where.IsEmpty() {
+	if where != nil {
 		b.Write(csg.dialectOptions.WhereFragment)
 		csg.esg.Generate(b, where)
 	}
@@ -97,10 +99,15 @@ func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionLis
 
 // Generates the ORDER BY clause for an SQL statement
 func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExpression) {
-	if order != nil && len(order.Columns()) > 0 {
-		b.Write(csg.dialectOptions.OrderByFragment)
-		csg.esg.Generate(b, order)
+	if order == nil {
+		return
 	}
+	if len(order.Columns()) == 0 {
+		b.SetError(errEmptyOrder)
+		return
+	}
+	b.Write(csg.dialectOptions.OrderByFragment)
+	csg.esg.Generate(b, order)
 }
 
 func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
@@ -109,7 +116,7 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	offset uint,
 	limit interface{},
 ) {
-	if order == nil || len(order.Columns()) == 0 {
+	if order == nil {
 		if offset > 0 {
 			b.SetError(errOffsetWithoutOrder(csg.dialect))
 		}
@@ -122,11 +129,27 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 		csg.esg.Generate(b, offset)
 		b.Write(csg.dialectOptions.OffsetRowsFragment)
 
+		if isZeroLimit(limit) {
+			b.SetError(errLimitZeroWithOffsetNotSupported(csg.dialect))
+			return
+		}
 		if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 			b.Write(csg.dialectOptions.FetchFragment)
 			csg.esg.Generate(b, limit)
 			b.Write(csg.dialectOptions.FetchRowsOnlyFragment)
 		}
+	}
+}
+
+func isZeroLimit(limit interface{}) bool {
+	v := reflect.ValueOf(limit)
+	switch {
+	case v.CanInt():
+		return v.Int() == 0
+	case v.CanUint():
+		return v.Uint() == 0
+	default:
+		return false
 	}
 }
 

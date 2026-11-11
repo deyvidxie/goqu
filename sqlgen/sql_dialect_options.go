@@ -14,35 +14,20 @@ type (
 	SQLDialectOptions struct {
 		// Set to true if the dialect supports ORDER BY expressions in DELETE statements (DEFAULT=false)
 		SupportsOrderByOnDelete bool
-		// Set to true to return an error, instead of silently dropping the clause, when ORDER BY is used on a
-		// DELETE and SupportsOrderByOnDelete is false (DEFAULT=false)
-		ErrorOnUnsupportedOrderByOnDelete bool
 		// Set to true if the dialect supports table hint for DELETE statements (DELETE t FROM t ...), DEFAULT=false
 		SupportsDeleteTableHint bool
 		// Set to true if the dialect supports ORDER BY expressions in UPDATE statements (DEFAULT=false)
 		SupportsOrderByOnUpdate bool
-		// Set to true to return an error, instead of silently dropping the clause, when ORDER BY is used on an
-		// UPDATE and SupportsOrderByOnUpdate is false (DEFAULT=false)
-		ErrorOnUnsupportedOrderByOnUpdate bool
 		// Set to true if the dialect supports LIMIT expressions in DELETE statements (DEFAULT=false)
 		SupportsLimitOnDelete bool
-		// Set to true to return an error, instead of silently dropping the clause, when LIMIT is used on a
-		// DELETE and SupportsLimitOnDelete is false; LimitAll() is still dropped (DEFAULT=false)
-		ErrorOnUnsupportedLimitOnDelete bool
 		// Set to true if the dialect supports LIMIT expressions in UPDATE statements (DEFAULT=false)
 		SupportsLimitOnUpdate bool
-		// Set to true to return an error, instead of silently dropping the clause, when LIMIT is used on an
-		// UPDATE and SupportsLimitOnUpdate is false; LimitAll() is still dropped (DEFAULT=false)
-		ErrorOnUnsupportedLimitOnUpdate bool
 		// Set to true if the dialect supports LIMIT ALL; when false, LimitAll() emits no limit (DEFAULT=true)
 		SupportsLimitAll bool
 		// Set to true if the dialect supports RETURN expressions (DEFAULT=true)
 		SupportsReturn bool
 		// Set to true if the dialect supports Conflict Target (DEFAULT=true)
 		SupportsConflictTarget bool
-		// Set to true to return an error, instead of silently dropping the target, when DoUpdate has a target and
-		// SupportsConflictTarget is false (DEFAULT=false)
-		ErrorOnUnsupportedConflictTarget bool
 		// Set to true if the dialect supports a WHERE on DO UPDATE; when false, DoUpdate(...).Where(...) returns an error
 		// (DEFAULT=true)
 		SupportsConflictUpdateWhere bool
@@ -200,12 +185,6 @@ type (
 		// Written in place of a whole NOT IN comparison whose list is empty (DEFAULT=[]byte("(1=1)")).
 		// Dialects not based on DefaultDialectOptions must set this.
 		EmptyNotInFragment []byte
-		// Written in place of an empty AND condition (DEFAULT=[]byte("(1=1)")).
-		// Dialects not based on DefaultDialectOptions must set this.
-		EmptyAndFragment []byte
-		// Written in place of an empty OR condition (DEFAULT=[]byte("(1=0)")).
-		// Dialects not based on DefaultDialectOptions must set this.
-		EmptyOrFragment []byte
 		// The ASC fragment when specifying column order (DEFAULT=[]byte(" ASC"))
 		AscFragment []byte
 		// The DESC fragment when specifying column order (DEFAULT=[]byte(" DESC"))
@@ -630,8 +609,6 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		False:                     []byte("FALSE"),
 		EmptyInFragment:           []byte("(1=0)"),
 		EmptyNotInFragment:        []byte("(1=1)"),
-		EmptyAndFragment:          []byte("(1=1)"),
-		EmptyOrFragment:           []byte("(1=0)"),
 
 		ExcludedRowAlias:           "excluded",
 		ExcludedTableFragment:      []byte("EXCLUDED"),

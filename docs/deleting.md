@@ -46,7 +46,7 @@ fmt.Println(sql)
 Output:
 ```
 DELETE FROM "table"
-DELETE FROM "table" WHERE "foo"='bar'
+DELETE FROM "table" WHERE ("foo" = 'bar')
 ```
 
 **[`DialectWrapper.Delete`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Delete)**
@@ -142,7 +142,7 @@ DELETE FROM "test" WHERE (("a" > 10) AND ("b" < 10) AND ("c" IS NULL) AND ("d" I
 <a name="order"></a>
 **[`Order`](https://godoc.org/github.com/doug-martin/goqu/#DeleteDataset.Order)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -160,7 +160,7 @@ DELETE FROM `test` ORDER BY `a` ASC
 <a name="limit"></a>
 **[`Limit`](https://godoc.org/github.com/doug-martin/goqu/#DeleteDataset.Limit)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -190,7 +190,7 @@ Output:
 DELETE TOP (10) FROM "test"
 ```
 
-`sqlserver` has no `ORDER BY` on `DELETE`, so calling `Order` on a `sqlserver` delete returns an error instead of generating invalid SQL. `TOP` on its own deletes an unspecified set of rows. To delete an ordered subset, use a subquery:
+`TOP` on its own deletes an unspecified set of rows. To delete an ordered subset, use a subquery:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"

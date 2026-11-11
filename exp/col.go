@@ -94,3 +94,7 @@ func (cl columnList) Append(cols ...Expression) ColumnListExpression {
 	ret.columns = exps
 	return ret
 }
+
+func isSetButEmpty(cl ColumnListExpression) bool {
+	return cl != nil && cl.IsEmpty()
+}

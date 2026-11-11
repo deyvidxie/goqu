@@ -296,7 +296,7 @@ func (dds *deleteDatasetSuite) TestLimit() {
 		},
 		deleteTestCase{
 			ds:      bd.Limit(0),
-			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")),
+			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")).SetLimit(uint(0)),
 		},
 		deleteTestCase{
 			ds: bd.Limit(10).Limit(2),
@@ -306,7 +306,7 @@ func (dds *deleteDatasetSuite) TestLimit() {
 		},
 		deleteTestCase{
 			ds:      bd.Limit(10).Limit(0),
-			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")),
+			clauses: exp.NewDeleteClauses().SetFrom(goqu.C("test")).SetLimit(uint(0)),
 		},
 		deleteTestCase{
 			ds:      bd,
@@ -504,8 +504,78 @@ func (dds *deleteDatasetSuite) TestSetError() {
 	dds.Equal(err1, err)
 }
 
-func (dds *deleteDatasetSuite) TestToSQL_defaultDialectDropsLimitAndOrder() {
-	sql, _, err := goqu.Delete("test").Limit(1).Order(goqu.C("a").Asc()).ToSQL()
+func (dds *deleteDatasetSuite) TestEmptyOrder() {
+	const (
+		emptyOrderAppend  = "goqu: OrderAppend requires at least one expression"
+		emptyOrderPrepend = "goqu: OrderPrepend requires at least one expression"
+	)
+	var noOrder []exp.OrderedExpression
+	bd := goqu.Delete("test")
+	const (
+		emptyOrder = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder   = "goqu: Order expressions must not be nil"
+	)
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
+	}{
+		"Order":                       {bd.Order(noOrder...), emptyOrder},
+		"Order nil":                   {bd.Order(nil), nilOrder},
+		"OrderAppend":                 {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrderAppend},
+		"OrderAppend nil":             {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
+		"OrderPrepend":                {bd.OrderPrepend(noOrder...), emptyOrderPrepend},
+		"OrderPrepend nil":            {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
+		"OrderAppend then ClearOrder": {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...).ClearOrder(), emptyOrderAppend},
+		"OrderPrepend then Order":     {bd.OrderPrepend(noOrder...).Order(goqu.C("a").Asc()), emptyOrderPrepend},
+		"from select":                 {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Delete(), emptyOrder},
+	} {
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
+func (dds *deleteDatasetSuite) TestEmptyWhere() {
+	var none []exp.Expression
+	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+	bd := goqu.Delete("test")
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
+	}{
+		"no conditions": {bd.Where(), emptyWhere},
+		"empty spread":  {bd.Where(none...), emptyWhere},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition`},
+	} {
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsInvalidExpression(err), name)
+	}
+
+	sql, _, err := bd.Where(goqu.C("a").Eq(1)).ClearWhere().ToSQL()
+	dds.NoError(err)
+	dds.Equal(`DELETE FROM "test"`, sql)
+}
+
+func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitAndOrder() {
+	bd := goqu.Delete("test")
+	for name, c := range map[string]struct {
+		ds  *goqu.DeleteDataset
+		err string
+	}{
+		"Limit(0)": {bd.Limit(0), "goqu: dialect does not support LIMIT on DELETE [dialect=default]"},
+		"Limit(1)": {bd.Limit(1), "goqu: dialect does not support LIMIT on DELETE [dialect=default]"},
+		"Order":    {bd.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on DELETE [dialect=default]"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsUnsupported(err), name)
+	}
+	sql, _, err := bd.LimitAll().ToSQL()
 	dds.NoError(err)
 	dds.Equal(`DELETE FROM "test"`, sql)
 }

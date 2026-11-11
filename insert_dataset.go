@@ -134,7 +134,11 @@ func (id *InsertDataset) Into(into interface{}) *InsertDataset {
 
 // Sets the Columns to insert into
 func (id *InsertDataset) Cols(cols ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.SetCols(exp.NewColumnListExpression(nil, id.tagName, cols...)))
+	cl := exp.NewColumnListExpression(nil, id.tagName, cols...)
+	if cl.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyCols)
+	}
+	return id.copy(id.clauses.SetCols(cl))
 }
 
 // Clears the Columns to insert into
@@ -144,7 +148,11 @@ func (id *InsertDataset) ClearCols() *InsertDataset {
 
 // Adds columns to the current list of columns clause. See examples
 func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.ColsAppend(exp.NewColumnListExpression(nil, id.tagName, cols...)))
+	cl := exp.NewColumnListExpression(nil, id.tagName, cols...)
+	if cl.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyColsAppend)
+	}
+	return id.copy(id.clauses.ColsAppend(cl))
 }
 
 // Adds a subquery to the insert. See examples.
@@ -163,6 +171,9 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 
 // Manually set values to insert See examples.
 func (id *InsertDataset) Vals(vals ...[]interface{}) *InsertDataset {
+	if len(vals) == 0 {
+		return id.copy(id.clauses).SetError(errEmptyVals)
+	}
 	return id.copy(id.clauses.ValsAppend(vals))
 }
 
@@ -173,6 +184,9 @@ func (id *InsertDataset) ClearVals() *InsertDataset {
 
 // Insert rows. Rows can be a map, goqu.Record or struct. See examples.
 func (id *InsertDataset) Rows(rows ...interface{}) *InsertDataset {
+	if len(rows) == 0 {
+		return id.copy(id.clauses).SetError(errEmptyRows)
+	}
 	return id.copy(id.clauses.SetRows(rows))
 }
 

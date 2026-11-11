@@ -1,5 +1,7 @@
 package exp
 
+import "slices"
+
 type (
 	expressionList struct {
 		operator    ExpressionListType
@@ -8,32 +10,7 @@ type (
 )
 
 func NewExpressionList(operator ExpressionListType, expressions ...Expression) ExpressionList {
-	exps := make([]Expression, 0, len(expressions))
-	for _, e := range expressions {
-		if listType, empty := emptyCondition(e); empty {
-			if listType == operator {
-				continue
-			}
-			e = expressionList{operator: listType}
-		}
-		exps = append(exps, e)
-	}
-	return expressionList{operator: operator, expressions: exps}
-}
-
-func emptyCondition(e Expression) (ExpressionListType, bool) {
-	switch t := e.(type) {
-	case ExpressionList:
-		return t.Type(), t.IsEmpty()
-	case Ex:
-		return AndType, len(t) == 0
-	case ExOr:
-		return OrType, len(t) == 0
-	case LiteralExpression:
-		return AndType, t.Literal() == "" && len(t.Args()) == 0
-	default:
-		return AndType, false
-	}
+	return expressionList{operator: operator, expressions: slices.Clone(expressions)}
 }
 
 func (el expressionList) Clone() Expression {

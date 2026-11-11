@@ -127,9 +127,24 @@ func (sds *duckdbDialectSuite) TestInsertOnConflict() {
 
 func (sds *duckdbDialectSuite) TestDistinctOn() {
 	sds.assertSQL(sqlTestCase{
-		ds:  sds.GetDs("test").Select("a").Distinct("b"),
+		ds:  sds.GetDs("test").Select("a").DistinctOn("b"),
 		sql: "SELECT DISTINCT ON (\"b\") \"a\" FROM \"test\"",
 	})
+}
+
+func (sds *duckdbDialectSuite) TestEmptyQualify() {
+	ds := goqu.Dialect("duckdb").From("t")
+	for name, c := range map[string]struct {
+		ds  *goqu.SelectDataset
+		err string
+	}{
+		"empty Or": {ds.Qualify(goqu.Or()), "goqu: empty OR condition"},
+		"empty Ex": {ds.Qualify(goqu.Ex{}), "goqu: empty AND condition"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
 }
 
 func (sds *duckdbDialectSuite) TestWindowBeforeQualify() {

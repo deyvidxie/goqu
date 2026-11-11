@@ -25,18 +25,18 @@ ds := goqu.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley'
 ```
 
 **[`SelectDataset.Update`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Update)**
 
 If you already have a `SelectDataset` you can invoke `Update()` to get a `UpdateDataset`
 
-**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` clauses from the update
+**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` clauses from the `SelectDataset`
 
 ```go
 ds := goqu.From("user")
@@ -44,17 +44,17 @@ ds := goqu.From("user")
 updateSQL, _, _ := ds.Update().Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 ).ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 
 updateSQL, _, _ = ds.Where(goqu.C("first_name").Eq("Gregory")).Update().Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 ).ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley'
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley' WHERE "first_name"='Gregory'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley' WHERE ("first_name" = 'Gregory')
 ```
 
 **[`DialectWrapper.Update`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Update)**
@@ -70,11 +70,11 @@ ds := dialect.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE `user` SET `first_name`='Greg', `last_name`='Farley'
+UPDATE `user` SET `first_name`='Greg',`last_name`='Farley'
 ```
 
 **[`Database.Update`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Update)**
@@ -91,11 +91,11 @@ ds := db.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE `user` SET `first_name`='Greg', `last_name`='Farley'
+UPDATE `user` SET `first_name`='Greg',`last_name`='Farley'
 ```
 
 ### Examples
@@ -409,7 +409,7 @@ UPDATE "test" SET "foo"='bar' WHERE (("a" > 10) AND ("b" < 10) AND ("c" IS NULL)
 <a name="order"></a>
 **[Order](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Order)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -427,30 +427,10 @@ Output:
 UPDATE `test` SET `foo`='bar' ORDER BY `a` ASC
 ```
 
-`sqlserver` has no `ORDER BY` on `UPDATE`, so calling `Order` on a `sqlserver` update returns an error instead of generating invalid SQL. This includes an `Order` carried over from a `SelectDataset` by `Update()`. To update an ordered subset, use a subquery:
-
-```go
-// import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
-
-oldest := goqu.Dialect("sqlserver").From("test").
-	Select("id").Order(goqu.C("created").Asc()).Limit(10)
-ds := goqu.Dialect("sqlserver").
-	Update("test").
-	Set(goqu.Record{"foo": "bar"}).
-	Where(goqu.C("id").In(oldest))
-sql, _, _ := ds.ToSQL()
-fmt.Println(sql)
-```
-
-Output:
-```
-UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" ORDER BY "created" ASC))
-```
-
 <a name="limit"></a>
-**[Order](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
+**[Limit](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -468,7 +448,7 @@ Output:
 UPDATE `test` SET `foo`='bar' LIMIT 10
 ```
 
-`sqlserver` emits `TOP` directly after `UPDATE`. `TOP` on its own updates an unspecified set of rows; see [Order](#order) for an ordered subset:
+`sqlserver` emits `TOP` directly after `UPDATE`:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
@@ -484,6 +464,26 @@ fmt.Println(sql)
 Output:
 ```
 UPDATE TOP (10) "test" SET "foo"='bar'
+```
+
+`TOP` on its own updates an unspecified set of rows. To update an ordered subset, use a subquery:
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+
+oldest := goqu.Dialect("sqlserver").From("test").
+	Select("id").Order(goqu.C("created").Asc()).Limit(10)
+ds := goqu.Dialect("sqlserver").
+	Update("test").
+	Set(goqu.Record{"foo": "bar"}).
+	Where(goqu.C("id").In(oldest))
+sql, _, _ := ds.ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```
+UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" ORDER BY "created" ASC))
 ```
 
 <a name="returning"></a>

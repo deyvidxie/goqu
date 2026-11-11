@@ -44,7 +44,6 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}},
 		{"DoUpdate target", "conflict target clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictTarget = false
-			o.ErrorOnUnsupportedConflictTarget = true
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}))
 		}},
@@ -84,30 +83,10 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": 1}).From("u")
 		}},
-		{"UPDATE ORDER BY", "ORDER BY on UPDATE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedOrderByOnUpdate = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Update("t").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc())
-		}},
-		{"UPDATE LIMIT", "LIMIT on UPDATE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedLimitOnUpdate = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Update("t").Set(goqu.Record{"a": 1}).Limit(1)
-		}},
-		{"DELETE ORDER BY", "ORDER BY on DELETE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedOrderByOnDelete = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Delete("t").Order(goqu.C("a").Asc())
-		}},
-		{"DELETE LIMIT", "LIMIT on DELETE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedLimitOnDelete = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Delete("t").Limit(1)
-		}},
 		{"DISTINCT ON", "DISTINCT ON clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsDistinctOn = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Distinct("a")
+			return d.From("t").DistinctOn("a")
 		}},
 		{"WINDOW", "WINDOW clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWindowFunction = false
@@ -178,16 +157,6 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 			o.DefaultFragment = nil
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": goqu.Default()})
-		}},
-		{"empty AND fragment", "no EmptyAndFragment for an empty AND list", func(o *sqlgen.SQLDialectOptions) {
-			o.EmptyAndFragment = nil
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And()))
-		}},
-		{"empty OR fragment", "no EmptyOrFragment for an empty OR list", func(o *sqlgen.SQLDialectOptions) {
-			o.EmptyOrFragment = nil
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Where(goqu.Or())
 		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false

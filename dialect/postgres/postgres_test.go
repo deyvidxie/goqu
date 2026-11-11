@@ -361,21 +361,6 @@ func (pt *postgresTest) TestDefaultValue() {
 	pt.Equal(int64(7), a)
 }
 
-func (pt *postgresTest) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := pt.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	pt.Require().NoError(err)
-	count, err := pt.db.From("entry").Count()
-	pt.Require().NoError(err)
-	pt.Equal(int64(10), count)
-
-	var ints []int64
-	err = pt.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	pt.Require().NoError(err)
-	pt.Len(ints, 10)
-	pt.Equal(int64(1), ints[0])
-}
-
 func (pt *postgresTest) TestCount() {
 	ds := pt.db.From("entry")
 	count, err := ds.Count()
@@ -680,6 +665,32 @@ func (pt *postgresTest) TestOrderByFunction() {
 		{ID: 2},
 		{ID: 1},
 	}, entries)
+}
+
+func (pt *postgresTest) TestValsWithoutColsAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := pt.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	pt.Require().NoError(err)
+	defer func() {
+		_, err := pt.db.Exec("DROP TABLE vals_insert")
+		pt.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = pt.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		pt.Require().NoError(err, "prepared=%v", prepared)
+
+		var none []valsRow
+		pt.Require().NoError(pt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		pt.Empty(none, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	pt.Require().NoError(pt.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	pt.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestPostgresSuite(t *testing.T) {

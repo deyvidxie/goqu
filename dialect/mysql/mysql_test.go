@@ -453,21 +453,6 @@ func (mt *mysqlTest) TestDefaultValue() {
 	mt.Equal(int64(7), a)
 }
 
-func (mt *mysqlTest) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := mt.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	mt.Require().NoError(err)
-	count, err := mt.db.From("entry").Count()
-	mt.Require().NoError(err)
-	mt.Equal(int64(10), count)
-
-	var ints []int64
-	err = mt.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	mt.Require().NoError(err)
-	mt.Len(ints, 10)
-	mt.Equal(int64(1), ints[0])
-}
-
 func (mt *mysqlTest) TestCount() {
 	ds := mt.db.From("entry")
 	count, err := ds.Count()
@@ -696,7 +681,7 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	e2 := entry{Int: 10, String: "2.000000"}
 	_, err = ds.Insert().
 		Rows(e2).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"})).
+		OnConflict(goqu.DoUpdate("", goqu.Record{"string": "upsert"})).
 		Executor().Exec()
 	mt.NoError(err)
 	_, err = ds.Where(goqu.C("int").Eq(10)).ScanStruct(&entryActual)
@@ -710,7 +695,7 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	}
 	_, err = ds.Insert().
 		Rows(entries).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.C("int").Eq(9))).
+		OnConflict(goqu.DoUpdate("", goqu.Record{"string": "upsert"}).Where(goqu.C("int").Eq(9))).
 		Executor().Exec()
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
 }
@@ -867,7 +852,7 @@ func (mt *mysqlTest) TestInsertFromSelect() {
 		goqu.C("bytes"),
 	).From(goqu.T("entry")).Where(goqu.C("int").Eq(9))
 
-	query := ds.Insert().Cols().FromQuery(subquery)
+	query := ds.Insert().FromQuery(subquery)
 	_, _, err := query.ToSQL()
 
 	mt.NoError(err)
@@ -889,6 +874,36 @@ func (mt *mysqlTest) TestInsert_withoutRows() {
 	var as []string
 	mt.Require().NoError(mt.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
 	mt.Equal([]string{"x", "x"}, as)
+}
+
+func (mt *mysqlTest) TestValsWithoutColsAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := mt.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	mt.Require().NoError(err)
+	defer func() {
+		_, err := mt.db.Exec("DROP TABLE vals_insert")
+		mt.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = mt.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+
+		var none []valsRow
+		mt.Require().NoError(mt.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		mt.Empty(none, "prepared=%v", prepared)
+		_, err = mt.db.Update("vals_insert").Prepared(prepared).Set(goqu.Record{"b": "z"}).Limit(0).Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+		_, err = mt.db.Delete("vals_insert").Prepared(prepared).Where(goqu.C("a").Gt(0)).Limit(0).Executor().Exec()
+		mt.Require().NoError(err, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	mt.Require().NoError(mt.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	mt.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestMysqlSuite(t *testing.T) {

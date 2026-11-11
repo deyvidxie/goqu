@@ -27,7 +27,6 @@ type (
 		SetFrom(ae AppendableExpression) InsertClauses
 
 		Rows() []interface{}
-		HasRows() bool
 		SetRows(rows []interface{}) InsertClauses
 
 		HasAlias() bool
@@ -35,7 +34,6 @@ type (
 		SetAlias(ie IdentifierExpression) InsertClauses
 
 		Vals() [][]interface{}
-		HasVals() bool
 		SetVals(vals [][]interface{}) InsertClauses
 		ValsAppend(vals [][]interface{}) InsertClauses
 
@@ -96,7 +94,18 @@ func (ic *insertClauses) HasCols() bool {
 }
 
 func (ic *insertClauses) ColsAppend(cl ColumnListExpression) InsertClauses {
+	if isSetButEmpty(ic.cols) {
+		return ic
+	}
 	ret := ic.clone()
+	if cl == nil || cl.IsEmpty() {
+		ret.cols = emptyAppendList(ret.cols, "ColsAppend", "column")
+		return ret
+	}
+	if ret.cols == nil {
+		ret.cols = cl
+		return ret
+	}
 	ret.cols = ret.cols.Append(cl.Columns()...)
 	return ret
 }
@@ -163,10 +172,6 @@ func (ic *insertClauses) Rows() []interface{} {
 	return ic.rows
 }
 
-func (ic *insertClauses) HasRows() bool {
-	return len(ic.rows) > 0
-}
-
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
 	ret.rows = slices.Clone(rows)
@@ -180,10 +185,6 @@ func (ic *insertClauses) Vals() [][]interface{} {
 	return ic.values
 }
 
-func (ic *insertClauses) HasVals() bool {
-	return len(ic.values) > 0
-}
-
 func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {
 	ret := ic.clone()
 	ret.values = cloneRows(vals)
@@ -191,10 +192,16 @@ func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {
 }
 
 func (ic *insertClauses) ValsAppend(vals [][]interface{}) InsertClauses {
+	if ic.values != nil && len(ic.values) == 0 {
+		return ic
+	}
 	ret := ic.clone()
 	newVals := make([][]interface{}, 0, len(ic.values)+len(vals))
 	newVals = append(newVals, ic.values...)
 	newVals = append(newVals, cloneRows(vals)...)
+	if len(vals) == 0 {
+		newVals = append(newVals, emptyAppendRow("ValsAppend"))
+	}
 	ret.values = newVals
 	return ret
 }

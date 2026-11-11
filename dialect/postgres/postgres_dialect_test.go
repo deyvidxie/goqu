@@ -53,13 +53,16 @@ func TestUpdateAndDeleteLimitAndOrderAreErrors(t *testing.T) {
 		err string
 	}{
 		{update.Limit(1), "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]"},
+		{update.Limit(0), "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]"},
 		{update.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
 		{del.Limit(1), "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]"},
+		{del.Limit(0), "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]"},
 		{del.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on DELETE [dialect=postgres]"},
 		{selectToUpdate, "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
 	} {
 		_, _, err := c.sql.ToSQL()
 		assert.EqualError(t, err, c.err)
+		assert.True(t, goqu.IsUnsupported(err), c.err)
 	}
 }
 
@@ -107,12 +110,23 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
-	sql, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2`, sql)
-	sql, _, err = ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.ExOr{})).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2 WHERE (1=0)`, sql)
+	const emptyWhere = "goqu: DoUpdate(...).Where requires at least one expression"
+	upsert := func() exp.ConflictUpdateExpression { return goqu.DoUpdate("a", goqu.Record{"a": 2}) }
+	for name, c := range map[string]struct {
+		ds  *goqu.InsertDataset
+		err string
+	}{
+		"empty Ex":          {ds.OnConflict(upsert().Where(goqu.Ex{})), "goqu: empty AND condition"},
+		"empty ExOr":        {ds.OnConflict(upsert().Where(goqu.ExOr{})), "goqu: empty OR condition"},
+		"no arguments":      {ds.OnConflict(upsert().Where()), emptyWhere},
+		"empty then real":   {ds.OnConflict(upsert().Where().Where(goqu.C("a").Eq(1))), emptyWhere},
+		"real, empty, real": {ds.OnConflict(upsert().Where(goqu.C("a").Eq(1)).Where().Where(goqu.C("b").Eq(2))), emptyWhere},
+		"real then empty":   {ds.OnConflict(upsert().Where(goqu.C("a").Eq(1)).Where()), emptyWhere},
+	} {
+		_, _, err := c.ds.ToSQL()
+		assert.EqualError(t, err, c.err, name)
+		assert.True(t, goqu.IsInvalidExpression(err), name)
+	}
 }
 
 func TestJSONFunctionsAreErrors(t *testing.T) {

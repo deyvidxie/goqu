@@ -66,22 +66,18 @@ func (gis *githubIssuesSuite) TestIssue272And438_typedNullsAreNull() {
 
 func (gis *githubIssuesSuite) TestIssue49() {
 	dialect := goqu.Dialect("default")
-
-	filters := goqu.Or()
-	sql, args, err := dialect.From("table").Where(filters).ToSQL()
-	gis.NoError(err)
-	gis.Empty(args)
-	gis.Equal(`SELECT * FROM "table" WHERE (1=0)`, sql)
-
-	sql, args, err = dialect.From("table").Where(goqu.Ex{}).ToSQL()
-	gis.NoError(err)
-	gis.Empty(args)
-	gis.Equal(`SELECT * FROM "table"`, sql)
-
-	sql, args, err = dialect.From("table").Where(goqu.ExOr{}).ToSQL()
-	gis.NoError(err)
-	gis.Empty(args)
-	gis.Equal(`SELECT * FROM "table" WHERE (1=0)`, sql)
+	for _, c := range []struct {
+		where exp.Expression
+		err   string
+	}{
+		{goqu.Or(), "goqu: empty OR condition"},
+		{goqu.ExOr{}, "goqu: empty OR condition"},
+		{goqu.Ex{}, "goqu: empty AND condition"},
+	} {
+		_, _, err := dialect.From("table").Where(c.where).ToSQL()
+		gis.EqualError(err, c.err)
+		gis.True(goqu.IsInvalidExpression(err))
+	}
 }
 
 // Test for https://github.com/doug-martin/goqu/issues/115

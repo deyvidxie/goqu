@@ -373,21 +373,6 @@ func (sst *sqlserverTest) TestDefaultValue() {
 	sst.Equal(int64(7), a)
 }
 
-func (sst *sqlserverTest) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := sst.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	sst.Require().NoError(err)
-	count, err := sst.db.From("entry").Count()
-	sst.Require().NoError(err)
-	sst.Equal(int64(10), count)
-
-	var ints []int64
-	err = sst.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	sst.Require().NoError(err)
-	sst.Len(ints, 10)
-	sst.Equal(int64(1), ints[0])
-}
-
 func (sst *sqlserverTest) TestCount() {
 	ds := sst.db.From("entry")
 	count, err := ds.Count()
@@ -638,6 +623,36 @@ func (sst *sqlserverTest) TestDelete() {
 	id = 0
 	_, err = ds.Where(goqu.C("id").Eq(e.ID)).Delete().Returning("id").Executor().ScanVal(&id)
 	sst.EqualError(err, "goqu: dialect does not support RETURNING clause [dialect=sqlserver]")
+}
+
+func (sst *sqlserverTest) TestValsWithoutColsAndLimitZero() {
+	type valsRow struct {
+		A int    `db:"a"`
+		B string `db:"b"`
+	}
+	_, err := sst.db.Exec("CREATE TABLE vals_insert (a INT NOT NULL, b VARCHAR(5) NOT NULL)")
+	sst.Require().NoError(err)
+	defer func() {
+		_, err := sst.db.Exec("DROP TABLE vals_insert")
+		sst.NoError(err)
+	}()
+	for i, prepared := range []bool{false, true} {
+		_, err = sst.db.Insert("vals_insert").Prepared(prepared).
+			Vals(goqu.Vals{2*i + 1, "x"}, goqu.Vals{2*i + 2, "y"}).
+			Executor().Exec()
+		sst.Require().NoError(err, "prepared=%v", prepared)
+
+		var none []valsRow
+		sst.Require().NoError(sst.db.From("vals_insert").Prepared(prepared).Limit(0).ScanStructs(&none))
+		sst.Empty(none, "prepared=%v", prepared)
+		_, err = sst.db.Update("vals_insert").Prepared(prepared).Set(goqu.Record{"b": "z"}).Limit(0).Executor().Exec()
+		sst.Require().NoError(err, "prepared=%v", prepared)
+		_, err = sst.db.Delete("vals_insert").Prepared(prepared).Where(goqu.C("a").Gt(0)).Limit(0).Executor().Exec()
+		sst.Require().NoError(err, "prepared=%v", prepared)
+	}
+	var rows []valsRow
+	sst.Require().NoError(sst.db.From("vals_insert").Order(goqu.C("a").Asc()).ScanStructs(&rows))
+	sst.Equal([]valsRow{{1, "x"}, {2, "y"}, {3, "x"}, {4, "y"}}, rows)
 }
 
 func TestSqlServerSuite(t *testing.T) {

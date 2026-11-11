@@ -1161,25 +1161,50 @@ func ExampleSelectDataset_Distinct() {
 	// SELECT DISTINCT "a", "b" FROM "test"
 }
 
-func ExampleSelectDataset_Distinct_on() {
-	sql, _, _ := goqu.From("test").Distinct("a").ToSQL()
+func ExampleSelectDataset_DistinctOn_withLiteral() {
+	sql, _, _ := goqu.From("test").DistinctOn(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
 	fmt.Println(sql)
+	// Output:
+	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
+}
+
+func ExampleSelectDataset_DistinctOn_coalesce() {
+	sql, _, _ := goqu.From("test").DistinctOn(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
+}
+
+func ExampleSelectDataset_DistinctOn() {
+	sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
+	fmt.Println(sql)
+	var none []interface{}
+	_, _, err := goqu.From("test").DistinctOn(none...).ToSQL()
+	fmt.Println(err)
 	// Output:
 	// SELECT DISTINCT ON ("a") * FROM "test"
+	// goqu: DistinctOn requires at least one column; use Distinct() for a plain DISTINCT
 }
 
-func ExampleSelectDataset_Distinct_onWithLiteral() {
-	sql, _, _ := goqu.From("test").Distinct(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
+func ExampleSelectDataset_ClearGroupBy() {
+	sql, _, _ := goqu.From("test").GroupBy("a").ClearGroupBy().ToSQL()
 	fmt.Println(sql)
 	// Output:
-	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
+	// SELECT * FROM "test"
 }
 
-func ExampleSelectDataset_Distinct_onCoalesce() {
-	sql, _, _ := goqu.From("test").Distinct(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
+func ExampleSelectDataset_ClearHaving() {
+	sql, _, _ := goqu.From("test").GroupBy("a").Having(goqu.SUM("b").Gt(10)).ClearHaving().ToSQL()
 	fmt.Println(sql)
 	// Output:
-	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
+	// SELECT * FROM "test" GROUP BY "a"
+}
+
+func ExampleSelectDataset_ClearQualify() {
+	sql, _, _ := goqu.From("test").Qualify(goqu.C("a").Eq(1)).ClearQualify().ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT * FROM "test"
 }
 
 func ExampleSelectDataset_SelectAppend() {

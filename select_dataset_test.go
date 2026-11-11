@@ -223,11 +223,6 @@ func (sds *selectDatasetSuite) TestSelect() {
 				SetSelect(exp.NewColumnListExpression(nil, "db", "b")),
 		},
 		selectTestCase{
-			ds: bd.Select("a").Select(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
-		},
-		selectTestCase{
 			ds:      bd,
 			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
 		},
@@ -272,24 +267,73 @@ func (sds *selectDatasetSuite) TestSelectDistinct() {
 				SetDistinct(exp.NewColumnListExpression(nil, "db")),
 		},
 		selectTestCase{
-			ds: bd.Select("a").SelectDistinct(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetSelect(exp.NewColumnListExpression(nil, "db", goqu.Star())).
-				SetDistinct(nil),
-		},
-		selectTestCase{
-			ds: bd.SelectDistinct("a").SelectDistinct(),
-			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetSelect(exp.NewColumnListExpression(nil, "db", goqu.Star())).
-				SetDistinct(nil),
-		},
-		selectTestCase{
 			ds:      bd,
 			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
 		},
 	)
+}
+
+func (sds *selectDatasetSuite) TestEmptyArguments() {
+	const (
+		emptyOrderAppend  = "goqu: OrderAppend requires at least one expression"
+		emptyOrderPrepend = "goqu: OrderPrepend requires at least one expression"
+	)
+	bd := goqu.From("test")
+	var none []interface{}
+	var noOrder []exp.OrderedExpression
+	const (
+		emptySelect  = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
+		emptyGroupBy = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
+		emptyOrder   = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder     = "goqu: Order expressions must not be nil"
+	)
+	for name, c := range map[string]struct {
+		ds  *goqu.SelectDataset
+		err string
+	}{
+		"Select":     {bd.Select("a").Select(none...), emptySelect},
+		"Select nil": {bd.Select(nil), emptySelect},
+		"Select no columns": {bd.Select(struct {
+			A int `db:"-"`
+		}{}), emptySelect},
+		"package Select":                  {goqu.Select(none...).From("test"), emptySelect},
+		"SelectDistinct":                  {bd.SelectDistinct(none...), "goqu: SelectDistinct requires at least one column"},
+		"SelectAppend":                    {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
+		"GroupBy":                         {bd.GroupBy(none...), emptyGroupBy},
+		"GroupBy nil":                     {bd.GroupBy(nil), emptyGroupBy},
+		"GroupByAppend":                   {bd.GroupBy("a").GroupByAppend(none...), "goqu: GroupByAppend requires at least one column"},
+		"Order":                           {bd.Order(noOrder...), emptyOrder},
+		"Order nil":                       {bd.Order(nil), nilOrder},
+		"OrderAppend":                     {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrderAppend},
+		"OrderAppend nil":                 {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
+		"OrderPrepend":                    {bd.OrderPrepend(noOrder...), emptyOrderPrepend},
+		"OrderPrepend nil":                {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
+		"OrderAppend then ClearOrder":     {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...).ClearOrder(), emptyOrderAppend},
+		"OrderPrepend then Order":         {bd.OrderPrepend(noOrder...).Order(goqu.C("a").Asc()), emptyOrderPrepend},
+		"SelectAppend then Select":        {bd.SelectAppend(none...).Select("a"), "goqu: SelectAppend requires at least one column"},
+		"GroupByAppend then ClearGroupBy": {bd.GroupByAppend(none...).ClearGroupBy(), "goqu: GroupByAppend requires at least one column"},
+		"Order with Limit":                {bd.Order(noOrder...).Limit(10), emptyOrder},
+		"Select then cleared":             {bd.Select(none...).ClearSelect(), emptySelect},
+		"Where":                           {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
+		"Having":                          {bd.Having(), "goqu: Having requires at least one expression; use ClearHaving to drop HAVING"},
+		"Qualify":                         {bd.Qualify(), "goqu: Qualify requires at least one expression; use ClearQualify to drop QUALIFY"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
+
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"ClearSelect":  bd.Select("a").ClearSelect(),
+		"ClearOrder":   bd.Order(goqu.C("a").Asc()).ClearOrder(),
+		"ClearGroupBy": bd.GroupBy("a").ClearGroupBy(),
+		"ClearHaving":  bd.Having(goqu.C("a").Eq(1)).ClearHaving(),
+		"ClearQualify": bd.Qualify(goqu.C("a").Eq(1)).ClearQualify(),
+	} {
+		sql, _, err := ds.ToSQL()
+		sds.NoError(err, name)
+		sds.Equal(`SELECT * FROM "test"`, sql, name)
+	}
 }
 
 func (sds *selectDatasetSuite) TestClearSelect() {
@@ -327,20 +371,50 @@ func (sds *selectDatasetSuite) TestSelectAppend() {
 	)
 }
 
-func (sds *selectDatasetSuite) TestDistinct() {
-	bd := goqu.From("test")
+func (sds *selectDatasetSuite) TestDistinctOn() {
+	bd := goqu.Dialect("postgres").From("test")
+
+	sql, _, err := bd.DistinctOn("a").ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT DISTINCT ON ("a") * FROM "test"`, sql)
+
+	var none []interface{}
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"nil spread":   bd.DistinctOn(none...),
+		"empty spread": bd.DistinctOn([]interface{}{}...),
+		"nil column":   bd.DistinctOn(nil),
+		"empty list":   bd.DistinctOn(exp.NewColumnListExpression(nil, "db")),
+	} {
+		_, _, err := ds.ToSQL()
+		sds.EqualError(err, "goqu: DistinctOn requires at least one column; use Distinct() for a plain DISTINCT", name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
+	sds.NoError(bd.Error())
+	base := goqu.From("test")
 	sds.assertCases(
 		selectTestCase{
-			ds: bd.Distinct("a", "b"),
+			ds: base.DistinctOn("a", "b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "a", "b")),
 		},
 		selectTestCase{
-			ds: bd.Distinct("a").Distinct("b"),
+			ds: base.DistinctOn("a").DistinctOn("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "b")),
+		},
+	)
+}
+
+func (sds *selectDatasetSuite) TestDistinct() {
+	bd := goqu.From("test")
+	sds.assertCases(
+		selectTestCase{
+			ds: bd.DistinctOn("a").Distinct(),
+			clauses: exp.NewSelectClauses().
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetDistinct(exp.NewColumnListExpression(nil, "db")),
 		},
 		selectTestCase{
 			ds:      bd,
@@ -967,30 +1041,39 @@ func (sds *selectDatasetSuite) TestClearWindow() {
 
 func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 	var none []exp.Expression
-	for want, ds := range map[string]exp.SQLExpression{
-		`SELECT * FROM "t"`:                             goqu.From("t").Where(goqu.And(none...), goqu.Ex{}, goqu.L("")),
-		`SELECT * FROM "t" WHERE ("a" = 1)`:             goqu.From("t").Where(goqu.L(""), goqu.C("a").Eq(1)),
-		`SELECT * FROM "t" WHERE (1=0)`:                 goqu.From("t").Where(goqu.Or(none...)),
-		`SELECT * FROM "t" WHERE (("a" = 1) AND (1=0))`: goqu.From("t").Where(goqu.C("a").Eq(1), goqu.ExOr{}),
-		`SELECT * FROM "t" GROUP BY "a"`:                goqu.From("t").GroupBy("a").Having(goqu.L("")),
-		`SELECT * FROM "t" GROUP BY "a" HAVING (1=0)`:   goqu.From("t").GroupBy("a").Having(goqu.Or()),
-		`DELETE FROM "t" WHERE (1=0)`:                   goqu.Delete("t").Where(goqu.Or(none...)),
-		`UPDATE "t" SET "a"=1 WHERE (1=0)`:              goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}),
-		`SELECT CASE  WHEN (1=1) THEN 1 END FROM "t"`:   goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)),
-		`SELECT * FROM "t" WHERE NOT ((1=1))`:           goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))),
-		`DELETE FROM "t" WHERE (("a" = 1) OR (1=1))`:    goqu.Delete("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And(none...))),
-		`SELECT * FROM "t" WHERE (("b" = 2) AND (1=0))`: goqu.From("t").Where(goqu.C("b").Eq(2)).Where(goqu.Or()),
-		`SELECT * FROM "t" INNER JOIN "u" ON (1=0)`:     goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())),
+	const (
+		emptyAnd = `goqu: empty AND condition`
+		emptyOr  = `goqu: empty OR condition`
+	)
+	for name, c := range map[string]struct {
+		ds  exp.SQLExpression
+		err string
+	}{
+		"Where empty And":         {goqu.From("t").Where(goqu.And(none...)), emptyAnd},
+		"Where empty Ex":          {goqu.From("t").Where(goqu.Ex{}), emptyAnd},
+		"Where empty Or":          {goqu.From("t").Where(goqu.Or(none...)), emptyOr},
+		"Where empty ExOr":        {goqu.From("t").Where(goqu.C("a").Eq(1), goqu.ExOr{}), emptyOr},
+		"Or holding an empty And": {goqu.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And(none...))), emptyAnd},
+		"Having empty Or":         {goqu.From("t").GroupBy("a").Having(goqu.Or()), emptyOr},
+		"Case When empty And":     {goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)), emptyAnd},
+		"literal arg empty And":   {goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))), emptyAnd},
+		"Join On empty Or":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())), emptyOr},
+		"Join On empty Ex":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Ex{})), emptyAnd},
+		"Update empty ExOr":       {goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}), emptyOr},
+		"Delete empty Ex":         {goqu.Delete("t").Where(goqu.Ex{}), emptyAnd},
 	} {
-		sql, args, err := ds.ToSQL()
-		sds.NoError(err, want)
-		sds.Empty(args, want)
-		sds.Equal(want, sql)
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
 	}
+
+	sql, _, err := goqu.From("t").Where(goqu.L(""), goqu.C("a").Eq(1)).ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "t" WHERE ( AND ("a" = 1))`, sql)
 }
 
 func (sds *selectDatasetSuite) TestEmptyJoinConditionIsRequired() {
-	_, _, err := goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.L(""))).ToSQL()
+	_, _, err := goqu.From("t").Join(goqu.T("u"), goqu.On()).ToSQL()
 	sds.EqualError(err, "goqu: join condition required for conditioned join InnerJoinType")
 	sds.True(goqu.IsInvalidExpression(err))
 }
@@ -1073,6 +1156,49 @@ func (sds *selectDatasetSuite) TestOrderPrepend() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestConversionsKeepError() {
+	var none []interface{}
+	const (
+		emptyWhereMessage  = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+		emptySelectAppend  = "goqu: SelectAppend requires at least one column"
+		emptyGroupByAppend = "goqu: GroupByAppend requires at least one column"
+	)
+	for name, c := range map[string]struct {
+		ds  exp.SQLExpression
+		err string
+	}{
+		"Insert":                   {goqu.From("test").Where().Insert().Rows(goqu.Record{"a": 1}), emptyWhereMessage},
+		"Truncate":                 {goqu.From("test").Where().Truncate(), emptyWhereMessage},
+		"Update":                   {goqu.From("test").Where().Update().Set(goqu.Record{"a": 1}), emptyWhereMessage},
+		"Delete":                   {goqu.From("test").Where().Delete(), emptyWhereMessage},
+		"SelectAppend then Delete": {goqu.From("test").SelectAppend(none...).Delete(), emptySelectAppend},
+		"GroupByAppend then Update": {
+			goqu.From("test").GroupByAppend(none...).Update().Set(goqu.Record{"a": 1}),
+			emptyGroupByAppend,
+		},
+	} {
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
+func (sds *selectDatasetSuite) TestClearGroupBy() {
+	bd := goqu.From("test").GroupBy("a")
+	sds.assertCases(
+		selectTestCase{
+			ds: bd.ClearGroupBy(),
+			clauses: exp.NewSelectClauses().
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+		},
+		selectTestCase{
+			ds: bd,
+			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetGroupBy(exp.NewColumnListExpression(nil, "db", "a")),
+		},
+	)
+}
+
 func (sds *selectDatasetSuite) TestClearOrder() {
 	bd := goqu.From("test").Order(goqu.C("a").Asc())
 	sds.assertCases(
@@ -1101,7 +1227,8 @@ func (sds *selectDatasetSuite) TestLimit() {
 		selectTestCase{
 			ds: bd.Limit(0),
 			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetLimit(uint(0)),
 		},
 		selectTestCase{
 			ds: bd.Limit(10).Limit(2),
@@ -1112,7 +1239,8 @@ func (sds *selectDatasetSuite) TestLimit() {
 		selectTestCase{
 			ds: bd.Limit(10).Limit(0),
 			clauses: exp.NewSelectClauses().
-				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetLimit(uint(0)),
 		},
 		selectTestCase{
 			ds:      bd,
@@ -1470,6 +1598,39 @@ func (sds *selectDatasetSuite) TestStructScans_acceptsCallerFilledUnexportedEmbe
 	var rows []dsUnexportedEmbedRow
 	sds.Require().NoError(db.From("items").Select("id").ScanStructs(&rows))
 	sds.Equal([]dsUnexportedEmbedRow{{ID: 3}}, rows)
+}
+
+func (sds *selectDatasetSuite) TestSingleRowScansKeepLimitZero() {
+	mDB, sqlMock, err := sqlmock.New()
+	sds.NoError(err)
+	for _, q := range []string{
+		`SELECT "address", "name" FROM "items" LIMIT 0`,
+		`SELECT "name" FROM "items" LIMIT 0`,
+		`SELECT "address", "name" FROM "items" LIMIT 0`,
+		`SELECT "name" FROM "items" LIMIT 0`,
+	} {
+		sqlMock.ExpectQuery(q).WithArgs().WillReturnRows(sqlmock.NewRows([]string{"address", "name"}))
+	}
+
+	ds := goqu.New("mock", mDB).From("items").Limit(0)
+	var item dsTestActionItem
+	found, err := ds.ScanStruct(&item)
+	sds.NoError(err)
+	sds.False(found)
+
+	var name string
+	found, err = ds.Select("name").ScanVal(&name)
+	sds.NoError(err)
+	sds.False(found)
+
+	_, found, err = ds.ScanOneStruct[dsTestActionItem](sds.T().Context())
+	sds.NoError(err)
+	sds.False(found)
+
+	_, found, err = ds.Select("name").ScanOneVal[string](sds.T().Context())
+	sds.NoError(err)
+	sds.False(found)
+	sds.NoError(sqlMock.ExpectationsWereMet())
 }
 
 func (sds *selectDatasetSuite) TestScanStruct() {
@@ -1851,6 +2012,28 @@ func (sds *selectDatasetSuite) TestSetError() {
 	sds.Empty(sql)
 	sds.Empty(args)
 	sds.Equal(err1, err)
+}
+
+func (sds *selectDatasetSuite) TestLimitZero() {
+	for _, c := range []struct {
+		ds   *goqu.SelectDataset
+		sql  string
+		args []interface{}
+	}{
+		{ds: goqu.From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
+		{ds: goqu.From("t").Prepared(true).Limit(0), sql: `SELECT * FROM "t" LIMIT ?`, args: []interface{}{int64(0)}},
+		{ds: goqu.From("t").Order(goqu.C("a").Asc()).Limit(0).Offset(2), sql: `SELECT * FROM "t" ORDER BY "a" ASC LIMIT 0 OFFSET 2`},
+		{ds: goqu.Dialect("postgres").From("t").Limit(0), sql: `SELECT * FROM "t" LIMIT 0`},
+	} {
+		sql, args, err := c.ds.ToSQL()
+		sds.NoError(err, c.sql)
+		sds.Equal(c.sql, sql)
+		if c.args != nil {
+			sds.Equal(c.args, args, c.sql)
+		} else {
+			sds.Empty(args, c.sql)
+		}
+	}
 }
 
 func TestSelectDataset(t *testing.T) {

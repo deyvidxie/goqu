@@ -9,10 +9,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	do.PlaceHolderFragment = []byte("$")
 	do.IncludePlaceholderNum = true
 	do.QuoteCollation = true
-	do.ErrorOnUnsupportedOrderByOnUpdate = true
-	do.ErrorOnUnsupportedLimitOnUpdate = true
-	do.ErrorOnUnsupportedOrderByOnDelete = true
-	do.ErrorOnUnsupportedLimitOnDelete = true
 	return do
 }
 

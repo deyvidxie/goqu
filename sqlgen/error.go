@@ -18,10 +18,24 @@ var (
 	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
 	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
+	errColsWithoutValsForInsert = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
+	errEmptyValsRowForInsert    = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
+	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
+		"more than one of Rows, Vals and FromQuery found when generating insert sql",
+	)
+	errEmptyRows = errors.NewInvalidExpressionError(`Rows requires at least one row`)
+	errEmptyVals = errors.NewInvalidExpressionError(`Vals requires at least one row`)
+	errEmptyCols = errors.NewInvalidExpressionError(`Cols requires at least one column`)
+
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
 	)
 	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
+	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition`)
+	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition`)
+	errEmptyOrder            = errors.NewInvalidExpressionError(`Order requires at least one expression`)
+	errEmptyGroupBy          = errors.NewInvalidExpressionError(`GroupBy requires at least one column`)
+	errEmptySelect           = errors.NewInvalidExpressionError(`Select requires at least one column`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 
@@ -271,6 +285,10 @@ func errJSONCandidate(cause error) error {
 
 func errOffsetWithoutOrder(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support OFFSET without ORDER BY [dialect=%s]", dialect)
+}
+
+func errLimitZeroWithOffsetNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support LIMIT 0 with an OFFSET [dialect=%s]", dialect)
 }
 
 func errMultipleTruncateTablesNotSupported(dialect string) error {
