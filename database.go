@@ -402,8 +402,8 @@ func (d *Database) GetTagName() string {
 }
 
 func (d *Database) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
-	if _, err := dialectFor(d.dialect, d.tagName); err != nil {
-		return erroredExecutor(d.tagName, d, err)
+	if _, ok := registeredDialect(d.dialect); !ok {
+		return erroredExecutor(d.tagName, d, errUnknownDialect(d.dialect))
 	}
 	return d.queryFactory().FromSQL(query, args...)
 }
@@ -660,8 +660,8 @@ func (td *TxDatabase) GetTagName() string {
 }
 
 func (td *TxDatabase) FromSQL(query string, args ...interface{}) exec.QueryExecutor {
-	if _, err := dialectFor(td.dialect, td.tagName); err != nil {
-		return erroredExecutor(td.tagName, td, err)
+	if _, ok := registeredDialect(td.dialect); !ok {
+		return erroredExecutor(td.tagName, td, errUnknownDialect(td.dialect))
 	}
 	return td.queryFactory().FromSQL(query, args...)
 }
