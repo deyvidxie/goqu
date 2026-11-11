@@ -598,11 +598,13 @@ func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1})
-	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.ExOr{}}, {}} {
+	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.ExOr{}}, {goqu.C("a").Eq(1)}} {
 		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(where...)).ToSQL()
 		assert.EqualError(t, err, "goqu: dialect does not support upsert with where clause [dialect=mysql]", "%v", where)
 		assert.True(t, goqu.IsUnsupported(err), "%v", where)
 	}
+	_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where()).ToSQL()
+	assert.EqualError(t, err, "goqu: DoUpdate Where requires at least one expression")
 }
 
 func TestInsertWithoutRows(t *testing.T) {

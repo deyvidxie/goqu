@@ -131,7 +131,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
 	switch {
 	case insertSourceCount(ic) > 1:
-		b.SetError(errMultipleInsertSources)
+		b.SetError(errMultipleSourcesForInsert)
 	case ic.Rows() != nil:
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {
@@ -150,7 +150,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 			return insertSourceDefaults
 		}
 	case ic.Cols() != nil && !ic.HasCols():
-		b.SetError(errEmptyInsertCols)
+		b.SetError(errEmptyColsForInsert)
 	case ic.Vals() != nil:
 		isg.insertValsSQL(b, ic)
 	case ic.HasCols() && ic.HasFrom():
@@ -160,7 +160,7 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		isg.insertFromSQL(b, ic.From())
 		return insertSourceQuery
 	case ic.Cols() != nil:
-		b.SetError(errInsertColsWithoutVals)
+		b.SetError(errColsWithoutValsForInsert)
 	default:
 		isg.defaultValuesSQL(b)
 		return insertSourceDefaults
@@ -187,7 +187,7 @@ func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClaus
 		isg.insertColumnsSQL(b, ic.Cols())
 		isg.insertValuesSQL(b, len(ic.Cols().Columns()), vals)
 	case len(vals[0]) == 0:
-		b.SetError(errEmptyValsWithoutCols)
+		b.SetError(errEmptyValsRowForInsert)
 	default:
 		isg.insertValuesSQL(b, len(vals[0]), vals)
 	}
@@ -461,6 +461,10 @@ func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp
 	}
 	isg.UpdateExpressionSQL(b, ue...)
 	if b.Error() == nil && o.WhereClause() != nil {
+		if o.WhereClause().IsEmpty() {
+			b.SetError(errEmptyDoUpdateWhere)
+			return
+		}
 		if !isg.DialectOptions().SupportsConflictUpdateWhere {
 			b.SetError(errUpsertWithWhereNotSupported(isg.Dialect()))
 			return

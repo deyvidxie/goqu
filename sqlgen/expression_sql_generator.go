@@ -691,7 +691,11 @@ func (esg *expressionSQLGenerator) orderedExpressionSQL(b sb.SQLBuilder, order e
 // Generates SQL for an ExpressionList (e.g. And(I("a").Eq("a"), I("b").Eq("b")) -> (("a" = 'a') AND ("b" = 'b')))
 func (esg *expressionSQLGenerator) expressionListSQL(b sb.SQLBuilder, expressionList exp.ExpressionList) {
 	if expressionList.IsEmpty() {
-		b.SetError(errEmptyCondition(expressionList.Type()))
+		if expressionList.Type() == exp.OrType {
+			b.SetError(errEmptyOrCondition)
+		} else {
+			b.SetError(errEmptyAndCondition)
+		}
 		return
 	}
 	var op []byte

@@ -278,10 +278,11 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 	var none []interface{}
 	var noOrder []exp.OrderedExpression
 	const (
-		emptySelect  = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
-		emptyGroupBy = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
-		emptyOrder   = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
-		nilOrder     = "goqu: Order expressions must not be nil"
+		emptySelect   = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
+		emptyGroupBy  = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
+		emptyOrder    = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder      = "goqu: Order expressions must not be nil"
+		emptyDistinct = "goqu: Distinct arguments name no columns; call Distinct() for a plain DISTINCT"
 	)
 	for name, c := range map[string]struct {
 		ds  *goqu.SelectDataset
@@ -293,7 +294,7 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 			A int `db:"-"`
 		}{}), emptySelect},
 		"package Select":      {goqu.Select(none...).From("test"), emptySelect},
-		"SelectDistinct":      {bd.SelectDistinct(none...), emptySelect},
+		"SelectDistinct":      {bd.SelectDistinct(none...), "goqu: SelectDistinct requires at least one column"},
 		"SelectAppend":        {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
 		"GroupBy":             {bd.GroupBy(none...), emptyGroupBy},
 		"GroupBy nil":         {bd.GroupBy(nil), emptyGroupBy},
@@ -301,13 +302,16 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"Order":               {bd.Order(noOrder...), emptyOrder},
 		"Order nil":           {bd.Order(nil), nilOrder},
 		"OrderAppend":         {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
-		"OrderAppend nil":     {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), nilOrder},
+		"OrderAppend nil":     {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
 		"OrderPrepend":        {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
-		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
+		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
 		"Order with Limit":    {bd.Order(noOrder...).Limit(10), emptyOrder},
 		"Select then cleared": {bd.Select(none...).ClearSelect(), emptySelect},
 		"Where":               {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
 		"Having":              {bd.Having(), "goqu: Having requires at least one expression"},
+		"Qualify":             {bd.Qualify(), "goqu: Qualify requires at least one expression"},
+		"Distinct nil":        {bd.Distinct(nil), emptyDistinct},
+		"Distinct empty list": {bd.Distinct(exp.NewColumnListExpression(nil, "db")), emptyDistinct},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
@@ -1024,8 +1028,8 @@ func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 	var none []exp.Expression
 	upsert := goqu.Dialect("postgres").Insert("t").Rows(goqu.Record{"a": 1})
 	const (
-		emptyAnd = `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`
-		emptyOr  = `goqu: empty OR condition (Or() or ExOr{}); write the condition, e.g. L("1=0")`
+		emptyAnd = `goqu: empty AND condition (And() or Ex{})`
+		emptyOr  = `goqu: empty OR condition (Or() or ExOr{})`
 	)
 	for name, c := range map[string]struct {
 		ds  exp.SQLExpression
@@ -1040,6 +1044,7 @@ func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 		"Case When empty And":     {goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)), emptyAnd},
 		"literal arg empty And":   {goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))), emptyAnd},
 		"Join On empty Or":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())), emptyOr},
+		"Join On empty Ex":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Ex{})), emptyAnd},
 		"Update empty ExOr":       {goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}), emptyOr},
 		"Delete empty Ex":         {goqu.Delete("t").Where(goqu.Ex{}), emptyAnd},
 		"Upsert empty Where":      {upsert.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})), emptyAnd},

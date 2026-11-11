@@ -53,13 +53,16 @@ func TestUpdateAndDeleteLimitAndOrderAreErrors(t *testing.T) {
 		err string
 	}{
 		{update.Limit(1), "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]"},
+		{update.Limit(0), "goqu: dialect does not support LIMIT on UPDATE [dialect=postgres]"},
 		{update.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
 		{del.Limit(1), "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]"},
+		{del.Limit(0), "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]"},
 		{del.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on DELETE [dialect=postgres]"},
 		{selectToUpdate, "goqu: dialect does not support ORDER BY on UPDATE [dialect=postgres]"},
 	} {
 		_, _, err := c.sql.ToSQL()
 		assert.EqualError(t, err, c.err)
+		assert.True(t, goqu.IsUnsupported(err), c.err)
 	}
 }
 
@@ -107,9 +110,17 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
-	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.ExOr{}}, {}} {
-		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(where...)).ToSQL()
-		assert.True(t, goqu.IsInvalidExpression(err), "%v: %v", where, err)
+	for name, c := range map[string]struct {
+		where []goqu.Expression
+		err   string
+	}{
+		"empty Ex":     {[]goqu.Expression{goqu.Ex{}}, "goqu: empty AND condition (And() or Ex{})"},
+		"empty ExOr":   {[]goqu.Expression{goqu.ExOr{}}, "goqu: empty OR condition (Or() or ExOr{})"},
+		"no arguments": {nil, "goqu: DoUpdate Where requires at least one expression"},
+	} {
+		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(c.where...)).ToSQL()
+		assert.EqualError(t, err, c.err, name)
+		assert.True(t, goqu.IsInvalidExpression(err), name)
 	}
 }
 

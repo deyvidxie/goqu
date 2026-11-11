@@ -144,7 +144,11 @@ func (id *InsertDataset) ClearCols() *InsertDataset {
 
 // Adds columns to the current list of columns clause. See examples
 func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.ColsAppend(exp.NewColumnListExpression(nil, id.tagName, cols...)))
+	cl := exp.NewColumnListExpression(nil, id.tagName, cols...)
+	if cl.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyColsAppend)
+	}
+	return id.copy(id.clauses.ColsAppend(cl))
 }
 
 // Adds a subquery to the insert. See examples.
@@ -163,6 +167,9 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 
 // Manually set values to insert See examples.
 func (id *InsertDataset) Vals(vals ...[]interface{}) *InsertDataset {
+	if len(vals) == 0 {
+		return id.copy(id.clauses).SetError(errEmptyVals)
+	}
 	return id.copy(id.clauses.ValsAppend(vals))
 }
 

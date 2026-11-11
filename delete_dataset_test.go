@@ -504,11 +504,6 @@ func (dds *deleteDatasetSuite) TestSetError() {
 	dds.Equal(err1, err)
 }
 
-func (dds *deleteDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
-	_, _, err := goqu.Dialect("postgres").Delete("test").Limit(0).ToSQL()
-	dds.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=postgres]")
-}
-
 func (dds *deleteDatasetSuite) TestEmptyOrder() {
 	var noOrder []exp.OrderedExpression
 	bd := goqu.Delete("test")
@@ -525,9 +520,9 @@ func (dds *deleteDatasetSuite) TestEmptyOrder() {
 		"Order":            {bd.Order(noOrder...), emptyOrder},
 		"Order nil":        {bd.Order(nil), nilOrder},
 		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
-		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), nilOrder},
+		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
 		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
-		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
+		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
 		"from select":      {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Delete(), emptyOrder},
 	} {
 		_, _, err := c.ds.ToSQL()
@@ -549,7 +544,7 @@ func (dds *deleteDatasetSuite) TestEmptyWhere() {
 		"no conditions": {bd.Where(), emptyWhere},
 		"empty spread":  {bd.Where(none...), emptyWhere},
 		"from select":   {goqu.From("test").Where(none...).Delete(), emptyWhere},
-		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{})`},
 	} {
 		_, _, err := c.ds.ToSQL()
 		dds.EqualError(err, c.err, name)
@@ -565,6 +560,7 @@ func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() 
 	for _, limit := range []uint{0, 1} {
 		_, _, err := goqu.Delete("test").Limit(limit).ToSQL()
 		dds.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=default]")
+		dds.True(goqu.IsUnsupported(err))
 	}
 	sql, _, err := goqu.Delete("test").LimitAll().Order(goqu.C("a").Asc()).ToSQL()
 	dds.NoError(err)

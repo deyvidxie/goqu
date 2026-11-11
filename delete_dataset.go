@@ -148,7 +148,7 @@ func (dd *DeleteDataset) ClearWhere() *DeleteDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (dd *DeleteDataset) Order(order ...exp.OrderedExpression) *DeleteDataset {
-	if err := checkOrder(order, errEmptyOrder); err != nil {
+	if err := checkOrder(order, errEmptyOrder, errNilOrder); err != nil {
 		return dd.copy(dd.clauses).SetError(err)
 	}
 	return dd.copy(dd.clauses.SetOrder(order...))
@@ -157,7 +157,7 @@ func (dd *DeleteDataset) Order(order ...exp.OrderedExpression) *DeleteDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (dd *DeleteDataset) OrderAppend(order ...exp.OrderedExpression) *DeleteDataset {
-	if err := checkOrder(order, errEmptyOrderAppend); err != nil {
+	if err := checkOrder(order, errEmptyOrderAppend, errNilOrderAppend); err != nil {
 		return dd.copy(dd.clauses).SetError(err)
 	}
 	return dd.copy(dd.clauses.OrderAppend(order...))
@@ -166,7 +166,7 @@ func (dd *DeleteDataset) OrderAppend(order ...exp.OrderedExpression) *DeleteData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (dd *DeleteDataset) OrderPrepend(order ...exp.OrderedExpression) *DeleteDataset {
-	if err := checkOrder(order, errEmptyOrderPrepend); err != nil {
+	if err := checkOrder(order, errEmptyOrderPrepend, errNilOrderPrepend); err != nil {
 		return dd.copy(dd.clauses).SetError(err)
 	}
 	return dd.copy(dd.clauses.OrderPrepend(order...))

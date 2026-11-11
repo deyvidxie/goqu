@@ -194,7 +194,7 @@ func (ssg *selectSQLGenerator) HavingSQL(b sb.SQLBuilder, having exp.ExpressionL
 
 // Generates the QUALIFY clause for an SQL statement
 func (ssg *selectSQLGenerator) QualifySQL(b sb.SQLBuilder, qualify exp.ExpressionList) {
-	if qualify != nil && len(qualify.Expressions()) > 0 {
+	if qualify != nil {
 		if ssg.DialectOptions().SupportsQualify {
 			b.Write(ssg.DialectOptions().QualifyFragment)
 			ssg.ExpressionSQLGenerator().Generate(b, qualify)

@@ -330,7 +330,7 @@ SELECT * FROM "test" WHERE (("col" = 10) OR ("col" = 20)) []
 SELECT * FROM "test" WHERE (("col" = ?) OR ("col" = ?)) [10 20]
 ```
 
-**NOTE** An empty `And()`, `Or()`, `Ex{}` or `ExOr{}` returns an `InvalidExpressionError`; write `goqu.L("1=1")` or `goqu.L("1=0")` for a constant condition. An empty `goqu.Op{}` is an `InvalidExpressionError` too.
+**NOTE** An empty `And()`, `Or()`, `Ex{}` or `ExOr{}` returns an `InvalidExpressionError`. An empty `goqu.Op{}` is an `InvalidExpressionError` too.
 
 You can also use `Or` and `And` functions in tandem which will give you control not only over how the Expressions are joined together, but also how they are grouped
  

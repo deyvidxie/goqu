@@ -132,6 +132,22 @@ func (sds *duckdbDialectSuite) TestDistinctOn() {
 	})
 }
 
+func (sds *duckdbDialectSuite) TestEmptyQualify() {
+	ds := goqu.Dialect("duckdb").From("t")
+	for name, c := range map[string]struct {
+		ds  *goqu.SelectDataset
+		err string
+	}{
+		"no arguments": {ds.Qualify(), "goqu: Qualify requires at least one expression"},
+		"empty Or":     {ds.Qualify(goqu.Or()), "goqu: empty OR condition (Or() or ExOr{})"},
+		"empty Ex":     {ds.Qualify(goqu.Ex{}), "goqu: empty AND condition (And() or Ex{})"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
 func (sds *duckdbDialectSuite) TestWindowBeforeQualify() {
 	sds.assertSQL(sqlTestCase{
 		ds: sds.GetDs("test").Select("a").

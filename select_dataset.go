@@ -153,7 +153,7 @@ func (sd *SelectDataset) Insert() *InsertDataset {
 		c = c.CommonTablesAppend(ce)
 	}
 	i.clauses = c
-	return i
+	return i.SetError(sd.err)
 }
 
 // Creates a new DeleteDataset using the FROM of this dataset. This method will also copy over the `WITH`, `WHERE`,
@@ -189,7 +189,7 @@ func (sd *SelectDataset) Truncate() *TruncateDataset {
 	if sd.clauses.HasSources() {
 		td = td.Table(sd.clauses.From())
 	}
-	return td
+	return td.SetError(sd.err)
 }
 
 // Creates a WITH clause for a common table expression (CTE).
@@ -247,7 +247,7 @@ func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
 	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
 	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptySelect)
+		return sd.copy(sd.clauses).SetError(errEmptySelectDistinct)
 	}
 	return sd.copy(
 		sd.clauses.
@@ -281,7 +281,11 @@ func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
 }
 
 func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)
+	if len(on) > 0 && cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyDistinct)
+	}
+	return sd.copy(sd.clauses.SetDistinct(cols))
 }
 
 func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
@@ -476,12 +480,15 @@ func (sd *SelectDataset) Having(expressions ...exp.Expression) *SelectDataset {
 // QUALIFY; the others return an error unless registered with SQLDialectOptions.SupportsQualify set to true.
 // See examples.
 func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyQualify)
+	}
 	return sd.copy(sd.clauses.QualifyAppend(expressions...))
 }
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
-	if err := checkOrder(order, errEmptyOrder); err != nil {
+	if err := checkOrder(order, errEmptyOrder, errNilOrder); err != nil {
 		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.SetOrder(order...))
@@ -490,7 +497,7 @@ func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectDataset {
-	if err := checkOrder(order, errEmptyOrderAppend); err != nil {
+	if err := checkOrder(order, errEmptyOrderAppend, errNilOrderAppend); err != nil {
 		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.OrderAppend(order...))
@@ -499,7 +506,7 @@ func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderPrepend(order ...exp.OrderedExpression) *SelectDataset {
-	if err := checkOrder(order, errEmptyOrderPrepend); err != nil {
+	if err := checkOrder(order, errEmptyOrderPrepend, errNilOrderPrepend); err != nil {
 		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.OrderPrepend(order...))
@@ -781,12 +788,12 @@ func (sd *SelectDataset) limitOne() *SelectDataset {
 	return sd.Limit(1)
 }
 
-func checkOrder(order []exp.OrderedExpression, errEmpty error) error {
+func checkOrder(order []exp.OrderedExpression, errEmpty, errNil error) error {
 	switch {
 	case len(order) == 0:
 		return errEmpty
 	case slices.Contains(order, nil):
-		return errNilOrder
+		return errNil
 	default:
 		return nil
 	}

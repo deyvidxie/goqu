@@ -388,8 +388,9 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"pointer to empty slice":  {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
 		"no rows":                 {goqu.Insert("t").Rows(), noRows},
 		"empty spread":            {goqu.Insert("t").Rows([]interface{}{}...), noRows},
-		"no vals":                 {goqu.Insert("t").Vals(), noRows},
-		"cols then empty Vals()":  {goqu.Insert("t").Cols("a", "b").Vals(), noRows},
+		"no vals":                 {goqu.Insert("t").Vals(), "goqu: Vals requires at least one row"},
+		"vals then empty Vals()":  {goqu.Insert("t").Vals(goqu.Vals{1}).Vals(), "goqu: Vals requires at least one row"},
+		"ColsAppend()":            {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one column"},
 		"empty cols":              {goqu.Insert("t").Cols(), emptyCols},
 		"empty cols with vals":    {goqu.Insert("t").Cols().Vals(goqu.Vals{1}), emptyCols},
 		"empty cols with query":   {goqu.Insert("t").Cols().FromQuery(goqu.From("s")), emptyCols},
@@ -420,7 +421,7 @@ func (ids *insertDatasetSuite) TestDefaultValuesSources() {
 		"no source":    goqu.Insert("t"),
 		"empty record": goqu.Insert("t").Rows(goqu.Record{}),
 		"cleared rows": goqu.Insert("t").Rows([]goqu.Record{}).ClearRows(),
-		"cleared vals": goqu.Insert("t").Vals().ClearVals(),
+		"cleared vals": goqu.Insert("t").Vals(goqu.Vals{1}).ClearVals(),
 		"cleared cols": goqu.Insert("t").Cols("a").ClearCols(),
 	} {
 		sql, _, err := ds.ToSQL()

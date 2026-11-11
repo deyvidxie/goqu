@@ -18,16 +18,21 @@ var (
 	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
 	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
-	errNoRowsForInsert       = errors.NewInvalidExpressionError("no rows found when generating insert sql")
-	errInsertColsWithoutVals = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
-	errEmptyValsWithoutCols  = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
-	errEmptyInsertCols       = errors.NewInvalidExpressionError("empty Cols found when generating insert sql")
-	errMultipleInsertSources = errors.NewInvalidExpressionError("more than one of Rows, Vals and FromQuery found when generating insert sql")
+	errNoRowsForInsert          = errors.NewInvalidExpressionError("no rows found when generating insert sql")
+	errColsWithoutValsForInsert = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
+	errEmptyValsRowForInsert    = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
+	errEmptyColsForInsert       = errors.NewInvalidExpressionError("empty Cols found when generating insert sql")
+	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
+		"more than one of Rows, Vals and FromQuery found when generating insert sql",
+	)
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
 	)
 	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
+	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition (And() or Ex{})`)
+	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition (Or() or ExOr{})`)
+	errEmptyDoUpdateWhere    = errors.NewInvalidExpressionError(`DoUpdate Where requires at least one expression`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 
@@ -150,13 +155,6 @@ func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
 
 func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
 	return errors.NewUnsupportedError("dialect does not support USING for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
-}
-
-func errEmptyCondition(listType exp.ExpressionListType) error {
-	if listType == exp.OrType {
-		return errors.NewInvalidExpressionError("empty OR condition (Or() or ExOr{}); write the condition, e.g. L(\"1=0\")")
-	}
-	return errors.NewInvalidExpressionError("empty AND condition (And() or Ex{}); write the condition, e.g. L(\"1=1\")")
 }
 
 func errJoinConditionRequired(j exp.JoinExpression) error {
