@@ -206,7 +206,7 @@ func ExampleUpdateDataset_Returning() {
 
 func ExampleUpdateDataset_With() {
 	sql, _, _ := goqu.Update("test").
-		With("some_vals(val)", goqu.From().Select(goqu.L("123"))).
+		With("some_vals(val)", goqu.Select(goqu.L("123"))).
 		Where(goqu.C("val").Eq(goqu.From("some_vals").Select("val"))).
 		Set(goqu.Record{"name": "Test"}).ToSQL()
 	fmt.Println(sql)
@@ -217,7 +217,7 @@ func ExampleUpdateDataset_With() {
 
 func ExampleUpdateDataset_WithRecursive() {
 	sql, _, _ := goqu.Update("nums").
-		WithRecursive("nums(x)", goqu.From().Select(goqu.L("1").As("num")).
+		WithRecursive("nums(x)", goqu.Select(goqu.L("1").As("num")).
 			UnionAll(goqu.From("nums").
 				Select(goqu.L("x+1").As("num")).Where(goqu.C("x").Lt(5)))).
 		Set(goqu.Record{"foo": goqu.T("nums").Col("num")}).

@@ -353,3 +353,15 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_nilOrder() {
 func TestUpdateSQLGenerator(t *testing.T) {
 	suite.Run(t, new(updateSQLGeneratorSuite))
 }
+
+func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyFrom() {
+	uc := exp.NewUpdateClauses().
+		SetTable(exp.NewIdentifierExpression("", "test", "")).
+		SetSetValues(exp.Record{"a": 1}).
+		SetFrom(exp.NewColumnListExpression(nil, "db"))
+	for _, prepared := range []bool{false, true} {
+		usgs.assertCases(sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			updateTestCase{clause: uc, err: "goqu: From requires at least one table", isPrepared: prepared},
+		)
+	}
+}

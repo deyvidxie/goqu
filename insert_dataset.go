@@ -208,7 +208,19 @@ func (id *InsertDataset) ClearRows() *InsertDataset {
 
 // Adds a RETURNING clause to the dataset if the adapter supports it See examples.
 func (id *InsertDataset) Returning(returning ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.SetReturning(exp.NewColumnListExpression(nil, id.tagName, returning...)))
+	cols := exp.NewColumnListExpression(nil, id.tagName, returning...)
+	if cols.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyReturning)
+	}
+	return id.copy(id.clauses.SetReturning(cols))
+}
+
+func (id *InsertDataset) ClearReturning() *InsertDataset {
+	return id.copy(id.clauses.SetReturning(nil))
+}
+
+func (id *InsertDataset) ClearWith() *InsertDataset {
+	return id.copy(id.clauses.ClearCommonTables())
 }
 
 // Adds an (ON CONFLICT/ON DUPLICATE KEY) clause to the dataset if the dialect supports it. See examples.
@@ -282,6 +294,10 @@ func (id *InsertDataset) GetAs() exp.IdentifierExpression {
 // as does an INSERT … SELECT without Cols.
 func (id *InsertDataset) As(alias string) *InsertDataset {
 	return id.copy(id.clauses.SetAlias(T(alias)))
+}
+
+func (id *InsertDataset) ClearAlias() *InsertDataset {
+	return id.copy(id.clauses.SetAlias(nil))
 }
 
 func (id *InsertDataset) ReturnsColumns() bool {

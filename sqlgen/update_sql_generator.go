@@ -33,6 +33,10 @@ func (usg *updateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.Upd
 		b.SetError(errNoSetValuesForUpdate)
 		return
 	}
+	if from := clauses.From(); from != nil && from.IsEmpty() {
+		b.SetError(errEmptyFrom)
+		return
+	}
 	if !usg.DialectOptions().SupportsMultipleUpdateTables && clauses.HasFrom() {
 		b.SetError(errMultipleUpdateTablesNotSupported(usg.Dialect()))
 	}

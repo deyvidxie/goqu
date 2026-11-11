@@ -400,14 +400,14 @@ func (mds *mysqlDialectSuite) TestLockClauses() {
 		sqlTestCase{ds: mysql.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support NOWAIT [dialect=mysql]"},
 		sqlTestCase{ds: mysql.ForShare(goqu.SkipLocked), err: "goqu: dialect does not support SKIP LOCKED [dialect=mysql]"},
 		sqlTestCase{
-			ds:  mysql.ForUpdate(goqu.Wait, goqu.T("test")),
+			ds:  mysql.ForUpdateOf(goqu.Wait, goqu.T("test")),
 			err: "goqu: dialect does not support OF in a locking clause [dialect=mysql]",
 		},
 		sqlTestCase{ds: mysql.ForNoKeyUpdate(goqu.Wait), err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=mysql]"},
 		sqlTestCase{ds: mysql.ForKeyShare(goqu.Wait), err: "goqu: dialect does not support FOR KEY SHARE [dialect=mysql]"},
 		sqlTestCase{ds: mysql8.ForUpdate(goqu.SkipLocked), sql: "SELECT * FROM `test` FOR UPDATE SKIP LOCKED"},
 		sqlTestCase{ds: mysql8.ForShare(goqu.NoWait), sql: "SELECT * FROM `test` FOR SHARE NOWAIT"},
-		sqlTestCase{ds: mysql8.ForUpdate(goqu.Wait, goqu.T("test")), sql: "SELECT * FROM `test` FOR UPDATE OF `test` "},
+		sqlTestCase{ds: mysql8.ForUpdateOf(goqu.Wait, goqu.T("test")), sql: "SELECT * FROM `test` FOR UPDATE OF `test` "},
 		sqlTestCase{ds: mysql8.ForNoKeyUpdate(goqu.Wait), err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=mysql8]"},
 		sqlTestCase{ds: mysql8.ForKeyShare(goqu.Wait), err: "goqu: dialect does not support FOR KEY SHARE [dialect=mysql8]"},
 	)

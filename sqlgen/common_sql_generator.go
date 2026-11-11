@@ -52,13 +52,15 @@ func (csg *commonSQLGenerator) ExpressionSQLGenerator() ExpressionSQLGenerator {
 }
 
 func (csg *commonSQLGenerator) ReturningSQL(b sqlbuilder.SQLBuilder, returns exp.ColumnListExpression) {
-	if returns != nil && len(returns.Columns()) > 0 {
-		if csg.dialectOptions.SupportsReturn {
-			b.Write(csg.dialectOptions.ReturningFragment)
-			csg.esg.Generate(b, returns)
-		} else {
-			b.SetError(errReturnNotSupported(csg.dialect))
-		}
+	switch {
+	case returns == nil:
+	case returns.IsEmpty():
+		b.SetError(errEmptyReturning)
+	case !csg.dialectOptions.SupportsReturn:
+		b.SetError(errReturnNotSupported(csg.dialect))
+	default:
+		b.Write(csg.dialectOptions.ReturningFragment)
+		csg.esg.Generate(b, returns)
 	}
 }
 
@@ -81,7 +83,11 @@ func (csg *commonSQLGenerator) ConflictTargetSQL(b sqlbuilder.SQLBuilder, target
 
 // Adds the FROM clause and tables to an sql statement
 func (csg *commonSQLGenerator) FromSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression) {
-	if from != nil && !from.IsEmpty() {
+	switch {
+	case from == nil:
+	case from.IsEmpty():
+		b.SetError(errEmptyFrom)
+	default:
 		b.Write(csg.dialectOptions.FromFragment)
 		csg.SourcesSQL(b, from)
 	}

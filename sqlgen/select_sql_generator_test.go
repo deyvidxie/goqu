@@ -892,3 +892,14 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_nilCompoundSubquery() {
 		)
 	}
 }
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyWindows() {
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		SetWindows([]exp.WindowExpression{})
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc, err: "goqu: Window requires at least one window", isPrepared: prepared},
+		)
+	}
+}

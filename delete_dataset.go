@@ -197,7 +197,19 @@ func (dd *DeleteDataset) ClearLimit() *DeleteDataset {
 
 // Adds a RETURNING clause to the dataset if the adapter supports it.
 func (dd *DeleteDataset) Returning(returning ...interface{}) *DeleteDataset {
-	return dd.copy(dd.clauses.SetReturning(exp.NewColumnListExpression(nil, dd.tagName, returning...)))
+	cols := exp.NewColumnListExpression(nil, dd.tagName, returning...)
+	if cols.IsEmpty() {
+		return dd.copy(dd.clauses).SetError(errEmptyReturning)
+	}
+	return dd.copy(dd.clauses.SetReturning(cols))
+}
+
+func (dd *DeleteDataset) ClearReturning() *DeleteDataset {
+	return dd.copy(dd.clauses.SetReturning(nil))
+}
+
+func (dd *DeleteDataset) ClearWith() *DeleteDataset {
+	return dd.copy(dd.clauses.ClearCommonTables())
 }
 
 // Get any error that has been set or nil if no error has been set.

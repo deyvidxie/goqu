@@ -239,47 +239,28 @@ func (gis *githubIssuesSuite) TestIssue118_withNilEmbeddedStructWithExportedFiel
 
 // Test for https://github.com/doug-martin/goqu/issues/118
 func (gis *githubIssuesSuite) TestIssue140() {
-	sql, arg, err := goqu.Insert(`test`).Returning().ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(`INSERT INTO "test" DEFAULT VALUES`, sql)
+	const errEmpty = "goqu: Returning requires at least one column; use ClearReturning to drop it"
+	for name, ds := range map[string]interface{ ToSQL() (string, []any, error) }{
+		"insert":     goqu.Insert(`test`).Returning(),
+		"update":     goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(),
+		"delete":     goqu.Delete(`test`).Returning(),
+		"insert nil": goqu.Insert(`test`).Returning(nil),
+		"update nil": goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(nil),
+		"delete nil": goqu.Delete(`test`).Returning(nil),
+	} {
+		_, _, err := ds.ToSQL()
+		gis.EqualError(err, errEmpty, name)
+	}
 
-	sql, arg, err = goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning().ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(
-		`UPDATE "test" SET "a"='b'`,
-		sql,
-	)
-
-	sql, arg, err = goqu.Delete(`test`).Returning().ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(
-		`DELETE FROM "test"`,
-		sql,
-	)
-
-	sql, arg, err = goqu.Insert(`test`).Returning(nil).ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(`INSERT INTO "test" DEFAULT VALUES`, sql)
-
-	sql, arg, err = goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(nil).ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(
-		`UPDATE "test" SET "a"='b'`,
-		sql,
-	)
-
-	sql, arg, err = goqu.Delete(`test`).Returning(nil).ToSQL()
-	gis.NoError(err)
-	gis.Empty(arg)
-	gis.Equal(
-		`DELETE FROM "test"`,
-		sql,
-	)
+	for want, ds := range map[string]interface{ ToSQL() (string, []any, error) }{
+		`INSERT INTO "test" DEFAULT VALUES`: goqu.Insert(`test`).Returning("id").ClearReturning(),
+		`UPDATE "test" SET "a"='b'`:         goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning("id").ClearReturning(),
+		`DELETE FROM "test"`:                goqu.Delete(`test`).Returning("id").ClearReturning(),
+	} {
+		sql, _, err := ds.ToSQL()
+		gis.NoError(err)
+		gis.Equal(want, sql)
+	}
 }
 
 // Test for https://github.com/doug-martin/goqu/issues/164

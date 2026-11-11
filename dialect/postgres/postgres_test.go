@@ -648,7 +648,7 @@ func (pt *postgresTest) TestWindowFunction() {
 
 func (pt *postgresTest) TestOrderByFunction() {
 	ds := pt.db.From("entry").
-		Select(goqu.ROW_NUMBER().Over(goqu.W()).As("id")).Window().Order(goqu.ROW_NUMBER().Over(goqu.W()).Desc())
+		Select(goqu.ROW_NUMBER().Over(goqu.W()).As("id")).Order(goqu.ROW_NUMBER().Over(goqu.W()).Desc())
 
 	var entries []entry
 	pt.NoError(ds.ScanStructs(&entries))

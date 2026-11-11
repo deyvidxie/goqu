@@ -7,6 +7,7 @@ type (
 
 		CommonTables() []CommonTableExpression
 		CommonTablesAppend(cte CommonTableExpression) DeleteClauses
+		ClearCommonTables() DeleteClauses
 
 		From() IdentifierExpression
 		SetFrom(table IdentifierExpression) DeleteClauses
@@ -68,6 +69,12 @@ func (dc *deleteClauses) CommonTables() []CommonTableExpression {
 func (dc *deleteClauses) CommonTablesAppend(cte CommonTableExpression) DeleteClauses {
 	ret := dc.clone()
 	ret.commonTables = append(ret.commonTables, cte)
+	return ret
+}
+
+func (dc *deleteClauses) ClearCommonTables() DeleteClauses {
+	ret := dc.clone()
+	ret.commonTables = nil
 	return ret
 }
 
@@ -183,7 +190,7 @@ func (dc *deleteClauses) Returning() ColumnListExpression {
 }
 
 func (dc *deleteClauses) HasReturning() bool {
-	return dc.returning != nil && !dc.returning.IsEmpty()
+	return dc.returning != nil
 }
 
 func (dc *deleteClauses) SetReturning(cl ColumnListExpression) DeleteClauses {
