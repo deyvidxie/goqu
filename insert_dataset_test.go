@@ -381,8 +381,8 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 	}
 	const (
 		noRows      = "goqu: empty Rows list"
-		emptyRows   = "goqu: Rows requires at least one row; use ClearRows to drop Rows"
-		emptyVals   = "goqu: Vals requires at least one row; use ClearVals to drop Vals"
+		emptyRows   = "goqu: Rows requires at least one row"
+		emptyVals   = "goqu: Vals requires at least one row"
 		emptyCols   = "goqu: Cols requires at least one column; use ClearCols to drop Cols"
 		colsOnly    = "goqu: Cols without Vals or FromQuery found when generating insert sql"
 		emptyValRow = "goqu: empty Vals row without Cols found when generating insert sql"
@@ -391,22 +391,23 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		ds  *goqu.InsertDataset
 		err string
 	}{
-		"empty slice":             {goqu.Insert("t").Rows([]row{}), noRows},
-		"empty array":             {goqu.Insert("t").Rows([0]row{}), noRows},
-		"pointer to empty slice":  {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
-		"no rows":                 {goqu.Insert("t").Rows(), emptyRows},
-		"empty record":            {goqu.Insert("t").Rows(goqu.Record{}), "goqu: insert rows have no columns"},
-		"skipinsert-only struct":  {goqu.Insert("t").Rows(skipped{ID: 1}), "goqu: insert rows have no columns"},
-		"omitempty zero struct":   {goqu.Insert("t").Rows(omitted{}), "goqu: insert rows have no columns"},
-		"no vals":                 {goqu.Insert("t").Vals(), emptyVals},
-		"vals then empty Vals()":  {goqu.Insert("t").Vals(goqu.Vals{1}).Vals(), emptyVals},
-		"ColsAppend()":            {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one column"},
-		"empty cols":              {goqu.Insert("t").Cols(), emptyCols},
-		"empty cols with vals":    {goqu.Insert("t").Cols().Vals(goqu.Vals{1}), emptyCols},
-		"empty cols with query":   {goqu.Insert("t").Cols().FromQuery(goqu.From("s")), emptyCols},
-		"cols only":               {goqu.Insert("t").Cols("a", "b"), colsOnly},
-		"cols after ClearVals":    {goqu.Insert("t").Cols("a").Vals(goqu.Vals{1}).ClearVals(), colsOnly},
-		"empty vals row, no cols": {goqu.Insert("t").Vals(goqu.Vals{}), emptyValRow},
+		"empty slice":                 {goqu.Insert("t").Rows([]row{}), noRows},
+		"empty array":                 {goqu.Insert("t").Rows([0]row{}), noRows},
+		"pointer to empty slice":      {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
+		"no rows":                     {goqu.Insert("t").Rows(), emptyRows},
+		"empty record":                {goqu.Insert("t").Rows(goqu.Record{}), "goqu: insert rows have no columns"},
+		"skipinsert-only struct":      {goqu.Insert("t").Rows(skipped{ID: 1}), "goqu: insert rows have no columns"},
+		"omitempty zero struct":       {goqu.Insert("t").Rows(omitted{}), "goqu: insert rows have no columns"},
+		"no vals":                     {goqu.Insert("t").Vals(), emptyVals},
+		"vals then empty Vals()":      {goqu.Insert("t").Vals(goqu.Vals{1}).Vals(), emptyVals},
+		"ColsAppend()":                {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one column"},
+		"ColsAppend() then ClearCols": {goqu.Insert("t").Cols("a").ColsAppend().ClearCols(), "goqu: ColsAppend requires at least one column"},
+		"empty cols":                  {goqu.Insert("t").Cols(), emptyCols},
+		"empty cols with vals":        {goqu.Insert("t").Cols().Vals(goqu.Vals{1}), emptyCols},
+		"empty cols with query":       {goqu.Insert("t").Cols().FromQuery(goqu.From("s")), emptyCols},
+		"cols only":                   {goqu.Insert("t").Cols("a", "b"), colsOnly},
+		"cols after ClearVals":        {goqu.Insert("t").Cols("a").Vals(goqu.Vals{1}).ClearVals(), colsOnly},
+		"empty vals row, no cols":     {goqu.Insert("t").Vals(goqu.Vals{}), emptyValRow},
 	} {
 		_, _, err := c.ds.ToSQL()
 		ids.EqualError(err, c.err, name)

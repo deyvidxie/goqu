@@ -1148,17 +1148,32 @@ func (sds *selectDatasetSuite) TestOrderPrepend() {
 	)
 }
 
+const emptyWhereMessage = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+
 func (sds *selectDatasetSuite) TestConversionsKeepError() {
-	bd := goqu.From("test").Where()
-	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
-	for name, ds := range map[string]exp.SQLExpression{
-		"Insert":   bd.Insert().Rows(goqu.Record{"a": 1}),
-		"Truncate": bd.Truncate(),
-		"Update":   bd.Update().Set(goqu.Record{"a": 1}),
-		"Delete":   bd.Delete(),
+	var none []interface{}
+	const (
+		emptySelectAppend  = "goqu: SelectAppend requires at least one column"
+		emptyGroupByAppend = "goqu: GroupByAppend requires at least one column"
+	)
+	for name, c := range map[string]struct {
+		ds  exp.SQLExpression
+		err string
+	}{
+		"Insert":                   {goqu.From("test").Where().Insert().Rows(goqu.Record{"a": 1}), emptyWhereMessage},
+		"Truncate":                 {goqu.From("test").Where().Truncate(), emptyWhereMessage},
+		"Update":                   {goqu.From("test").Where().Update().Set(goqu.Record{"a": 1}), emptyWhereMessage},
+		"Delete":                   {goqu.From("test").Where().Delete(), emptyWhereMessage},
+		"SelectAppend then Delete": {goqu.From("test").SelectAppend(none...).Delete(), emptySelectAppend},
+		"GroupByAppend then Update": {
+			goqu.From("test").GroupByAppend(none...).Update().Set(goqu.Record{"a": 1}),
+			emptyGroupByAppend,
+		},
+		"SelectAppend then Select":        {goqu.From("test").SelectAppend(none...).Select("a"), emptySelectAppend},
+		"GroupByAppend then ClearGroupBy": {goqu.From("test").GroupByAppend(none...).ClearGroupBy(), emptyGroupByAppend},
 	} {
-		_, _, err := ds.ToSQL()
-		sds.EqualError(err, emptyWhere, name)
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
 		sds.True(goqu.IsInvalidExpression(err), name)
 	}
 }

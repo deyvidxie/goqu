@@ -24,10 +24,6 @@ func emptyAppendExpressions(method string) []Expression {
 	return []Expression{newInvalidExpression(errEmptyAppend(method, "expression"))}
 }
 
-func isSetButEmpty(cl ColumnListExpression) bool {
-	return cl != nil && cl.IsEmpty()
-}
-
 func emptyAppendRow(method string) []interface{} {
 	return []interface{}{newInvalidExpression(errEmptyAppend(method, "row"))}
 }

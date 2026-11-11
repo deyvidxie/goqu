@@ -1,6 +1,11 @@
 package goqu
 
-import "github.com/doug-martin/goqu/v9/internal/errors"
+import (
+	"slices"
+
+	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/doug-martin/goqu/v9/internal/errors"
+)
 
 type (
 	InvalidExpressionError   = errors.InvalidExpressionError
@@ -54,8 +59,11 @@ var (
 	errEmptyHaving         = errors.NewInvalidExpressionError("Having requires at least one expression; use ClearHaving to drop HAVING")
 	errEmptyQualify        = errors.NewInvalidExpressionError("Qualify requires at least one expression; use ClearQualify to drop QUALIFY")
 	errEmptyCols           = errors.NewInvalidExpressionError("Cols requires at least one column; use ClearCols to drop Cols")
-	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row; use ClearRows to drop Rows")
-	errEmptyVals           = errors.NewInvalidExpressionError("Vals requires at least one row; use ClearVals to drop Vals")
+	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
+	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
+	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
+	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")
+	errEmptyVals           = errors.NewInvalidExpressionError("Vals requires at least one row")
 )
 
 func errUnsupportedFromArgument(from interface{}) error {
@@ -80,4 +88,15 @@ func errNilInsertSource(from interface{}) error {
 
 func errIncompatibleInsertDialects(insertDialect, selectDialect string) error {
 	return errors.NewInvalidExpressionError("incompatible dialects for INSERT (%q) and SELECT (%q)", insertDialect, selectDialect)
+}
+
+func checkOrder(order []exp.OrderedExpression, errEmpty, errNil error) error {
+	switch {
+	case len(order) == 0:
+		return errEmpty
+	case slices.Contains(order, nil):
+		return errNil
+	default:
+		return nil
+	}
 }

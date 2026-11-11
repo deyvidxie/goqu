@@ -427,26 +427,6 @@ Output:
 UPDATE `test` SET `foo`='bar' ORDER BY `a` ASC
 ```
 
-To update an ordered subset, use a subquery:
-
-```go
-// import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
-
-oldest := goqu.Dialect("sqlserver").From("test").
-	Select("id").Order(goqu.C("created").Asc()).Limit(10)
-ds := goqu.Dialect("sqlserver").
-	Update("test").
-	Set(goqu.Record{"foo": "bar"}).
-	Where(goqu.C("id").In(oldest))
-sql, _, _ := ds.ToSQL()
-fmt.Println(sql)
-```
-
-Output:
-```
-UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" ORDER BY "created" ASC))
-```
-
 <a name="limit"></a>
 **[Limit](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Limit)**
 
@@ -468,7 +448,7 @@ Output:
 UPDATE `test` SET `foo`='bar' LIMIT 10
 ```
 
-`sqlserver` emits `TOP` directly after `UPDATE`. `TOP` on its own updates an unspecified set of rows; see [Order](#order) for an ordered subset:
+`sqlserver` emits `TOP` directly after `UPDATE`:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
@@ -484,6 +464,26 @@ fmt.Println(sql)
 Output:
 ```
 UPDATE TOP (10) "test" SET "foo"='bar'
+```
+
+`TOP` on its own updates an unspecified set of rows. To update an ordered subset, use a subquery:
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+
+oldest := goqu.Dialect("sqlserver").From("test").
+	Select("id").Order(goqu.C("created").Asc()).Limit(10)
+ds := goqu.Dialect("sqlserver").
+	Update("test").
+	Set(goqu.Record{"foo": "bar"}).
+	Where(goqu.C("id").In(oldest))
+sql, _, _ := ds.ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```
+UPDATE "test" SET "foo"='bar' WHERE ("id" IN (SELECT  TOP (10) "id" FROM "test" ORDER BY "created" ASC))
 ```
 
 <a name="returning"></a>

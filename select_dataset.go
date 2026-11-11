@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"iter"
 	"reflect"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -273,7 +272,11 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
 func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.SelectAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptySelectAppend)
+	}
+	return sd.copy(sd.clauses.SelectAppend(cols))
 }
 
 func (sd *SelectDataset) Distinct() *SelectDataset {
@@ -449,7 +452,11 @@ func (sd *SelectDataset) GroupBy(groupBy ...interface{}) *SelectDataset {
 
 // Adds more columns to the current GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
-	return sd.copy(sd.clauses.GroupByAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
+	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
+	if cols.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyGroupByAppend)
+	}
+	return sd.copy(sd.clauses.GroupByAppend(cols))
 }
 
 func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
@@ -782,17 +789,6 @@ func (sd *SelectDataset) limitOne() *SelectDataset {
 		return sd
 	}
 	return sd.Limit(1)
-}
-
-func checkOrder(order []exp.OrderedExpression, errEmpty, errNil error) error {
-	switch {
-	case len(order) == 0:
-		return errEmpty
-	case slices.Contains(order, nil):
-		return errNil
-	default:
-		return nil
-	}
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {
