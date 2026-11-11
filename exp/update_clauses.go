@@ -169,7 +169,7 @@ func (uc *updateClauses) OrderAppend(oes ...OrderedExpression) UpdateClauses {
 	}
 	if len(oes) == 0 {
 		ret := uc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderAppend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderAppend", "expression")
 		return ret
 	}
 	if uc.order == nil {
@@ -186,7 +186,7 @@ func (uc *updateClauses) OrderPrepend(oes ...OrderedExpression) UpdateClauses {
 	}
 	if len(oes) == 0 {
 		ret := uc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderPrepend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderPrepend", "expression")
 		return ret
 	}
 	if uc.order == nil {

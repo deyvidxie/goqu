@@ -151,16 +151,12 @@ func (c *selectClauses) Select() ColumnListExpression {
 }
 
 func (c *selectClauses) SelectAppend(cl ColumnListExpression) SelectClauses {
-	ret := c.clone()
-	if isSetButEmpty(ret.selectColumns) {
-		return ret
+	if c.selectColumns == nil || c.selectColumns.IsEmpty() {
+		return c
 	}
+	ret := c.clone()
 	if cl == nil || cl.IsEmpty() {
 		ret.selectColumns = emptyAppendList(ret.selectColumns, "SelectAppend", "column")
-		return ret
-	}
-	if ret.selectColumns == nil {
-		ret.selectColumns = cl
 		return ret
 	}
 	ret.selectColumns = ret.selectColumns.Append(cl.Columns()...)
@@ -322,7 +318,7 @@ func (c *selectClauses) OrderAppend(oes ...OrderedExpression) SelectClauses {
 	}
 	if len(oes) == 0 {
 		ret := c.clone()
-		ret.order = emptyAppendList(ret.order, "OrderAppend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderAppend", "expression")
 		return ret
 	}
 	if c.order == nil {
@@ -339,7 +335,7 @@ func (c *selectClauses) OrderPrepend(oes ...OrderedExpression) SelectClauses {
 	}
 	if len(oes) == 0 {
 		ret := c.clone()
-		ret.order = emptyAppendList(ret.order, "OrderPrepend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderPrepend", "expression")
 		return ret
 	}
 	if c.order == nil {

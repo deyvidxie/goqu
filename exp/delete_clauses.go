@@ -130,7 +130,7 @@ func (dc *deleteClauses) OrderAppend(oes ...OrderedExpression) DeleteClauses {
 	}
 	if len(oes) == 0 {
 		ret := dc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderAppend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderAppend", "expression")
 		return ret
 	}
 	if dc.order == nil {
@@ -147,7 +147,7 @@ func (dc *deleteClauses) OrderPrepend(oes ...OrderedExpression) DeleteClauses {
 	}
 	if len(oes) == 0 {
 		ret := dc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderPrepend", "argument")
+		ret.order = emptyAppendList(ret.order, "OrderPrepend", "expression")
 		return ret
 	}
 	if dc.order == nil {

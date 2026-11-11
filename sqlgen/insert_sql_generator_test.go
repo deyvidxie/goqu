@@ -249,7 +249,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 	const rowWithoutCols = "goqu: insert rows have no columns"
 	const colsWithoutVals = "goqu: Cols without Vals or FromQuery found when generating insert sql"
 	const emptyCols = "goqu: empty Cols list"
-	cases := make([]insertTestCase, 0, 16)
+	cases := make([]insertTestCase, 0, 34)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
 			insertTestCase{clause: ic.SetRows([]interface{}{}), err: noRows, isPrepared: prepared},

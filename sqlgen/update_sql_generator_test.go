@@ -244,10 +244,10 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
 		SetSetValues(exp.Record{"a": "b"})
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		updateTestCase{clause: uc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument"},
+		updateTestCase{clause: uc.WhereAppend(), err: "goqu: WhereAppend requires at least one expression"},
 		updateTestCase{
 			clause: uc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
-			err:    "goqu: WhereAppend requires at least one argument",
+			err:    "goqu: WhereAppend requires at least one expression",
 		},
 	)
 	opts := sqlgen.DefaultDialectOptions()
@@ -255,12 +255,14 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
 	a := exp.NewIdentifierExpression("", "", "a")
 	usgs.assertCases(
 		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
-		updateTestCase{clause: uc.OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
-		updateTestCase{clause: uc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
-		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
-		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
+		updateTestCase{clause: uc.OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		updateTestCase{clause: uc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
 		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
 		updateTestCase{clause: uc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(), err: "goqu: empty Order list"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(), err: "goqu: empty Order list"},
 	)
 }
 

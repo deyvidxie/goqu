@@ -273,11 +273,7 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 //	LiteralExpression: (See Literal) Will use the literal SQL
 //	SQLFunction: (See Func, MIN, MAX, COUNT....)
 func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
-	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
-	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptySelectAppend)
-	}
-	return sd.copy(sd.clauses.SelectAppend(cols))
+	return sd.copy(sd.clauses.SelectAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)))
 }
 
 func (sd *SelectDataset) Distinct() *SelectDataset {
@@ -453,11 +449,7 @@ func (sd *SelectDataset) GroupBy(groupBy ...interface{}) *SelectDataset {
 
 // Adds more columns to the current GROUP BY clause. See examples.
 func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
-	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
-	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptyGroupByAppend)
-	}
-	return sd.copy(sd.clauses.GroupByAppend(cols))
+	return sd.copy(sd.clauses.GroupByAppend(exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)))
 }
 
 func (sd *SelectDataset) ClearGroupBy() *SelectDataset {

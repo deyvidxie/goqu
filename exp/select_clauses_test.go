@@ -373,6 +373,14 @@ func (scs *selectClausesSuite) TestHasOrder() {
 	scs.True(c2.HasOrder())
 }
 
+func (scs *selectClausesSuite) TestClearGroupBy() {
+	g := exp.NewColumnListExpression(nil, "db", "a")
+	c := exp.NewSelectClauses().SetGroupBy(g)
+	scs.Equal(g, c.GroupBy())
+	scs.Nil(c.ClearGroupBy().GroupBy())
+	scs.Equal(g, c.GroupBy())
+}
+
 func (scs *selectClausesSuite) TestClearOrder() {
 	oe := exp.NewIdentifierExpression("", "", "a").Desc()
 

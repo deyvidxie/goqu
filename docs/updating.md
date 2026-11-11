@@ -427,7 +427,7 @@ Output:
 UPDATE `test` SET `foo`='bar' ORDER BY `a` ASC
 ```
 
-`sqlserver` has no `ORDER BY` on `UPDATE`, so calling `Order` on a `sqlserver` update returns an error instead of generating invalid SQL. This includes an `Order` carried over from a `SelectDataset` by `Update()`. To update an ordered subset, use a subquery:
+To update an ordered subset, use a subquery:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"

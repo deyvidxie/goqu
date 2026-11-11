@@ -201,10 +201,10 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_emptyAppends() {
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		deleteTestCase{clause: dc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument"},
+		deleteTestCase{clause: dc.WhereAppend(), err: "goqu: WhereAppend requires at least one expression"},
 		deleteTestCase{
 			clause: dc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
-			err:    "goqu: WhereAppend requires at least one argument",
+			err:    "goqu: WhereAppend requires at least one expression",
 		},
 	)
 	opts := sqlgen.DefaultDialectOptions()
@@ -212,12 +212,14 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_emptyAppends() {
 	a := exp.NewIdentifierExpression("", "", "a")
 	dsgs.assertCases(
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
-		deleteTestCase{clause: dc.OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
-		deleteTestCase{clause: dc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
-		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
-		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
+		deleteTestCase{clause: dc.OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		deleteTestCase{clause: dc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
+		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
+		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
 		deleteTestCase{clause: dc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
 		deleteTestCase{clause: dc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list"},
+		deleteTestCase{clause: dc.SetOrder().OrderAppend(), err: "goqu: empty Order list"},
+		deleteTestCase{clause: dc.SetOrder().OrderPrepend(), err: "goqu: empty Order list"},
 	)
 }
 

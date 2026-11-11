@@ -148,11 +148,7 @@ func (id *InsertDataset) ClearCols() *InsertDataset {
 
 // Adds columns to the current list of columns clause. See examples
 func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
-	cl := exp.NewColumnListExpression(nil, id.tagName, cols...)
-	if cl.IsEmpty() {
-		return id.copy(id.clauses).SetError(errEmptyColsAppend)
-	}
-	return id.copy(id.clauses.ColsAppend(cl))
+	return id.copy(id.clauses.ColsAppend(exp.NewColumnListExpression(nil, id.tagName, cols...)))
 }
 
 // Adds a subquery to the insert. See examples.

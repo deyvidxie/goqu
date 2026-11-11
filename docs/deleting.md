@@ -190,7 +190,7 @@ Output:
 DELETE TOP (10) FROM "test"
 ```
 
-`sqlserver` has no `ORDER BY` on `DELETE`, so calling `Order` on a `sqlserver` delete returns an error instead of generating invalid SQL. `TOP` on its own deletes an unspecified set of rows. To delete an ordered subset, use a subquery:
+`TOP` on its own deletes an unspecified set of rows. To delete an ordered subset, use a subquery:
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"

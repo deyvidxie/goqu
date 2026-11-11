@@ -337,7 +337,6 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 	cols := exp.NewColumnListExpression(nil, "db", "a")
 	a := exp.NewIdentifierExpression("", "", "a")
 	cond := a.Eq(1)
-	const selectA = `SELECT "a" FROM "test"`
 	set := sc.SetSelect(exp.NewColumnListExpression(nil, "db", "a")).
 		SetGroupBy(exp.NewColumnListExpression(nil, "db", "a")).
 		SetOrder(exp.NewIdentifierExpression("", "", "a").Asc())
@@ -347,24 +346,24 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 			selectTestCase{clause: sc.SetSelect(empty), err: "goqu: empty Select list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetGroupBy(empty), err: "goqu: empty GroupBy list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetOrder(), err: "goqu: empty Order list", isPrepared: prepared},
-			selectTestCase{clause: sc.WhereAppend(), err: "goqu: WhereAppend requires at least one argument", isPrepared: prepared},
-			selectTestCase{clause: sc.HavingAppend(), err: "goqu: HavingAppend requires at least one argument", isPrepared: prepared},
-			selectTestCase{clause: set.OrderAppend(), err: "goqu: OrderAppend requires at least one argument", isPrepared: prepared},
-			selectTestCase{clause: set.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: sc.WhereAppend(), err: "goqu: WhereAppend requires at least one expression", isPrepared: prepared},
+			selectTestCase{clause: sc.HavingAppend(), err: "goqu: HavingAppend requires at least one expression", isPrepared: prepared},
+			selectTestCase{clause: set.OrderAppend(), err: "goqu: OrderAppend requires at least one expression", isPrepared: prepared},
+			selectTestCase{clause: set.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression", isPrepared: prepared},
 			selectTestCase{clause: set.GroupByAppend(empty), err: "goqu: GroupByAppend requires at least one column", isPrepared: prepared},
 			selectTestCase{clause: set.SelectAppend(empty), err: "goqu: SelectAppend requires at least one column", isPrepared: prepared},
-			selectTestCase{clause: sc.OrderAppend(), err: "goqu: OrderAppend requires at least one argument", isPrepared: prepared},
-			selectTestCase{clause: sc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument", isPrepared: prepared},
+			selectTestCase{clause: sc.OrderAppend(), err: "goqu: OrderAppend requires at least one expression", isPrepared: prepared},
+			selectTestCase{clause: sc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression", isPrepared: prepared},
 			selectTestCase{clause: sc.GroupByAppend(empty), err: "goqu: GroupByAppend requires at least one column", isPrepared: prepared},
 			selectTestCase{clause: sc.GroupByAppend(nil), err: "goqu: GroupByAppend requires at least one column", isPrepared: prepared},
 			selectTestCase{
 				clause:     set.WhereAppend(cond).WhereAppend(),
-				err:        "goqu: WhereAppend requires at least one argument",
+				err:        "goqu: WhereAppend requires at least one expression",
 				isPrepared: prepared,
 			},
 			selectTestCase{
 				clause:     set.HavingAppend(cond).HavingAppend(),
-				err:        "goqu: HavingAppend requires at least one argument",
+				err:        "goqu: HavingAppend requires at least one expression",
 				isPrepared: prepared,
 			},
 			selectTestCase{clause: sc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list", isPrepared: prepared},
@@ -372,7 +371,10 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 			selectTestCase{clause: sc.SetOrder().OrderAppend(), err: "goqu: empty Order list", isPrepared: prepared},
 			selectTestCase{clause: set.SelectAppend(nil), err: "goqu: SelectAppend requires at least one column", isPrepared: prepared},
 			selectTestCase{clause: sc.SetSelect(nil), err: "goqu: empty Select list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetSelect(nil).SelectAppend(cols), sql: selectA, isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(nil).SelectAppend(cols), err: "goqu: empty Select list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder().OrderPrepend(), err: "goqu: empty Order list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(empty), err: "goqu: empty GroupBy list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(empty), err: "goqu: empty Select list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(cols), err: "goqu: empty GroupBy list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(cols), err: "goqu: empty Select list", isPrepared: prepared},
 		)
@@ -804,7 +806,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withQualify() {
 			clause: scAfterHaving,
 			sql:    `SELECT * FROM "test" HAVING ("a" = 'b') qualify ("b" = 'c') ORDER BY "a" ASC`,
 		},
-		selectTestCase{clause: sc.QualifyAppend(), err: "goqu: QualifyAppend requires at least one argument"},
+		selectTestCase{clause: sc.QualifyAppend(), err: "goqu: QualifyAppend requires at least one expression"},
 	)
 }
 

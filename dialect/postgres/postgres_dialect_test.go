@@ -110,7 +110,7 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
-	const emptyWhere = "goqu: DoUpdate(...).Where requires at least one argument"
+	const emptyWhere = "goqu: DoUpdate(...).Where requires at least one expression"
 	upsert := func() exp.ConflictUpdateExpression { return goqu.DoUpdate("a", goqu.Record{"a": 2}) }
 	for name, c := range map[string]struct {
 		ds  *goqu.InsertDataset
