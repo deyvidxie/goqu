@@ -880,3 +880,15 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_joinUsingStructUsesGeneratorTa
 		selectTestCase{clause: sc, sql: `SELECT * FROM "a" INNER JOIN "b" USING ("json_id")`, isPrepared: true},
 	)
 }
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_nilCompoundSubquery() {
+	var nilDS *goqu.SelectDataset
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		CompoundsAppend(exp.NewCompoundExpression(exp.UnionCompoundType, nilDS))
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc, err: "goqu: subquery must not be nil, got *goqu.SelectDataset", isPrepared: prepared},
+		)
+	}
+}

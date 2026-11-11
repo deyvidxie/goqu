@@ -18,6 +18,7 @@ const (
 )
 
 var (
+	valuerType     = reflect.TypeFor[driver.Valuer]()
 	scannerType    = reflect.TypeFor[sql.Scanner]()
 	bytesType      = reflect.TypeFor[[]byte]()
 	rawMessageType = reflect.TypeFor[json.RawMessage]()
@@ -327,4 +328,13 @@ func AssignScanned(dst, scanned reflect.Value) {
 
 func IsScanner(t reflect.Type) bool {
 	return reflect.PointerTo(t).Implements(scannerType)
+}
+
+// ValuerValue resolves v the way database/sql does: a nil pointer whose element type implements driver.Valuer is
+// NULL, any other Valuer is asked for its Value. See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
+func ValuerValue(v driver.Valuer) (driver.Value, error) {
+	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerType) {
+		return nil, nil
+	}
+	return v.Value()
 }

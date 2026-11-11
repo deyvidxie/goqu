@@ -240,15 +240,15 @@ func checkBoolExpType(op BooleanOperation, lhs Expression, rhs interface{}, inve
 }
 
 func isNullValue(val interface{}) bool {
+	if valuer, ok := val.(driver.Valuer); ok {
+		v, err := util.ValuerValue(valuer)
+		return err == nil && v == nil
+	}
 	if util.IsNilOrNilPointer(val) {
 		return true
 	}
 	if util.IsBytesValue(val) {
 		return reflect.Indirect(reflect.ValueOf(val)).IsNil()
-	}
-	if valuer, ok := val.(driver.Valuer); ok {
-		v, err := valuer.Value()
-		return err == nil && v == nil
 	}
 	return false
 }
