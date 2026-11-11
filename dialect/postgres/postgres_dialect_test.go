@@ -107,12 +107,10 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
-	sql, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2`, sql)
-	sql, _, err = ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.ExOr{})).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, `INSERT INTO "test" ("a") VALUES (1) ON CONFLICT (a) DO UPDATE SET "a"=2 WHERE (1=0)`, sql)
+	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.ExOr{}}, {}} {
+		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(where...)).ToSQL()
+		assert.True(t, goqu.IsInvalidExpression(err), "%v: %v", where, err)
+	}
 }
 
 func TestJSONFunctionsAreErrors(t *testing.T) {

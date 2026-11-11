@@ -186,7 +186,7 @@ func (ssg *selectSQLGenerator) GroupBySQL(b sb.SQLBuilder, groupBy exp.ColumnLis
 
 // Generates the HAVING clause for an SQL statement
 func (ssg *selectSQLGenerator) HavingSQL(b sb.SQLBuilder, having exp.ExpressionList) {
-	if having != nil && len(having.Expressions()) > 0 {
+	if having != nil {
 		b.Write(ssg.DialectOptions().HavingFragment)
 		ssg.ExpressionSQLGenerator().Generate(b, having)
 	}

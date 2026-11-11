@@ -552,43 +552,29 @@ func (uds *updateDatasetSuite) TestEmptyOrder() {
 	}
 }
 
-func (uds *updateDatasetSuite) TestToSQL_emptyWhere() {
+func (uds *updateDatasetSuite) TestEmptyWhere() {
 	var none []exp.Expression
-	ud := goqu.Update("test").Set(goqu.Record{"a": 1})
-	for name, d := range map[string]interface {
-		ToSQL() (string, []interface{}, error)
-	}{
-		"no conditions":        ud.Where(),
-		"empty Ex":             ud.Where(goqu.Ex{}),
-		"empty And":            ud.Where(goqu.And()),
-		"empty literal":        ud.Where(goqu.L("")),
-		"Or of empty Ex":       ud.Where(goqu.Or(goqu.Ex{})),
-		"Or with empty And":    ud.Where(goqu.Or(goqu.C("a").Eq(1), goqu.And())),
-		"And of empty groups":  ud.Where(goqu.And(goqu.And(), goqu.Ex{})),
-		"from select":          goqu.From("test").Where(none...).Update().Set(goqu.Record{"a": 1}),
-		"from select empty Ex": goqu.From("test").Where(goqu.Ex{}).Update().Set(goqu.Record{"a": 1}),
-	} {
-		_, _, err := d.ToSQL()
-		uds.EqualError(err, "goqu: WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row", name)
-		uds.True(goqu.IsInvalidExpression(err), name)
-	}
-
+	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
 	for name, c := range map[string]struct {
 		ds interface {
 			ToSQL() (string, []interface{}, error)
 		}
-		sql string
+		err string
 	}{
-		"no Where":                 {ud, `UPDATE "test" SET "a"=1`},
-		"cleared":                  {ud.Where().ClearWhere(), `UPDATE "test" SET "a"=1`},
-		"empty then real":          {ud.Where(none...).Where(goqu.C("a").Eq(1)), `UPDATE "test" SET "a"=1 WHERE ("a" = 1)`},
-		"real then empty":          {ud.Where(goqu.C("a").Eq(1)).Where(none...), `UPDATE "test" SET "a"=1 WHERE ("a" = 1)`},
-		"empty Or matches nothing": {ud.Where(goqu.Or()), `UPDATE "test" SET "a"=1 WHERE (1=0)`},
+		"no conditions": {bd.Where(), emptyWhere},
+		"empty spread":  {bd.Where(none...), emptyWhere},
+		"from select":   {goqu.From("test").Where(none...).Update().Set(goqu.Record{"a": 1}), emptyWhere},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`},
 	} {
-		sql, _, err := c.ds.ToSQL()
-		uds.NoError(err, name)
-		uds.Equal(c.sql, sql, name)
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsInvalidExpression(err), name)
 	}
+
+	sql, _, err := bd.Where(goqu.C("a").Eq(1)).ClearWhere().ToSQL()
+	uds.NoError(err)
+	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
 }
 
 func (uds *updateDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {

@@ -138,7 +138,7 @@ func (ud *UpdateDataset) From(tables ...interface{}) *UpdateDataset {
 // Adds a WHERE clause. See examples.
 func (ud *UpdateDataset) Where(expressions ...exp.Expression) *UpdateDataset {
 	if len(expressions) == 0 {
-		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
+		return ud.copy(ud.clauses).SetError(errEmptyWhere)
 	}
 	return ud.copy(ud.clauses.WhereAppend(expressions...))
 }

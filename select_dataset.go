@@ -408,7 +408,7 @@ func (sd *SelectDataset) joinTable(join exp.JoinExpression) *SelectDataset {
 // Adds a WHERE clause. See examples.
 func (sd *SelectDataset) Where(expressions ...exp.Expression) *SelectDataset {
 	if len(expressions) == 0 {
-		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
+		return sd.copy(sd.clauses).SetError(errEmptyWhere)
 	}
 	return sd.copy(sd.clauses.WhereAppend(expressions...))
 }
@@ -466,6 +466,9 @@ func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
 
 // Adds a HAVING clause. See examples.
 func (sd *SelectDataset) Having(expressions ...exp.Expression) *SelectDataset {
+	if len(expressions) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyHaving)
+	}
 	return sd.copy(sd.clauses.HavingAppend(expressions...))
 }
 

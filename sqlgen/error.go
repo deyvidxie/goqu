@@ -23,12 +23,6 @@ var (
 	errEmptyValsWithoutCols  = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
 	errEmptyInsertCols       = errors.NewInvalidExpressionError("empty Cols found when generating insert sql")
 	errMultipleInsertSources = errors.NewInvalidExpressionError("more than one of Rows, Vals and FromQuery found when generating insert sql")
-	errEmptyWhereForUpdate   = errors.NewInvalidExpressionError(
-		"WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row",
-	)
-	errEmptyWhereForDelete = errors.NewInvalidExpressionError(
-		"WHERE matches every row when generating delete sql; omit Where or call ClearWhere to delete every row",
-	)
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
@@ -156,6 +150,13 @@ func errJoinTypeNotSupported(dialect string, j exp.JoinExpression) error {
 
 func errJoinUsingNotSupported(dialect string, j exp.JoinExpression) error {
 	return errors.NewUnsupportedError("dialect does not support USING for %v, use an ON condition [dialect=%s]", j.JoinType(), dialect)
+}
+
+func errEmptyCondition(listType exp.ExpressionListType) error {
+	if listType == exp.OrType {
+		return errors.NewInvalidExpressionError("empty OR condition (Or() or ExOr{}); write the condition, e.g. L(\"1=0\")")
+	}
+	return errors.NewInvalidExpressionError("empty AND condition (And() or Ex{}); write the condition, e.g. L(\"1=1\")")
 }
 
 func errJoinConditionRequired(j exp.JoinExpression) error {

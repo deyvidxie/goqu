@@ -179,16 +179,6 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": goqu.Default()})
 		}},
-		{"empty AND fragment", "no EmptyAndFragment for an empty AND list", func(o *sqlgen.SQLDialectOptions) {
-			o.EmptyAndFragment = nil
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And()))
-		}},
-		{"empty OR fragment", "no EmptyOrFragment for an empty OR list", func(o *sqlgen.SQLDialectOptions) {
-			o.EmptyOrFragment = nil
-		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Where(goqu.Or())
-		}},
 		{"LATERAL", "lateral expressions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLateral = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {

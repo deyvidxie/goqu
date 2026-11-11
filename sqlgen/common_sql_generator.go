@@ -2,7 +2,6 @@ package sqlgen
 
 import (
 	"reflect"
-	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -92,21 +91,10 @@ func (csg *commonSQLGenerator) SourcesSQL(b sb.SQLBuilder, from exp.ColumnListEx
 
 // Generates the WHERE clause for an SQL statement
 func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionList) {
-	if where != nil && !where.IsEmpty() {
+	if where != nil {
 		b.Write(csg.dialectOptions.WhereFragment)
 		csg.esg.Generate(b, where)
 	}
-}
-
-func matchesEveryRow(e exp.Expression) bool {
-	list, ok := e.(exp.ExpressionList)
-	if !ok {
-		return false
-	}
-	if list.Type() == exp.OrType {
-		return slices.ContainsFunc(list.Expressions(), matchesEveryRow)
-	}
-	return !slices.ContainsFunc(list.Expressions(), func(e exp.Expression) bool { return !matchesEveryRow(e) })
 }
 
 // Generates the ORDER BY clause for an SQL statement

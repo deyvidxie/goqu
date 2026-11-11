@@ -361,21 +361,6 @@ func (pt *postgresTest) TestDefaultValue() {
 	pt.Equal(int64(7), a)
 }
 
-func (pt *postgresTest) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := pt.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	pt.Require().NoError(err)
-	count, err := pt.db.From("entry").Count()
-	pt.Require().NoError(err)
-	pt.Equal(int64(10), count)
-
-	var ints []int64
-	err = pt.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	pt.Require().NoError(err)
-	pt.Len(ints, 10)
-	pt.Equal(int64(1), ints[0])
-}
-
 func (pt *postgresTest) TestCount() {
 	ds := pt.db.From("entry")
 	count, err := ds.Count()

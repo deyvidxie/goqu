@@ -136,7 +136,7 @@ func (dd *DeleteDataset) From(table interface{}) *DeleteDataset {
 // Adds a WHERE clause. See examples.
 func (dd *DeleteDataset) Where(expressions ...exp.Expression) *DeleteDataset {
 	if len(expressions) == 0 {
-		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
+		return dd.copy(dd.clauses).SetError(errEmptyWhere)
 	}
 	return dd.copy(dd.clauses.WhereAppend(expressions...))
 }

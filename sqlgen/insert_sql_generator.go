@@ -460,7 +460,7 @@ func (isg *insertSQLGenerator) conflictUpdateSQL(b *conflictUpdateBuilder, o exp
 		}
 	}
 	isg.UpdateExpressionSQL(b, ue...)
-	if b.Error() == nil && o.WhereClause() != nil && !o.WhereClause().IsEmpty() {
+	if b.Error() == nil && o.WhereClause() != nil {
 		if !isg.DialectOptions().SupportsConflictUpdateWhere {
 			b.SetError(errUpsertWithWhereNotSupported(isg.Dialect()))
 			return

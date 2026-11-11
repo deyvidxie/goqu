@@ -536,42 +536,29 @@ func (dds *deleteDatasetSuite) TestEmptyOrder() {
 	}
 }
 
-func (dds *deleteDatasetSuite) TestToSQL_emptyWhere() {
+func (dds *deleteDatasetSuite) TestEmptyWhere() {
 	var none []exp.Expression
-	for name, d := range map[string]interface {
-		ToSQL() (string, []interface{}, error)
-	}{
-		"no conditions":        goqu.Delete("test").Where(),
-		"empty Ex":             goqu.Delete("test").Where(goqu.Ex{}),
-		"empty And":            goqu.Delete("test").Where(goqu.And()),
-		"empty literal":        goqu.Delete("test").Where(goqu.L("")),
-		"Or of empty Ex":       goqu.Delete("test").Where(goqu.Or(goqu.Ex{})),
-		"Or with empty And":    goqu.Delete("test").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And())),
-		"And of empty groups":  goqu.Delete("test").Where(goqu.And(goqu.And(), goqu.Ex{})),
-		"from select":          goqu.From("test").Where(none...).Delete(),
-		"from select empty Ex": goqu.From("test").Where(goqu.Ex{}).Delete(),
-	} {
-		_, _, err := d.ToSQL()
-		dds.EqualError(err, "goqu: WHERE matches every row when generating delete sql; omit Where or call ClearWhere to delete every row", name)
-		dds.True(goqu.IsInvalidExpression(err), name)
-	}
-
+	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+	bd := goqu.Delete("test")
 	for name, c := range map[string]struct {
 		ds interface {
 			ToSQL() (string, []interface{}, error)
 		}
-		sql string
+		err string
 	}{
-		"no Where":                 {goqu.Delete("test"), `DELETE FROM "test"`},
-		"cleared":                  {goqu.Delete("test").Where().ClearWhere(), `DELETE FROM "test"`},
-		"empty then real":          {goqu.Delete("test").Where(none...).Where(goqu.C("a").Eq(1)), `DELETE FROM "test" WHERE ("a" = 1)`},
-		"real then empty":          {goqu.Delete("test").Where(goqu.C("a").Eq(1)).Where(none...), `DELETE FROM "test" WHERE ("a" = 1)`},
-		"empty Or matches nothing": {goqu.Delete("test").Where(goqu.Or()), `DELETE FROM "test" WHERE (1=0)`},
+		"no conditions": {bd.Where(), emptyWhere},
+		"empty spread":  {bd.Where(none...), emptyWhere},
+		"from select":   {goqu.From("test").Where(none...).Delete(), emptyWhere},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`},
 	} {
-		sql, _, err := c.ds.ToSQL()
-		dds.NoError(err, name)
-		dds.Equal(c.sql, sql, name)
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsInvalidExpression(err), name)
 	}
+
+	sql, _, err := bd.Where(goqu.C("a").Eq(1)).ClearWhere().ToSQL()
+	dds.NoError(err)
+	dds.Equal(`DELETE FROM "test"`, sql)
 }
 
 func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {

@@ -186,12 +186,16 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 	opts.WhereFragment = []byte(" where ")
 	csgWhereFrag := sqlgen.NewCommonSQLGenerator("test", "db", opts)
 
+	const (
+		emptyAnd = `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`
+		emptyOr  = `goqu: empty OR condition (Or() or ExOr{}); write the condition, e.g. L("1=0")`
+	)
 	w := exp.Ex{"a": "b"}
 	w2 := exp.Ex{"b": "c"}
 
 	csgs.assertCases(
-		commonSQLTestCase{gen: whereAndGen(csg), sql: ``},
-		commonSQLTestCase{gen: whereAndGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereAndGen(csg), err: emptyAnd},
+		commonSQLTestCase{gen: whereAndGen(csg), err: emptyAnd, isPrepared: true},
 
 		commonSQLTestCase{gen: whereAndGen(csg, w), sql: ` WHERE ("a" = 'b')`},
 		commonSQLTestCase{gen: whereAndGen(csg, w), sql: ` WHERE ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -199,8 +203,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 		commonSQLTestCase{gen: whereAndGen(csg, w, w2), sql: ` WHERE (("a" = 'b') AND ("b" = 'c'))`},
 		commonSQLTestCase{gen: whereAndGen(csg, w, w2), sql: ` WHERE (("a" = ?) AND ("b" = ?))`, isPrepared: true, args: []interface{}{"b", "c"}},
 
-		commonSQLTestCase{gen: whereOrGen(csg), sql: ``},
-		commonSQLTestCase{gen: whereOrGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereOrGen(csg), err: emptyOr},
+		commonSQLTestCase{gen: whereOrGen(csg), err: emptyOr, isPrepared: true},
 
 		commonSQLTestCase{gen: whereOrGen(csg, w), sql: ` WHERE ("a" = 'b')`},
 		commonSQLTestCase{gen: whereOrGen(csg, w), sql: ` WHERE ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -208,8 +212,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 		commonSQLTestCase{gen: whereOrGen(csg, w, w2), sql: ` WHERE (("a" = 'b') OR ("b" = 'c'))`},
 		commonSQLTestCase{gen: whereOrGen(csg, w, w2), sql: ` WHERE (("a" = ?) OR ("b" = ?))`, isPrepared: true, args: []interface{}{"b", "c"}},
 
-		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), sql: ``},
-		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), err: emptyAnd},
+		commonSQLTestCase{gen: whereAndGen(csgWhereFrag), err: emptyAnd, isPrepared: true},
 
 		commonSQLTestCase{gen: whereAndGen(csgWhereFrag, w), sql: ` where ("a" = 'b')`},
 		commonSQLTestCase{gen: whereAndGen(csgWhereFrag, w), sql: ` where ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},
@@ -222,8 +226,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 			args:       []interface{}{"b", "c"},
 		},
 
-		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), sql: ``},
-		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), err: emptyOr},
+		commonSQLTestCase{gen: whereOrGen(csgWhereFrag), err: emptyOr, isPrepared: true},
 
 		commonSQLTestCase{gen: whereOrGen(csgWhereFrag, w), sql: ` where ("a" = 'b')`},
 		commonSQLTestCase{gen: whereOrGen(csgWhereFrag, w), sql: ` where ("a" = ?)`, isPrepared: true, args: []interface{}{"b"}},

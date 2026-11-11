@@ -582,18 +582,6 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	b.Write(fragment)
 }
 
-func (esg *expressionSQLGenerator) emptyConditionSQL(b sb.SQLBuilder, listType exp.ExpressionListType) {
-	fragment, fragmentName, list := esg.dialectOptions.EmptyAndFragment, "EmptyAndFragment", "AND"
-	if listType == exp.OrType {
-		fragment, fragmentName, list = esg.dialectOptions.EmptyOrFragment, "EmptyOrFragment", "OR"
-	}
-	if len(fragment) == 0 {
-		b.SetError(errEmptyListFragmentMissing(esg.dialect, fragmentName, list))
-		return
-	}
-	b.Write(fragment)
-}
-
 func (esg *expressionSQLGenerator) lhsRenders(b sb.SQLBuilder, lhs exp.Expression) bool {
 	scratch := sb.NewSQLBuilder(b.IsPrepared())
 	defer sb.ReleaseSQLBuilder(scratch)
@@ -703,7 +691,7 @@ func (esg *expressionSQLGenerator) orderedExpressionSQL(b sb.SQLBuilder, order e
 // Generates SQL for an ExpressionList (e.g. And(I("a").Eq("a"), I("b").Eq("b")) -> (("a" = 'a') AND ("b" = 'b')))
 func (esg *expressionSQLGenerator) expressionListSQL(b sb.SQLBuilder, expressionList exp.ExpressionList) {
 	if expressionList.IsEmpty() {
-		esg.emptyConditionSQL(b, expressionList.Type())
+		b.SetError(errEmptyCondition(expressionList.Type()))
 		return
 	}
 	var op []byte

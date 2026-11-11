@@ -306,6 +306,8 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
 		"Order with Limit":    {bd.Order(noOrder...).Limit(10), emptyOrder},
 		"Select then cleared": {bd.Select(none...).ClearSelect(), emptySelect},
+		"Where":               {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
+		"Having":              {bd.Having(), "goqu: Having requires at least one expression"},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
@@ -316,7 +318,6 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"ClearSelect":  bd.Select("a").ClearSelect(),
 		"ClearOrder":   bd.Order(goqu.C("a").Asc()).ClearOrder(),
 		"ClearGroupBy": bd.GroupBy("a").ClearGroupBy(),
-		"empty Where":  bd.Where(),
 	} {
 		sql, _, err := ds.ToSQL()
 		sds.NoError(err, name)
@@ -1021,30 +1022,40 @@ func (sds *selectDatasetSuite) TestClearWindow() {
 
 func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 	var none []exp.Expression
-	for want, ds := range map[string]exp.SQLExpression{
-		`SELECT * FROM "t"`:                             goqu.From("t").Where(goqu.And(none...), goqu.Ex{}, goqu.L("")),
-		`SELECT * FROM "t" WHERE ("a" = 1)`:             goqu.From("t").Where(goqu.L(""), goqu.C("a").Eq(1)),
-		`SELECT * FROM "t" WHERE (1=0)`:                 goqu.From("t").Where(goqu.Or(none...)),
-		`SELECT * FROM "t" WHERE (("a" = 1) AND (1=0))`: goqu.From("t").Where(goqu.C("a").Eq(1), goqu.ExOr{}),
-		`SELECT * FROM "t" GROUP BY "a"`:                goqu.From("t").GroupBy("a").Having(goqu.L("")),
-		`SELECT * FROM "t" GROUP BY "a" HAVING (1=0)`:   goqu.From("t").GroupBy("a").Having(goqu.Or()),
-		`DELETE FROM "t" WHERE (1=0)`:                   goqu.Delete("t").Where(goqu.Or(none...)),
-		`UPDATE "t" SET "a"=1 WHERE (1=0)`:              goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}),
-		`SELECT CASE  WHEN (1=1) THEN 1 END FROM "t"`:   goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)),
-		`SELECT * FROM "t" WHERE NOT ((1=1))`:           goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))),
-		`SELECT * FROM "t" WHERE (("a" = 1) OR (1=1))`:  goqu.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And(none...))),
-		`SELECT * FROM "t" WHERE (("b" = 2) AND (1=0))`: goqu.From("t").Where(goqu.C("b").Eq(2)).Where(goqu.Or()),
-		`SELECT * FROM "t" INNER JOIN "u" ON (1=0)`:     goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())),
+	upsert := goqu.Dialect("postgres").Insert("t").Rows(goqu.Record{"a": 1})
+	const (
+		emptyAnd = `goqu: empty AND condition (And() or Ex{}); write the condition, e.g. L("1=1")`
+		emptyOr  = `goqu: empty OR condition (Or() or ExOr{}); write the condition, e.g. L("1=0")`
+	)
+	for name, c := range map[string]struct {
+		ds  exp.SQLExpression
+		err string
+	}{
+		"Where empty And":         {goqu.From("t").Where(goqu.And(none...)), emptyAnd},
+		"Where empty Ex":          {goqu.From("t").Where(goqu.Ex{}), emptyAnd},
+		"Where empty Or":          {goqu.From("t").Where(goqu.Or(none...)), emptyOr},
+		"Where empty ExOr":        {goqu.From("t").Where(goqu.C("a").Eq(1), goqu.ExOr{}), emptyOr},
+		"Or holding an empty And": {goqu.From("t").Where(goqu.Or(goqu.C("a").Eq(1), goqu.And(none...))), emptyAnd},
+		"Having empty Or":         {goqu.From("t").GroupBy("a").Having(goqu.Or()), emptyOr},
+		"Case When empty And":     {goqu.From("t").Select(goqu.Case().When(goqu.And(none...), 1)), emptyAnd},
+		"literal arg empty And":   {goqu.From("t").Where(goqu.L("NOT (?)", goqu.And(none...))), emptyAnd},
+		"Join On empty Or":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Or())), emptyOr},
+		"Update empty ExOr":       {goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}), emptyOr},
+		"Delete empty Ex":         {goqu.Delete("t").Where(goqu.Ex{}), emptyAnd},
+		"Upsert empty Where":      {upsert.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})), emptyAnd},
 	} {
-		sql, args, err := ds.ToSQL()
-		sds.NoError(err, want)
-		sds.Empty(args, want)
-		sds.Equal(want, sql)
+		_, _, err := c.ds.ToSQL()
+		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
 	}
+
+	sql, _, err := goqu.From("t").Where(goqu.L(""), goqu.C("a").Eq(1)).ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "t" WHERE ( AND ("a" = 1))`, sql)
 }
 
 func (sds *selectDatasetSuite) TestEmptyJoinConditionIsRequired() {
-	_, _, err := goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.L(""))).ToSQL()
+	_, _, err := goqu.From("t").Join(goqu.T("u"), goqu.On()).ToSQL()
 	sds.EqualError(err, "goqu: join condition required for conditioned join InnerJoinType")
 	sds.True(goqu.IsInvalidExpression(err))
 }

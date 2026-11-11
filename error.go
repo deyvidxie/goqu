@@ -49,6 +49,8 @@ var (
 	errEmptyOrderAppend   = errors.NewInvalidExpressionError("OrderAppend requires at least one expression")
 	errEmptyOrderPrepend  = errors.NewInvalidExpressionError("OrderPrepend requires at least one expression")
 	errNilOrder           = errors.NewInvalidExpressionError("Order expressions must not be nil")
+	errEmptyWhere         = errors.NewInvalidExpressionError("Where requires at least one expression; use ClearWhere to drop WHERE")
+	errEmptyHaving        = errors.NewInvalidExpressionError("Having requires at least one expression")
 )
 
 func errUnsupportedFromArgument(from interface{}) error {

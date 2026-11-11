@@ -373,21 +373,6 @@ func (sst *sqlserverTest) TestDefaultValue() {
 	sst.Equal(int64(7), a)
 }
 
-func (sst *sqlserverTest) TestEmptyConditions() {
-	var none []goqu.Expression
-	_, err := sst.db.Delete("entry").Where(goqu.Or(none...)).Executor().Exec()
-	sst.Require().NoError(err)
-	count, err := sst.db.From("entry").Count()
-	sst.Require().NoError(err)
-	sst.Equal(int64(10), count)
-
-	var ints []int64
-	err = sst.db.From("entry").Select(goqu.Case().When(goqu.And(none...), 1).Else(0)).ScanVals(&ints)
-	sst.Require().NoError(err)
-	sst.Len(ints, 10)
-	sst.Equal(int64(1), ints[0])
-}
-
 func (sst *sqlserverTest) TestCount() {
 	ds := sst.db.From("entry")
 	count, err := ds.Count()
