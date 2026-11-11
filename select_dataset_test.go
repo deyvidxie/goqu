@@ -2,6 +2,7 @@ package goqu_test
 
 import (
 	dbsql "database/sql"
+	"fmt"
 	"net/netip"
 	"testing"
 	"time"
@@ -1345,6 +1346,33 @@ func (sds *selectDatasetSuite) TestUnion() {
 			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
 		},
 	)
+}
+
+func (sds *selectDatasetSuite) TestCompoundsWrapSidesWithTrailingClauses() {
+	b := goqu.From("b")
+	for name, c := range map[string]struct {
+		left *goqu.SelectDataset
+		sql  string
+	}{
+		"offset": {goqu.From("a").Offset(2), `SELECT * FROM (SELECT * FROM "a" OFFSET 2) AS "t1" %s (SELECT * FROM "b")`},
+		"lock":   {goqu.From("a").ForUpdate(goqu.Wait), `SELECT * FROM (SELECT * FROM "a" FOR UPDATE ) AS "t1" %s (SELECT * FROM "b")`},
+		"limit":  {goqu.From("a").Limit(1), `SELECT * FROM (SELECT * FROM "a" LIMIT 1) AS "t1" %s (SELECT * FROM "b")`},
+	} {
+		for op, ds := range map[string]*goqu.SelectDataset{
+			"UNION":         c.left.Union(b),
+			"UNION ALL":     c.left.UnionAll(b),
+			"INTERSECT":     c.left.Intersect(b),
+			"INTERSECT ALL": c.left.IntersectAll(b),
+		} {
+			sql, _, err := ds.ToSQL()
+			sds.NoError(err, name)
+			sds.Equal(fmt.Sprintf(c.sql, op), sql, "%s %s", name, op)
+		}
+	}
+
+	sql, _, err := b.Union(goqu.From("a").Offset(2)).ToSQL()
+	sds.NoError(err)
+	sds.Equal(`SELECT * FROM "b" UNION (SELECT * FROM (SELECT * FROM "a" OFFSET 2) AS "t1")`, sql)
 }
 
 func (sds *selectDatasetSuite) TestUnionAll() {

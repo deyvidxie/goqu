@@ -554,28 +554,28 @@ func (sd *SelectDataset) ClearOffset() *SelectDataset {
 }
 
 // Creates an UNION statement with another dataset.
-// If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
+// If this or the other dataset has an order, limit, offset or lock it will use that dataset as a subselect.
 // See examples.
 func (sd *SelectDataset) Union(other *SelectDataset) *SelectDataset {
 	return sd.withCompound(exp.UnionCompoundType, other)
 }
 
 // Creates an UNION ALL statement with another dataset.
-// If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
+// If this or the other dataset has an order, limit, offset or lock it will use that dataset as a subselect.
 // See examples.
 func (sd *SelectDataset) UnionAll(other *SelectDataset) *SelectDataset {
 	return sd.withCompound(exp.UnionAllCompoundType, other)
 }
 
 // Creates an INTERSECT statement with another dataset.
-// If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
+// If this or the other dataset has an order, limit, offset or lock it will use that dataset as a subselect.
 // See examples.
 func (sd *SelectDataset) Intersect(other *SelectDataset) *SelectDataset {
 	return sd.withCompound(exp.IntersectCompoundType, other)
 }
 
 // Creates an INTERSECT ALL statement with another dataset.
-// If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
+// If this or the other dataset has an order, limit, offset or lock it will use that dataset as a subselect.
 // See examples.
 func (sd *SelectDataset) IntersectAll(other *SelectDataset) *SelectDataset {
 	return sd.withCompound(exp.IntersectAllCompoundType, other)
@@ -591,10 +591,11 @@ func (sd *SelectDataset) withCompound(ct exp.CompoundType, other *SelectDataset)
 	return ret
 }
 
-// Used internally to determine if the dataset needs to use iteself as a source.
-// If the dataset has an order or limit it will select from itself
+// CompoundFromSelf wraps the dataset in a subselect when it has an order, limit, offset or lock, which would
+// otherwise render after the compound and apply to all of it.
 func (sd *SelectDataset) CompoundFromSelf() *SelectDataset {
-	if sd.clauses.HasOrder() || sd.clauses.HasLimit() {
+	c := sd.clauses
+	if c.HasOrder() || c.HasLimit() || c.Offset() > 0 || c.Lock() != nil {
 		return sd.FromSelf()
 	}
 	return sd.copy(sd.clauses)
