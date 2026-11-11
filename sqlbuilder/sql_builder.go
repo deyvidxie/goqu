@@ -20,7 +20,6 @@ type (
 		Write(p []byte) SQLBuilder
 		WriteStrings(ss ...string) SQLBuilder
 		WriteRunes(r ...rune) SQLBuilder
-		// WriteInt appends the base 10 representation of i.
 		WriteInt(i int64) SQLBuilder
 		// WriteFloat appends f formatted with the 'f' format and the smallest precision that round trips.
 		WriteFloat(f float64) SQLBuilder

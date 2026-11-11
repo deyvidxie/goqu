@@ -7,10 +7,7 @@ import (
 	"testing"
 )
 
-// Ensures that after calling ToSQL(), the returned args slice is not mutated
-// by subsequent calls to reset() and further writes on the same builder.
 func TestSQLBuilder_ResetDoesNotMutateReturnedArgs(t *testing.T) {
-	// Use the unexported constructor to deterministically operate on a single builder instance.
 	sb := newSQLBuilder(false)
 
 	sb.WriteArg("first", 2)
@@ -66,7 +63,6 @@ func TestSQLBuilder_RecycleRefusesOversizedBuffersAndSecondRecycle(t *testing.T)
 	}
 }
 
-// A new builder and a reset builder must be indistinguishable (matters for equality in tests).
 func TestFreshAndResetBuildersAreEqual(t *testing.T) {
 	used := newSQLBuilder(false)
 	used.WriteStrings("abc")
@@ -108,7 +104,6 @@ func TestSQLBuilder_WriteIntAndFloat(t *testing.T) {
 		t.Fatalf("got %q, want %q", sql, expected)
 	}
 
-	// once an error is set nothing is written
 	errB := newSQLBuilder(false).SetError(newTestError("boom"))
 	errB.WriteInt(1).WriteFloat(2)
 	if got := errB.(*sqlBuilder).buf.String(); got != "" {
