@@ -45,6 +45,35 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlserverDialectSuite) TestWindowFunctions() {
+	ds := sds.GetDs("test")
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Select(goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("a").OrderBy("b"))),
+			sql: `SELECT ROW_NUMBER() OVER (PARTITION BY "a" ORDER BY "b") FROM "test"`,
+		},
+		sqlTestCase{
+			ds:  ds.Window(goqu.W("w").PartitionBy("a")).Select(goqu.ROW_NUMBER().OverName(goqu.I("w"))),
+			err: "goqu: dialect does not support the named WINDOW clause [dialect=sqlserver]",
+		},
+	)
+}
+
+func (sds *sqlserverDialectSuite) TestCommonTableExpressions() {
+	d := goqu.Dialect("sqlserver")
+	sds.assertSQL(
+		sqlTestCase{ds: d.From("c").With("c", d.From("t")), sql: `WITH c AS (SELECT * FROM "t") SELECT * FROM "c"`},
+		sqlTestCase{
+			ds:  d.From("c").WithRecursive("c(n)", d.Select(goqu.L("1")).UnionAll(d.From("c").Select(goqu.L("n + 1")))),
+			sql: `WITH c(n) AS (SELECT 1 UNION ALL (SELECT n + 1 FROM "c")) SELECT * FROM "c"`,
+		},
+		sqlTestCase{
+			ds:  d.From(d.From("c").With("c", d.From("t"))),
+			err: "goqu: dialect does not support a WITH clause inside a subquery [dialect=sqlserver]",
+		},
+	)
+}
+
 func (sds *sqlserverDialectSuite) TestTimeFunctions() {
 	sds.assertSQL(
 		sqlTestCase{

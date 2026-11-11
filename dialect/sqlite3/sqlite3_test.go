@@ -415,14 +415,27 @@ func (st *sqlite3Suite) TestILikeEscapesLiteralPercent() {
 	st.Equal(int64(11), count)
 }
 
-func (st *sqlite3Suite) TestForUpdateRunsAndRejectsSkipLocked() {
+func (st *sqlite3Suite) TestForUpdateIsUnsupported() {
 	var entries []entry
-	st.NoError(st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries))
-	st.Len(entries, 10)
-
-	err := st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries)
-	st.EqualError(err, "goqu: dialect does not support SKIP LOCKED [dialect=sqlite3]")
+	err := st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries)
+	st.EqualError(err, "goqu: dialect does not support FOR UPDATE [dialect=sqlite3]")
 	st.True(goqu.IsUnsupported(err))
+}
+
+func (st *sqlite3Suite) TestUpdateWithLimitIsRejectedBeforeRunning() {
+	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Limit(1).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
+	st.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=sqlite3]")
+	st.True(goqu.IsUnsupported(err))
+}
+
+func (st *sqlite3Suite) TestWindowFunctionRuns() {
+	var ranks []int64
+	err := st.db.From("entry").
+		Select(goqu.ROW_NUMBER().Over(goqu.W().OrderBy(goqu.C("int").Desc()))).
+		Order(goqu.C("int").Asc()).
+		ScanVals(&ranks)
+	st.NoError(err)
+	st.Equal([]int64{10, 9, 8, 7, 6, 5, 4, 3, 2, 1}, ranks)
 }
 
 func (st *sqlite3Suite) TestInsert() {

@@ -310,6 +310,10 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sqlbuilder.SQLBuild
 		b.SetError(errNilSubquery(a))
 		return
 	}
+	if !esg.dialectOptions.SupportsNestedWithCTE && hasCommonTables(a) {
+		b.SetError(errNestedCTENotSupported(esg.dialect))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	a.AppendSQL(b)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
@@ -1455,6 +1459,10 @@ func (esg *expressionSQLGenerator) compoundExpressionSQL(b sqlbuilder.SQLBuilder
 		b.SetError(errNilSubquery(compound.RHS()))
 		return
 	}
+	if !esg.dialectOptions.SupportsNestedWithCTE && hasCommonTables(compound.RHS()) {
+		b.SetError(errNestedCTENotSupported(esg.dialect))
+		return
+	}
 	if esg.dialectOptions.WrapCompoundsInParens {
 		b.WriteRunes(esg.dialectOptions.LeftParenRune)
 		compound.RHS().AppendSQL(b)
@@ -1507,4 +1515,19 @@ func (esg *expressionSQLGenerator) expressionOrMapSQL(b sqlbuilder.SQLBuilder, e
 		return
 	}
 	esg.Generate(b, expressionList)
+}
+
+func hasCommonTables(a exp.AppendableExpression) bool {
+	switch ds := a.(type) {
+	case interface{ GetClauses() exp.SelectClauses }:
+		return len(ds.GetClauses().CommonTables()) > 0
+	case interface{ GetClauses() exp.InsertClauses }:
+		return len(ds.GetClauses().CommonTables()) > 0
+	case interface{ GetClauses() exp.UpdateClauses }:
+		return len(ds.GetClauses().CommonTables()) > 0
+	case interface{ GetClauses() exp.DeleteClauses }:
+		return len(ds.GetClauses().CommonTables()) > 0
+	default:
+		return false
+	}
 }

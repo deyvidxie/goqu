@@ -188,13 +188,10 @@ func (st *duckdbSuite) TestGreatestAndLeast() {
 	st.Equal([]int{0, 1, 2, 3, 4, 5, 5, 5, 5, 5}, least)
 }
 
-func (st *duckdbSuite) TestForUpdateRunsAndRejectsSkipLocked() {
+func (st *duckdbSuite) TestForUpdateIsUnsupported() {
 	var entries []entry
-	st.NoError(st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries))
-	st.Len(entries, 10)
-
-	err := st.db.From("entry").ForUpdate(goqu.SkipLocked).ScanStructs(&entries)
-	st.EqualError(err, "goqu: dialect does not support SKIP LOCKED [dialect=duckdb]")
+	err := st.db.From("entry").ForUpdate(goqu.Wait).ScanStructs(&entries)
+	st.EqualError(err, "goqu: dialect does not support FOR UPDATE [dialect=duckdb]")
 	st.True(goqu.IsUnsupported(err))
 }
 
@@ -724,7 +721,8 @@ func (st *duckdbSuite) TestDelete() {
 
 func (st *duckdbSuite) TestDeleteWithLimitIsRejected() {
 	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Limit(1).Delete().Executor().Exec()
-	st.ErrorContains(err, `syntax error at or near "LIMIT"`)
+	st.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=duckdb]")
+	st.True(goqu.IsUnsupported(err))
 	count, err := st.db.From("entry").Count()
 	st.NoError(err)
 	st.Equal(int64(10), count)
@@ -740,7 +738,8 @@ func (st *duckdbSuite) TestDeleteWithOrderIsRejected() {
 
 func (st *duckdbSuite) TestUpdateWithLimitIsRejected() {
 	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Limit(1).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
-	st.ErrorContains(err, `syntax error at or near "LIMIT"`)
+	st.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=duckdb]")
+	st.True(goqu.IsUnsupported(err))
 	count, err := st.db.From("entry").Where(goqu.C("int").Eq(99)).Count()
 	st.NoError(err)
 	st.Zero(count)
@@ -748,7 +747,8 @@ func (st *duckdbSuite) TestUpdateWithLimitIsRejected() {
 
 func (st *duckdbSuite) TestUpdateWithOrderIsRejected() {
 	_, err := st.db.From("entry").Where(goqu.C("int").Lt(5)).Order(goqu.C("id").Asc()).Update().Set(goqu.Record{"int": 99}).Executor().Exec()
-	st.ErrorContains(err, `syntax error at or near "ORDER"`)
+	st.EqualError(err, "goqu: dialect does not support ORDER BY on UPDATE [dialect=duckdb]")
+	st.True(goqu.IsUnsupported(err))
 	count, err := st.db.From("entry").Where(goqu.C("int").Eq(99)).Count()
 	st.NoError(err)
 	st.Zero(count)

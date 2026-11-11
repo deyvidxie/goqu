@@ -878,7 +878,7 @@ WITH del AS (DELETE FROM "foo" WHERE ("bar" = ?) RETURNING "id") SELECT "bar_nam
 <a name="window"></a>
 **[`Window Function`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Window)**
 
-**NOTE** currently only the `postgres`, `mysql8` (NOT `mysql`), `duckdb` and the default dialect support `Window Function`
+**NOTE** `postgres`, `mysql8` (NOT `mysql`), `sqlite3`, `duckdb`, `sqlserver` and the default dialect support window functions; `sqlserver` returns an error for the named `WINDOW` clause, which needs SQL Server 2022
 
 To use windowing in `SELECT` statements you can use the `Over` method on an `SQLFunction`
 
@@ -980,7 +980,7 @@ Output:
 SELECT * FROM "test" FOR UPDATE OF "test"
 ```
 
-**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3` and `duckdb` drop `ForUpdate` and return an error for the other strengths and for `NOWAIT`, `SKIP LOCKED` and `OF`.
+**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3` and `duckdb` have no locking clause either, so every lock strength returns an error.
 
 ## Executing Queries
 

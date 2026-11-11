@@ -548,8 +548,8 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
 
-		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
-		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
+		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support window functions [dialect=test]"},
+		selectTestCase{clause: scWindow1, err: "goqu: dialect does not support window functions [dialect=test]", isPrepared: true},
 	)
 }
 

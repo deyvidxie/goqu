@@ -1321,8 +1321,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLWindowFunctionExpressio
 	opts.SupportsWindowFunction = false
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
-		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
-		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
+		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support window functions [dialect=test]"},
+		expressionTestCase{val: sqlWinFunc, err: "goqu: dialect does not support window functions [dialect=test]", isPrepared: true},
 	)
 }
 
@@ -1390,8 +1390,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_WindowExpression() {
 	opts.SupportsWindowFunction = false
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
-		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]"},
-		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support WINDOW clause [dialect=test]", isPrepared: true},
+		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support window functions [dialect=test]"},
+		expressionTestCase{val: emptySQLWinFunc, err: "goqu: dialect does not support window functions [dialect=test]", isPrepared: true},
 	)
 }
 

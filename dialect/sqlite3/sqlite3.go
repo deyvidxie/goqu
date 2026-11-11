@@ -11,10 +11,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.TimeStyle = sqlgen.SQLiteTimeStyle
 
 	opts.SupportsReturn = true
-	opts.SupportsOrderByOnUpdate = true
-	opts.SupportsLimitOnUpdate = true
-	opts.SupportsOrderByOnDelete = true
-	opts.SupportsLimitOnDelete = true
 	opts.SupportsConflictUpdateWhere = true
 	opts.SupportsInsertIgnoreSyntax = true
 	opts.SupportsConflictWithDefaultValues = false
@@ -23,7 +19,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsMultipleUpdateTables = true
 	opts.WrapCompoundsInParens = false
 	opts.SupportsDistinctOn = false
-	opts.SupportsWindowFunction = false
 	opts.SupportsLateral = false
 
 	opts.TruncateClause = []byte("DELETE FROM")
@@ -78,10 +73,9 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.ConflictFragment = []byte(" ON CONFLICT ")
 	opts.ConflictDoUpdateFragment = []byte(" DO UPDATE SET ")
 	opts.ConflictDoNothingFragment = []byte(" DO NOTHING ")
-	opts.ForUpdateFragment = []byte("")
 	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait, exp.SkipLocked}
 	opts.SupportsLockOf = false
-	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForUpdate, exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 
 	opts.LikeEscapeKey = "ESCAPE"
 	opts.LikeEscapeValue = "\\"

@@ -74,7 +74,15 @@ func errDistinctOnNotSupported(dialect string) error {
 }
 
 func errWindowNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support WINDOW clause [dialect=%s]", dialect)
+	return errors.NewUnsupportedError("dialect does not support window functions [dialect=%s]", dialect)
+}
+
+func errWindowClauseNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support the named WINDOW clause [dialect=%s]", dialect)
+}
+
+func errNestedCTENotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support a WITH clause inside a subquery [dialect=%s]", dialect)
 }
 
 func errQualifyNotSupported(dialect string) error {

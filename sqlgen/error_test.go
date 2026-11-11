@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func withCTE(d goqu.DialectWrapper) *goqu.SelectDataset {
+	return d.From("c").With("c", d.From("t"))
+}
+
 //nolint:funlen
 func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 	type sqlBuilder interface {
@@ -89,10 +93,40 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").DistinctOn("a")
 		}},
-		{"WINDOW", "WINDOW clause", func(o *sqlgen.SQLDialectOptions) {
+		{"window functions", "window functions", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWindowFunction = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.ROW_NUMBER().Over(goqu.W()))
+		}},
+		{"WINDOW", "named WINDOW clause", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsWindowClause = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Window(goqu.W("w"))
+		}},
+		{"nested WITH in FROM", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From(withCTE(d))
+		}},
+		{"nested WITH in a compound", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Union(withCTE(d))
+		}},
+		{"nested WITH in a CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("x").With("x", withCTE(d))
+		}},
+		{"nested WITH in an INSERT source", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").FromQuery(withCTE(d))
+		}},
+		{"nested WITH in an INSERT source with Cols", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.Insert("t").Cols("a").FromQuery(withCTE(d))
 		}},
 		{"QUALIFY", "QUALIFY clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsQualify = false

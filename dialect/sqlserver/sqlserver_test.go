@@ -658,3 +658,31 @@ func (sst *sqlserverTest) TestValsWithoutColsAndLimitZero() {
 func TestSqlServerSuite(t *testing.T) {
 	suite.Run(t, new(sqlserverTest))
 }
+
+func (sst *sqlserverTest) TestWindowFunctionRuns() {
+	var ranks []int64
+	err := sst.db.From("entry").
+		Select(goqu.ROW_NUMBER().Over(goqu.W().OrderBy(goqu.C("int").Desc()))).
+		Order(goqu.C("int").Asc()).
+		ScanVals(&ranks)
+	sst.NoError(err)
+	sst.Equal([]int64{10, 9, 8, 7, 6, 5, 4, 3, 2, 1}, ranks)
+}
+
+func (sst *sqlserverTest) TestCommonTableExpressionsRun() {
+	var ints []int64
+	err := sst.db.From("small").
+		With("small", sst.db.From("entry").Select("int").Where(goqu.C("int").Lt(3))).
+		Order(goqu.C("int").Asc()).
+		ScanVals(&ints)
+	sst.NoError(err)
+	sst.Equal([]int64{0, 1, 2}, ints)
+
+	var ns []int64
+	d := goqu.Dialect("sqlserver")
+	err = sst.db.From("c").
+		WithRecursive("c(n)", d.Select(goqu.L("1")).UnionAll(d.From("c").Select(goqu.L("n + 1")).Where(goqu.L("n < 3")))).
+		ScanVals(&ns)
+	sst.NoError(err)
+	sst.Equal([]int64{1, 2, 3}, ns)
+}
