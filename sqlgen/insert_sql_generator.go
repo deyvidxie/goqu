@@ -5,6 +5,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/internal/util"
 	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
@@ -196,6 +197,10 @@ func (isg *insertSQLGenerator) insertValsSQL(b sqlbuilder.SQLBuilder, ic exp.Ins
 }
 
 func (isg *insertSQLGenerator) insertColumnsFromSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
+	if util.IsNilOrNilPointer(ic.From()) {
+		b.SetError(errNilSubquery(ic.From()))
+		return
+	}
 	isg.insertColumnsSQL(b, ic.Cols())
 	if b.Error() != nil {
 		return
@@ -269,6 +274,10 @@ func (isg *insertSQLGenerator) defaultValuesSQL(b sqlbuilder.SQLBuilder) {
 }
 
 func (isg *insertSQLGenerator) insertFromSQL(b sqlbuilder.SQLBuilder, ae exp.AppendableExpression) {
+	if util.IsNilOrNilPointer(ae) {
+		b.SetError(errNilSubquery(ae))
+		return
+	}
 	b.WriteRunes(isg.DialectOptions().SpaceRune)
 	ae.AppendSQL(b)
 }

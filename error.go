@@ -101,3 +101,7 @@ func checkOrder(order []exp.OrderedExpression, errEmpty, errNil error) error {
 		return nil
 	}
 }
+
+func errNilSubquery(source interface{}) error {
+	return errors.NewInvalidExpressionError("subquery must not be nil, got %T", source)
+}

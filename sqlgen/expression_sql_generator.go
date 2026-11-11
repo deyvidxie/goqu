@@ -114,22 +114,12 @@ func (esg *expressionSQLGenerator) Generate(b sqlbuilder.SQLBuilder, val interfa
 }
 
 func (esg *expressionSQLGenerator) valuerSQL(b sqlbuilder.SQLBuilder, v driver.Valuer) {
-	dVal, err := valuerValue(v)
+	dVal, err := util.ValuerValue(v)
 	if err != nil {
 		b.SetError(errValuerValue(v, err))
 		return
 	}
 	esg.Generate(b, dVal)
-}
-
-var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
-
-// See https://github.com/golang/go/commit/0ce1d79a6a771f7449ec493b993ed2a720917870
-func valuerValue(v driver.Valuer) (driver.Value, error) {
-	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr && rv.IsNil() && rv.Type().Elem().Implements(valuerReflectType) {
-		return nil, nil
-	}
-	return v.Value()
 }
 
 func (esg *expressionSQLGenerator) typedSliceSQL(b sqlbuilder.SQLBuilder, val any) bool {
@@ -316,6 +306,10 @@ func (esg *expressionSQLGenerator) placeHolderSQL(b sqlbuilder.SQLBuilder, i int
 
 // Generates creates the sql for a sub select on a Dataset
 func (esg *expressionSQLGenerator) appendableExpressionSQL(b sqlbuilder.SQLBuilder, a exp.AppendableExpression) {
+	if util.IsNilOrNilPointer(a) {
+		b.SetError(errNilSubquery(a))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	a.AppendSQL(b)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
@@ -1033,7 +1027,7 @@ func intervalCount(dialect string, count any, unit exp.IntervalUnit, fractionalS
 	case exp.Expression:
 		return count, nil
 	case driver.Valuer:
-		resolved, err := valuerValue(v)
+		resolved, err := util.ValuerValue(v)
 		if err != nil {
 			return nil, errIntervalCountValue(err)
 		}
@@ -1324,7 +1318,7 @@ func jsonCandidate(v interface{}) (interface{}, error) {
 	}
 	if _, marshals := v.(json.Marshaler); !marshals {
 		if valuer, ok := v.(driver.Valuer); ok {
-			value, err := valuerValue(valuer)
+			value, err := util.ValuerValue(valuer)
 			if err != nil {
 				return nil, errJSONCandidate(err)
 			}
@@ -1463,6 +1457,10 @@ func (esg *expressionSQLGenerator) compoundExpressionSQL(b sqlbuilder.SQLBuilder
 		b.Write(esg.dialectOptions.IntersectFragment)
 	case exp.IntersectAllCompoundType:
 		b.Write(esg.dialectOptions.IntersectAllFragment)
+	}
+	if util.IsNilOrNilPointer(compound.RHS()) {
+		b.SetError(errNilSubquery(compound.RHS()))
+		return
 	}
 	if esg.dialectOptions.WrapCompoundsInParens {
 		b.WriteRunes(esg.dialectOptions.LeftParenRune)

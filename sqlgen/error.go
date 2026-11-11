@@ -338,3 +338,7 @@ func errListComparedToColumn(op exp.BooleanOperation, val interface{}) error {
 func errStructWithoutColumns(v interface{}) error {
 	return errors.NewInvalidExpressionError("%T has no columns", v)
 }
+
+func errNilSubquery(a exp.AppendableExpression) error {
+	return errors.NewInvalidExpressionError("subquery must not be nil, got %T", a)
+}

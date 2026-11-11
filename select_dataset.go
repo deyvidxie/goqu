@@ -305,10 +305,14 @@ func (sd *SelectDataset) From(from ...interface{}) *SelectDataset {
 	var sources []interface{}
 	numSources := 0
 	for _, source := range from {
-		if ds, ok := source.(*SelectDataset); ok && !ds.clauses.HasAlias() {
+		ds, isDataset := source.(*SelectDataset)
+		switch {
+		case isDataset && ds == nil:
+			return sd.copy(sd.clauses).SetError(errNilSubquery(source))
+		case isDataset && !ds.clauses.HasAlias():
 			numSources++
 			sources = append(sources, ds.As(fmt.Sprintf("t%d", numSources)))
-		} else {
+		default:
 			sources = append(sources, source)
 		}
 	}
@@ -553,32 +557,35 @@ func (sd *SelectDataset) ClearOffset() *SelectDataset {
 // If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
 // See examples.
 func (sd *SelectDataset) Union(other *SelectDataset) *SelectDataset {
-	return sd.withCompound(exp.UnionCompoundType, other.CompoundFromSelf())
+	return sd.withCompound(exp.UnionCompoundType, other)
 }
 
 // Creates an UNION ALL statement with another dataset.
 // If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
 // See examples.
 func (sd *SelectDataset) UnionAll(other *SelectDataset) *SelectDataset {
-	return sd.withCompound(exp.UnionAllCompoundType, other.CompoundFromSelf())
+	return sd.withCompound(exp.UnionAllCompoundType, other)
 }
 
 // Creates an INTERSECT statement with another dataset.
 // If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
 // See examples.
 func (sd *SelectDataset) Intersect(other *SelectDataset) *SelectDataset {
-	return sd.withCompound(exp.IntersectCompoundType, other.CompoundFromSelf())
+	return sd.withCompound(exp.IntersectCompoundType, other)
 }
 
 // Creates an INTERSECT ALL statement with another dataset.
 // If this or the other dataset has a limit or offset it will use that dataset as a subselect in the FROM clause.
 // See examples.
 func (sd *SelectDataset) IntersectAll(other *SelectDataset) *SelectDataset {
-	return sd.withCompound(exp.IntersectAllCompoundType, other.CompoundFromSelf())
+	return sd.withCompound(exp.IntersectAllCompoundType, other)
 }
 
-func (sd *SelectDataset) withCompound(ct exp.CompoundType, other exp.AppendableExpression) *SelectDataset {
-	ce := exp.NewCompoundExpression(ct, other)
+func (sd *SelectDataset) withCompound(ct exp.CompoundType, other *SelectDataset) *SelectDataset {
+	if other == nil {
+		return sd.copy(sd.clauses).SetError(errNilSubquery(other))
+	}
+	ce := exp.NewCompoundExpression(ct, other.CompoundFromSelf())
 	ret := sd.CompoundFromSelf()
 	ret.clauses = ret.clauses.CompoundsAppend(ce)
 	return ret

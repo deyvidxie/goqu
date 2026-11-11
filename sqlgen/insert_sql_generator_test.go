@@ -1414,3 +1414,15 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_withReturning() {
 func TestInsertSQLGenerator(t *testing.T) {
 	suite.Run(t, new(insertSQLGeneratorSuite))
 }
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_nilFromSubquery() {
+	var nilDS *goqu.SelectDataset
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", "")).SetFrom(nilDS)
+	const errNil = "goqu: subquery must not be nil, got *goqu.SelectDataset"
+	for _, prepared := range []bool{false, true} {
+		igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			insertTestCase{clause: ic, err: errNil, isPrepared: prepared},
+			insertTestCase{clause: ic.SetCols(exp.NewColumnListExpression(nil, "db", "a")), err: errNil, isPrepared: prepared},
+		)
+	}
+}
