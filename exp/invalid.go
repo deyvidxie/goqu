@@ -15,7 +15,15 @@ func (invalidExpression) isInvalid() {}
 func emptyAppendList(cl ColumnListExpression, method string) ColumnListExpression {
 	invalid := newInvalidExpression(errEmptyAppend(method))
 	if cl == nil {
-		return NewColumnListExpression(nil, "db", invalid)
+		return NewColumnListExpression(nil, "", invalid)
 	}
 	return cl.Append(invalid)
+}
+
+func emptyAppendExpressions(method string) []Expression {
+	return []Expression{newInvalidExpression(errEmptyAppend(method))}
+}
+
+func isSetButEmpty(cl ColumnListExpression) bool {
+	return cl != nil && cl.IsEmpty()
 }

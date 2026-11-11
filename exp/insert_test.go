@@ -92,7 +92,6 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowsWithoutCo
 	type skipped struct {
 		ID int `db:"id" goqu:"skipinsert"`
 	}
-	var err error
 	for name, c := range map[string]struct {
 		rows []interface{}
 		want string
@@ -110,7 +109,7 @@ func (iets *insertExpressionTestSuite) TestNewInsertExpression_withRowsWithoutCo
 			want: "goqu: insert rows have no columns",
 		},
 	} {
-		_, err = exp.NewInsertExpression("db", c.rows...)
+		_, err := exp.NewInsertExpression("db", c.rows...)
 		iets.EqualError(err, c.want, name)
 		iets.True(errors.IsInvalidExpression(err), name)
 	}

@@ -535,9 +535,9 @@ func (uds *updateDatasetSuite) TestEmptyOrder() {
 	}{
 		"Order":            {bd.Order(noOrder...), emptyOrder},
 		"Order nil":        {bd.Order(nil), nilOrder},
-		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
+		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one argument"},
 		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
-		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
+		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one argument"},
 		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
 		"from select":      {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Update().Set(goqu.Record{"a": 1}), emptyOrder},
 	} {

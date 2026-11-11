@@ -238,7 +238,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 	)
 }
 
-func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
+func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b"})
@@ -249,6 +249,17 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
 			clause: uc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
 			err:    "goqu: WhereAppend requires at least one argument",
 		},
+	)
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsOrderByOnUpdate = true
+	a := exp.NewIdentifierExpression("", "", "a")
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
+		updateTestCase{clause: uc.OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
+		updateTestCase{clause: uc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
+		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
 	)
 }
 

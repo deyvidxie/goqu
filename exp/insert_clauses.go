@@ -95,8 +95,11 @@ func (ic *insertClauses) HasCols() bool {
 
 func (ic *insertClauses) ColsAppend(cl ColumnListExpression) InsertClauses {
 	ret := ic.clone()
-	if cl.IsEmpty() {
+	if cl == nil || cl.IsEmpty() {
 		ret.cols = emptyAppendList(ret.cols, "ColsAppend")
+		return ret
+	}
+	if isSetButEmpty(ret.cols) {
 		return ret
 	}
 	if ret.cols == nil {
@@ -189,6 +192,9 @@ func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {
 }
 
 func (ic *insertClauses) ValsAppend(vals [][]interface{}) InsertClauses {
+	if ic.values != nil && len(ic.values) == 0 {
+		return ic
+	}
 	ret := ic.clone()
 	newVals := make([][]interface{}, 0, len(ic.values)+len(vals))
 	newVals = append(newVals, ic.values...)

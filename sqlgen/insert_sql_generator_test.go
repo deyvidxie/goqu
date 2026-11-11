@@ -280,6 +280,21 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 				err:        "goqu: ValsAppend requires at least one argument",
 				isPrepared: prepared,
 			},
+			insertTestCase{
+				clause:     ic.ColsAppend(exp.NewColumnListExpression(nil, "db")),
+				err:        "goqu: ColsAppend requires at least one argument",
+				isPrepared: prepared,
+			},
+			insertTestCase{
+				clause:     ic.SetCols(exp.NewColumnListExpression(nil, "db")).ColsAppend(cols).SetVals([][]interface{}{{1, 2}}),
+				err:        emptyCols,
+				isPrepared: prepared,
+			},
+			insertTestCase{
+				clause:     ic.SetVals([][]interface{}{}).ValsAppend([][]interface{}{{1}}),
+				err:        noVals,
+				isPrepared: prepared,
+			},
 		)
 	}
 	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()), cases...)

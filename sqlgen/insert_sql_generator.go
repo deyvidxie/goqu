@@ -129,6 +129,14 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 }
 
 func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
+	if cols := ic.Cols(); cols != nil {
+		for _, col := range cols.Columns() {
+			if invalid, ok := col.(exp.InvalidExpression); ok {
+				b.SetError(invalid.Err())
+				return insertSourceValues
+			}
+		}
+	}
 	switch {
 	case insertSourceCount(ic) > 1:
 		b.SetError(errMultipleSourcesForInsert)
@@ -136,10 +144,6 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertCla
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {
 			b.SetError(err)
-			return insertSourceValues
-		}
-		if !ie.IsInsertFrom() && len(ie.Vals()) == 0 {
-			b.SetError(errEmptyRowsList)
 			return insertSourceValues
 		}
 		isg.InsertExpressionSQL(b, ie)

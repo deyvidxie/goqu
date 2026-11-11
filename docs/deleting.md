@@ -31,7 +31,7 @@ DELETE FROM "table"
 
 If you already have a `SelectDataset` you can invoke `Delete()` to get a `DeleteDataset`
 
-**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` from the `SelectDataset`; a dialect without `ORDER BY` or `LIMIT` on `DELETE` returns an `UnsupportedError` for them
+**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` from the `SelectDataset`
 
 ```go
 

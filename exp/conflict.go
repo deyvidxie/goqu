@@ -91,7 +91,7 @@ func (c conflictUpdate) Update() interface{} {
 
 func (c *conflictUpdate) Where(expressions ...Expression) ConflictUpdateExpression {
 	if len(expressions) == 0 {
-		expressions = []Expression{newInvalidExpression(errEmptyAppend("DoUpdate Where"))}
+		expressions = emptyAppendExpressions("DoUpdate(...).Where")
 	}
 	if c.whereClause == nil {
 		c.whereClause = NewExpressionList(AndType, expressions...)

@@ -33,9 +33,9 @@ var (
 	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
 	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition`)
 	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition`)
-	errEmptyOrderList        = errors.NewInvalidExpressionError(`empty ORDER BY list`)
-	errEmptyGroupByList      = errors.NewInvalidExpressionError(`empty GROUP BY list`)
-	errEmptySelectList       = errors.NewInvalidExpressionError(`empty SELECT column list`)
+	errEmptyOrderList        = errors.NewInvalidExpressionError(`empty Order list`)
+	errEmptyGroupByList      = errors.NewInvalidExpressionError(`empty GroupBy list`)
+	errEmptySelectList       = errors.NewInvalidExpressionError(`empty Select list`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 

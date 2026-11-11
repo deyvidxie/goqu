@@ -151,8 +151,11 @@ func (c *selectClauses) Select() ColumnListExpression {
 
 func (c *selectClauses) SelectAppend(cl ColumnListExpression) SelectClauses {
 	ret := c.clone()
-	if cl.IsEmpty() {
+	if cl == nil || cl.IsEmpty() {
 		ret.selectColumns = emptyAppendList(ret.selectColumns, "SelectAppend")
+		return ret
+	}
+	if isSetButEmpty(ret.selectColumns) {
 		return ret
 	}
 	ret.selectColumns = ret.selectColumns.Append(cl.Columns()...)
@@ -221,7 +224,7 @@ func (c *selectClauses) ClearWhere() SelectClauses {
 
 func (c *selectClauses) WhereAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		expressions = []Expression{newInvalidExpression(errEmptyAppend("WhereAppend"))}
+		expressions = emptyAppendExpressions("WhereAppend")
 	}
 	ret := c.clone()
 	if ret.where == nil {
@@ -244,7 +247,7 @@ func (c *selectClauses) ClearHaving() SelectClauses {
 
 func (c *selectClauses) HavingAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		expressions = []Expression{newInvalidExpression(errEmptyAppend("HavingAppend"))}
+		expressions = emptyAppendExpressions("HavingAppend")
 	}
 	ret := c.clone()
 	if ret.having == nil {
@@ -267,7 +270,7 @@ func (c *selectClauses) ClearQualify() SelectClauses {
 
 func (c *selectClauses) QualifyAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		expressions = []Expression{newInvalidExpression(errEmptyAppend("QualifyAppend"))}
+		expressions = emptyAppendExpressions("QualifyAppend")
 	}
 	ret := c.clone()
 	if ret.qualify == nil {
@@ -314,6 +317,9 @@ func (c *selectClauses) OrderAppend(oes ...OrderedExpression) SelectClauses {
 		ret.order = emptyAppendList(ret.order, "OrderAppend")
 		return ret
 	}
+	if isSetButEmpty(c.order) {
+		return c
+	}
 	if c.order == nil {
 		return c.SetOrder(oes...)
 	}
@@ -328,6 +334,9 @@ func (c *selectClauses) OrderPrepend(oes ...OrderedExpression) SelectClauses {
 		ret.order = emptyAppendList(ret.order, "OrderPrepend")
 		return ret
 	}
+	if isSetButEmpty(c.order) {
+		return c
+	}
 	if c.order == nil {
 		return c.SetOrder(oes...)
 	}
@@ -341,10 +350,13 @@ func (c *selectClauses) GroupBy() ColumnListExpression {
 }
 
 func (c *selectClauses) GroupByAppend(cl ColumnListExpression) SelectClauses {
-	if cl.IsEmpty() {
+	if cl == nil || cl.IsEmpty() {
 		ret := c.clone()
 		ret.groupBy = emptyAppendList(ret.groupBy, "GroupByAppend")
 		return ret
+	}
+	if isSetButEmpty(c.groupBy) {
+		return c
 	}
 	if c.groupBy == nil {
 		return c.SetGroupBy(cl)

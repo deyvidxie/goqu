@@ -401,7 +401,7 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"omitempty zero struct":   {goqu.Insert("t").Rows(omitted{}), "goqu: insert rows have no columns"},
 		"no vals":                 {goqu.Insert("t").Vals(), emptyVals},
 		"vals then empty Vals()":  {goqu.Insert("t").Vals(goqu.Vals{1}).Vals(), emptyVals},
-		"ColsAppend()":            {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one column"},
+		"ColsAppend()":            {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one argument"},
 		"empty cols":              {goqu.Insert("t").Cols(), emptyCols},
 		"empty cols with vals":    {goqu.Insert("t").Cols().Vals(goqu.Vals{1}), emptyCols},
 		"empty cols with query":   {goqu.Insert("t").Cols().FromQuery(goqu.From("s")), emptyCols},
@@ -471,6 +471,7 @@ func (ids *insertDatasetSuite) TestValsWithoutCols() {
 		}
 	}
 	_, _, err := goqu.Insert("t").Vals(goqu.Vals{1, "a"}, goqu.Vals{2}).ToSQL()
+	ids.EqualError(err, "goqu: rows with different value length, expected 2 got 1")
 	ids.True(goqu.IsInvalidExpression(err), "%v", err)
 }
 

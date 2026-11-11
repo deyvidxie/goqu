@@ -132,7 +132,7 @@ func (uc *updateClauses) ClearWhere() UpdateClauses {
 
 func (uc *updateClauses) WhereAppend(expressions ...Expression) UpdateClauses {
 	if len(expressions) == 0 {
-		expressions = []Expression{newInvalidExpression(errEmptyAppend("WhereAppend"))}
+		expressions = emptyAppendExpressions("WhereAppend")
 	}
 	ret := uc.clone()
 	if ret.where == nil {
@@ -169,6 +169,9 @@ func (uc *updateClauses) OrderAppend(oes ...OrderedExpression) UpdateClauses {
 		ret.order = emptyAppendList(ret.order, "OrderAppend")
 		return ret
 	}
+	if isSetButEmpty(uc.order) {
+		return uc
+	}
 	if uc.order == nil {
 		return uc.SetOrder(oes...)
 	}
@@ -182,6 +185,9 @@ func (uc *updateClauses) OrderPrepend(oes ...OrderedExpression) UpdateClauses {
 		ret := uc.clone()
 		ret.order = emptyAppendList(ret.order, "OrderPrepend")
 		return ret
+	}
+	if isSetButEmpty(uc.order) {
+		return uc
 	}
 	if uc.order == nil {
 		return uc.SetOrder(oes...)
