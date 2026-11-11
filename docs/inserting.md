@@ -541,16 +541,20 @@ error on a dataset if one has not already been set to simplify query building.
 Set an Error on a dataset:
 
 ```go
+type emptyFieldError struct{ field string }
+
+func (e emptyFieldError) Error() string { return e.field + " is empty" }
+
 func GetInsert(name string, value string) *goqu.InsertDataset {
 
     var ds = goqu.Insert("test")
 
-    if len(field) == 0 {
-        return ds.SetError(fmt.Errorf("name is empty"))
+    if len(name) == 0 {
+        return ds.SetError(emptyFieldError{field: "name"})
     }
 
     if len(value) == 0 {
-        return ds.SetError(fmt.Errorf("value is empty"))
+        return ds.SetError(emptyFieldError{field: "value"})
     }
 
     return ds.Rows(goqu.Record{name: value})
@@ -562,10 +566,10 @@ This error is returned on any subsequent call to `Error` or `ToSQL`:
 
 ```go
 var field, value string
-ds = GetInsert(field, value)
+ds := GetInsert(field, value)
 fmt.Println(ds.Error())
 
-sql, args, err = ds.ToSQL()
+_, _, err := ds.ToSQL()
 fmt.Println(err)
 ```
 

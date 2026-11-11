@@ -2,11 +2,13 @@
 
 Dialects allow goqu to build the correct SQL for each database. Dialects packaged with `goqu`:
 
-* [mysql](./dialect/mysql/mysql.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/mysql"`
-* [postgres](./dialect/postgres/postgres.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/postgres"`
-* [sqlite3](./dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`
-* [sqlserver](./dialect/sqlserver/sqlserver.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"`
-* [duckdb](./dialect/duckdb/duckdb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"`
+* [mysql](../dialect/mysql/mysql.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/mysql"`, which also registers:
+  * `mysql8` - MySQL 8.0: CTEs, window functions, `LATERAL`, `FOR SHARE`/`NOWAIT`/`SKIP LOCKED`/`OF` locking, row-alias upserts
+  * `mysql8nano` - `mysql8` with nanosecond time literals
+* [postgres](../dialect/postgres/postgres.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/postgres"`
+* [sqlite3](../dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`
+* [sqlserver](../dialect/sqlserver/sqlserver.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"`
+* [duckdb](../dialect/duckdb/duckdb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"`
 
 **NOTE** Dialects work like drivers in go where they are not registered until you import the package.
 
@@ -183,7 +185,7 @@ Most SQL dialects share a majority of their syntax, for this reason `goqu` has a
 
 When creating a new `SQLDialect` you just need to override the default values that are documented in [`SQLDialectOptions`](http://godoc.org/github.com/doug-martin/goqu/#SQLDialectOptions).
 
-Take a look at [`postgres`](./dialect/postgres/postgres.go), [`mysql`](./dialect/mysql/mysql.go) and [`sqlite3`](./dialect/sqlite3/sqlite3.go) for examples.
+Take a look at [`postgres`](../dialect/postgres/postgres.go), [`mysql`](../dialect/mysql/mysql.go) and [`sqlite3`](../dialect/sqlite3/sqlite3.go) for examples.
 
 ### Creating a custom dialect
 
@@ -212,5 +214,5 @@ Output:
 SELECT * FROM `test` []
 ```
 
-For more examples look at [`postgres`](./dialect/postgres/postgres.go), [`mysql`](./dialect/mysql/mysql.go) and [`sqlite3`](./dialect/sqlite3/sqlite3.go) for examples.
+For more examples look at [`postgres`](../dialect/postgres/postgres.go), [`mysql`](../dialect/mysql/mysql.go) and [`sqlite3`](../dialect/sqlite3/sqlite3.go) for examples.
 

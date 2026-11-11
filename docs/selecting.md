@@ -921,12 +921,16 @@ error on a dataset if one has not already been set to simplify query building.
 Set an Error on a dataset:
 
 ```go
+type emptyFieldError struct{ field string }
+
+func (e emptyFieldError) Error() string { return e.field + " is empty" }
+
 func GetSelect(name string) *goqu.SelectDataset {
 
     var ds = goqu.From("test")
 
     if len(name) == 0 {
-        return ds.SetError(fmt.Errorf("name is empty"))
+        return ds.SetError(emptyFieldError{field: "name"})
     }
 
     return ds.Select(name)
@@ -938,10 +942,10 @@ This error is returned on any subsequent call to `Error` or `ToSQL`:
 
 ```go
 var name string = ""
-ds = GetSelect(name)
+ds := GetSelect(name)
 fmt.Println(ds.Error())
 
-sql, args, err = ds.ToSQL()
+_, _, err := ds.ToSQL()
 fmt.Println(err)
 ```
 
