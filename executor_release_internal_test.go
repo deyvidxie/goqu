@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exec"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type builderCapturingQueryFactory struct {
-	builder   sb.SQLBuilder
+	builder   sqlbuilder.SQLBuilder
 	sqlAtCall string
 }
 
@@ -18,7 +18,7 @@ func (f *builderCapturingQueryFactory) FromSQL(string, ...any) exec.QueryExecuto
 	return exec.QueryExecutor{}
 }
 
-func (f *builderCapturingQueryFactory) FromSQLBuilder(b sb.SQLBuilder) exec.QueryExecutor {
+func (f *builderCapturingQueryFactory) FromSQLBuilder(b sqlbuilder.SQLBuilder) exec.QueryExecutor {
 	f.builder = b
 	f.sqlAtCall, _, _ = b.ToSQL()
 	return exec.QueryExecutor{}

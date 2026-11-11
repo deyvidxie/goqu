@@ -3,7 +3,7 @@ package exp
 import (
 	"fmt"
 
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 // Behaviors
@@ -193,7 +193,7 @@ type (
 
 	AppendableExpression interface {
 		Expression
-		AppendSQL(b sb.SQLBuilder)
+		AppendSQL(b sqlbuilder.SQLBuilder)
 		// Returns the alias value as an identiier expression
 		GetAs() IdentifierExpression
 

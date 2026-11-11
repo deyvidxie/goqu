@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -14,7 +14,7 @@ type (
 	}
 	QueryFactory interface {
 		FromSQL(sql string, args ...interface{}) QueryExecutor
-		FromSQLBuilder(b sb.SQLBuilder) QueryExecutor
+		FromSQLBuilder(b sqlbuilder.SQLBuilder) QueryExecutor
 	}
 	querySupport struct {
 		de      DbExecutor
@@ -30,7 +30,7 @@ func (qs *querySupport) FromSQL(query string, args ...interface{}) QueryExecutor
 	return newQueryExecutor(qs.tagName, qs.de, nil, query, args...)
 }
 
-func (qs *querySupport) FromSQLBuilder(b sb.SQLBuilder) QueryExecutor {
+func (qs *querySupport) FromSQLBuilder(b sqlbuilder.SQLBuilder) QueryExecutor {
 	query, args, err := b.ToSQL()
 	return newQueryExecutor(qs.tagName, qs.de, err, query, args...)
 }

@@ -1,10 +1,9 @@
-package sb
+package sqlbuilder
 
 import (
 	"bytes"
 	"slices"
 	"strconv"
-	"sync"
 )
 
 const (
@@ -12,57 +11,38 @@ const (
 	float64Bits = 64
 )
 
-// maxPooledBufferCap is the largest buffer capacity that is kept when a builder is released back to the pool.
-// Larger buffers (e.g. from a huge bulk insert) are dropped so a single big statement does not pin memory.
-const maxPooledBufferCap = 64 << 10
-
-// Builder that is composed of a bytes.Buffer. It is used internally and by adapters to build SQL statements
 type (
 	SQLBuilder interface {
 		Error() error
+		// SetError keeps the first error; writes after an error are no-ops.
 		SetError(err error) SQLBuilder
 		WriteArg(i ...any) SQLBuilder
 		Write(p []byte) SQLBuilder
 		WriteStrings(ss ...string) SQLBuilder
 		WriteRunes(r ...rune) SQLBuilder
-		// WriteInt appends the base 10 representation of i without allocating.
 		WriteInt(i int64) SQLBuilder
 		// WriteFloat appends f formatted with the 'f' format and the smallest precision that round trips.
 		WriteFloat(f float64) SQLBuilder
-		// GrowArgs makes room for n more arguments (only useful for prepared statements).
 		GrowArgs(n int) SQLBuilder
-		// GrowBuffer makes room for n more bytes of SQL.
 		GrowBuffer(n int) SQLBuilder
 		IsPrepared() bool
+		// CurrentArgPosition is the 1-based number of the next placeholder; WriteArg advances it by len(i).
 		CurrentArgPosition() int
+		// ToSQL returns non-nil args when err is nil.
 		ToSQL() (sql string, args []any, err error)
 	}
 	sqlBuilder struct {
-		buf *bytes.Buffer
-		// True if the sql should not be interpolated
-		isPrepared bool
-		// Current Number of arguments, used by adapters that need positional placeholders
+		buf                *bytes.Buffer
+		isPrepared         bool
 		currentArgPosition int
 		args               []any
 		err                error
-		// released is true while the builder sits in the pool, it guards against a double release
-		released bool
+		released           bool
 	}
 )
 
-var builderPool = sync.Pool{
-	New: func() any {
-		return newSQLBuilder(false)
-	},
-}
-
-// NewSQLBuilder returns a builder. Builders come from a pool; call ReleaseSQLBuilder once you are done with one
-// (after ToSQL) to make it available for reuse. Not releasing a builder is always safe, it is just garbage collected.
-func NewSQLBuilder(isPrepared bool) SQLBuilder {
-	b, _ := builderPool.Get().(*sqlBuilder)
-	b.released = false
-	b.isPrepared = isPrepared
-	return b
+func New(isPrepared bool) SQLBuilder {
+	return newSQLBuilder(isPrepared)
 }
 
 func newSQLBuilder(isPrepared bool) *sqlBuilder {
@@ -73,17 +53,19 @@ func newSQLBuilder(isPrepared bool) *sqlBuilder {
 	}
 }
 
-// ReleaseSQLBuilder returns a builder to the pool. The builder must not be used afterwards. The sql string and the
-// args returned from ToSQL stay valid: the string is a copy and the args slice is never reused. Releasing a builder
-// that is already in the pool is a no-op.
-func ReleaseSQLBuilder(b SQLBuilder) {
-	sbImpl, ok := b.(*sqlBuilder)
-	if !ok || sbImpl.released || sbImpl.buf.Cap() > maxPooledBufferCap {
-		return
+func (b *sqlBuilder) Reuse(isPrepared bool) {
+	b.released = false
+	b.isPrepared = isPrepared
+}
+
+// Recycle leaves the sql string and args returned from ToSQL valid.
+func (b *sqlBuilder) Recycle(maxBufferCap int) bool {
+	if b.released || b.buf.Cap() > maxBufferCap {
+		return false
 	}
-	sbImpl.reset()
-	sbImpl.released = true
-	builderPool.Put(sbImpl)
+	b.reset()
+	b.released = true
+	return true
 }
 
 func (b *sqlBuilder) reset() {
@@ -133,7 +115,6 @@ func (b *sqlBuilder) WriteRunes(rs ...rune) SQLBuilder {
 
 func (b *sqlBuilder) WriteInt(i int64) SQLBuilder {
 	if b.err == nil {
-		// AvailableBuffer lets us format straight into the buffer's spare capacity, no scratch space needed.
 		b.buf.Write(strconv.AppendInt(b.buf.AvailableBuffer(), i, decimalBase))
 	}
 	return b
@@ -160,17 +141,14 @@ func (b *sqlBuilder) GrowBuffer(n int) SQLBuilder {
 	return b
 }
 
-// Returns true if the sql is a prepared statement
 func (b *sqlBuilder) IsPrepared() bool {
 	return b.isPrepared
 }
 
-// Returns the position of the next argument, used by dialects with numbered placeholders
 func (b *sqlBuilder) CurrentArgPosition() int {
 	return b.currentArgPosition
 }
 
-// Adds an argument to the builder, used when IsPrepared is true
 func (b *sqlBuilder) WriteArg(i ...any) SQLBuilder {
 	if b.err == nil {
 		b.currentArgPosition += len(i)
@@ -179,7 +157,6 @@ func (b *sqlBuilder) WriteArg(i ...any) SQLBuilder {
 	return b
 }
 
-// Returns the sql string, and arguments.
 func (b *sqlBuilder) ToSQL() (sql string, args []any, err error) {
 	if b.err != nil {
 		return sql, args, b.err

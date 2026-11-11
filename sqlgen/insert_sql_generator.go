@@ -5,6 +5,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -12,7 +13,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	InsertSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, clauses exp.InsertClauses)
+		Generate(b sqlbuilder.SQLBuilder, clauses exp.InsertClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -21,7 +22,7 @@ type (
 		CommonSQLGenerator
 	}
 	conflictUpdateBuilder struct {
-		sb.SQLBuilder
+		sqlbuilder.SQLBuilder
 		rowAlias     exp.IdentifierExpression
 		usesExcluded bool
 	}
@@ -45,7 +46,7 @@ func NewInsertSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Inser
 }
 
 func (isg *insertSQLGenerator) Generate(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	clauses exp.InsertClauses,
 ) {
 	if !clauses.HasInto() {
@@ -79,7 +80,7 @@ func (isg *insertSQLGenerator) Generate(
 }
 
 // Adds the correct fragment to being an INSERT statement
-func (isg *insertSQLGenerator) InsertBeginSQL(b sb.SQLBuilder, o exp.ConflictExpression) {
+func (isg *insertSQLGenerator) InsertBeginSQL(b sqlbuilder.SQLBuilder, o exp.ConflictExpression) {
 	if isg.rendersInsertIgnore(o) {
 		b.Write(isg.DialectOptions().InsertIgnoreClause)
 	} else {
@@ -98,7 +99,7 @@ func (isg *insertSQLGenerator) rendersInsertIgnore(o exp.ConflictExpression) boo
 	return isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget
 }
 
-func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+func (isg *insertSQLGenerator) InsertSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
 	source := isg.insertSourceSQL(b, ic)
 	if source == insertSourceComplete || b.Error() != nil {
 		return
@@ -128,7 +129,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sb.SQLBuilder, ic exp.InsertClauses) 
 	isg.insertAliasAndConflictSQL(b, ic, rowAlias, rendered)
 }
 
-func (isg *insertSQLGenerator) insertSourceSQL(b sb.SQLBuilder, ic exp.InsertClauses) insertSource {
+func (isg *insertSQLGenerator) insertSourceSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) insertSource {
 	if cols := ic.Cols(); cols != nil {
 		for _, col := range cols.Columns() {
 			if invalid, ok := col.(exp.InvalidExpression); ok {
@@ -179,7 +180,7 @@ func insertSourceCount(ic exp.InsertClauses) int {
 	return count
 }
 
-func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+func (isg *insertSQLGenerator) insertValsSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
 	vals := ic.Vals()
 	switch {
 	case len(vals) == 0:
@@ -194,7 +195,7 @@ func (isg *insertSQLGenerator) insertValsSQL(b sb.SQLBuilder, ic exp.InsertClaus
 	}
 }
 
-func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.InsertClauses) {
+func (isg *insertSQLGenerator) insertColumnsFromSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
 	isg.insertColumnsSQL(b, ic.Cols())
 	if b.Error() != nil {
 		return
@@ -214,7 +215,7 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.Inse
 			b.SetError(err)
 			return
 		}
-		writeFrom = func(b sb.SQLBuilder) { b.WriteStrings(sql).WriteArg(args...) }
+		writeFrom = func(b sqlbuilder.SQLBuilder) { b.WriteStrings(sql).WriteArg(args...) }
 	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
 	if err != nil {
@@ -235,7 +236,7 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sb.SQLBuilder, ic exp.Inse
 }
 
 func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	ic exp.InsertClauses,
 	rowAlias exp.IdentifierExpression,
 	rendered renderedConflictUpdate,
@@ -250,7 +251,7 @@ func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
 	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
 }
 
-func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.InsertExpression) {
+func (isg *insertSQLGenerator) InsertExpressionSQL(b sqlbuilder.SQLBuilder, ie exp.InsertExpression) {
 	switch {
 	case ie.IsInsertFrom():
 		isg.insertFromSQL(b, ie.From())
@@ -263,18 +264,18 @@ func (isg *insertSQLGenerator) InsertExpressionSQL(b sb.SQLBuilder, ie exp.Inser
 }
 
 // Adds the DefaultValuesFragment to an SQL statement
-func (isg *insertSQLGenerator) defaultValuesSQL(b sb.SQLBuilder) {
+func (isg *insertSQLGenerator) defaultValuesSQL(b sqlbuilder.SQLBuilder) {
 	b.Write(isg.DialectOptions().DefaultValuesFragment)
 }
 
-func (isg *insertSQLGenerator) insertFromSQL(b sb.SQLBuilder, ae exp.AppendableExpression) {
+func (isg *insertSQLGenerator) insertFromSQL(b sqlbuilder.SQLBuilder, ae exp.AppendableExpression) {
 	b.WriteRunes(isg.DialectOptions().SpaceRune)
 	ae.AppendSQL(b)
 }
 
 func (isg *insertSQLGenerator) insertFromRowAliasSQL(
-	b sb.SQLBuilder,
-	writeFrom func(sb.SQLBuilder),
+	b sqlbuilder.SQLBuilder,
+	writeFrom func(sqlbuilder.SQLBuilder),
 	cols exp.ColumnListExpression,
 	rowAlias exp.IdentifierExpression,
 ) {
@@ -300,14 +301,14 @@ func unqualifiedColumns(cols exp.ColumnListExpression) exp.ColumnListExpression 
 }
 
 // Adds the columns list to an insert statement
-func (isg *insertSQLGenerator) insertColumnsSQL(b sb.SQLBuilder, cols exp.ColumnListExpression) {
+func (isg *insertSQLGenerator) insertColumnsSQL(b sqlbuilder.SQLBuilder, cols exp.ColumnListExpression) {
 	b.WriteRunes(isg.DialectOptions().SpaceRune, isg.DialectOptions().LeftParenRune)
 	isg.ExpressionSQLGenerator().Generate(b, cols)
 	b.WriteRunes(isg.DialectOptions().RightParenRune)
 }
 
 // Adds the values clause to an SQL statement
-func (isg *insertSQLGenerator) insertValuesSQL(b sb.SQLBuilder, colCount int, values [][]interface{}) {
+func (isg *insertSQLGenerator) insertValuesSQL(b sqlbuilder.SQLBuilder, colCount int, values [][]interface{}) {
 	opts := isg.DialectOptions()
 	b.Write(opts.ValuesFragment)
 	for i, row := range values {
@@ -387,7 +388,7 @@ func rowAliasTable(alias exp.IdentifierExpression) exp.IdentifierExpression {
 }
 
 func (isg *insertSQLGenerator) onConflictSQL(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	o exp.ConflictExpression,
 	rowAlias exp.IdentifierExpression,
 	rendered renderedConflictUpdate,
@@ -415,7 +416,7 @@ func (isg *insertSQLGenerator) onConflictSQL(
 	}
 }
 
-func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target string) {
+func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sqlbuilder.SQLBuilder, target string) {
 	opts := isg.DialectOptions()
 	switch {
 	case target == "":
@@ -432,7 +433,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 }
 
 func (isg *insertSQLGenerator) onConflictDoUpdateSQL(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	o exp.ConflictUpdateExpression,
 	rowAlias exp.IdentifierExpression,
 	rendered renderedConflictUpdate,
@@ -445,7 +446,7 @@ func (isg *insertSQLGenerator) onConflictDoUpdateSQL(
 	isg.conflictUpdateSQL(&conflictUpdateBuilder{SQLBuilder: b, rowAlias: rowAlias}, o)
 }
 
-func (ub *conflictUpdateBuilder) withBuilder(b sb.SQLBuilder) *conflictUpdateBuilder {
+func (ub *conflictUpdateBuilder) withBuilder(b sqlbuilder.SQLBuilder) *conflictUpdateBuilder {
 	return &conflictUpdateBuilder{SQLBuilder: b, rowAlias: ub.rowAlias}
 }
 

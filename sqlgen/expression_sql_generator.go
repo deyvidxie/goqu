@@ -15,6 +15,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -22,7 +23,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	ExpressionSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, val interface{})
+		Generate(b sqlbuilder.SQLBuilder, val interface{})
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -67,7 +68,7 @@ func (esg *expressionSQLGenerator) Dialect() string {
 	return esg.dialect
 }
 
-func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
+func (esg *expressionSQLGenerator) Generate(b sqlbuilder.SQLBuilder, val interface{}) {
 	if b.Error() != nil {
 		return
 	}
@@ -112,7 +113,7 @@ func (esg *expressionSQLGenerator) Generate(b sb.SQLBuilder, val interface{}) {
 	}
 }
 
-func (esg *expressionSQLGenerator) valuerSQL(b sb.SQLBuilder, v driver.Valuer) {
+func (esg *expressionSQLGenerator) valuerSQL(b sqlbuilder.SQLBuilder, v driver.Valuer) {
 	dVal, err := valuerValue(v)
 	if err != nil {
 		b.SetError(errValuerValue(v, err))
@@ -131,7 +132,7 @@ func valuerValue(v driver.Valuer) (driver.Value, error) {
 	return v.Value()
 }
 
-func (esg *expressionSQLGenerator) typedSliceSQL(b sb.SQLBuilder, val any) bool {
+func (esg *expressionSQLGenerator) typedSliceSQL(b sqlbuilder.SQLBuilder, val any) bool {
 	switch v := val.(type) {
 	case []any:
 		sliceSQL(esg, b, v, sliceElemHint)
@@ -171,7 +172,7 @@ const (
 	sliceElemHintPrepared = 4
 )
 
-func sliceSQL[T any](esg *expressionSQLGenerator, b sb.SQLBuilder, s []T, hint int) {
+func sliceSQL[T any](esg *expressionSQLGenerator, b sqlbuilder.SQLBuilder, s []T, hint int) {
 	if len(s) == 0 {
 		b.SetError(errEmptyListValue(s))
 		return
@@ -202,7 +203,7 @@ func isBindableKind(k reflect.Kind) bool {
 	}
 }
 
-func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) {
+func (esg *expressionSQLGenerator) reflectSQL(b sqlbuilder.SQLBuilder, val interface{}) {
 	v := reflect.Indirect(reflect.ValueOf(val))
 	valKind := v.Kind()
 	switch {
@@ -237,7 +238,7 @@ func (esg *expressionSQLGenerator) reflectSQL(b sb.SQLBuilder, val interface{}) 
 }
 
 //nolint:gocyclo,funlen
-func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp.Expression) {
+func (esg *expressionSQLGenerator) expressionSQL(b sqlbuilder.SQLBuilder, expression exp.Expression) {
 	switch e := expression.(type) {
 	case exp.ColumnListExpression:
 		esg.columnListSQL(b, e)
@@ -305,7 +306,7 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 }
 
 // Generates a placeholder (e.g. ?, $1)
-func (esg *expressionSQLGenerator) placeHolderSQL(b sb.SQLBuilder, i interface{}) {
+func (esg *expressionSQLGenerator) placeHolderSQL(b sqlbuilder.SQLBuilder, i interface{}) {
 	b.Write(esg.dialectOptions.PlaceHolderFragment)
 	if esg.dialectOptions.IncludePlaceholderNum {
 		b.WriteInt(int64(b.CurrentArgPosition()))
@@ -314,7 +315,7 @@ func (esg *expressionSQLGenerator) placeHolderSQL(b sb.SQLBuilder, i interface{}
 }
 
 // Generates creates the sql for a sub select on a Dataset
-func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a exp.AppendableExpression) {
+func (esg *expressionSQLGenerator) appendableExpressionSQL(b sqlbuilder.SQLBuilder, a exp.AppendableExpression) {
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	a.AppendSQL(b)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
@@ -325,7 +326,7 @@ func (esg *expressionSQLGenerator) appendableExpressionSQL(b sb.SQLBuilder, a ex
 }
 
 // Quotes an identifier (e.g. "col", "table"."col"
-func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, ident exp.IdentifierExpression) {
+func (esg *expressionSQLGenerator) identifierExpressionSQL(b sqlbuilder.SQLBuilder, ident exp.IdentifierExpression) {
 	if ident.IsEmpty() {
 		b.SetError(errEmptyIdentifier)
 		return
@@ -360,12 +361,12 @@ func (esg *expressionSQLGenerator) identifierExpressionSQL(b sb.SQLBuilder, iden
 	}
 }
 
-func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sb.SQLBuilder, name string) {
+func (esg *expressionSQLGenerator) quotedIdentifierSQL(b sqlbuilder.SQLBuilder, name string) {
 	q := string(esg.dialectOptions.QuoteRune)
 	b.WriteStrings(q, strings.ReplaceAll(name, q, q+q), q)
 }
 
-func (esg *expressionSQLGenerator) lateralExpressionSQL(b sb.SQLBuilder, le exp.LateralExpression) {
+func (esg *expressionSQLGenerator) lateralExpressionSQL(b sqlbuilder.SQLBuilder, le exp.LateralExpression) {
 	if !esg.dialectOptions.SupportsLateral {
 		b.SetError(errLateralNotSupported(esg.dialect))
 		return
@@ -375,7 +376,7 @@ func (esg *expressionSQLGenerator) lateralExpressionSQL(b sb.SQLBuilder, le exp.
 }
 
 // Generates SQL NULL value
-func (esg *expressionSQLGenerator) literalNil(b sb.SQLBuilder) {
+func (esg *expressionSQLGenerator) literalNil(b sqlbuilder.SQLBuilder) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, nil)
 		return
@@ -384,7 +385,7 @@ func (esg *expressionSQLGenerator) literalNil(b sb.SQLBuilder) {
 }
 
 // Generates SQL bool literal, (e.g. TRUE, FALSE, mysql 1, 0, sqlite3 1, 0)
-func (esg *expressionSQLGenerator) literalBool(b sb.SQLBuilder, bl bool) {
+func (esg *expressionSQLGenerator) literalBool(b sqlbuilder.SQLBuilder, bl bool) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, bl)
 		return
@@ -397,7 +398,7 @@ func (esg *expressionSQLGenerator) literalBool(b sb.SQLBuilder, bl bool) {
 }
 
 // Generates SQL for a time.Time value
-func (esg *expressionSQLGenerator) literalTime(b sb.SQLBuilder, t time.Time) {
+func (esg *expressionSQLGenerator) literalTime(b sqlbuilder.SQLBuilder, t time.Time) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, t)
 		return
@@ -406,7 +407,7 @@ func (esg *expressionSQLGenerator) literalTime(b sb.SQLBuilder, t time.Time) {
 }
 
 // Generates SQL for a Float Value
-func (esg *expressionSQLGenerator) literalFloat(b sb.SQLBuilder, f float64) {
+func (esg *expressionSQLGenerator) literalFloat(b sqlbuilder.SQLBuilder, f float64) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, f)
 		return
@@ -415,7 +416,7 @@ func (esg *expressionSQLGenerator) literalFloat(b sb.SQLBuilder, f float64) {
 }
 
 // Generates SQL for an int value
-func (esg *expressionSQLGenerator) literalInt(b sb.SQLBuilder, i int64) {
+func (esg *expressionSQLGenerator) literalInt(b sqlbuilder.SQLBuilder, i int64) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, i)
 		return
@@ -424,7 +425,7 @@ func (esg *expressionSQLGenerator) literalInt(b sb.SQLBuilder, i int64) {
 }
 
 // Generates SQL for an uint value
-func (esg *expressionSQLGenerator) literalUint(b sb.SQLBuilder, i uint64) {
+func (esg *expressionSQLGenerator) literalUint(b sqlbuilder.SQLBuilder, i uint64) {
 	if b.IsPrepared() {
 		if i <= math.MaxInt64 {
 			esg.placeHolderSQL(b, int64(i))
@@ -437,7 +438,7 @@ func (esg *expressionSQLGenerator) literalUint(b sb.SQLBuilder, i uint64) {
 }
 
 // Generates SQL for a string
-func (esg *expressionSQLGenerator) literalString(b sb.SQLBuilder, s string) {
+func (esg *expressionSQLGenerator) literalString(b sqlbuilder.SQLBuilder, s string) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, s)
 		return
@@ -455,7 +456,7 @@ func (esg *expressionSQLGenerator) literalString(b sb.SQLBuilder, s string) {
 }
 
 // Generates SQL for a slice of bytes
-func (esg *expressionSQLGenerator) literalBytes(b sb.SQLBuilder, bs []byte) {
+func (esg *expressionSQLGenerator) literalBytes(b sqlbuilder.SQLBuilder, bs []byte) {
 	if b.IsPrepared() {
 		esg.placeHolderSQL(b, bs)
 		return
@@ -476,7 +477,7 @@ func (esg *expressionSQLGenerator) literalBytes(b sb.SQLBuilder, bs []byte) {
 	b.WriteRunes(esg.dialectOptions.StringQuote)
 }
 
-func (esg *expressionSQLGenerator) sliceValueSQL(b sb.SQLBuilder, slice reflect.Value) {
+func (esg *expressionSQLGenerator) sliceValueSQL(b sqlbuilder.SQLBuilder, slice reflect.Value) {
 	if slice.Len() == 0 {
 		b.SetError(errEmptyListValue(slice.Interface()))
 		return
@@ -492,13 +493,13 @@ func (esg *expressionSQLGenerator) sliceValueSQL(b sb.SQLBuilder, slice reflect.
 }
 
 // Generates SQL for an AliasedExpression (e.g. I("a").As("b") -> "a" AS "b")
-func (esg *expressionSQLGenerator) aliasedExpressionSQL(b sb.SQLBuilder, aliased exp.AliasedExpression) {
+func (esg *expressionSQLGenerator) aliasedExpressionSQL(b sqlbuilder.SQLBuilder, aliased exp.AliasedExpression) {
 	esg.Generate(b, aliased.Aliased())
 	b.Write(esg.dialectOptions.AsFragment)
 	esg.Generate(b, aliased.GetAs())
 }
 
-func (esg *expressionSQLGenerator) booleanExpressionSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
+func (esg *expressionSQLGenerator) booleanExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.BooleanExpression) {
 	operatorOp := operator.Op()
 	if (operatorOp == exp.InOp || operatorOp == exp.NotInOp) && isEmptyList(operator.RHS()) {
 		esg.emptyListSQL(b, operator)
@@ -565,7 +566,7 @@ func isEmptyList(rhs interface{}) bool {
 	return reflect.Indirect(reflect.ValueOf(rhs)).Len() == 0
 }
 
-func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.BooleanExpression) {
+func (esg *expressionSQLGenerator) emptyListSQL(b sqlbuilder.SQLBuilder, operator exp.BooleanExpression) {
 	if !esg.lhsRenders(b, operator.LHS()) {
 		return
 	}
@@ -585,7 +586,7 @@ func (esg *expressionSQLGenerator) emptyListSQL(b sb.SQLBuilder, operator exp.Bo
 	b.Write(fragment)
 }
 
-func (esg *expressionSQLGenerator) lhsRenders(b sb.SQLBuilder, lhs exp.Expression) bool {
+func (esg *expressionSQLGenerator) lhsRenders(b sqlbuilder.SQLBuilder, lhs exp.Expression) bool {
 	scratch := sb.NewSQLBuilder(b.IsPrepared())
 	defer sb.ReleaseSQLBuilder(scratch)
 	if ub, ok := b.(*conflictUpdateBuilder); ok {
@@ -602,7 +603,7 @@ func (esg *expressionSQLGenerator) lhsRenders(b sb.SQLBuilder, lhs exp.Expressio
 	return true
 }
 
-func (esg *expressionSQLGenerator) likeEscapeSQL(b sb.SQLBuilder, operatorOp exp.BooleanOperation) {
+func (esg *expressionSQLGenerator) likeEscapeSQL(b sqlbuilder.SQLBuilder, operatorOp exp.BooleanOperation) {
 	isLike := operatorOp == exp.LikeOp || operatorOp == exp.NotLikeOp ||
 		operatorOp == exp.ILikeOp || operatorOp == exp.NotILikeOp
 	if !isLike || esg.dialectOptions.LikeEscapeKey == "" {
@@ -615,7 +616,7 @@ func (esg *expressionSQLGenerator) likeEscapeSQL(b sb.SQLBuilder, operatorOp exp
 }
 
 // Generates SQL for a BitwiseExpresion (e.g. I("a").BitwiseOr(2) - > "a" | 2)
-func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operator exp.BitwiseExpression) {
+func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.BitwiseExpression) {
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 
 	if operator.LHS() != nil {
@@ -637,7 +638,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sb.SQLBuilder, operato
 }
 
 // Generates SQL for a ArithmeticExpresion (e.g. I("a").Add(1) -> "a" + 1)
-func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, operator exp.ArithmeticExpression) {
+func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.ArithmeticExpression) {
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, operator.LHS())
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -654,7 +655,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sb.SQLBuilder, oper
 }
 
 // Generates SQL for a RangeExpresion (e.g. I("a").Between(RangeVal{Start:2,End:5}) -> "a" BETWEEN 2 AND 5)
-func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator exp.RangeExpression) {
+func (esg *expressionSQLGenerator) rangeExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.RangeExpression) {
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, operator.LHS())
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -674,7 +675,7 @@ func (esg *expressionSQLGenerator) rangeExpressionSQL(b sb.SQLBuilder, operator 
 }
 
 // Generates SQL for an OrderedExpression (e.g. I("a").Asc() -> "a" ASC)
-func (esg *expressionSQLGenerator) orderedExpressionSQL(b sb.SQLBuilder, order exp.OrderedExpression) {
+func (esg *expressionSQLGenerator) orderedExpressionSQL(b sqlbuilder.SQLBuilder, order exp.OrderedExpression) {
 	esg.Generate(b, order.SortExpression())
 	if order.IsAsc() {
 		b.Write(esg.dialectOptions.AscFragment)
@@ -692,7 +693,7 @@ func (esg *expressionSQLGenerator) orderedExpressionSQL(b sb.SQLBuilder, order e
 }
 
 // Generates SQL for an ExpressionList (e.g. And(I("a").Eq("a"), I("b").Eq("b")) -> (("a" = 'a') AND ("b" = 'b')))
-func (esg *expressionSQLGenerator) expressionListSQL(b sb.SQLBuilder, expressionList exp.ExpressionList) {
+func (esg *expressionSQLGenerator) expressionListSQL(b sqlbuilder.SQLBuilder, expressionList exp.ExpressionList) {
 	if expressionList.IsEmpty() {
 		if expressionList.Type() == exp.OrType {
 			b.SetError(errEmptyOrCondition)
@@ -725,7 +726,7 @@ func (esg *expressionSQLGenerator) expressionListSQL(b sb.SQLBuilder, expression
 }
 
 // Generates SQL for a ColumnListExpression
-func (esg *expressionSQLGenerator) columnListSQL(b sb.SQLBuilder, columnList exp.ColumnListExpression) {
+func (esg *expressionSQLGenerator) columnListSQL(b sqlbuilder.SQLBuilder, columnList exp.ColumnListExpression) {
 	cols := columnList.Columns()
 	colLen := len(cols)
 	for i, col := range cols {
@@ -736,7 +737,7 @@ func (esg *expressionSQLGenerator) columnListSQL(b sb.SQLBuilder, columnList exp
 	}
 }
 
-func (esg *expressionSQLGenerator) structColumnsSQL(b sb.SQLBuilder, sc exp.StructColumnsExpression) {
+func (esg *expressionSQLGenerator) structColumnsSQL(b sqlbuilder.SQLBuilder, sc exp.StructColumnsExpression) {
 	cols := exp.NewColumnListExpression(nil, esg.tagName, sc.Struct())
 	if cols.IsEmpty() {
 		b.SetError(errStructWithoutColumns(sc.Struct()))
@@ -746,13 +747,13 @@ func (esg *expressionSQLGenerator) structColumnsSQL(b sb.SQLBuilder, sc exp.Stru
 }
 
 // Generates SQL for an UpdateEpxresion
-func (esg *expressionSQLGenerator) updateExpressionSQL(b sb.SQLBuilder, update exp.UpdateExpression) {
+func (esg *expressionSQLGenerator) updateExpressionSQL(b sqlbuilder.SQLBuilder, update exp.UpdateExpression) {
 	esg.Generate(b, update.Col())
 	b.WriteRunes(esg.dialectOptions.SetOperatorRune)
 	writeValue(esg, esg.dialectOptions, b, update.Val())
 }
 
-func writeValue(esg ExpressionSQLGenerator, opts *SQLDialectOptions, b sb.SQLBuilder, val interface{}) {
+func writeValue(esg ExpressionSQLGenerator, opts *SQLDialectOptions, b sqlbuilder.SQLBuilder, val interface{}) {
 	switch {
 	case isDefault(val) && len(opts.DefaultFragment) == 0:
 		b.SetError(errDefaultValueNotSupported(esg.Dialect()))
@@ -774,7 +775,7 @@ func isDefault(val interface{}) bool {
 //
 //	L("a + b") -> a + b
 //	L("a = ?", 1) -> a = 1
-func (esg *expressionSQLGenerator) literalExpressionSQL(b sb.SQLBuilder, literal exp.LiteralExpression) {
+func (esg *expressionSQLGenerator) literalExpressionSQL(b sqlbuilder.SQLBuilder, literal exp.LiteralExpression) {
 	l := literal.Literal()
 	args := literal.Args()
 	if argsLen := len(args); argsLen > 0 {
@@ -812,7 +813,7 @@ func (esg *expressionSQLGenerator) literalExpressionSQL(b sb.SQLBuilder, literal
 	b.WriteStrings(l)
 }
 
-func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sqlFunc exp.SQLFunctionExpression) {
+func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuilder, sqlFunc exp.SQLFunctionExpression) {
 	name := sqlFunc.Name()
 	if val, ok := esg.dialectOptions.FunctionNameLookup[name]; ok {
 		name = string(val)
@@ -821,7 +822,7 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sb.SQLBuilder, sql
 	esg.argumentsSQL(b, sqlFunc.Args())
 }
 
-func (esg *expressionSQLGenerator) argumentsSQL(b sb.SQLBuilder, args []interface{}) {
+func (esg *expressionSQLGenerator) argumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}) {
 	if len(args) == 0 {
 		b.WriteRunes(esg.dialectOptions.LeftParenRune, esg.dialectOptions.RightParenRune)
 		return
@@ -829,7 +830,7 @@ func (esg *expressionSQLGenerator) argumentsSQL(b sb.SQLBuilder, args []interfac
 	sliceSQL(esg, b, args, sliceElemHint)
 }
 
-func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {
+func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sqlbuilder.SQLBuilder, sqlWinFunc exp.SQLWindowFunctionExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
 		b.SetError(errWindowNotSupported(esg.dialect))
 		return
@@ -850,7 +851,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 	}
 }
 
-func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.WindowExpression) {
+func (esg *expressionSQLGenerator) windowExpressionSQL(b sqlbuilder.SQLBuilder, we exp.WindowExpression) {
 	if !esg.dialectOptions.SupportsWindowFunction {
 		b.SetError(errWindowNotSupported(esg.dialect))
 		return
@@ -897,7 +898,7 @@ func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.W
 // Generates SQL for a CastExpression
 //
 //	I("a").Cast("NUMERIC") -> CAST("a" AS NUMERIC)
-func (esg *expressionSQLGenerator) castExpressionSQL(b sb.SQLBuilder, cast exp.CastExpression) {
+func (esg *expressionSQLGenerator) castExpressionSQL(b sqlbuilder.SQLBuilder, cast exp.CastExpression) {
 	b.Write(esg.dialectOptions.CastFragment).WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, cast.Casted())
 	b.Write(esg.dialectOptions.AsFragment)
@@ -910,7 +911,7 @@ func (esg *expressionSQLGenerator) castExpressionSQL(b sb.SQLBuilder, cast exp.C
 //	I("a").Collate("en_US") -> "a" COLLATE en_US
 //	I("a").Collate("en_US") -> "a" COLLATE "en_US" (dialects with QuoteCollation)
 //	I("a").Collate(I("pg_catalog.default")) -> "a" COLLATE "pg_catalog"."default" (dialects with QuoteCollation)
-func (esg *expressionSQLGenerator) collateExpressionSQL(b sb.SQLBuilder, collate exp.CollateExpression) {
+func (esg *expressionSQLGenerator) collateExpressionSQL(b sqlbuilder.SQLBuilder, collate exp.CollateExpression) {
 	opts := esg.dialectOptions
 	parts, ok := esg.collationParts(collate.Collation())
 	if !ok {
@@ -1088,8 +1089,8 @@ const (
 )
 
 type timeRenderers struct {
-	now      func(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error
-	interval func(b sb.SQLBuilder, e exp.IntervalExpression) error
+	now      func(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error
+	interval func(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error
 }
 
 func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
@@ -1109,7 +1110,7 @@ func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
 	}
 }
 
-func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sb.SQLBuilder, e exp.TimeFunctionExpression) {
+func (esg *expressionSQLGenerator) timeFunctionExpressionSQL(b sqlbuilder.SQLBuilder, e exp.TimeFunctionExpression) {
 	render, err := esg.timeRenderers()
 	if err != nil {
 		b.SetError(err)
@@ -1155,13 +1156,13 @@ func timeFunc(name string, fsp int, hasFSP bool) exp.SQLFunctionExpression {
 	return exp.NewSQLFunctionExpression(name)
 }
 
-func (esg *expressionSQLGenerator) parenthesizedSQL(b sb.SQLBuilder, e exp.Expression) {
+func (esg *expressionSQLGenerator) parenthesizedSQL(b sqlbuilder.SQLBuilder, e exp.Expression) {
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, e)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
-func (esg *expressionSQLGenerator) postgresTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+func (esg *expressionSQLGenerator) postgresTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	now := exp.NewSQLFunctionExpression("NOW")
 	if hasFSP {
 		now = timeFunc("CURRENT_TIMESTAMP", fsp, hasFSP)
@@ -1174,7 +1175,7 @@ func (esg *expressionSQLGenerator) postgresTimeSQL(b sb.SQLBuilder, utc bool, fs
 	return nil
 }
 
-func (esg *expressionSQLGenerator) mysqlTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+func (esg *expressionSQLGenerator) mysqlTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	name := "NOW"
 	if utc {
 		name = "UTC_TIMESTAMP"
@@ -1183,7 +1184,7 @@ func (esg *expressionSQLGenerator) mysqlTimeSQL(b sb.SQLBuilder, utc bool, fsp i
 	return nil
 }
 
-func (esg *expressionSQLGenerator) sqliteTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+func (esg *expressionSQLGenerator) sqliteTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	args := []any{exp.NewLiteralExpression("'now'")}
 	if !utc {
 		args = append(args, exp.NewLiteralExpression("'localtime'"))
@@ -1199,7 +1200,7 @@ func (esg *expressionSQLGenerator) sqliteTimeSQL(b sb.SQLBuilder, utc bool, fsp 
 	return nil
 }
 
-func (esg *expressionSQLGenerator) sqlServerTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+func (esg *expressionSQLGenerator) sqlServerTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	now := exp.NewSQLFunctionExpression("SYSDATETIME")
 	if utc {
 		now = exp.NewSQLFunctionExpression("SYSUTCDATETIME")
@@ -1212,7 +1213,7 @@ func (esg *expressionSQLGenerator) sqlServerTimeSQL(b sb.SQLBuilder, utc bool, f
 	return nil
 }
 
-func (esg *expressionSQLGenerator) duckDBTimeSQL(b sb.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+func (esg *expressionSQLGenerator) duckDBTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
 	var now exp.Expression = exp.NewCastExpression(exp.NewSQLFunctionExpression("now"), "TIMESTAMP")
 	if utc {
 		now = exp.NewSQLFunctionExpression("make_timestamp", exp.NewSQLFunctionExpression("epoch_us", exp.NewSQLFunctionExpression("now")))
@@ -1230,7 +1231,7 @@ func (esg *expressionSQLGenerator) duckDBTimeSQL(b sb.SQLBuilder, utc bool, fsp 
 	return nil
 }
 
-func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.IntervalExpression) {
+func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {
 	render, err := esg.timeRenderers()
 	if err == nil {
 		err = render.interval(b, e)
@@ -1240,7 +1241,7 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sb.SQLBuilder, e exp.
 	}
 }
 
-func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {
 	unit, _, count, err := intervalUnit(esg.dialect, e, true)
 	if err != nil {
 		return err
@@ -1249,15 +1250,15 @@ func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sb.SQLBuilder, e exp.Inter
 	return nil
 }
 
-func (esg *expressionSQLGenerator) postgresIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+func (esg *expressionSQLGenerator) postgresIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {
 	return esg.multipliedIntervalSQL(b, e, true)
 }
 
-func (esg *expressionSQLGenerator) duckDBIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression) error {
+func (esg *expressionSQLGenerator) duckDBIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {
 	return esg.multipliedIntervalSQL(b, e, false)
 }
 
-func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.IntervalExpression, fractionalSeconds bool) error {
+func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression, fractionalSeconds bool) error {
 	_, quantity, count, err := intervalUnit(esg.dialect, e, fractionalSeconds)
 	if err != nil {
 		return err
@@ -1273,11 +1274,11 @@ func (esg *expressionSQLGenerator) multipliedIntervalSQL(b sb.SQLBuilder, e exp.
 	return nil
 }
 
-func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sb.SQLBuilder, exp.IntervalExpression) error {
+func (esg *expressionSQLGenerator) unsupportedIntervalSQL(sqlbuilder.SQLBuilder, exp.IntervalExpression) error {
 	return errIntervalNotSupported(esg.dialect)
 }
 
-func (esg *expressionSQLGenerator) jsonExpressionSQL(b sb.SQLBuilder, e exp.JSONExpression) {
+func (esg *expressionSQLGenerator) jsonExpressionSQL(b sqlbuilder.SQLBuilder, e exp.JSONExpression) {
 	if !esg.dialectOptions.SupportsMySQLJSONFunctions {
 		name, ok := jsonFunctionNames[e.Function()]
 		if !ok {
@@ -1362,7 +1363,7 @@ func jsonBytes(v interface{}) ([]byte, bool) {
 	}
 }
 
-func (esg *expressionSQLGenerator) excludedExpressionSQL(b sb.SQLBuilder, e exp.ExcludedExpression) {
+func (esg *expressionSQLGenerator) excludedExpressionSQL(b sqlbuilder.SQLBuilder, e exp.ExcludedExpression) {
 	ub, ok := b.(*conflictUpdateBuilder)
 	if !ok {
 		b.SetError(errExcludedOutsideConflictUpdate)
@@ -1414,7 +1415,7 @@ func validCollationPart(part string) bool {
 }
 
 // Generates the sql for the WITH clauses for common table expressions (CTE)
-func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []exp.CommonTableExpression) {
+func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sqlbuilder.SQLBuilder, ctes []exp.CommonTableExpression) {
 	l := len(ctes)
 	if l == 0 {
 		return
@@ -1445,14 +1446,14 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sb.SQLBuilder, ctes []
 }
 
 // Generates SQL for a CommonTableExpression
-func (esg *expressionSQLGenerator) commonTableExpressionSQL(b sb.SQLBuilder, cte exp.CommonTableExpression) {
+func (esg *expressionSQLGenerator) commonTableExpressionSQL(b sqlbuilder.SQLBuilder, cte exp.CommonTableExpression) {
 	esg.Generate(b, cte.Name())
 	b.Write(esg.dialectOptions.AsFragment)
 	esg.Generate(b, cte.SubQuery())
 }
 
 // Generates SQL for a CompoundExpression
-func (esg *expressionSQLGenerator) compoundExpressionSQL(b sb.SQLBuilder, compound exp.CompoundExpression) {
+func (esg *expressionSQLGenerator) compoundExpressionSQL(b sqlbuilder.SQLBuilder, compound exp.CompoundExpression) {
 	switch compound.Type() {
 	case exp.UnionCompoundType:
 		b.Write(esg.dialectOptions.UnionFragment)
@@ -1473,7 +1474,7 @@ func (esg *expressionSQLGenerator) compoundExpressionSQL(b sb.SQLBuilder, compou
 }
 
 // Generates SQL for a CaseExpression
-func (esg *expressionSQLGenerator) caseExpressionSQL(b sb.SQLBuilder, caseExpression exp.CaseExpression) {
+func (esg *expressionSQLGenerator) caseExpressionSQL(b sqlbuilder.SQLBuilder, caseExpression exp.CaseExpression) {
 	caseVal := caseExpression.GetValue()
 	whens := caseExpression.GetWhens()
 	elseResult := caseExpression.GetElse()
@@ -1499,7 +1500,7 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sb.SQLBuilder, caseExpres
 	b.Write(esg.dialectOptions.EndFragment)
 }
 
-func (esg *expressionSQLGenerator) expressionMapSQL(b sb.SQLBuilder, ex exp.Ex) {
+func (esg *expressionSQLGenerator) expressionMapSQL(b sqlbuilder.SQLBuilder, ex exp.Ex) {
 	expressionList, err := ex.ToExpressions()
 	if err != nil {
 		b.SetError(err)
@@ -1508,7 +1509,7 @@ func (esg *expressionSQLGenerator) expressionMapSQL(b sb.SQLBuilder, ex exp.Ex) 
 	esg.Generate(b, expressionList)
 }
 
-func (esg *expressionSQLGenerator) expressionOrMapSQL(b sb.SQLBuilder, ex exp.ExOr) {
+func (esg *expressionSQLGenerator) expressionOrMapSQL(b sqlbuilder.SQLBuilder, ex exp.ExOr) {
 	expressionList, err := ex.ToExpressions()
 	if err != nil {
 		b.SetError(err)

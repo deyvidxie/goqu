@@ -2,7 +2,7 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -10,7 +10,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	UpdateSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, clauses exp.UpdateClauses)
+		Generate(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -24,7 +24,7 @@ func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Updat
 	return &updateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
-func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+func (usg *updateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses) {
 	if !clauses.HasTable() {
 		b.SetError(errNoSourceForUpdate)
 		return
@@ -70,7 +70,7 @@ func (usg *updateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.UpdateClaus
 	}
 }
 
-func (usg *updateSQLGenerator) updateLimitSQL(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+func (usg *updateSQLGenerator) updateLimitSQL(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses) {
 	switch {
 	case usg.DialectOptions().SupportsLimitOnUpdate:
 		usg.LimitSQL(b, clauses.Limit())
@@ -79,7 +79,7 @@ func (usg *updateSQLGenerator) updateLimitSQL(b sb.SQLBuilder, clauses exp.Updat
 	}
 }
 
-func (usg *updateSQLGenerator) updateOrderSQL(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+func (usg *updateSQLGenerator) updateOrderSQL(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses) {
 	switch {
 	case usg.DialectOptions().SupportsOrderByOnUpdate:
 		usg.OrderSQL(b, clauses.Order())
@@ -89,17 +89,17 @@ func (usg *updateSQLGenerator) updateOrderSQL(b sb.SQLBuilder, clauses exp.Updat
 }
 
 // Adds the correct fragment to being an UPDATE statement
-func (usg *updateSQLGenerator) UpdateBeginSQL(b sb.SQLBuilder) {
+func (usg *updateSQLGenerator) UpdateBeginSQL(b sqlbuilder.SQLBuilder) {
 	b.Write(usg.DialectOptions().UpdateClause)
 }
 
 // Adds column setters in an update SET clause
-func (usg *updateSQLGenerator) UpdateExpressionsSQL(b sb.SQLBuilder, updates ...exp.UpdateExpression) {
+func (usg *updateSQLGenerator) UpdateExpressionsSQL(b sqlbuilder.SQLBuilder, updates ...exp.UpdateExpression) {
 	b.Write(usg.DialectOptions().SetFragment)
 	usg.UpdateExpressionSQL(b, updates...)
 }
 
-func (usg *updateSQLGenerator) updateTableSQL(b sb.SQLBuilder, uc exp.UpdateClauses) {
+func (usg *updateSQLGenerator) updateTableSQL(b sqlbuilder.SQLBuilder, uc exp.UpdateClauses) {
 	b.WriteRunes(usg.DialectOptions().SpaceRune)
 	usg.ExpressionSQLGenerator().Generate(b, uc.Table())
 	if uc.HasFrom() {
@@ -110,7 +110,7 @@ func (usg *updateSQLGenerator) updateTableSQL(b sb.SQLBuilder, uc exp.UpdateClau
 	}
 }
 
-func (usg *updateSQLGenerator) updateFromSQL(b sb.SQLBuilder, ce exp.ColumnListExpression) {
+func (usg *updateSQLGenerator) updateFromSQL(b sqlbuilder.SQLBuilder, ce exp.ColumnListExpression) {
 	if ce == nil || ce.IsEmpty() {
 		return
 	}

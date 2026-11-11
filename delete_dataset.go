@@ -4,6 +4,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type DeleteDataset struct {
@@ -228,7 +229,7 @@ func (dd *DeleteDataset) ToSQL() (sql string, params []interface{}, err error) {
 
 // Appends this Dataset's DELETE statement to the SQLBuilder
 // This is used internally when using deletes in CTEs
-func (dd *DeleteDataset) AppendSQL(b sb.SQLBuilder) {
+func (dd *DeleteDataset) AppendSQL(b sqlbuilder.SQLBuilder) {
 	if dd.err != nil {
 		b.SetError(dd.err)
 		return
@@ -253,7 +254,7 @@ func (dd *DeleteDataset) Executor() exec.QueryExecutor {
 	return dd.queryFactory.FromSQLBuilder(builder)
 }
 
-func (dd *DeleteDataset) deleteSQLBuilder() sb.SQLBuilder {
+func (dd *DeleteDataset) deleteSQLBuilder() sqlbuilder.SQLBuilder {
 	buf := sb.NewSQLBuilder(dd.isPrepared.Bool())
 	if dd.err != nil {
 		return buf.SetError(dd.err)

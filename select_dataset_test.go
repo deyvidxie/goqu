@@ -11,6 +11,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -1442,7 +1443,7 @@ func (sds *selectDatasetSuite) TestToSQL_ReturnedError() {
 	sqlB := sb.NewSQLBuilder(false)
 	ee := newTestError("expected error")
 	md.On("ToSelectSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
-		args.Get(0).(sb.SQLBuilder).SetError(ee)
+		args.Get(0).(sqlbuilder.SQLBuilder).SetError(ee)
 	}).Once()
 
 	sql, args, err := ds.ToSQL()
@@ -2020,7 +2021,7 @@ func (sds *selectDatasetSuite) TestSetError() {
 	c := ds.GetClauses()
 	sqlB := sb.NewSQLBuilder(false)
 	md.On("ToInsertSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
-		args.Get(0).(sb.SQLBuilder).SetError(err3)
+		args.Get(0).(sqlbuilder.SQLBuilder).SetError(err3)
 	}).Once()
 
 	sql, args, err = ds.ToSQL()

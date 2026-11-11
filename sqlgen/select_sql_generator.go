@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -12,7 +12,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	SelectSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, clauses exp.SelectClauses)
+		Generate(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -38,7 +38,7 @@ func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Selec
 	return &selectSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
-func (ssg *selectSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	for _, f := range ssg.DialectOptions().SelectSQLOrder {
 		if b.Error() != nil {
 			return
@@ -82,7 +82,7 @@ func (ssg *selectSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.SelectClaus
 	}
 }
 
-func (ssg *selectSQLGenerator) selectSQLCommon(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) selectSQLCommon(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	ssg.distinctSQL(b, clauses)
 	if b.Error() != nil {
 		return
@@ -91,7 +91,7 @@ func (ssg *selectSQLGenerator) selectSQLCommon(b sb.SQLBuilder, clauses exp.Sele
 }
 
 // Adds DISTINCT (or DISTINCT ON (...)) when it is set on the dataset.
-func (ssg *selectSQLGenerator) distinctSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) distinctSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	dc := clauses.Distinct()
 	if dc == nil {
 		return
@@ -111,7 +111,7 @@ func (ssg *selectSQLGenerator) distinctSQL(b sb.SQLBuilder, clauses exp.SelectCl
 }
 
 // Adds the selected columns (or *) to a sql statement.
-func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) selectColumnsSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	cols := clauses.Select()
 	switch {
 	case clauses.IsDefaultSelect():
@@ -124,12 +124,12 @@ func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.Sel
 }
 
 // Adds the SELECT clause and columns to a sql statement
-func (ssg *selectSQLGenerator) SelectSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) SelectSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	b.Write(ssg.DialectOptions().SelectClause).WriteRunes(ssg.DialectOptions().SpaceRune)
 	ssg.selectSQLCommon(b, clauses)
 }
 
-func (ssg *selectSQLGenerator) selectLimitSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) selectLimitSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	limit := clauses.Limit()
 	if clauses.Offset() > 0 && (limit == nil || isUnsupportedLimitAll(ssg.DialectOptions(), limit)) {
 		b.Write(ssg.DialectOptions().OffsetWithoutLimitFragment)
@@ -139,7 +139,7 @@ func (ssg *selectSQLGenerator) selectLimitSQL(b sb.SQLBuilder, clauses exp.Selec
 }
 
 // Adds the SELECT clause along with LIMIT to a SQL statement (e.g. MSSQL dialect: SELECT TOP 10 ...)
-func (ssg *selectSQLGenerator) SelectWithLimitSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (ssg *selectSQLGenerator) SelectWithLimitSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	b.Write(ssg.DialectOptions().SelectClause).WriteRunes(ssg.DialectOptions().SpaceRune)
 	// DISTINCT has to come before TOP: SELECT DISTINCT TOP (n) ...
 	ssg.distinctSQL(b, clauses)
@@ -154,7 +154,7 @@ func (ssg *selectSQLGenerator) SelectWithLimitSQL(b sb.SQLBuilder, clauses exp.S
 }
 
 // Generates the JOIN clauses for an SQL statement
-func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpressions) {
+func (ssg *selectSQLGenerator) JoinSQL(b sqlbuilder.SQLBuilder, joins exp.JoinExpressions) {
 	if len(joins) > 0 {
 		for _, j := range joins {
 			joinType, ok := ssg.DialectOptions().JoinTypeLookup[j.JoinType()]
@@ -181,7 +181,7 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 }
 
 // Generates the GROUP BY clause for an SQL statement
-func (ssg *selectSQLGenerator) GroupBySQL(b sb.SQLBuilder, groupBy exp.ColumnListExpression) {
+func (ssg *selectSQLGenerator) GroupBySQL(b sqlbuilder.SQLBuilder, groupBy exp.ColumnListExpression) {
 	if groupBy == nil {
 		return
 	}
@@ -194,7 +194,7 @@ func (ssg *selectSQLGenerator) GroupBySQL(b sb.SQLBuilder, groupBy exp.ColumnLis
 }
 
 // Generates the HAVING clause for an SQL statement
-func (ssg *selectSQLGenerator) HavingSQL(b sb.SQLBuilder, having exp.ExpressionList) {
+func (ssg *selectSQLGenerator) HavingSQL(b sqlbuilder.SQLBuilder, having exp.ExpressionList) {
 	if having != nil {
 		b.Write(ssg.DialectOptions().HavingFragment)
 		ssg.ExpressionSQLGenerator().Generate(b, having)
@@ -202,7 +202,7 @@ func (ssg *selectSQLGenerator) HavingSQL(b sb.SQLBuilder, having exp.ExpressionL
 }
 
 // Generates the QUALIFY clause for an SQL statement
-func (ssg *selectSQLGenerator) QualifySQL(b sb.SQLBuilder, qualify exp.ExpressionList) {
+func (ssg *selectSQLGenerator) QualifySQL(b sqlbuilder.SQLBuilder, qualify exp.ExpressionList) {
 	if qualify != nil {
 		if ssg.DialectOptions().SupportsQualify {
 			b.Write(ssg.DialectOptions().QualifyFragment)
@@ -214,7 +214,7 @@ func (ssg *selectSQLGenerator) QualifySQL(b sb.SQLBuilder, qualify exp.Expressio
 }
 
 // Generates the OFFSET clause for an SQL statement
-func (ssg *selectSQLGenerator) OffsetSQL(b sb.SQLBuilder, offset uint) {
+func (ssg *selectSQLGenerator) OffsetSQL(b sqlbuilder.SQLBuilder, offset uint) {
 	if offset > 0 {
 		b.Write(ssg.DialectOptions().OffsetFragment)
 		ssg.ExpressionSQLGenerator().Generate(b, offset)
@@ -222,14 +222,14 @@ func (ssg *selectSQLGenerator) OffsetSQL(b sb.SQLBuilder, offset uint) {
 }
 
 // Generates the compound sql clause for an SQL statement (e.g. UNION, INTERSECT)
-func (ssg *selectSQLGenerator) CompoundsSQL(b sb.SQLBuilder, compounds []exp.CompoundExpression) {
+func (ssg *selectSQLGenerator) CompoundsSQL(b sqlbuilder.SQLBuilder, compounds []exp.CompoundExpression) {
 	for _, compound := range compounds {
 		ssg.ExpressionSQLGenerator().Generate(b, compound)
 	}
 }
 
 // Generates the FOR (aka "locking") clause for an SQL statement
-func (ssg *selectSQLGenerator) ForSQL(b sb.SQLBuilder, lockingClause exp.Lock) {
+func (ssg *selectSQLGenerator) ForSQL(b sqlbuilder.SQLBuilder, lockingClause exp.Lock) {
 	if lockingClause == nil {
 		return
 	}
@@ -289,7 +289,7 @@ func (ssg *selectSQLGenerator) unsupportedLockError(lock exp.Lock) error {
 	return nil
 }
 
-func (ssg *selectSQLGenerator) WindowSQL(b sb.SQLBuilder, windows []exp.WindowExpression) {
+func (ssg *selectSQLGenerator) WindowSQL(b sqlbuilder.SQLBuilder, windows []exp.WindowExpression) {
 	weLen := len(windows)
 	if weLen == 0 {
 		return
@@ -314,7 +314,7 @@ func (ssg *selectSQLGenerator) WindowSQL(b sb.SQLBuilder, windows []exp.WindowEx
 	}
 }
 
-func (ssg *selectSQLGenerator) joinConditionSQL(b sb.SQLBuilder, jc exp.JoinCondition) {
+func (ssg *selectSQLGenerator) joinConditionSQL(b sqlbuilder.SQLBuilder, jc exp.JoinCondition) {
 	switch t := jc.(type) {
 	case exp.JoinOnCondition:
 		ssg.joinOnConditionSQL(b, t)
@@ -323,14 +323,14 @@ func (ssg *selectSQLGenerator) joinConditionSQL(b sb.SQLBuilder, jc exp.JoinCond
 	}
 }
 
-func (ssg *selectSQLGenerator) joinUsingConditionSQL(b sb.SQLBuilder, jc exp.JoinUsingCondition) {
+func (ssg *selectSQLGenerator) joinUsingConditionSQL(b sqlbuilder.SQLBuilder, jc exp.JoinUsingCondition) {
 	b.Write(ssg.DialectOptions().UsingFragment).
 		WriteRunes(ssg.DialectOptions().LeftParenRune)
 	ssg.ExpressionSQLGenerator().Generate(b, jc.Using())
 	b.WriteRunes(ssg.DialectOptions().RightParenRune)
 }
 
-func (ssg *selectSQLGenerator) joinOnConditionSQL(b sb.SQLBuilder, jc exp.JoinOnCondition) {
+func (ssg *selectSQLGenerator) joinOnConditionSQL(b sqlbuilder.SQLBuilder, jc exp.JoinOnCondition) {
 	b.Write(ssg.DialectOptions().OnFragment)
 	ssg.ExpressionSQLGenerator().Generate(b, jc.On())
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -427,7 +428,7 @@ func (dds *deleteDatasetSuite) TestToSQL_WithError() {
 	ee := newTestError("expected error")
 	sqlB := sb.NewSQLBuilder(false)
 	md.On("ToDeleteSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
-		args.Get(0).(sb.SQLBuilder).SetError(ee)
+		args.Get(0).(sqlbuilder.SQLBuilder).SetError(ee)
 	}).Once()
 
 	sql, args, err := ds.ToSQL()
@@ -496,7 +497,7 @@ func (dds *deleteDatasetSuite) TestSetError() {
 	c := ds.GetClauses()
 	sqlB := sb.NewSQLBuilder(false)
 	md.On("ToDeleteSQL", builderMatching(sqlB), c).Run(func(args mock.Arguments) {
-		args.Get(0).(sb.SQLBuilder).SetError(err3)
+		args.Get(0).(sqlbuilder.SQLBuilder).SetError(err3)
 	}).Once()
 
 	sql, args, err = ds.ToSQL()

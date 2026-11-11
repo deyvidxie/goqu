@@ -4,6 +4,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type TruncateDataset struct {
@@ -175,7 +176,7 @@ func (td *TruncateDataset) Executor() exec.QueryExecutor {
 	return td.queryFactory.FromSQLBuilder(builder)
 }
 
-func (td *TruncateDataset) truncateSQLBuilder() sb.SQLBuilder {
+func (td *TruncateDataset) truncateSQLBuilder() sqlbuilder.SQLBuilder {
 	buf := sb.NewSQLBuilder(td.isPrepared.Bool())
 	if td.err != nil {
 		return buf.SetError(td.err)

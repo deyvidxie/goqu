@@ -2,7 +2,7 @@ package sqlgen
 
 import (
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -10,7 +10,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	DeleteSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, clauses exp.DeleteClauses)
+		Generate(b sqlbuilder.SQLBuilder, clauses exp.DeleteClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -24,7 +24,7 @@ func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Delet
 	return &deleteSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
-func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClauses) {
+func (dsg *deleteSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.DeleteClauses) {
 	if !clauses.HasFrom() {
 		b.SetError(errNoSourceForDelete)
 		return
@@ -69,7 +69,7 @@ func (dsg *deleteSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.DeleteClaus
 }
 
 // Adds the correct fragment to being an DELETE statement
-func (dsg *deleteSQLGenerator) DeleteBeginSQL(b sb.SQLBuilder, from exp.ColumnListExpression, multiTable bool) {
+func (dsg *deleteSQLGenerator) DeleteBeginSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression, multiTable bool) {
 	b.Write(dsg.DialectOptions().DeleteClause)
 	if multiTable && dsg.DialectOptions().SupportsDeleteTableHint {
 		dsg.SourcesSQL(b, from)

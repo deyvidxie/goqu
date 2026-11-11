@@ -7,10 +7,11 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
-func newESG(opts *sqlgen.SQLDialectOptions, prepared bool) (sqlgen.ExpressionSQLGenerator, sb.SQLBuilder) {
+func newESG(opts *sqlgen.SQLDialectOptions, prepared bool) (sqlgen.ExpressionSQLGenerator, sqlbuilder.SQLBuilder) {
 	return sqlgen.NewExpressionSQLGenerator("bench", "db", opts), sb.NewSQLBuilder(prepared)
 }
 

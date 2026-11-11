@@ -216,3 +216,25 @@ SELECT * FROM `test` []
 
 For more examples look at [`postgres`](../dialect/postgres/postgres.go), [`mysql`](../dialect/mysql/mysql.go) and [`sqlite3`](../dialect/sqlite3/sqlite3.go) for examples.
 
+### Implementing `SQLDialect` or a subquery expression
+
+A `goqu.SQLDialect` passed to `SetDialect`, an `exp.AppendableExpression` used as a subquery, and the `sqlgen` generators all write into a [`sqlbuilder.SQLBuilder`](../sqlbuilder/sql_builder.go); `sqlbuilder.New` creates one.
+
+```go
+type commentingDialect struct{ goqu.SQLDialect }
+
+func (d commentingDialect) ToSelectSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
+	b.WriteStrings("/* custom */ ")
+	d.SQLDialect.ToSelectSQL(b, clauses)
+}
+
+base, _ := goqu.GetDialect("postgres")
+sql, _, _ := goqu.From("t").SetDialect(commentingDialect{base}).ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```
+/* custom */ SELECT * FROM "t"
+```
+

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -12,7 +12,7 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	TruncateSQLGenerator interface {
 		Dialect() string
-		Generate(b sb.SQLBuilder, clauses exp.TruncateClauses)
+		Generate(b sqlbuilder.SQLBuilder, clauses exp.TruncateClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -26,7 +26,7 @@ func NewTruncateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Tru
 	return &truncateSQLGenerator{NewCommonSQLGenerator(dialect, tagName, do)}
 }
 
-func (tsg *truncateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.TruncateClauses) {
+func (tsg *truncateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.TruncateClauses) {
 	if !clauses.HasTable() {
 		b.SetError(errNoSourceForTruncate)
 		return
@@ -45,7 +45,7 @@ func (tsg *truncateSQLGenerator) Generate(b sb.SQLBuilder, clauses exp.TruncateC
 }
 
 // Generates a TRUNCATE statement
-func (tsg *truncateSQLGenerator) TruncateSQL(b sb.SQLBuilder, from exp.ColumnListExpression, opts exp.TruncateOptions) {
+func (tsg *truncateSQLGenerator) TruncateSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression, opts exp.TruncateOptions) {
 	if err := tsg.unsupportedTruncateError(from, opts); err != nil {
 		b.SetError(err)
 		return
