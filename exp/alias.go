@@ -1,7 +1,5 @@
 package exp
 
-import "fmt"
-
 type (
 	aliasExpression struct {
 		aliased Expression
@@ -17,7 +15,7 @@ func NewAliasExpression(exp Expression, alias interface{}) AliasedExpression {
 	case IdentifierExpression:
 		return aliasExpression{aliased: exp, alias: v}
 	default:
-		panic(fmt.Sprintf("Cannot create alias from %+v", v))
+		return aliasExpression{aliased: newInvalidExpression(errUnsupportedAlias(alias)), alias: ParseIdentifier("")}
 	}
 }
 

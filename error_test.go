@@ -88,9 +88,17 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		want string
 		err  error
 	}{
-		{"delete From argument", badFrom, panicErr(func() { goqu.Delete("t").From(true) })},
-		{"insert Into table", tableType, panicErr(func() { goqu.Insert("t").Into(true) })},
-		{"update Table", tableType, panicErr(func() { goqu.Update("t").Table(true) })},
+		{"delete From argument", badFrom, toSQL(goqu.Delete("t").From(true))},
+		{"insert Into table", tableType, toSQL(goqu.Insert("t").Into(true))},
+		{"update Table", tableType, toSQL(goqu.Update("t").Table(true))},
+		{
+			"alias type", "goqu: unsupported alias type int, a string or identifier expression is required",
+			toSQL(goqu.From("t").Select(goqu.C("a").As(1))),
+		},
+		{
+			"column type", "goqu: unsupported column list value int, a string, expression or struct is required",
+			toSQL(goqu.From("t").Select(1)),
+		},
 		{
 			"rows of different lengths", "goqu: rows with different value length, expected 1 got 2",
 			toSQL(goqu.Insert("t").Rows(goqu.Record{"a": 1}, goqu.Record{"a": 1, "b": 2})),
@@ -165,12 +173,6 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, goqu.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
 	}
-}
-
-func panicErr(f func()) (err error) {
-	defer func() { err, _ = recover().(error) }()
-	f()
-	return nil
 }
 
 func TestNoDatabaseMessage(t *testing.T) {

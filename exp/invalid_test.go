@@ -35,3 +35,17 @@ func TestNilOrderedColumn(t *testing.T) {
 	assert.True(t, errors.IsInvalidExpression(invalid.Err()))
 	assert.EqualError(t, invalid.Err(), "goqu: Order expressions must not be nil")
 }
+
+func TestUnsupportedAliasAndColumnTypes(t *testing.T) {
+	aliased := exp.NewAliasExpression(exp.NewIdentifierExpression("", "", "a"), 1)
+	invalid, ok := aliased.Clone().(exp.AliasedExpression).Aliased().(exp.InvalidExpression)
+	require.True(t, ok)
+	assert.EqualError(t, invalid.Err(), "goqu: unsupported alias type int, a string or identifier expression is required")
+	assert.NotPanics(t, func() { aliased.Col("b") })
+
+	cols := exp.NewColumnListExpression(nil, "db", "a", 1).Columns()
+	require.Len(t, cols, 2)
+	invalid, ok = cols[1].(exp.InvalidExpression)
+	require.True(t, ok)
+	assert.EqualError(t, invalid.Err(), "goqu: unsupported column list value int, a string, expression or struct is required")
+}

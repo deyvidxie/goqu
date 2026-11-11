@@ -162,9 +162,8 @@ func (dds *deleteDatasetSuite) TestFrom_withIdentifier() {
 		},
 	)
 
-	dds.PanicsWithError("goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required", func() {
-		goqu.Delete("test").From(true)
-	})
+	_, _, err := goqu.Delete("test").From(true).ToSQL()
+	dds.EqualError(err, "goqu: unsupported DeleteDataset#From argument bool, a string or identifier expression is required")
 }
 
 func (dds *deleteDatasetSuite) TestWhere() {

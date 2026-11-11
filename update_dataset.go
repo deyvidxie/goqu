@@ -125,7 +125,7 @@ func (ud *UpdateDataset) Table(table interface{}) *UpdateDataset {
 	case string:
 		return ud.copy(ud.clauses.SetTable(exp.ParseIdentifier(t)))
 	default:
-		panic(errUnsupportedTableType(table))
+		return ud.copy(ud.clauses).SetError(errUnsupportedTableType(table))
 	}
 }
 

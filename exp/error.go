@@ -74,3 +74,11 @@ func errColumnSource(t reflect.Type, problem util.ColumnMapProblem, tagName stri
 func errRangeOpValue(key string, val interface{}) error {
 	return errors.NewInvalidExpressionError("Op %q takes a goqu.Range value, got %T", key, val)
 }
+
+func errUnsupportedAlias(alias interface{}) error {
+	return errors.NewInvalidExpressionError("unsupported alias type %T, a string or identifier expression is required", alias)
+}
+
+func errUnsupportedColumn(col interface{}) error {
+	return errors.NewInvalidExpressionError("unsupported column list value %T, a string, expression or struct is required", col)
+}

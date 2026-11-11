@@ -137,9 +137,8 @@ func (ids *insertDatasetSuite) TestInto() {
 		},
 	)
 
-	ids.PanicsWithError("goqu: unsupported table type bool, a string or expression is required", func() {
-		bd.Into(true)
-	})
+	_, _, err := bd.Into(true).ToSQL()
+	ids.EqualError(err, "goqu: unsupported table type bool, a string or expression is required")
 }
 
 func (ids *insertDatasetSuite) TestCols() {
@@ -240,22 +239,12 @@ func (ids *insertDatasetSuite) TestFromQueryDialectInheritance() {
 		ids.Require().Equal(dialect, bd.GetClauses().From().(*goqu.SelectDataset).Dialect())
 	})
 
-	ids.Run("panic, insert and select dialects are different", func() {
-		defer func() {
-			r := recover()
-			if r == nil {
-				ids.Fail("there should be a panic")
-			}
-			ids.Require().EqualError(
-				r.(error),
-				"goqu: incompatible dialects for INSERT (\"dialect\") and SELECT (\"other_dialect\")",
-			)
-			ids.True(goqu.IsInvalidExpression(r.(error)))
-		}()
-
+	ids.Run("error, insert and select dialects are different", func() {
 		otherDialect := new(mocks.SQLDialect)
 		otherDialect.On("Dialect").Return("other_dialect")
-		goqu.Insert("items").SetDialect(md).FromQuery(goqu.From("otherItems").SetDialect(otherDialect))
+		_, _, err := goqu.Insert("items").SetDialect(md).FromQuery(goqu.From("otherItems").SetDialect(otherDialect)).ToSQL()
+		ids.EqualError(err, "goqu: incompatible dialects for INSERT (\"dialect\") and SELECT (\"other_dialect\")")
+		ids.True(goqu.IsInvalidExpression(err))
 	})
 }
 
