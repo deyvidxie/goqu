@@ -4,6 +4,7 @@ import (
 	dbsql "database/sql"
 	"fmt"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -2082,4 +2083,12 @@ func (sds *selectDatasetSuite) TestLimitZero() {
 
 func TestSelectDataset(t *testing.T) {
 	suite.Run(t, new(selectDatasetSuite))
+}
+
+func TestSetColumnRenameFunctionAppliesToStructsAlreadySelected(t *testing.T) {
+	type renameItem struct{ FirstName string }
+	defer goqu.SetColumnRenameFunction(strings.ToLower)
+	assertSQLCases(t, sqlCase{ds: goqu.From("t").Select(renameItem{}), sql: `SELECT "firstname" FROM "t"`})
+	goqu.SetColumnRenameFunction(strings.ToUpper)
+	assertSQLCases(t, sqlCase{ds: goqu.From("t").Select(renameItem{}), sql: `SELECT "FIRSTNAME" FROM "t"`})
 }

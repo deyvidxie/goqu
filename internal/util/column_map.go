@@ -81,6 +81,8 @@ func (cm ColumnMap) Merge(colMaps []ColumnMap) ColumnMap {
 }
 
 func HasTaggedField(t reflect.Type, tagName string) bool {
+	structMapCacheLock.Lock()
+	defer structMapCacheLock.Unlock()
 	return hasTaggedField(t, tagName, false, map[taggedVisit]bool{})
 }
 
