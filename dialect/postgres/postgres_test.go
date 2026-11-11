@@ -37,7 +37,7 @@ const schema = `
             (9, 0.900000, '0.900000', '2015-02-23T03:19:55.000000000-00:00', FALSE, '0.900000');
     `
 
-const defaultDBURI = "postgres://postgres:@localhost:5435/goqupostgres?sslmode=disable"
+const defaultDBURI = "postgres://postgres:@localhost:5432/goqupostgres?sslmode=disable"
 
 type (
 	postgresTest struct {

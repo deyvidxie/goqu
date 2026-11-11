@@ -32,7 +32,7 @@ const schema = `
 		); 
     `
 
-const defaultDBURI = "postgres://postgres:@localhost:5435/goqupostgres?sslmode=disable"
+const defaultDBURI = "postgres://postgres:@localhost:5432/goqupostgres?sslmode=disable"
 
 var goquDB *goqu.Database
 
