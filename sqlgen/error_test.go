@@ -296,7 +296,7 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		{"Default outside a value", "Default is only valid as an INSERT or UPDATE SET value", expression(exp.Default())},
 		{"empty Op", `Op for "t.a" has no operators`, expression(exp.Ex{"t.a": exp.Op{}})},
 		{
-			"list compared to a column", `operator "gt" compares a column with a single value, got a list ([]int)`,
+			"list compared to a column", `operator "gt" takes a single value, got a list ([]int)`,
 			expression(exp.NewIdentifierExpression("", "", "a").Gt([]int{1, 2})),
 		},
 		{

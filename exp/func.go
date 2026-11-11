@@ -1,5 +1,10 @@
 package exp
 
+const (
+	AnyFunctionName = "ANY "
+	AllFunctionName = "ALL "
+)
+
 type (
 	sqlFunctionExpression struct {
 		name string
