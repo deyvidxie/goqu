@@ -12,8 +12,10 @@ type (
 		SelectAppend(cl ColumnListExpression) SelectClauses
 		SetSelect(cl ColumnListExpression) SelectClauses
 
-		Distinct() ColumnListExpression
-		SetDistinct(cle ColumnListExpression) SelectClauses
+		Distinct() bool
+		SetDistinct(distinct bool) SelectClauses
+		DistinctOn() ColumnListExpression
+		SetDistinctOn(cl ColumnListExpression) SelectClauses
 
 		From() ColumnListExpression
 		SetFrom(cl ColumnListExpression) SelectClauses
@@ -77,7 +79,8 @@ type (
 	selectClauses struct {
 		commonTables  []CommonTableExpression
 		selectColumns ColumnListExpression
-		distinct      ColumnListExpression
+		distinct      bool
+		distinctOn    ColumnListExpression
 		from          ColumnListExpression
 		joins         JoinExpressions
 		where         ExpressionList
@@ -122,6 +125,7 @@ func (c *selectClauses) clone() *selectClauses {
 		commonTables:  c.commonTables[0:len(c.commonTables):len(c.commonTables)],
 		selectColumns: c.selectColumns,
 		distinct:      c.distinct,
+		distinctOn:    c.distinctOn,
 		from:          c.from,
 		joins:         c.joins[0:len(c.joins):len(c.joins)],
 		where:         c.where,
@@ -177,13 +181,25 @@ func (c *selectClauses) SetSelect(cl ColumnListExpression) SelectClauses {
 	return ret
 }
 
-func (c *selectClauses) Distinct() ColumnListExpression {
+func (c *selectClauses) Distinct() bool {
 	return c.distinct
 }
 
-func (c *selectClauses) SetDistinct(cle ColumnListExpression) SelectClauses {
+func (c *selectClauses) SetDistinct(distinct bool) SelectClauses {
 	ret := c.clone()
-	ret.distinct = cle
+	ret.distinct = distinct
+	ret.distinctOn = nil
+	return ret
+}
+
+func (c *selectClauses) DistinctOn() ColumnListExpression {
+	return c.distinctOn
+}
+
+func (c *selectClauses) SetDistinctOn(cl ColumnListExpression) SelectClauses {
+	ret := c.clone()
+	ret.distinct = false
+	ret.distinctOn = cl
 	return ret
 }
 

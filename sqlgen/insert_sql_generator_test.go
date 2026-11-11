@@ -1465,3 +1465,15 @@ func sqlIf(prepared bool, preparedSQL, interpolatedSQL string) string {
 	}
 	return interpolatedSQL
 }
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_colsWithRows() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetRows([]any{exp.Record{"a": 1, "b": 2}})
+	const errColsWithRows = "goqu: Cols cannot be combined with Rows; Rows take their columns from the records"
+	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: ic, err: errColsWithRows},
+		insertTestCase{clause: ic, err: errColsWithRows, isPrepared: true},
+	)
+}

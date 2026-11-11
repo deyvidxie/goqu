@@ -17,7 +17,7 @@ func TestEmptyClauseInputsAreErrors(t *testing.T) {
 		err string
 	}{
 		"select From":     {goqu.From("t").From(noTables...), "goqu: From requires at least one table; use ClearFrom to drop it"},
-		"select From nil": {goqu.From("t").From(nil), "goqu: From requires at least one table; use ClearFrom to drop it"},
+		"select From nil": {goqu.From("t").From(nil), "goqu: column and condition lists must not contain nil"},
 		"update From": {
 			goqu.Update("t").Set(goqu.Record{"a": 1}).From(noTables...),
 			"goqu: From requires at least one table; use ClearFrom to drop it",

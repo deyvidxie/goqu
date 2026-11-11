@@ -254,21 +254,21 @@ func (sds *selectDatasetSuite) TestSelectDistinct() {
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetSelect(exp.NewColumnListExpression(nil, "db", "a", "b")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db")),
+				SetDistinct(true),
 		},
 		selectTestCase{
 			ds: bd.SelectDistinct("a").SelectDistinct("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetSelect(exp.NewColumnListExpression(nil, "db", "b")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db")),
+				SetDistinct(true),
 		},
 		selectTestCase{
 			ds: bd.Select("a").SelectDistinct("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetSelect(exp.NewColumnListExpression(nil, "db", "b")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db")),
+				SetDistinct(true),
 		},
 		selectTestCase{
 			ds:      bd,
@@ -296,7 +296,7 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		err string
 	}{
 		"Select":     {bd.Select("a").Select(none...), emptySelect},
-		"Select nil": {bd.Select(nil), emptySelect},
+		"Select nil": {bd.Select(nil), "goqu: column and condition lists must not contain nil"},
 		"Select no columns": {bd.Select(struct {
 			A int `db:"-"`
 		}{}), emptySelect},
@@ -304,7 +304,7 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"SelectDistinct":                  {bd.SelectDistinct(none...), "goqu: SelectDistinct requires at least one column"},
 		"SelectAppend":                    {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
 		"GroupBy":                         {bd.GroupBy(none...), emptyGroupBy},
-		"GroupBy nil":                     {bd.GroupBy(nil), emptyGroupBy},
+		"GroupBy nil":                     {bd.GroupBy(nil), "goqu: column and condition lists must not contain nil"},
 		"GroupByAppend":                   {bd.GroupBy("a").GroupByAppend(none...), "goqu: GroupByAppend requires at least one column"},
 		"Order":                           {bd.Order(noOrder...), emptyOrder},
 		"Order nil":                       {bd.Order(nil), nilOrder},
@@ -386,13 +386,14 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 	for name, ds := range map[string]*goqu.SelectDataset{
 		"nil spread":   bd.DistinctOn(none...),
 		"empty spread": bd.DistinctOn([]interface{}{}...),
-		"nil column":   bd.DistinctOn(nil),
 		"empty list":   bd.DistinctOn(exp.NewColumnListExpression(nil, "db")),
 	} {
 		_, _, err := ds.ToSQL()
 		sds.EqualError(err, "goqu: DistinctOn requires at least one column; use Distinct() for a plain DISTINCT", name)
 		sds.True(goqu.IsInvalidExpression(err), name)
 	}
+	_, _, err = bd.DistinctOn(nil).ToSQL()
+	sds.EqualError(err, "goqu: column and condition lists must not contain nil")
 	sds.NoError(bd.Error())
 	base := goqu.From("test")
 	sds.assertCases(
@@ -400,13 +401,13 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 			ds: base.DistinctOn("a", "b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db", "a", "b")),
+				SetDistinctOn(exp.NewColumnListExpression(nil, "db", "a", "b")),
 		},
 		selectTestCase{
 			ds: base.DistinctOn("a").DistinctOn("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db", "b")),
+				SetDistinctOn(exp.NewColumnListExpression(nil, "db", "b")),
 		},
 	)
 }
@@ -418,7 +419,7 @@ func (sds *selectDatasetSuite) TestDistinct() {
 			ds: bd.DistinctOn("a").Distinct(),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
-				SetDistinct(exp.NewColumnListExpression(nil, "db")),
+				SetDistinct(true),
 		},
 		selectTestCase{
 			ds:      bd,

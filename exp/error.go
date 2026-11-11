@@ -21,6 +21,8 @@ func errRowLengthMismatch(expected, actual int) error {
 
 var errNilOrder = errors.NewInvalidExpressionError("Order expressions must not be nil")
 
+var errNilListEntry = errors.NewInvalidExpressionError("column and condition lists must not contain nil")
+
 var errRowsWithoutColumns = errors.NewInvalidExpressionError("insert rows have no columns")
 
 func errEmptyAppend(method, noun string) error {

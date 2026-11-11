@@ -92,15 +92,19 @@ func (ssg *selectSQLGenerator) selectSQLCommon(b sqlbuilder.SQLBuilder, clauses 
 
 // Adds DISTINCT (or DISTINCT ON (...)) when it is set on the dataset.
 func (ssg *selectSQLGenerator) distinctSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
-	dc := clauses.Distinct()
+	dc := clauses.DistinctOn()
 	if dc == nil {
+		if clauses.Distinct() {
+			b.Write(ssg.DialectOptions().DistinctFragment)
+			b.WriteRunes(ssg.DialectOptions().SpaceRune)
+		}
+		return
+	}
+	if dc.IsEmpty() {
+		b.SetError(errEmptyDistinctOn)
 		return
 	}
 	b.Write(ssg.DialectOptions().DistinctFragment)
-	if dc.IsEmpty() {
-		b.WriteRunes(ssg.DialectOptions().SpaceRune)
-		return
-	}
 	if !ssg.DialectOptions().SupportsDistinctOn {
 		b.SetError(errDistinctOnNotSupported(ssg.Dialect()))
 		return

@@ -10,7 +10,13 @@ type (
 )
 
 func NewExpressionList(operator ExpressionListType, expressions ...Expression) ExpressionList {
-	return expressionList{operator: operator, expressions: slices.Clone(expressions)}
+	exps := slices.Clone(expressions)
+	for i, e := range exps {
+		if e == nil {
+			exps[i] = newInvalidExpression(errNilListEntry)
+		}
+	}
+	return expressionList{operator: operator, expressions: exps}
 }
 
 func (el expressionList) Clone() Expression {

@@ -172,8 +172,8 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withDistinct() {
 	opts.OnFragment = []byte(" on ")
 	opts.SupportsDistinctOn = true
 
-	sc := exp.NewSelectClauses().SetDistinct(exp.NewColumnListExpression(nil, "db"))
-	scDistinctOn := sc.SetDistinct(exp.NewColumnListExpression(nil, "db", "a", "b"))
+	sc := exp.NewSelectClauses().SetDistinct(true)
+	scDistinctOn := sc.SetDistinctOn(exp.NewColumnListExpression(nil, "db", "a", "b"))
 
 	ssgs.assertCases(
 		sqlgen.NewSelectSQLGenerator("test", "db", opts),
@@ -911,6 +911,25 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyCommonTableName() {
 	for _, prepared := range []bool{false, true} {
 		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 			selectTestCase{clause: sc, err: "goqu: With requires a name", isPrepared: prepared},
+		)
+	}
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_distinctAndDistinctOn() {
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc.SetDistinct(true), sql: `SELECT DISTINCT * FROM "test"`, isPrepared: prepared},
+			selectTestCase{
+				clause:     sc.SetDistinctOn(exp.NewColumnListExpression(nil, "db", "a")),
+				sql:        `SELECT DISTINCT ON ("a") * FROM "test"`,
+				isPrepared: prepared,
+			},
+			selectTestCase{
+				clause:     sc.SetDistinctOn(exp.NewColumnListExpression(nil, "db")),
+				err:        "goqu: DistinctOn requires at least one column",
+				isPrepared: prepared,
+			},
 		)
 	}
 }

@@ -20,6 +20,9 @@ var (
 
 	errColsWithoutValsForInsert = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
 	errEmptyValsRowForInsert    = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
+	errColsWithRows             = errors.NewInvalidExpressionError(
+		"Cols cannot be combined with Rows; Rows take their columns from the records",
+	)
 	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
 		"more than one of Rows, Vals and FromQuery found when generating insert sql",
 	)
@@ -41,6 +44,7 @@ var (
 	errEmptyTruncateTable    = errors.NewInvalidExpressionError(`Truncate requires at least one table`)
 	errEmptyWindow           = errors.NewInvalidExpressionError(`Window requires at least one window`)
 	errEmptyCTEName          = errors.NewInvalidExpressionError(`With requires a name`)
+	errEmptyDistinctOn       = errors.NewInvalidExpressionError(`DistinctOn requires at least one column`)
 	errEmptyPartitionBy      = errors.NewInvalidExpressionError(`PartitionBy requires at least one column`)
 	errEmptyWindowOrderBy    = errors.NewInvalidExpressionError(`OrderBy requires at least one column`)
 	errEmptySelect           = errors.NewInvalidExpressionError(`Select requires at least one column`)

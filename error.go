@@ -118,3 +118,7 @@ func errEmptyLockOf(method string) error {
 		"%s requires at least one table; use %s without Of to lock every table", method, strings.TrimSuffix(method, "Of"),
 	)
 }
+
+func errUncarriedClause(method, clause string) error {
+	return errors.NewInvalidExpressionError("SelectDataset.%s cannot carry the select's %s clause", method, clause)
+}

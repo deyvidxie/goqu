@@ -142,7 +142,7 @@ func (sd *SelectDataset) Update() *UpdateDataset {
 		}
 	}
 	u.clauses = c
-	return u.SetError(sd.err)
+	return u.SetError(sd.err).SetError(sd.uncarriedClauseError("Update", false))
 }
 
 // Creates a new InsertDataset using the FROM of this dataset. This method will also copy over the `WITH` clause to the
@@ -185,7 +185,7 @@ func (sd *SelectDataset) Delete() *DeleteDataset {
 		}
 	}
 	d.clauses = c
-	return d.SetError(sd.err)
+	return d.SetError(sd.err).SetError(sd.uncarriedClauseError("Delete", false))
 }
 
 // Creates a new TruncateDataset using the FROM of this dataset.
@@ -194,7 +194,36 @@ func (sd *SelectDataset) Truncate() *TruncateDataset {
 	if sd.clauses.HasSources() {
 		td = td.Table(sd.clauses.From())
 	}
-	return td.SetError(sd.err)
+	return td.SetError(sd.err).SetError(sd.uncarriedClauseError("Truncate", true))
+}
+
+func (sd *SelectDataset) uncarriedClauseError(method string, truncate bool) error {
+	c := sd.clauses
+	clauses := []struct {
+		set  bool
+		name string
+	}{
+		{truncate && len(c.CommonTables()) > 0, "WITH"},
+		{truncate && c.Where() != nil, "WHERE"},
+		{truncate && c.HasOrder(), "ORDER BY"},
+		{truncate && c.HasLimit(), "LIMIT"},
+		{c.From() != nil && len(c.From().Columns()) > 1, "second FROM table"},
+		{len(c.Joins()) > 0, "JOIN"},
+		{c.Offset() > 0, "OFFSET"},
+		{c.GroupBy() != nil, "GROUP BY"},
+		{c.Having() != nil, "HAVING"},
+		{c.Qualify() != nil, "QUALIFY"},
+		{c.Distinct() || c.DistinctOn() != nil, "DISTINCT"},
+		{c.Windows() != nil, "WINDOW"},
+		{len(c.Compounds()) > 0, "compound (UNION/INTERSECT)"},
+		{c.Lock() != nil, "locking"},
+	}
+	for _, clause := range clauses {
+		if clause.set {
+			return errUncarriedClause(method, clause.name)
+		}
+	}
+	return nil
 }
 
 // Creates a WITH clause for a common table expression (CTE).
@@ -263,9 +292,7 @@ func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
 	return sd.copy(
 		sd.clauses.
 			SetSelect(cols).
-			SetDistinct(
-				exp.NewColumnListExpression(sd.subqueries, sd.tagName),
-			),
+			SetDistinct(true),
 	)
 }
 
@@ -275,7 +302,7 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 }
 
 func (sd *SelectDataset) ClearDistinct() *SelectDataset {
-	return sd.copy(sd.clauses.SetDistinct(nil))
+	return sd.copy(sd.clauses.SetDistinct(false))
 }
 
 // Adds columns to the SELECT clause. See examples
@@ -295,7 +322,7 @@ func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
 }
 
 func (sd *SelectDataset) Distinct() *SelectDataset {
-	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName)))
+	return sd.copy(sd.clauses.SetDistinct(true))
 }
 
 func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
@@ -303,7 +330,7 @@ func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {
 	if cols.IsEmpty() {
 		return sd.copy(sd.clauses).SetError(errEmptyDistinctOn)
 	}
-	return sd.copy(sd.clauses.SetDistinct(cols))
+	return sd.copy(sd.clauses.SetDistinctOn(cols))
 }
 
 // Adds a FROM clause. This return a new dataset with the original sources replaced. See examples.
