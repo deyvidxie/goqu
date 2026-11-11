@@ -76,24 +76,17 @@ func (scs *selectClausesSuite) TestSetSelect() {
 
 func (scs *selectClausesSuite) TestDistinct() {
 	c := exp.NewSelectClauses()
-	c2 := c.SetDistinct(exp.NewColumnListExpression(nil, "db", "a"))
+	distinct := c.SetDistinct(true)
+	on := distinct.SetDistinctOn(exp.NewColumnListExpression(nil, "db", "a"))
 
-	scs.Nil(c.Distinct())
-	scs.Equal(exp.NewColumnListExpression(nil, "db", exp.Star()), c.Select())
-
-	scs.Equal(exp.NewColumnListExpression(nil, "db", "a"), c2.Distinct())
-	scs.Equal(exp.NewColumnListExpression(nil, "db", exp.Star()), c.Select())
-}
-
-func (scs *selectClausesSuite) TestSetSelectDistinct() {
-	c := exp.NewSelectClauses()
-	c2 := c.SetDistinct(exp.NewColumnListExpression(nil, "db", "a"))
-
-	scs.Nil(c.Distinct())
-	scs.Equal(exp.NewColumnListExpression(nil, "db", exp.Star()), c.Select())
-
-	scs.Equal(exp.NewColumnListExpression(nil, "db", "a"), c2.Distinct())
-	scs.Equal(exp.NewColumnListExpression(nil, "db", exp.Star()), c.Select())
+	scs.False(c.Distinct())
+	scs.Nil(c.DistinctOn())
+	scs.True(distinct.Distinct())
+	scs.Nil(distinct.DistinctOn())
+	scs.False(on.Distinct())
+	scs.Equal(exp.NewColumnListExpression(nil, "db", "a"), on.DistinctOn())
+	scs.True(on.SetDistinct(true).Distinct())
+	scs.Nil(on.SetDistinct(true).DistinctOn())
 }
 
 func (scs *selectClausesSuite) TestFrom() {

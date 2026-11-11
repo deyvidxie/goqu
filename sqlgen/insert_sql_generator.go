@@ -123,6 +123,8 @@ func (isg *insertSQLGenerator) insertSourceSQL(b sqlbuilder.SQLBuilder, ic exp.I
 	switch {
 	case insertSourceCount(ic) > 1:
 		b.SetError(errMultipleSourcesForInsert)
+	case ic.Rows() != nil && ic.Cols() != nil:
+		b.SetError(errColsWithRows)
 	case ic.Rows() != nil:
 		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
 		if err != nil {

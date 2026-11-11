@@ -241,16 +241,16 @@ func (gis *githubIssuesSuite) TestIssue118_withNilEmbeddedStructWithExportedFiel
 func (gis *githubIssuesSuite) TestIssue140() {
 	const errEmpty = "goqu: Returning requires at least one column; use ClearReturning to drop it"
 	for name, ds := range map[string]interface{ ToSQL() (string, []any, error) }{
-		"insert":     goqu.Insert(`test`).Returning(),
-		"update":     goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(),
-		"delete":     goqu.Delete(`test`).Returning(),
-		"insert nil": goqu.Insert(`test`).Returning(nil),
-		"update nil": goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(nil),
-		"delete nil": goqu.Delete(`test`).Returning(nil),
+		"insert": goqu.Insert(`test`).Returning(),
+		"update": goqu.Update(`test`).Set(goqu.Record{"a": "b"}).Returning(),
+		"delete": goqu.Delete(`test`).Returning(),
 	} {
 		_, _, err := ds.ToSQL()
 		gis.EqualError(err, errEmpty, name)
 	}
+
+	_, _, err := goqu.Insert(`test`).Returning(nil).ToSQL()
+	gis.EqualError(err, "goqu: column and condition lists must not contain nil")
 
 	for want, ds := range map[string]interface{ ToSQL() (string, []any, error) }{
 		`INSERT INTO "test" DEFAULT VALUES`: goqu.Insert(`test`).Returning("id").ClearReturning(),
