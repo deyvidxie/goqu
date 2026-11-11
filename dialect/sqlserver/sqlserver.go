@@ -20,11 +20,11 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = false
 	opts.SupportsOnConflict = false
-	opts.SupportsWithCTE = false
-	opts.SupportsWithCTERecursive = false
+	opts.RecursiveFragment = []byte("")
+	opts.SupportsNestedWithCTE = false
 	opts.SupportsLateral = false
 	opts.SupportsDistinctOn = false
-	opts.SupportsWindowFunction = false
+	opts.SupportsWindowClause = false
 	opts.SurroundLimitWithParentheses = true
 	opts.SupportsLimitAll = false
 	opts.TruncateClause = []byte("TRUNCATE TABLE")

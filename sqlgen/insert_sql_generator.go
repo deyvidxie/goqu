@@ -201,6 +201,10 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sqlbuilder.SQLBuilder, ic 
 		b.SetError(errNilSubquery(ic.From()))
 		return
 	}
+	if !isg.DialectOptions().SupportsNestedWithCTE && hasCommonTables(ic.From()) {
+		b.SetError(errNestedCTENotSupported(isg.Dialect()))
+		return
+	}
 	isg.insertColumnsSQL(b, ic.Cols())
 	if b.Error() != nil {
 		return
@@ -276,6 +280,10 @@ func (isg *insertSQLGenerator) defaultValuesSQL(b sqlbuilder.SQLBuilder) {
 func (isg *insertSQLGenerator) insertFromSQL(b sqlbuilder.SQLBuilder, ae exp.AppendableExpression) {
 	if util.IsNilOrNilPointer(ae) {
 		b.SetError(errNilSubquery(ae))
+		return
+	}
+	if !isg.DialectOptions().SupportsNestedWithCTE && hasCommonTables(ae) {
+		b.SetError(errNestedCTENotSupported(isg.Dialect()))
 		return
 	}
 	b.WriteRunes(isg.DialectOptions().SpaceRune)

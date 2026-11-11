@@ -262,10 +262,35 @@ func (sds *sqlite3DialectSuite) TestFuns() {
 func (sds *sqlite3DialectSuite) TestForUpdate() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Eq(1))
 	sds.assertSQL(
-		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), sql: "SELECT * FROM `test` WHERE (`a` = 1)"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support NOWAIT [dialect=sqlite3]"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), err: "goqu: dialect does not support SKIP LOCKED [dialect=sqlite3]"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.Wait, goqu.T("test")), err: "goqu: dialect does not support OF in a locking clause [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), err: "goqu: dialect does not support FOR UPDATE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support FOR UPDATE [dialect=sqlite3]"},
+	)
+}
+
+func (sds *sqlite3DialectSuite) TestUpdateAndDeleteWithOrderAndLimit() {
+	ds := sds.GetDs("test").Where(goqu.C("a").Gt(1))
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Order(goqu.C("a").Asc()).Update().Set(goqu.Record{"a": 2}),
+			err: "goqu: dialect does not support ORDER BY on UPDATE [dialect=sqlite3]",
+		},
+		sqlTestCase{ds: ds.Limit(1).Update().Set(goqu.Record{"a": 2}), err: "goqu: dialect does not support LIMIT on UPDATE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.Order(goqu.C("a").Asc()).Delete(), err: "goqu: dialect does not support ORDER BY on DELETE [dialect=sqlite3]"},
+		sqlTestCase{ds: ds.Limit(1).Delete(), err: "goqu: dialect does not support LIMIT on DELETE [dialect=sqlite3]"},
+	)
+}
+
+func (sds *sqlite3DialectSuite) TestWindowFunctions() {
+	ds := sds.GetDs("test")
+	sds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Select(goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("a").OrderBy("b"))),
+			sql: "SELECT ROW_NUMBER() OVER (PARTITION BY `a` ORDER BY `b`) FROM `test`",
+		},
+		sqlTestCase{
+			ds:  ds.Window(goqu.W("w").PartitionBy("a")).Select(goqu.ROW_NUMBER().OverName(goqu.I("w"))),
+			sql: "SELECT ROW_NUMBER() OVER `w` FROM `test` WINDOW `w` AS (PARTITION BY `a`)",
+		},
 	)
 }
 

@@ -211,9 +211,16 @@ func (sds *duckdbDialectSuite) TestInsertWithoutValues() {
 func (sds *duckdbDialectSuite) TestUpdateAndDeleteWithOrderAndLimit() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Gt(1)).Order(goqu.C("a").Asc()).Limit(1)
 	sds.assertSQL(
-		sqlTestCase{ds: ds.Update().Set(goqu.Record{"a": 2}), sql: `UPDATE "test" SET "a"=2 WHERE ("a" > 1) ORDER BY "a" ASC LIMIT 1`},
+		sqlTestCase{ds: ds.Update().Set(goqu.Record{"a": 2}), err: "goqu: dialect does not support ORDER BY on UPDATE [dialect=duckdb]"},
+		sqlTestCase{
+			ds:  sds.GetDs("test").Limit(1).Update().Set(goqu.Record{"a": 2}),
+			err: "goqu: dialect does not support LIMIT on UPDATE [dialect=duckdb]",
+		},
 		sqlTestCase{ds: ds.Delete(), err: "goqu: dialect does not support ORDER BY on DELETE [dialect=duckdb]"},
-		sqlTestCase{ds: sds.GetDs("test").Where(goqu.C("a").Gt(1)).Limit(1).Delete(), sql: `DELETE FROM "test" WHERE ("a" > 1) LIMIT 1`},
+		sqlTestCase{
+			ds:  sds.GetDs("test").Where(goqu.C("a").Gt(1)).Limit(1).Delete(),
+			err: "goqu: dialect does not support LIMIT on DELETE [dialect=duckdb]",
+		},
 	)
 }
 
@@ -309,10 +316,8 @@ func (sds *duckdbDialectSuite) TestInsertRowAlias() {
 func (sds *duckdbDialectSuite) TestForUpdate() {
 	ds := sds.GetDs("test").Where(goqu.C("a").Eq(1))
 	sds.assertSQL(
-		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), sql: "SELECT * FROM \"test\" WHERE (\"a\" = 1)"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support NOWAIT [dialect=duckdb]"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.SkipLocked), err: "goqu: dialect does not support SKIP LOCKED [dialect=duckdb]"},
-		sqlTestCase{ds: ds.ForUpdate(goqu.Wait, goqu.T("test")), err: "goqu: dialect does not support OF in a locking clause [dialect=duckdb]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), err: "goqu: dialect does not support FOR UPDATE [dialect=duckdb]"},
+		sqlTestCase{ds: ds.ForUpdate(goqu.NoWait), err: "goqu: dialect does not support FOR UPDATE [dialect=duckdb]"},
 	)
 }
 

@@ -298,6 +298,10 @@ func (ssg *selectSQLGenerator) WindowSQL(b sqlbuilder.SQLBuilder, windows []exp.
 		b.SetError(errWindowNotSupported(ssg.Dialect()))
 		return
 	}
+	if !ssg.DialectOptions().SupportsWindowClause {
+		b.SetError(errWindowClauseNotSupported(ssg.Dialect()))
+		return
+	}
 	b.Write(ssg.DialectOptions().WindowFragment)
 	for i, we := range windows {
 		if invalid, ok := we.(exp.InvalidExpression); ok {

@@ -15,9 +15,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsReturn = true
 	opts.SupportsTruncateIdentity = false
 	opts.SupportsMultipleTruncateTables = false
-	opts.SupportsOrderByOnUpdate = true
-	opts.SupportsLimitOnUpdate = true
-	opts.SupportsLimitOnDelete = true
 	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = true
 	opts.WrapCompoundsInParens = false
@@ -77,10 +74,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.ConflictFragment = []byte(" ON CONFLICT ")
 	opts.ConflictDoUpdateFragment = []byte(" DO UPDATE SET ")
 	opts.ConflictDoNothingFragment = []byte(" DO NOTHING ")
-	opts.ForUpdateFragment = []byte("")
-	opts.UnsupportedLockWaitOptions = []exp.WaitOption{exp.NoWait, exp.SkipLocked}
-	opts.SupportsLockOf = false
-	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
+	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForUpdate, exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 
 	opts.LikeEscapeKey = "ESCAPE"
 	opts.LikeEscapeValue = "\\"

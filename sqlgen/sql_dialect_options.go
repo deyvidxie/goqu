@@ -43,6 +43,8 @@ type (
 		SupportsWithCTE bool
 		// Set to true if the dialect supports recursive Common Table Expressions (DEFAULT=true)
 		SupportsWithCTERecursive bool
+		// Set to true if a subquery, compound or INSERT source may carry its own WITH clause (DEFAULT=true)
+		SupportsNestedWithCTE bool
 		// Set to true if multiple tables are supported in UPDATE statement. (DEFAULT=true)
 		SupportsMultipleUpdateTables bool
 		// Set to true if the dialect supports RESTART/CONTINUE IDENTITY in TRUNCATE (DEFAULT=true)
@@ -65,6 +67,8 @@ type (
 
 		// Set to true if window function are supported in SELECT statement. (DEFAULT=true)
 		SupportsWindowFunction bool
+		// Set to true if the named WINDOW clause is supported; OVER (...) only needs SupportsWindowFunction (DEFAULT=true)
+		SupportsWindowClause bool
 
 		// Set to true if the dialect requires join tables in UPDATE to be in a FROM clause (DEFAULT=true).
 		UseFromClauseForMultipleUpdateTables bool
@@ -527,9 +531,11 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsConflictTarget:            true,
 		SupportsWithCTE:                   true,
 		SupportsWithCTERecursive:          true,
+		SupportsNestedWithCTE:             true,
 		SupportsDistinctOn:                true,
 		WrapCompoundsInParens:             true,
 		SupportsWindowFunction:            true,
+		SupportsWindowClause:              true,
 		SupportsLateral:                   true,
 		SupportsQualify:                   false,
 		SupportsMySQLJSONFunctions:        false,
