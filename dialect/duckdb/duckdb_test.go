@@ -236,7 +236,7 @@ func (st *duckdbSuite) TestILikeEscapesLiteralPercent() {
 
 func (st *duckdbSuite) TestDistinctOn() {
 	var ints []int
-	st.NoError(st.db.From("entry").Select("int").Distinct("bool").Order(goqu.C("bool").Asc(), goqu.C("int").Asc()).ScanVals(&ints))
+	st.NoError(st.db.From("entry").Select("int").DistinctOn("bool").Order(goqu.C("bool").Asc(), goqu.C("int").Asc()).ScanVals(&ints))
 	st.Equal([]int{1, 0}, ints)
 }
 

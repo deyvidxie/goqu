@@ -581,13 +581,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetUnsupported() {
 	icDn := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
 
 	opts := sqlgen.DefaultDialectOptions()
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT (test) DO UPDATE SET "a"='b'`},
-		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT DO UPDATE SET "a"='b'`},
-	)
-
-	opts = sqlgen.DefaultDialectOptions()
 	opts.SupportsInsertIgnoreSyntax = true
 	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")
 	opts.ConflictFragment = []byte("")

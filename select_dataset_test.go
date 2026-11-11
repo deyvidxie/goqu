@@ -278,11 +278,10 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 	var none []interface{}
 	var noOrder []exp.OrderedExpression
 	const (
-		emptySelect   = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
-		emptyGroupBy  = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
-		emptyOrder    = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
-		nilOrder      = "goqu: Order expressions must not be nil"
-		emptyDistinct = "goqu: Distinct arguments name no columns; call Distinct() for a plain DISTINCT"
+		emptySelect  = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
+		emptyGroupBy = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
+		emptyOrder   = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder     = "goqu: Order expressions must not be nil"
 	)
 	for name, c := range map[string]struct {
 		ds  *goqu.SelectDataset
@@ -310,8 +309,6 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"Where":               {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
 		"Having":              {bd.Having(), "goqu: Having requires at least one expression"},
 		"Qualify":             {bd.Qualify(), "goqu: Qualify requires at least one expression"},
-		"Distinct nil":        {bd.Distinct(nil), emptyDistinct},
-		"Distinct empty list": {bd.Distinct(exp.NewColumnListExpression(nil, "db")), emptyDistinct},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
@@ -366,7 +363,6 @@ func (sds *selectDatasetSuite) TestSelectAppend() {
 
 func (sds *selectDatasetSuite) TestDistinctOn() {
 	bd := goqu.Dialect("postgres").From("test")
-	sds.Equal(bd.Distinct("a", "b"), bd.DistinctOn("a", "b"))
 
 	sql, _, err := bd.DistinctOn("a").ToSQL()
 	sds.NoError(err)
@@ -390,16 +386,22 @@ func (sds *selectDatasetSuite) TestDistinct() {
 	bd := goqu.From("test")
 	sds.assertCases(
 		selectTestCase{
-			ds: bd.Distinct("a", "b"),
+			ds: bd.DistinctOn("a", "b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "a", "b")),
 		},
 		selectTestCase{
-			ds: bd.Distinct("a").Distinct("b"),
+			ds: bd.DistinctOn("a").DistinctOn("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "b")),
+		},
+		selectTestCase{
+			ds: bd.DistinctOn("a").Distinct(),
+			clauses: exp.NewSelectClauses().
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetDistinct(exp.NewColumnListExpression(nil, "db")),
 		},
 		selectTestCase{
 			ds:      bd,
@@ -1141,6 +1143,21 @@ func (sds *selectDatasetSuite) TestOrderPrepend() {
 				SetOrder(goqu.C("a").Asc()),
 		},
 	)
+}
+
+func (sds *selectDatasetSuite) TestConversionsKeepError() {
+	bd := goqu.From("test").Where()
+	const emptyWhere = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
+	for name, ds := range map[string]exp.SQLExpression{
+		"Insert":   bd.Insert().Rows(goqu.Record{"a": 1}),
+		"Truncate": bd.Truncate(),
+		"Update":   bd.Update().Set(goqu.Record{"a": 1}),
+		"Delete":   bd.Delete(),
+	} {
+		_, _, err := ds.ToSQL()
+		sds.EqualError(err, emptyWhere, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
 }
 
 func (sds *selectDatasetSuite) TestClearGroupBy() {

@@ -586,6 +586,7 @@ func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	}
 	_, _, err := ds.OnConflict(goqu.DoUpdate("", goqu.Record{"a": 2}).Where()).ToSQL()
 	assert.EqualError(t, err, "goqu: DoUpdate Where requires at least one expression")
+	assert.True(t, goqu.IsInvalidExpression(err))
 }
 
 func TestInsertWithoutRows(t *testing.T) {

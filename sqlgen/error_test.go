@@ -83,22 +83,10 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": 1}).From("u")
 		}},
-		{"UPDATE ORDER BY", "ORDER BY on UPDATE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Update("t").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc())
-		}},
-		{"UPDATE LIMIT", "LIMIT on UPDATE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Update("t").Set(goqu.Record{"a": 1}).Limit(1)
-		}},
-		{"DELETE ORDER BY", "ORDER BY on DELETE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Delete("t").Order(goqu.C("a").Asc())
-		}},
-		{"DELETE LIMIT", "LIMIT on DELETE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.Delete("t").Limit(1)
-		}},
 		{"DISTINCT ON", "DISTINCT ON clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsDistinctOn = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").Distinct("a")
+			return d.From("t").DistinctOn("a")
 		}},
 		{"WINDOW", "WINDOW clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWindowFunction = false

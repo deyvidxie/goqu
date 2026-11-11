@@ -93,6 +93,10 @@ func (c conflictUpdate) Update() interface{} {
 //
 //	InsertConflict(DoNothing(),...) -> INSERT INTO ... ON CONFLICT DO NOTHING
 func (c *conflictUpdate) Where(expressions ...Expression) ConflictUpdateExpression {
+	if len(expressions) == 0 {
+		c.whereClause = NewExpressionList(AndType)
+		return c
+	}
 	if c.whereClause == nil {
 		c.whereClause = NewExpressionList(AndType, expressions...)
 	} else {

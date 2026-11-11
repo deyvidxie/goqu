@@ -1161,22 +1161,22 @@ func ExampleSelectDataset_Distinct() {
 	// SELECT DISTINCT "a", "b" FROM "test"
 }
 
-func ExampleSelectDataset_Distinct_on() {
-	sql, _, _ := goqu.From("test").Distinct("a").ToSQL()
+func ExampleSelectDataset_DistinctOn_column() {
+	sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
 	fmt.Println(sql)
 	// Output:
 	// SELECT DISTINCT ON ("a") * FROM "test"
 }
 
-func ExampleSelectDataset_Distinct_onWithLiteral() {
-	sql, _, _ := goqu.From("test").Distinct(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
+func ExampleSelectDataset_DistinctOn_withLiteral() {
+	sql, _, _ := goqu.From("test").DistinctOn(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
 	fmt.Println(sql)
 	// Output:
 	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
 }
 
-func ExampleSelectDataset_Distinct_onCoalesce() {
-	sql, _, _ := goqu.From("test").Distinct(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
+func ExampleSelectDataset_DistinctOn_coalesce() {
+	sql, _, _ := goqu.From("test").DistinctOn(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
 	fmt.Println(sql)
 	// Output:
 	// SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"

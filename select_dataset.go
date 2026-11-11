@@ -280,12 +280,8 @@ func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
 	return sd.copy(sd.clauses.SelectAppend(cols))
 }
 
-func (sd *SelectDataset) Distinct(on ...interface{}) *SelectDataset {
-	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, on...)
-	if len(on) > 0 && cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptyDistinct)
-	}
-	return sd.copy(sd.clauses.SetDistinct(cols))
+func (sd *SelectDataset) Distinct() *SelectDataset {
+	return sd.copy(sd.clauses.SetDistinct(exp.NewColumnListExpression(sd.subqueries, sd.tagName)))
 }
 
 func (sd *SelectDataset) DistinctOn(on ...interface{}) *SelectDataset {

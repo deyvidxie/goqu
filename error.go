@@ -43,7 +43,6 @@ var (
 	errEmptySelect         = errors.NewInvalidExpressionError("Select requires at least one column; use ClearSelect for SELECT *")
 	errEmptySelectDistinct = errors.NewInvalidExpressionError("SelectDistinct requires at least one column")
 	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
-	errEmptyDistinct       = errors.NewInvalidExpressionError("Distinct arguments name no columns; call Distinct() for a plain DISTINCT")
 	errEmptyDistinctOn     = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
 	errEmptyGroupBy        = errors.NewInvalidExpressionError("GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY")
 	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")

@@ -270,8 +270,8 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 	odnl := ident.Desc().NullsLast()
 
 	csgs.assertCases(
-		commonSQLTestCase{gen: orderGen(csg), sql: ``},
-		commonSQLTestCase{gen: orderGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: orderGen(csg), err: "goqu: empty ORDER BY list"},
+		commonSQLTestCase{gen: orderGen(csg), err: "goqu: empty ORDER BY list", isPrepared: true},
 
 		commonSQLTestCase{gen: orderGen(csg, oa), sql: ` ORDER BY "a" ASC`},
 		commonSQLTestCase{gen: orderGen(csg, oa), sql: ` ORDER BY "a" ASC`, isPrepared: true, args: emptyArgs},
@@ -294,8 +294,8 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 		commonSQLTestCase{gen: orderGen(csg, oa, od), sql: ` ORDER BY "a" ASC, "a" DESC`},
 		commonSQLTestCase{gen: orderGen(csg, oa, od), sql: ` ORDER BY "a" ASC, "a" DESC`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: orderGen(csgCustom), sql: ``},
-		commonSQLTestCase{gen: orderGen(csgCustom), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: orderGen(csgCustom), err: "goqu: empty ORDER BY list"},
+		commonSQLTestCase{gen: orderGen(csgCustom), err: "goqu: empty ORDER BY list", isPrepared: true},
 
 		commonSQLTestCase{gen: orderGen(csgCustom, oa), sql: ` order by "a" asc`},
 		commonSQLTestCase{gen: orderGen(csgCustom, oa), sql: ` order by "a" asc`, isPrepared: true, args: emptyArgs},
@@ -360,7 +360,7 @@ func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 		},
 		commonSQLTestCase{
 			gen: offsetFetchGen(csg, exp.NewOrderedColumnList(), 2, nil),
-			err: "goqu: dialect does not support OFFSET without ORDER BY [dialect=test]",
+			err: "goqu: empty ORDER BY list",
 		},
 	)
 }

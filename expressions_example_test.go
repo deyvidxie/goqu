@@ -644,10 +644,10 @@ func ExampleExcluded() {
 }
 
 func ExampleExcluded_dialects() {
-	for _, dialect := range []string{"postgres", "mysql", "mysql8"} {
-		sql, _, _ := goqu.Dialect(dialect).Insert("items").
+	for _, c := range []struct{ dialect, target string }{{"postgres", "name"}, {"mysql", ""}, {"mysql8", ""}} {
+		sql, _, _ := goqu.Dialect(c.dialect).Insert("items").
 			Rows(goqu.Record{"name": "bob", "visits": 1}).
-			OnConflict(goqu.DoUpdate("name", goqu.Record{
+			OnConflict(goqu.DoUpdate(c.target, goqu.Record{
 				"visits": goqu.T("items").Col("visits").Add(goqu.Excluded("visits")),
 			})).
 			ToSQL()

@@ -331,6 +331,19 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWhere() {
 	)
 }
 
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	empty := exp.NewColumnListExpression(nil, "db")
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(
+			sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc.SetSelect(empty), err: "goqu: empty SELECT column list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetGroupBy(empty), err: "goqu: empty GROUP BY list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder(), err: "goqu: empty ORDER BY list", isPrepared: prepared},
+		)
+	}
+}
+
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_withGroupBy() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.GroupByFragment = []byte(" group by ")

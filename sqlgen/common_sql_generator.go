@@ -99,10 +99,15 @@ func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionLis
 
 // Generates the ORDER BY clause for an SQL statement
 func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExpression) {
-	if order != nil && len(order.Columns()) > 0 {
-		b.Write(csg.dialectOptions.OrderByFragment)
-		csg.esg.Generate(b, order)
+	if order == nil {
+		return
 	}
+	if len(order.Columns()) == 0 {
+		b.SetError(errEmptyOrderList)
+		return
+	}
+	b.Write(csg.dialectOptions.OrderByFragment)
+	csg.esg.Generate(b, order)
 }
 
 func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
@@ -111,7 +116,7 @@ func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
 	offset uint,
 	limit interface{},
 ) {
-	if order == nil || len(order.Columns()) == 0 {
+	if order == nil {
 		if offset > 0 {
 			b.SetError(errOffsetWithoutOrder(csg.dialect))
 		}

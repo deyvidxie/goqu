@@ -122,6 +122,9 @@ func TestInsertOnConflictEmptyWhere(t *testing.T) {
 		assert.EqualError(t, err, c.err, name)
 		assert.True(t, goqu.IsInvalidExpression(err), name)
 	}
+	_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.C("a").Eq(1)).Where()).ToSQL()
+	assert.EqualError(t, err, "goqu: DoUpdate Where requires at least one expression")
+	assert.True(t, goqu.IsInvalidExpression(err))
 }
 
 func TestJSONFunctionsAreErrors(t *testing.T) {

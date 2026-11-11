@@ -190,7 +190,6 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
 		deleteTestCase{clause: dc, err: "goqu: dialect does not support ORDER BY on DELETE [dialect=test]"},
 		deleteTestCase{clause: dc, err: "goqu: dialect does not support ORDER BY on DELETE [dialect=test]", isPrepared: true},
-		// No ORDER BY, no error.
 		deleteTestCase{
 			clause: exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", "")),
 			sql:    `DELETE FROM "test"`,
@@ -210,6 +209,7 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withLimitUnsupported() {
 			err:        "goqu: dialect does not support LIMIT on DELETE [dialect=test]",
 			isPrepared: true,
 		},
+		deleteTestCase{clause: dc.SetLimit(uint(0)), err: "goqu: dialect does not support LIMIT on DELETE [dialect=test]"},
 		deleteTestCase{clause: dc.SetLimit(exp.NewLiteralExpression("ALL")), sql: `DELETE FROM "test"`},
 		deleteTestCase{clause: dc, sql: `DELETE FROM "test"`},
 	)
@@ -227,12 +227,6 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withLimit() {
 		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
 		deleteTestCase{clause: dc, sql: `DELETE FROM "test" LIMIT 1`},
 		deleteTestCase{clause: dc, sql: `DELETE FROM "test" LIMIT ?`, isPrepared: true, args: []interface{}{int64(1)}},
-	)
-
-	dsgs.assertCases(
-		sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		deleteTestCase{clause: dc, err: "goqu: dialect does not support LIMIT on DELETE [dialect=test]"},
-		deleteTestCase{clause: dc.SetLimit(uint(0)), err: "goqu: dialect does not support LIMIT on DELETE [dialect=test]"},
 	)
 }
 

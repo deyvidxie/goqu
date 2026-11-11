@@ -66,9 +66,17 @@ func (gis *githubIssuesSuite) TestIssue272And438_typedNullsAreNull() {
 
 func (gis *githubIssuesSuite) TestIssue49() {
 	dialect := goqu.Dialect("default")
-	for _, where := range []exp.Expression{goqu.Or(), goqu.Ex{}, goqu.ExOr{}} {
-		_, _, err := dialect.From("table").Where(where).ToSQL()
-		gis.True(goqu.IsInvalidExpression(err), "%v", err)
+	for _, c := range []struct {
+		where exp.Expression
+		err   string
+	}{
+		{goqu.Or(), "goqu: empty OR condition (Or() or ExOr{})"},
+		{goqu.ExOr{}, "goqu: empty OR condition (Or() or ExOr{})"},
+		{goqu.Ex{}, "goqu: empty AND condition (And() or Ex{})"},
+	} {
+		_, _, err := dialect.From("table").Where(c.where).ToSQL()
+		gis.EqualError(err, c.err)
+		gis.True(goqu.IsInvalidExpression(err))
 	}
 }
 

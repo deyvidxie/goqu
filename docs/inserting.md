@@ -410,8 +410,7 @@ INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT DO NOTHING
 **NOTE** `OnConflict` returns an error on SQL Server, and on SQLite3 for an insert that renders `DEFAULT VALUES` (no `Rows`, `Vals` or `Cols`, or a `Rows` row with no columns) unless it is an untargeted `DoNothing`.
 
 To specify the conflict target columns, use `SetCols`. This is supported by dialects that support a conflict target
-(Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error instead of silently
-ignoring the target.
+(Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error.
 
 `SetCols` only supports a list of columns. To target a named constraint (`ON CONSTRAINT name`), use
 `DoUpdate` with a constraint target instead.

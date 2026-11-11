@@ -36,7 +36,7 @@ UPDATE "user" SET "first_name"='Greg', "last_name"='Farley'
 
 If you already have a `SelectDataset` you can invoke `Update()` to get a `UpdateDataset`
 
-**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` clauses from the update
+**NOTE** This method will also copy over the `WITH`, `WHERE`, `ORDER`, and `LIMIT` clauses from the update; a dialect without `ORDER BY` or `LIMIT` on `UPDATE` returns an `UnsupportedError` for them
 
 ```go
 ds := goqu.From("user")

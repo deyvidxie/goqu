@@ -33,6 +33,9 @@ var (
 	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition (And() or Ex{})`)
 	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition (Or() or ExOr{})`)
 	errEmptyDoUpdateWhere    = errors.NewInvalidExpressionError(`DoUpdate Where requires at least one expression`)
+	errEmptyOrderList        = errors.NewInvalidExpressionError(`empty ORDER BY list`)
+	errEmptyGroupByList      = errors.NewInvalidExpressionError(`empty GROUP BY list`)
+	errEmptySelectList       = errors.NewInvalidExpressionError(`empty SELECT column list`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 

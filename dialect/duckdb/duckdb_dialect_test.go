@@ -127,7 +127,7 @@ func (sds *duckdbDialectSuite) TestInsertOnConflict() {
 
 func (sds *duckdbDialectSuite) TestDistinctOn() {
 	sds.assertSQL(sqlTestCase{
-		ds:  sds.GetDs("test").Select("a").Distinct("b"),
+		ds:  sds.GetDs("test").Select("a").DistinctOn("b"),
 		sql: "SELECT DISTINCT ON (\"b\") \"a\" FROM \"test\"",
 	})
 }

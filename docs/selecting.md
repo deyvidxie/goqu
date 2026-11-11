@@ -182,12 +182,12 @@ Output:
 SELECT DISTINCT "a", "b" FROM "test"
 ```
 
-If your dialect supports `DISTINCT ON`, pass columns to `Distinct` or `DistinctOn`.
+If your dialect supports `DISTINCT ON`, pass the columns to `DistinctOn`.
 
 **NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
 
 ```go
-sql, _, _ := goqu.From("test").Distinct("a").ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
 fmt.Println(sql)
 ```
 Output:
@@ -201,7 +201,7 @@ You can also provide other expression arguments
 With `goqu.L`
 
 ```go
-sql, _, _ := goqu.From("test").Distinct(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn(goqu.L("COALESCE(?, ?)", goqu.C("a"), "empty")).ToSQL()
 fmt.Println(sql)
 ```
 Output:
@@ -210,7 +210,7 @@ SELECT DISTINCT ON (COALESCE("a", 'empty')) * FROM "test"
 ```
 With `goqu.Coalesce`
 ```go
-sql, _, _ := goqu.From("test").Distinct(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
+sql, _, _ := goqu.From("test").DistinctOn(goqu.COALESCE(goqu.C("a"), "empty")).ToSQL()
 fmt.Println(sql)
 ```
 Output:

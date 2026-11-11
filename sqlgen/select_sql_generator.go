@@ -112,9 +112,13 @@ func (ssg *selectSQLGenerator) distinctSQL(b sb.SQLBuilder, clauses exp.SelectCl
 
 // Adds the selected columns (or *) to a sql statement.
 func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
-	if cols := clauses.Select(); clauses.IsDefaultSelect() || len(cols.Columns()) == 0 {
+	cols := clauses.Select()
+	switch {
+	case clauses.IsDefaultSelect():
 		b.WriteRunes(ssg.DialectOptions().StarRune)
-	} else {
+	case len(cols.Columns()) == 0:
+		b.SetError(errEmptySelectList)
+	default:
 		ssg.ExpressionSQLGenerator().Generate(b, cols)
 	}
 }
@@ -178,10 +182,15 @@ func (ssg *selectSQLGenerator) JoinSQL(b sb.SQLBuilder, joins exp.JoinExpression
 
 // Generates the GROUP BY clause for an SQL statement
 func (ssg *selectSQLGenerator) GroupBySQL(b sb.SQLBuilder, groupBy exp.ColumnListExpression) {
-	if groupBy != nil && len(groupBy.Columns()) > 0 {
-		b.Write(ssg.DialectOptions().GroupByFragment)
-		ssg.ExpressionSQLGenerator().Generate(b, groupBy)
+	if groupBy == nil {
+		return
 	}
+	if len(groupBy.Columns()) == 0 {
+		b.SetError(errEmptyGroupByList)
+		return
+	}
+	b.Write(ssg.DialectOptions().GroupByFragment)
+	ssg.ExpressionSQLGenerator().Generate(b, groupBy)
 }
 
 // Generates the HAVING clause for an SQL statement

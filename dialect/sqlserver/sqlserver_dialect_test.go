@@ -157,7 +157,7 @@ func (sds *sqlserverDialectSuite) TestSelectDistinctWithLimit() {
 		},
 		// DISTINCT ON is still not supported.
 		sqlTestCase{
-			ds:  ds.Select("a").Distinct("a").Limit(1),
+			ds:  ds.Select("a").DistinctOn("a").Limit(1),
 			err: "goqu: dialect does not support DISTINCT ON clause [dialect=sqlserver]",
 		},
 	)
