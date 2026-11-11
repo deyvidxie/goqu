@@ -48,6 +48,11 @@ func TestEmptyClauseInputsAreErrors(t *testing.T) {
 			goqu.Insert("t").Returning(),
 			"goqu: Returning requires at least one column; use ClearReturning to drop it",
 		},
+		"select With":          {goqu.From("t").With("", goqu.From("u")), "goqu: With requires a name"},
+		"select WithRecursive": {goqu.From("t").WithRecursive(" ", goqu.From("u")), "goqu: With requires a name"},
+		"insert With":          {goqu.Insert("t").With("", goqu.From("u")).Rows(goqu.Record{"a": 1}), "goqu: With requires a name"},
+		"update With":          {goqu.Update("t").With("", goqu.From("u")).Set(goqu.Record{"a": 1}), "goqu: With requires a name"},
+		"delete WithRecursive": {goqu.Delete("t").WithRecursive("", goqu.From("u")), "goqu: With requires a name"},
 	} {
 		_, _, err := c.ds.ToSQL()
 		assert.EqualError(t, err, c.err, name)

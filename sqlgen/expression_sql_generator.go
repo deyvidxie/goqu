@@ -1488,6 +1488,10 @@ func (esg *expressionSQLGenerator) commonTablesSliceSQL(b sqlbuilder.SQLBuilder,
 
 // Generates SQL for a CommonTableExpression
 func (esg *expressionSQLGenerator) commonTableExpressionSQL(b sqlbuilder.SQLBuilder, cte exp.CommonTableExpression) {
+	if strings.TrimSpace(cte.Name().Literal()) == "" {
+		b.SetError(errEmptyCTEName)
+		return
+	}
 	esg.Generate(b, cte.Name())
 	b.Write(esg.dialectOptions.AsFragment)
 	esg.Generate(b, cte.SubQuery())

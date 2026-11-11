@@ -67,6 +67,7 @@ var (
 	errEmptyReturning      = errors.NewInvalidExpressionError("Returning requires at least one column; use ClearReturning to drop it")
 	errEmptyTruncateTable  = errors.NewInvalidExpressionError("Truncate requires at least one table")
 	errEmptyWindow         = errors.NewInvalidExpressionError("Window requires at least one window; use ClearWindow to drop it")
+	errEmptyCTEName        = errors.NewInvalidExpressionError("With requires a name")
 	errEmptyWindowAppend   = errors.NewInvalidExpressionError("WindowAppend requires at least one window")
 	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
 	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")

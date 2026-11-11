@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -102,6 +104,9 @@ func (ud *UpdateDataset) copy(clauses exp.UpdateClauses) *UpdateDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (ud *UpdateDataset) With(name string, subquery exp.Expression) *UpdateDataset {
+	if strings.TrimSpace(name) == "" {
+		return ud.copy(ud.clauses).SetError(errEmptyCTEName)
+	}
 	return ud.copy(ud.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -114,6 +119,9 @@ func (ud *UpdateDataset) With(name string, subquery exp.Expression) *UpdateDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (ud *UpdateDataset) WithRecursive(name string, subquery exp.Expression) *UpdateDataset {
+	if strings.TrimSpace(name) == "" {
+		return ud.copy(ud.clauses).SetError(errEmptyCTEName)
+	}
 	return ud.copy(ud.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 

@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -104,6 +106,9 @@ func (dd *DeleteDataset) copy(clauses exp.DeleteClauses) *DeleteDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (dd *DeleteDataset) With(name string, subquery exp.Expression) *DeleteDataset {
+	if strings.TrimSpace(name) == "" {
+		return dd.copy(dd.clauses).SetError(errEmptyCTEName)
+	}
 	return dd.copy(dd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -116,6 +121,9 @@ func (dd *DeleteDataset) With(name string, subquery exp.Expression) *DeleteDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (dd *DeleteDataset) WithRecursive(name string, subquery exp.Expression) *DeleteDataset {
+	if strings.TrimSpace(name) == "" {
+		return dd.copy(dd.clauses).SetError(errEmptyCTEName)
+	}
 	return dd.copy(dd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 

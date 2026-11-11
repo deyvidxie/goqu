@@ -40,6 +40,7 @@ var (
 	errEmptyReturning        = errors.NewInvalidExpressionError(`Returning requires at least one column`)
 	errEmptyTruncateTable    = errors.NewInvalidExpressionError(`Truncate requires at least one table`)
 	errEmptyWindow           = errors.NewInvalidExpressionError(`Window requires at least one window`)
+	errEmptyCTEName          = errors.NewInvalidExpressionError(`With requires a name`)
 	errEmptyPartitionBy      = errors.NewInvalidExpressionError(`PartitionBy requires at least one column`)
 	errEmptyWindowOrderBy    = errors.NewInvalidExpressionError(`OrderBy requires at least one column`)
 	errEmptySelect           = errors.NewInvalidExpressionError(`Select requires at least one column`)

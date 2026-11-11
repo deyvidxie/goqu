@@ -903,3 +903,14 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyWindows() {
 		)
 	}
 }
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyCommonTableName() {
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		CommonTablesAppend(exp.NewCommonTableExpression(false, "", newTestAppendableExpression(`SELECT 1`, nil, nil, nil)))
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc, err: "goqu: With requires a name", isPrepared: prepared},
+		)
+	}
+}

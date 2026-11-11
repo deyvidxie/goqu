@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"context"
 	"fmt"
 	"iter"
@@ -202,6 +204,9 @@ func (sd *SelectDataset) Truncate() *TruncateDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (sd *SelectDataset) With(name string, subquery exp.Expression) *SelectDataset {
+	if strings.TrimSpace(name) == "" {
+		return sd.copy(sd.clauses).SetError(errEmptyCTEName)
+	}
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -214,6 +219,9 @@ func (sd *SelectDataset) With(name string, subquery exp.Expression) *SelectDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *SelectDataset {
+	if strings.TrimSpace(name) == "" {
+		return sd.copy(sd.clauses).SetError(errEmptyCTEName)
+	}
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
@@ -449,7 +457,6 @@ func (sd *SelectDataset) ForUpdate(waitOption exp.WaitOption) *SelectDataset {
 	return sd.withLock(exp.ForUpdate, waitOption)
 }
 
-// Adds a FOR UPDATE OF clause that locks only the given tables.
 func (sd *SelectDataset) ForUpdateOf(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
 	return sd.withLockOf("ForUpdateOf", exp.ForUpdate, waitOption, of)
 }
