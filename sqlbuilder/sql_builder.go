@@ -14,33 +14,31 @@ const (
 type (
 	SQLBuilder interface {
 		Error() error
+		// SetError keeps the first error; writes after an error are no-ops.
 		SetError(err error) SQLBuilder
 		WriteArg(i ...any) SQLBuilder
 		Write(p []byte) SQLBuilder
 		WriteStrings(ss ...string) SQLBuilder
 		WriteRunes(r ...rune) SQLBuilder
-		// WriteInt appends the base 10 representation of i without allocating.
+		// WriteInt appends the base 10 representation of i.
 		WriteInt(i int64) SQLBuilder
 		// WriteFloat appends f formatted with the 'f' format and the smallest precision that round trips.
 		WriteFloat(f float64) SQLBuilder
-		// GrowArgs makes room for n more arguments (only useful for prepared statements).
 		GrowArgs(n int) SQLBuilder
-		// GrowBuffer makes room for n more bytes of SQL.
 		GrowBuffer(n int) SQLBuilder
 		IsPrepared() bool
+		// CurrentArgPosition is the 1-based number of the next placeholder; WriteArg advances it by len(i).
 		CurrentArgPosition() int
+		// ToSQL returns non-nil args when err is nil.
 		ToSQL() (sql string, args []any, err error)
 	}
 	sqlBuilder struct {
-		buf *bytes.Buffer
-		// True if the sql should not be interpolated
-		isPrepared bool
-		// Current Number of arguments, used by adapters that need positional placeholders
+		buf                *bytes.Buffer
+		isPrepared         bool
 		currentArgPosition int
 		args               []any
 		err                error
-		// released is true while the builder sits in the pool, it guards against a double release
-		released bool
+		released           bool
 	}
 )
 
@@ -118,7 +116,6 @@ func (b *sqlBuilder) WriteRunes(rs ...rune) SQLBuilder {
 
 func (b *sqlBuilder) WriteInt(i int64) SQLBuilder {
 	if b.err == nil {
-		// AvailableBuffer lets us format straight into the buffer's spare capacity, no scratch space needed.
 		b.buf.Write(strconv.AppendInt(b.buf.AvailableBuffer(), i, decimalBase))
 	}
 	return b
@@ -145,17 +142,14 @@ func (b *sqlBuilder) GrowBuffer(n int) SQLBuilder {
 	return b
 }
 
-// Returns true if the sql is a prepared statement
 func (b *sqlBuilder) IsPrepared() bool {
 	return b.isPrepared
 }
 
-// Returns the position of the next argument, used by dialects with numbered placeholders
 func (b *sqlBuilder) CurrentArgPosition() int {
 	return b.currentArgPosition
 }
 
-// Adds an argument to the builder, used when IsPrepared is true
 func (b *sqlBuilder) WriteArg(i ...any) SQLBuilder {
 	if b.err == nil {
 		b.currentArgPosition += len(i)
@@ -164,7 +158,6 @@ func (b *sqlBuilder) WriteArg(i ...any) SQLBuilder {
 	return b
 }
 
-// Returns the sql string, and arguments.
 func (b *sqlBuilder) ToSQL() (sql string, args []any, err error) {
 	if b.err != nil {
 		return sql, args, b.err

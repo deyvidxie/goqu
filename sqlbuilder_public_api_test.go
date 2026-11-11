@@ -27,7 +27,7 @@ func (d commentingDialect) ToSelectSQL(b sqlbuilder.SQLBuilder, clauses exp.Sele
 	d.SQLDialect.ToSelectSQL(b, clauses)
 }
 
-func TestSQLBuilderAPIsAreUsableOutsideTheModule(t *testing.T) {
+func TestSQLBuilderAPIsNeedOnlyPublicPackages(t *testing.T) {
 	sql, _, err := goqu.From("t").Where(goqu.C("id").In(literalSubquery{sql: "SELECT 1"})).ToSQL()
 	require.NoError(t, err)
 	assert.Equal(t, `SELECT * FROM "t" WHERE ("id" IN (SELECT 1))`, sql)
