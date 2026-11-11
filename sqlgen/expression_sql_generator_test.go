@@ -2794,6 +2794,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListsWhereASingleValueIsEx
 			},
 			expressionTestCase{val: exp.NewCaseExpression().When(a.Eq(1), pair), err: single("CASE THEN"), isPrepared: prepared},
 			expressionTestCase{val: exp.NewCaseExpression().When(a.Eq(1), "x").Else(pair), err: single("CASE ELSE"), isPrepared: prepared},
+			expressionTestCase{
+				val: exp.NewSQLFunctionExpression("COALESCE", a, pair), err: single(`function "COALESCE" argument`), isPrepared: prepared,
+			},
 		)
 	}
 
@@ -2801,6 +2804,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListsWhereASingleValueIsEx
 		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: exp.NewLiteralExpression("(a, b)").Gt(pair), sql: `((a, b) > (1, 2))`},
 		expressionTestCase{val: a.Add([]int{3}), sql: `("a" + (3))`},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("COALESCE", a, []int{3}), sql: `COALESCE("a", (3))`},
 		expressionTestCase{val: a.Between(exp.NewRangeVal([]int{1}, 3)), sql: `("a" BETWEEN (1) AND 3)`},
 		expressionTestCase{val: exp.NewCaseExpression().Value(a).When([]int{1}, "x"), sql: `CASE "a" WHEN (1) THEN 'x' END`},
 		expressionTestCase{val: a.Eq(exp.NewSQLFunctionExpression(exp.AnyFunctionName, arrayLiteralValuer{})), sql: `("a" = ANY ('{}'))`},

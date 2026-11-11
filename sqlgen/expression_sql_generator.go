@@ -583,7 +583,7 @@ func isInRHS(rhs interface{}) bool {
 	}
 }
 
-func (esg *expressionSQLGenerator) singleValuesSQL(b sqlbuilder.SQLBuilder, position string, vals ...interface{}) bool {
+func (esg *expressionSQLGenerator) checkSingleValues(b sqlbuilder.SQLBuilder, position string, vals ...interface{}) bool {
 	for _, v := range vals {
 		if isNotSingleValueList(v) {
 			b.SetError(errListAsSingleValue(position, v))
@@ -652,7 +652,7 @@ func (esg *expressionSQLGenerator) likeEscapeSQL(b sqlbuilder.SQLBuilder, operat
 // Generates SQL for a BitwiseExpresion (e.g. I("a").BitwiseOr(2) - > "a" | 2)
 func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.BitwiseExpression) {
 	position := operatorPosition(esg.dialectOptions.BitwiseOperatorLookup[operator.Op()], operator.Op())
-	if !esg.singleValuesSQL(b, position, operator.LHS(), operator.RHS()) {
+	if !esg.checkSingleValues(b, position, operator.LHS(), operator.RHS()) {
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -678,7 +678,7 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder,
 // Generates SQL for a ArithmeticExpresion (e.g. I("a").Add(1) -> "a" + 1)
 func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.ArithmeticExpression) {
 	position := operatorPosition(esg.dialectOptions.ArithmeticOperatorLookup[operator.Op()], operator.Op())
-	if !esg.singleValuesSQL(b, position, operator.LHS(), operator.RHS()) {
+	if !esg.checkSingleValues(b, position, operator.LHS(), operator.RHS()) {
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -699,7 +699,7 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuild
 // Generates SQL for a RangeExpresion (e.g. I("a").Between(RangeVal{Start:2,End:5}) -> "a" BETWEEN 2 AND 5)
 func (esg *expressionSQLGenerator) rangeExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.RangeExpression) {
 	position := operatorPosition(esg.dialectOptions.RangeOperatorLookup[operator.Op()], operator.Op())
-	if !esg.singleValuesSQL(b, position, operator.RHS().Start(), operator.RHS().End()) {
+	if !esg.checkSingleValues(b, position, operator.RHS().Start(), operator.RHS().End()) {
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -851,12 +851,16 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 	if val, ok := esg.dialectOptions.FunctionNameLookup[name]; ok {
 		name = string(val)
 	}
-	if args := sqlFunc.Args(); isAnyOrAll(sqlFunc.Name()) && len(args) == 1 && util.IsListValue(args[0]) {
+	args := sqlFunc.Args()
+	if isAnyOrAll(sqlFunc.Name()) && len(args) == 1 && util.IsListValue(args[0]) {
 		b.SetError(errListForAnyAll(sqlFunc.Name(), args[0]))
 		return
 	}
+	if !esg.checkSingleValues(b, fmt.Sprintf("function %q argument", strings.TrimSpace(name)), args...) {
+		return
+	}
 	b.WriteStrings(name)
-	esg.argumentsSQL(b, sqlFunc.Args())
+	esg.argumentsSQL(b, args)
 }
 
 func (esg *expressionSQLGenerator) argumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}) {
@@ -1529,11 +1533,11 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sqlbuilder.SQLBuilder, ca
 		return
 	}
 	for _, when := range whens {
-		if !esg.singleValuesSQL(b, "CASE WHEN", when.Condition()) || !esg.singleValuesSQL(b, "CASE THEN", when.Result()) {
+		if !esg.checkSingleValues(b, "CASE WHEN", when.Condition()) || !esg.checkSingleValues(b, "CASE THEN", when.Result()) {
 			return
 		}
 	}
-	if elseResult != nil && !esg.singleValuesSQL(b, "CASE ELSE", elseResult.Result()) {
+	if elseResult != nil && !esg.checkSingleValues(b, "CASE ELSE", elseResult.Result()) {
 		return
 	}
 	b.Write(esg.dialectOptions.CaseFragment)
