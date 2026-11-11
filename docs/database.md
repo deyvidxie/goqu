@@ -12,6 +12,12 @@ The Database also allows you to execute queries but expects raw SQL to execute. 
 * [`ScanVals`](http://godoc.org/github.com/doug-martin/goqu#Database.ScanVals)
 * [`ScanVal`](http://godoc.org/github.com/doug-martin/goqu#Database.ScanVal)
 * [`Begin`](http://godoc.org/github.com/doug-martin/goqu#Database.Begin)
+* [`FromSQL`](http://godoc.org/github.com/doug-martin/goqu#Database.FromSQL) - Returns a query executor for raw SQL, for the [generic scan methods](./selecting.md#generic-scan)
+* [`ExpressionSQL`, `PreparedExpressionSQL`](./expressions.md#expression-sql) - Renders one expression with the database's dialect and tag
+
+```go
+users, err := db.FromSQL(`SELECT * FROM "user" WHERE "id" > ?`, 10).ScanAllStructs[User](ctx)
+```
 
 <a name="transactions"></a>
 ### Transactions
