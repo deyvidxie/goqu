@@ -164,13 +164,13 @@ func (uc *updateClauses) SetOrder(oes ...OrderedExpression) UpdateClauses {
 }
 
 func (uc *updateClauses) OrderAppend(oes ...OrderedExpression) UpdateClauses {
-	if len(oes) == 0 {
-		ret := uc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderAppend")
-		return ret
-	}
 	if isSetButEmpty(uc.order) {
 		return uc
+	}
+	if len(oes) == 0 {
+		ret := uc.clone()
+		ret.order = emptyAppendList(ret.order, "OrderAppend", "argument")
+		return ret
 	}
 	if uc.order == nil {
 		return uc.SetOrder(oes...)
@@ -181,13 +181,13 @@ func (uc *updateClauses) OrderAppend(oes ...OrderedExpression) UpdateClauses {
 }
 
 func (uc *updateClauses) OrderPrepend(oes ...OrderedExpression) UpdateClauses {
-	if len(oes) == 0 {
-		ret := uc.clone()
-		ret.order = emptyAppendList(ret.order, "OrderPrepend")
-		return ret
-	}
 	if isSetButEmpty(uc.order) {
 		return uc
+	}
+	if len(oes) == 0 {
+		ret := uc.clone()
+		ret.order = emptyAppendList(ret.order, "OrderPrepend", "argument")
+		return ret
 	}
 	if uc.order == nil {
 		return uc.SetOrder(oes...)

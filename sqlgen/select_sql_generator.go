@@ -116,7 +116,7 @@ func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.Sel
 	switch {
 	case clauses.IsDefaultSelect():
 		b.WriteRunes(ssg.DialectOptions().StarRune)
-	case len(cols.Columns()) == 0:
+	case cols == nil || len(cols.Columns()) == 0:
 		b.SetError(errEmptySelectList)
 	default:
 		ssg.ExpressionSQLGenerator().Generate(b, cols)

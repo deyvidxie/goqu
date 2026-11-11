@@ -43,6 +43,7 @@ type (
 		GroupBy() ColumnListExpression
 		SetGroupBy(cl ColumnListExpression) SelectClauses
 		GroupByAppend(cl ColumnListExpression) SelectClauses
+		ClearGroupBy() SelectClauses
 
 		Limit() interface{}
 		HasLimit() bool
@@ -151,11 +152,15 @@ func (c *selectClauses) Select() ColumnListExpression {
 
 func (c *selectClauses) SelectAppend(cl ColumnListExpression) SelectClauses {
 	ret := c.clone()
-	if cl == nil || cl.IsEmpty() {
-		ret.selectColumns = emptyAppendList(ret.selectColumns, "SelectAppend")
+	if isSetButEmpty(ret.selectColumns) {
 		return ret
 	}
-	if isSetButEmpty(ret.selectColumns) {
+	if cl == nil || cl.IsEmpty() {
+		ret.selectColumns = emptyAppendList(ret.selectColumns, "SelectAppend", "column")
+		return ret
+	}
+	if ret.selectColumns == nil {
+		ret.selectColumns = cl
 		return ret
 	}
 	ret.selectColumns = ret.selectColumns.Append(cl.Columns()...)
@@ -312,13 +317,13 @@ func (c *selectClauses) SetOrder(oes ...OrderedExpression) SelectClauses {
 }
 
 func (c *selectClauses) OrderAppend(oes ...OrderedExpression) SelectClauses {
-	if len(oes) == 0 {
-		ret := c.clone()
-		ret.order = emptyAppendList(ret.order, "OrderAppend")
-		return ret
-	}
 	if isSetButEmpty(c.order) {
 		return c
+	}
+	if len(oes) == 0 {
+		ret := c.clone()
+		ret.order = emptyAppendList(ret.order, "OrderAppend", "argument")
+		return ret
 	}
 	if c.order == nil {
 		return c.SetOrder(oes...)
@@ -329,13 +334,13 @@ func (c *selectClauses) OrderAppend(oes ...OrderedExpression) SelectClauses {
 }
 
 func (c *selectClauses) OrderPrepend(oes ...OrderedExpression) SelectClauses {
-	if len(oes) == 0 {
-		ret := c.clone()
-		ret.order = emptyAppendList(ret.order, "OrderPrepend")
-		return ret
-	}
 	if isSetButEmpty(c.order) {
 		return c
+	}
+	if len(oes) == 0 {
+		ret := c.clone()
+		ret.order = emptyAppendList(ret.order, "OrderPrepend", "argument")
+		return ret
 	}
 	if c.order == nil {
 		return c.SetOrder(oes...)
@@ -350,19 +355,25 @@ func (c *selectClauses) GroupBy() ColumnListExpression {
 }
 
 func (c *selectClauses) GroupByAppend(cl ColumnListExpression) SelectClauses {
-	if cl == nil || cl.IsEmpty() {
-		ret := c.clone()
-		ret.groupBy = emptyAppendList(ret.groupBy, "GroupByAppend")
-		return ret
-	}
 	if isSetButEmpty(c.groupBy) {
 		return c
+	}
+	if cl == nil || cl.IsEmpty() {
+		ret := c.clone()
+		ret.groupBy = emptyAppendList(ret.groupBy, "GroupByAppend", "column")
+		return ret
 	}
 	if c.groupBy == nil {
 		return c.SetGroupBy(cl)
 	}
 	ret := c.clone()
 	ret.groupBy = ret.groupBy.Append(cl.Columns()...)
+	return ret
+}
+
+func (c *selectClauses) ClearGroupBy() SelectClauses {
+	ret := c.clone()
+	ret.groupBy = nil
 	return ret
 }
 

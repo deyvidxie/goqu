@@ -12,8 +12,8 @@ func (ie invalidExpression) Err() error { return ie.err }
 
 func (invalidExpression) isInvalid() {}
 
-func emptyAppendList(cl ColumnListExpression, method string) ColumnListExpression {
-	invalid := newInvalidExpression(errEmptyAppend(method))
+func emptyAppendList(cl ColumnListExpression, method, noun string) ColumnListExpression {
+	invalid := newInvalidExpression(errEmptyAppend(method, noun))
 	if cl == nil {
 		return NewColumnListExpression(nil, "", invalid)
 	}
@@ -21,7 +21,7 @@ func emptyAppendList(cl ColumnListExpression, method string) ColumnListExpressio
 }
 
 func emptyAppendExpressions(method string) []Expression {
-	return []Expression{newInvalidExpression(errEmptyAppend(method))}
+	return []Expression{newInvalidExpression(errEmptyAppend(method, "argument"))}
 }
 
 func isSetButEmpty(cl ColumnListExpression) bool {

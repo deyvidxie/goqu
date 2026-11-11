@@ -461,7 +461,7 @@ func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
 }
 
 func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
-	return sd.copy(sd.clauses.SetGroupBy(nil))
+	return sd.copy(sd.clauses.ClearGroupBy())
 }
 
 // Adds a HAVING clause. See examples.

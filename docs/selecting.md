@@ -1261,7 +1261,7 @@ fmt.Printf("\n%+v", ids)
 
 Scans a row of 1 column into a primitive value, returns false if a row wasnt found.
 
-**Note** when using the dataset a `LIMIT` of 1 is automatically applied.
+**Note** when using the dataset a `LIMIT` of 1 is automatically applied unless the dataset has `Limit(0)`.
 ```go
 var id int64
 found, err := db.From("user").Select("id").ScanVal(&id)

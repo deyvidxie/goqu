@@ -272,17 +272,17 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 			},
 			insertTestCase{
 				clause:     ic.SetCols(cols).ColsAppend(exp.NewColumnListExpression(nil, "db")).SetVals([][]interface{}{{1, 2}}),
-				err:        "goqu: ColsAppend requires at least one argument",
+				err:        "goqu: ColsAppend requires at least one column",
 				isPrepared: prepared,
 			},
 			insertTestCase{
 				clause:     ic.SetCols(cols).SetVals([][]interface{}{{1, 2}}).ValsAppend(nil),
-				err:        "goqu: ValsAppend requires at least one argument",
+				err:        "goqu: ValsAppend requires at least one row",
 				isPrepared: prepared,
 			},
 			insertTestCase{
 				clause:     ic.ColsAppend(exp.NewColumnListExpression(nil, "db")),
-				err:        "goqu: ColsAppend requires at least one argument",
+				err:        "goqu: ColsAppend requires at least one column",
 				isPrepared: prepared,
 			},
 			insertTestCase{
@@ -295,6 +295,13 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 				err:        noVals,
 				isPrepared: prepared,
 			},
+			insertTestCase{clause: ic.ColsAppend(nil), err: "goqu: ColsAppend requires at least one column", isPrepared: prepared},
+			insertTestCase{
+				clause:     ic.SetCols(exp.NewColumnListExpression(nil, "db")).ColsAppend(exp.NewColumnListExpression(nil, "db")),
+				err:        emptyCols,
+				isPrepared: prepared,
+			},
+			insertTestCase{clause: ic.SetVals([][]interface{}{}).ValsAppend(nil), err: noVals, isPrepared: prepared},
 		)
 	}
 	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()), cases...)

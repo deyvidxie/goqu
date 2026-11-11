@@ -21,8 +21,8 @@ func errRowLengthMismatch(expected, actual int) error {
 
 var errRowsWithoutColumns = errors.NewInvalidExpressionError("insert rows have no columns")
 
-func errEmptyAppend(method string) error {
-	return errors.NewInvalidExpressionError("%s requires at least one argument", method)
+func errEmptyAppend(method, noun string) error {
+	return errors.NewInvalidExpressionError("%s requires at least one %s", method, noun)
 }
 
 func errRowKeysMismatch(expected, actual string) error {

@@ -260,6 +260,7 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
 		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one argument"},
 		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one argument"},
 		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list"},
 	)
 }
 
