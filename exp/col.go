@@ -61,6 +61,10 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 func NewOrderedColumnList(vals ...OrderedExpression) ColumnListExpression {
 	exps := make([]interface{}, 0, len(vals))
 	for _, col := range vals {
+		if col == nil {
+			exps = append(exps, newInvalidExpression(errNilOrder))
+			continue
+		}
 		exps = append(exps, col.Expression())
 	}
 	return NewColumnListExpression(nil, "db", exps...)

@@ -19,6 +19,8 @@ func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
 }
 
+var errNilOrder = errors.NewInvalidExpressionError("Order expressions must not be nil")
+
 var errRowsWithoutColumns = errors.NewInvalidExpressionError("insert rows have no columns")
 
 func errEmptyAppend(method, noun string) error {
