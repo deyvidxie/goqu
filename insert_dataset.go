@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -105,6 +107,9 @@ func (id *InsertDataset) copy(clauses exp.InsertClauses) *InsertDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (id *InsertDataset) With(name string, subquery exp.Expression) *InsertDataset {
+	if strings.TrimSpace(name) == "" {
+		return id.copy(id.clauses).SetError(errEmptyCTEName)
+	}
 	return id.copy(id.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -117,6 +122,9 @@ func (id *InsertDataset) With(name string, subquery exp.Expression) *InsertDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (id *InsertDataset) WithRecursive(name string, subquery exp.Expression) *InsertDataset {
+	if strings.TrimSpace(name) == "" {
+		return id.copy(id.clauses).SetError(errEmptyCTEName)
+	}
 	return id.copy(id.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
@@ -208,7 +216,19 @@ func (id *InsertDataset) ClearRows() *InsertDataset {
 
 // Adds a RETURNING clause to the dataset if the adapter supports it See examples.
 func (id *InsertDataset) Returning(returning ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.SetReturning(exp.NewColumnListExpression(nil, id.tagName, returning...)))
+	cols := exp.NewColumnListExpression(nil, id.tagName, returning...)
+	if cols.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyReturning)
+	}
+	return id.copy(id.clauses.SetReturning(cols))
+}
+
+func (id *InsertDataset) ClearReturning() *InsertDataset {
+	return id.copy(id.clauses.SetReturning(nil))
+}
+
+func (id *InsertDataset) ClearWith() *InsertDataset {
+	return id.copy(id.clauses.ClearCommonTables())
 }
 
 // Adds an (ON CONFLICT/ON DUPLICATE KEY) clause to the dataset if the dialect supports it. See examples.
@@ -282,6 +302,10 @@ func (id *InsertDataset) GetAs() exp.IdentifierExpression {
 // as does an INSERT … SELECT without Cols.
 func (id *InsertDataset) As(alias string) *InsertDataset {
 	return id.copy(id.clauses.SetAlias(T(alias)))
+}
+
+func (id *InsertDataset) ClearAlias() *InsertDataset {
+	return id.copy(id.clauses.SetAlias(nil))
 }
 
 func (id *InsertDataset) ReturnsColumns() bool {

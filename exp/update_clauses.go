@@ -7,6 +7,7 @@ type (
 
 		CommonTables() []CommonTableExpression
 		CommonTablesAppend(cte CommonTableExpression) UpdateClauses
+		ClearCommonTables() UpdateClauses
 
 		Table() Expression
 		SetTable(table Expression) UpdateClauses
@@ -79,6 +80,12 @@ func (uc *updateClauses) CommonTables() []CommonTableExpression {
 func (uc *updateClauses) CommonTablesAppend(cte CommonTableExpression) UpdateClauses {
 	ret := uc.clone()
 	ret.commonTables = append(ret.commonTables, cte)
+	return ret
+}
+
+func (uc *updateClauses) ClearCommonTables() UpdateClauses {
+	ret := uc.clone()
+	ret.commonTables = nil
 	return ret
 }
 
@@ -222,7 +229,7 @@ func (uc *updateClauses) Returning() ColumnListExpression {
 }
 
 func (uc *updateClauses) HasReturning() bool {
-	return uc.returning != nil && !uc.returning.IsEmpty()
+	return uc.returning != nil
 }
 
 func (uc *updateClauses) SetReturning(cl ColumnListExpression) UpdateClauses {

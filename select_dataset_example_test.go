@@ -194,7 +194,7 @@ func ExampleSelectDataset_UnionAll() {
 
 func ExampleSelectDataset_With() {
 	sql, _, _ := goqu.From("one").
-		With("one", goqu.From().Select(goqu.L("1"))).
+		With("one", goqu.Select(goqu.L("1"))).
 		Select(goqu.Star()).
 		ToSQL()
 	fmt.Println(sql)
@@ -205,7 +205,7 @@ func ExampleSelectDataset_With() {
 		ToSQL()
 	fmt.Println(sql)
 	sql, _, _ = goqu.From("multi").
-		With("multi(x,y)", goqu.From().Select(goqu.L("1"), goqu.L("2"))).
+		With("multi(x,y)", goqu.Select(goqu.L("1"), goqu.L("2"))).
 		Select(goqu.C("x"), goqu.C("y")).
 		ToSQL()
 	fmt.Println(sql)
@@ -275,7 +275,7 @@ func ExampleSelectDataset_With_deleteDataset() {
 func ExampleSelectDataset_WithRecursive() {
 	sql, _, _ := goqu.From("nums").
 		WithRecursive("nums(x)",
-			goqu.From().Select(goqu.L("1")).
+			goqu.Select(goqu.L("1")).
 				UnionAll(goqu.From("nums").
 					Select(goqu.L("x+1")).Where(goqu.C("x").Lt(5)))).
 		ToSQL()
@@ -1078,7 +1078,7 @@ func ExampleSelectDataset_Select() {
 func ExampleSelectDataset_Select_withDataset() {
 	ds := goqu.From("test")
 	fromDs := ds.Select("age").Where(goqu.C("age").Gt(10))
-	sql, _, _ := ds.From().Select(fromDs).ToSQL()
+	sql, _, _ := ds.ClearFrom().Select(fromDs).ToSQL()
 	fmt.Println(sql)
 	// Output:
 	// SELECT (SELECT "age" FROM "test" WHERE ("age" > 10))
@@ -1087,7 +1087,7 @@ func ExampleSelectDataset_Select_withDataset() {
 func ExampleSelectDataset_Select_withAliasedDataset() {
 	ds := goqu.From("test")
 	fromDs := ds.Select("age").Where(goqu.C("age").Gt(10))
-	sql, _, _ := ds.From().Select(fromDs.As("ages")).ToSQL()
+	sql, _, _ := ds.ClearFrom().Select(fromDs.As("ages")).ToSQL()
 	fmt.Println(sql)
 	// Output:
 	// SELECT (SELECT "age" FROM "test" WHERE ("age" > 10)) AS "ages"
@@ -1226,8 +1226,11 @@ func ExampleSelectDataset_ClearSelect() {
 	ds = goqu.From("test").Select("a", "b").Distinct()
 	sql, _, _ = ds.ClearSelect().ToSQL()
 	fmt.Println(sql)
+	sql, _, _ = ds.ClearSelect().ClearDistinct().ToSQL()
+	fmt.Println(sql)
 	// Output:
 	// SELECT * FROM "test"
+	// SELECT DISTINCT * FROM "test"
 	// SELECT * FROM "test"
 }
 
@@ -1871,7 +1874,7 @@ func ExampleForUpdate() {
 }
 
 func ExampleForUpdate_of() {
-	sql, args, _ := goqu.From("test").ForUpdate(exp.Wait, goqu.T("test")).ToSQL()
+	sql, args, _ := goqu.From("test").ForUpdateOf(exp.Wait, goqu.T("test")).ToSQL()
 	fmt.Println(sql, args)
 
 	// Output:
@@ -1882,7 +1885,7 @@ func ExampleForUpdate_ofMultiple() {
 	sql, args, _ := goqu.From("table1").Join(
 		goqu.T("table2"),
 		goqu.On(goqu.I("table2.id").Eq(goqu.I("table1.id"))),
-	).ForUpdate(
+	).ForUpdateOf(
 		exp.Wait,
 		goqu.T("table1"),
 		goqu.T("table2"),

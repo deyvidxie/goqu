@@ -161,7 +161,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		{"lock OF", "OF in a locking clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsLockOf = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
-			return d.From("t").ForUpdate(goqu.Wait, goqu.T("t"))
+			return d.From("t").ForUpdateOf(goqu.Wait, goqu.T("t"))
 		}},
 		{"JSON functions", "JSONValue", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsMySQLJSONFunctions = false

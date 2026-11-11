@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"context"
 	"fmt"
 	"iter"
@@ -202,6 +204,9 @@ func (sd *SelectDataset) Truncate() *TruncateDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (sd *SelectDataset) With(name string, subquery exp.Expression) *SelectDataset {
+	if strings.TrimSpace(name) == "" {
+		return sd.copy(sd.clauses).SetError(errEmptyCTEName)
+	}
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -214,6 +219,9 @@ func (sd *SelectDataset) With(name string, subquery exp.Expression) *SelectDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (sd *SelectDataset) WithRecursive(name string, subquery exp.Expression) *SelectDataset {
+	if strings.TrimSpace(name) == "" {
+		return sd.copy(sd.clauses).SetError(errEmptyCTEName)
+	}
 	return sd.copy(sd.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
@@ -261,10 +269,13 @@ func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
 	)
 }
 
-// Resets to SELECT *. If the SelectDistinct or Distinct was used the returned Dataset will have the the dataset set to SELECT *.
-// See examples.
+// Resets to SELECT *. See examples.
 func (sd *SelectDataset) ClearSelect() *SelectDataset {
-	return sd.copy(sd.clauses.SetSelect(exp.NewColumnListExpression(sd.subqueries, sd.tagName, exp.Star())).SetDistinct(nil))
+	return sd.copy(sd.clauses.SetSelect(exp.NewColumnListExpression(sd.subqueries, sd.tagName, exp.Star())))
+}
+
+func (sd *SelectDataset) ClearDistinct() *SelectDataset {
+	return sd.copy(sd.clauses.SetDistinct(nil))
 }
 
 // Adds columns to the SELECT clause. See examples
@@ -316,7 +327,11 @@ func (sd *SelectDataset) From(from ...interface{}) *SelectDataset {
 			sources = append(sources, source)
 		}
 	}
-	return sd.copy(sd.clauses.SetFrom(exp.NewColumnListExpression(sd.subqueries, sd.tagName, sources...)))
+	tables := exp.NewColumnListExpression(sd.subqueries, sd.tagName, sources...)
+	if tables.IsEmpty() {
+		return sd.copy(sd.clauses).SetError(errEmptyFrom)
+	}
+	return sd.copy(sd.clauses.SetFrom(tables))
 }
 
 // Returns a new Dataset with the current one as an source. If the current Dataset is not aliased (See Dataset#As) then
@@ -421,31 +436,72 @@ func (sd *SelectDataset) Where(expressions ...exp.Expression) *SelectDataset {
 }
 
 // Removes the WHERE clause. See examples.
+func (sd *SelectDataset) ClearFrom() *SelectDataset {
+	return sd.copy(sd.clauses.SetFrom(nil))
+}
+
+func (sd *SelectDataset) ClearJoins() *SelectDataset {
+	return sd.copy(sd.clauses.ClearJoins())
+}
+
+func (sd *SelectDataset) ClearWith() *SelectDataset {
+	return sd.copy(sd.clauses.ClearCommonTables())
+}
+
 func (sd *SelectDataset) ClearWhere() *SelectDataset {
 	return sd.copy(sd.clauses.ClearWhere())
 }
 
-// Adds a FOR UPDATE clause. See examples.
-func (sd *SelectDataset) ForUpdate(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
-	return sd.withLock(exp.ForUpdate, waitOption, of...)
+// Adds a FOR UPDATE clause that locks every table in the query. See examples.
+func (sd *SelectDataset) ForUpdate(waitOption exp.WaitOption) *SelectDataset {
+	return sd.withLock(exp.ForUpdate, waitOption)
+}
+
+func (sd *SelectDataset) ForUpdateOf(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
+	return sd.withLockOf("ForUpdateOf", exp.ForUpdate, waitOption, of)
 }
 
 // Adds a FOR NO KEY UPDATE clause. See examples.
-func (sd *SelectDataset) ForNoKeyUpdate(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
-	return sd.withLock(exp.ForNoKeyUpdate, waitOption, of...)
+func (sd *SelectDataset) ForNoKeyUpdate(waitOption exp.WaitOption) *SelectDataset {
+	return sd.withLock(exp.ForNoKeyUpdate, waitOption)
+}
+
+func (sd *SelectDataset) ForNoKeyUpdateOf(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
+	return sd.withLockOf("ForNoKeyUpdateOf", exp.ForNoKeyUpdate, waitOption, of)
 }
 
 // Adds a FOR KEY SHARE clause. See examples.
-func (sd *SelectDataset) ForKeyShare(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
-	return sd.withLock(exp.ForKeyShare, waitOption, of...)
+func (sd *SelectDataset) ForKeyShare(waitOption exp.WaitOption) *SelectDataset {
+	return sd.withLock(exp.ForKeyShare, waitOption)
+}
+
+func (sd *SelectDataset) ForKeyShareOf(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
+	return sd.withLockOf("ForKeyShareOf", exp.ForKeyShare, waitOption, of)
 }
 
 // Adds a FOR SHARE clause. See examples.
-func (sd *SelectDataset) ForShare(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
-	return sd.withLock(exp.ForShare, waitOption, of...)
+func (sd *SelectDataset) ForShare(waitOption exp.WaitOption) *SelectDataset {
+	return sd.withLock(exp.ForShare, waitOption)
 }
 
-func (sd *SelectDataset) withLock(strength exp.LockStrength, option exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
+func (sd *SelectDataset) ForShareOf(waitOption exp.WaitOption, of ...exp.IdentifierExpression) *SelectDataset {
+	return sd.withLockOf("ForShareOf", exp.ForShare, waitOption, of)
+}
+
+func (sd *SelectDataset) ClearLock() *SelectDataset {
+	return sd.copy(sd.clauses.SetLock(nil))
+}
+
+func (sd *SelectDataset) withLock(strength exp.LockStrength, option exp.WaitOption) *SelectDataset {
+	return sd.copy(sd.clauses.SetLock(exp.NewLock(strength, option)))
+}
+
+func (sd *SelectDataset) withLockOf(
+	method string, strength exp.LockStrength, option exp.WaitOption, of []exp.IdentifierExpression,
+) *SelectDataset {
+	if len(of) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyLockOf(method))
+	}
 	return sd.copy(sd.clauses.SetLock(exp.NewLock(strength, option, of...)))
 }
 
@@ -622,6 +678,9 @@ func (sd *SelectDataset) GetAs() exp.IdentifierExpression {
 }
 
 func (sd *SelectDataset) Window(ws ...exp.WindowExpression) *SelectDataset {
+	if len(ws) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyWindow)
+	}
 	return sd.copy(sd.clauses.SetWindows(ws))
 }
 

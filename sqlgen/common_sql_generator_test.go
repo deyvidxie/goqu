@@ -69,8 +69,8 @@ func (csgs *commonSQLGeneratorSuite) TestReturningSQL() {
 		commonSQLTestCase{gen: returningGen(csgs1), sql: ` RETURNING "a", "b"`},
 		commonSQLTestCase{gen: returningGen(csgs1), sql: ` RETURNING "a", "b"`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: returningNoColsGen(csgs1), sql: ``},
-		commonSQLTestCase{gen: returningNoColsGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: returningNoColsGen(csgs1), err: `goqu: Returning requires at least one column`},
+		commonSQLTestCase{gen: returningNoColsGen(csgs1), err: `goqu: Returning requires at least one column`, isPrepared: true},
 
 		commonSQLTestCase{gen: returningNilExpGen(csgs1), sql: ``},
 		commonSQLTestCase{gen: returningNilExpGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
@@ -151,8 +151,8 @@ func (csgs *commonSQLGeneratorSuite) TestFromSQL() {
 		commonSQLTestCase{gen: fromGen(csg), sql: ` FROM "a", "b"`},
 		commonSQLTestCase{gen: fromGen(csg), sql: ` FROM "a", "b"`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: fromNoColsGen(csg), sql: ``},
-		commonSQLTestCase{gen: fromNoColsGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: fromNoColsGen(csg), err: `goqu: From requires at least one table`},
+		commonSQLTestCase{gen: fromNoColsGen(csg), err: `goqu: From requires at least one table`, isPrepared: true},
 
 		commonSQLTestCase{gen: fromNilExpGen(csg), sql: ``},
 		commonSQLTestCase{gen: fromNilExpGen(csg), sql: ``, isPrepared: true, args: emptyArgs},
@@ -160,8 +160,7 @@ func (csgs *commonSQLGeneratorSuite) TestFromSQL() {
 		commonSQLTestCase{gen: fromGen(csgFromFrag), sql: ` from "a", "b"`},
 		commonSQLTestCase{gen: fromGen(csgFromFrag), sql: ` from "a", "b"`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: fromNoColsGen(csgFromFrag), sql: ``},
-		commonSQLTestCase{gen: fromNoColsGen(csgFromFrag), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: fromNoColsGen(csgFromFrag), err: `goqu: From requires at least one table`},
 
 		commonSQLTestCase{gen: fromNilExpGen(csgFromFrag), sql: ``},
 		commonSQLTestCase{gen: fromNilExpGen(csgFromFrag), sql: ``, isPrepared: true, args: emptyArgs},

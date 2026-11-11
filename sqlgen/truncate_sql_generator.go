@@ -31,6 +31,10 @@ func (tsg *truncateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.T
 		b.SetError(errNoSourceForTruncate)
 		return
 	}
+	if clauses.Table().IsEmpty() {
+		b.SetError(errEmptyTruncateTable)
+		return
+	}
 	for _, f := range tsg.DialectOptions().TruncateSQLOrder {
 		if b.Error() != nil {
 			return

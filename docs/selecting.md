@@ -112,7 +112,7 @@ You can also ues another dataset in your select
 ```go
 ds := goqu.From("test")
 fromDs := ds.Select("age").Where(goqu.C("age").Gt(10))
-sql, _, _ := ds.From().Select(fromDs).ToSQL()
+sql, _, _ := ds.ClearFrom().Select(fromDs).ToSQL()
 fmt.Println(sql)
 ```
 
@@ -764,7 +764,7 @@ Simple Example
 
 ```go
 sql, _, _ := goqu.From("one").
-	With("one", goqu.From().Select(goqu.L("1"))).
+	With("one", goqu.Select(goqu.L("1"))).
 	Select(goqu.Star()).
 	ToSQL()
 fmt.Println(sql)
@@ -796,7 +796,7 @@ WITH intermed AS (SELECT * FROM "test" WHERE ("x" >= 5)), derived AS (SELECT * F
 
 ```go
 sql, _, _ = goqu.From("multi").
-		With("multi(x,y)", goqu.From().Select(goqu.L("1"), goqu.L("2"))).
+		With("multi(x,y)", goqu.Select(goqu.L("1"), goqu.L("2"))).
 		Select(goqu.C("x"), goqu.C("y")).
 		ToSQL()
 fmt.Println(sql)
@@ -968,10 +968,10 @@ Output:
 SELECT * FROM "test" FOR UPDATE
 ```
 
-If your dialect supports FOR UPDATE OF you provide tables to be locked as variable arguments to the ForUpdate method.
+If your dialect supports FOR UPDATE OF, pass the tables to lock to `ForUpdateOf` (`ForNoKeyUpdateOf`, `ForShareOf` and `ForKeyShareOf` likewise); it returns an error when given no tables. `ForUpdate` without `Of` locks every table.
 
 ```go
-sql, _, _ := goqu.From("test").ForUpdate(exp.Wait, goqu.T("test")).ToSQL()
+sql, _, _ := goqu.From("test").ForUpdateOf(exp.Wait, goqu.T("test")).ToSQL()
 fmt.Println(sql)
 ```
 

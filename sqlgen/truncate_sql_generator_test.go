@@ -147,3 +147,11 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithUnsupportedOptions() {
 func TestTruncateSQLGenerator(t *testing.T) {
 	suite.Run(t, new(truncateSQLGeneratorSuite))
 }
+
+func (tsgs *truncateSQLGeneratorSuite) TestGenerate_emptyTable() {
+	tc := exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db"))
+	tsgs.assertCases(sqlgen.NewTruncateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		truncateTestCase{clause: tc, err: "goqu: Truncate requires at least one table"},
+		truncateTestCase{clause: tc, err: "goqu: Truncate requires at least one table", isPrepared: true},
+	)
+}

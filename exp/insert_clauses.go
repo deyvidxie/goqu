@@ -6,6 +6,7 @@ type (
 	InsertClauses interface {
 		CommonTables() []CommonTableExpression
 		CommonTablesAppend(cte CommonTableExpression) InsertClauses
+		ClearCommonTables() InsertClauses
 
 		HasInto() bool
 		clone() *insertClauses
@@ -85,6 +86,12 @@ func (ic *insertClauses) CommonTablesAppend(cte CommonTableExpression) InsertCla
 	return ret
 }
 
+func (ic *insertClauses) ClearCommonTables() InsertClauses {
+	ret := ic.clone()
+	ret.commonTables = nil
+	return ret
+}
+
 func (ic *insertClauses) Cols() ColumnListExpression {
 	return ic.cols
 }
@@ -131,7 +138,7 @@ func (ic *insertClauses) Returning() ColumnListExpression {
 }
 
 func (ic *insertClauses) HasReturning() bool {
-	return ic.returning != nil && !ic.returning.IsEmpty()
+	return ic.returning != nil
 }
 
 func (ic *insertClauses) HasAlias() bool {

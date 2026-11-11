@@ -291,7 +291,11 @@ func (ssg *selectSQLGenerator) unsupportedLockError(lock exp.Lock) error {
 
 func (ssg *selectSQLGenerator) WindowSQL(b sqlbuilder.SQLBuilder, windows []exp.WindowExpression) {
 	weLen := len(windows)
+	if windows == nil {
+		return
+	}
 	if weLen == 0 {
+		b.SetError(errEmptyWindow)
 		return
 	}
 	if !ssg.DialectOptions().SupportsWindowFunction {

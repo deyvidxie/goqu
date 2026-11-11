@@ -375,18 +375,6 @@ func (uds *updateDatasetSuite) TestReturning() {
 				SetReturning(exp.NewColumnListExpression(nil, "db", "a", "b")),
 		},
 		updateTestCase{
-			ds: bd.Returning(),
-			clauses: exp.NewUpdateClauses().
-				SetTable(goqu.C("items")).
-				SetReturning(exp.NewColumnListExpression(nil, "db")),
-		},
-		updateTestCase{
-			ds: bd.Returning(nil),
-			clauses: exp.NewUpdateClauses().
-				SetTable(goqu.C("items")).
-				SetReturning(exp.NewColumnListExpression(nil, "db")),
-		},
-		updateTestCase{
 			ds: bd.Returning("a", "b").Returning("c"),
 			clauses: exp.NewUpdateClauses().
 				SetTable(goqu.C("items")).

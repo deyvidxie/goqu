@@ -678,7 +678,7 @@ func ExampleInsertDataset_With() {
 func ExampleInsertDataset_WithRecursive() {
 	insertSQL, _, _ := goqu.Insert("num_count").
 		WithRecursive("nums(x)",
-			goqu.From().Select(goqu.L("1")).
+			goqu.Select(goqu.L("1")).
 				UnionAll(goqu.From("nums").
 					Select(goqu.L("x+1")).Where(goqu.C("x").Lt(5))),
 		).

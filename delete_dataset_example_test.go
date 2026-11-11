@@ -55,7 +55,7 @@ func ExampleDeleteDataset_Executor_returning() {
 
 func ExampleDeleteDataset_With() {
 	sql, _, _ := goqu.Delete("test").
-		With("check_vals(val)", goqu.From().Select(goqu.L("123"))).
+		With("check_vals(val)", goqu.Select(goqu.L("123"))).
 		Where(goqu.C("val").Eq(goqu.From("check_vals").Select("val"))).
 		ToSQL()
 	fmt.Println(sql)
@@ -67,7 +67,7 @@ func ExampleDeleteDataset_With() {
 func ExampleDeleteDataset_WithRecursive() {
 	sql, _, _ := goqu.Delete("nums").
 		WithRecursive("nums(x)",
-			goqu.From().Select(goqu.L("1")).
+			goqu.Select(goqu.L("1")).
 				UnionAll(goqu.From("nums").
 					Select(goqu.L("x+1")).Where(goqu.C("x").Lt(5)))).
 		ToSQL()

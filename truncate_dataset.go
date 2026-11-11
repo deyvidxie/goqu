@@ -102,7 +102,11 @@ func (td *TruncateDataset) copy(clauses exp.TruncateClauses) *TruncateDataset {
 //	IdentifierExpression
 //	LiteralExpression: (See Literal) Will use the literal SQL
 func (td *TruncateDataset) Table(table ...interface{}) *TruncateDataset {
-	return td.copy(td.clauses.SetTable(exp.NewColumnListExpression(nil, td.tagName, table...)))
+	tables := exp.NewColumnListExpression(nil, td.tagName, table...)
+	if tables.IsEmpty() {
+		return td.copy(td.clauses).SetError(errEmptyTruncateTable)
+	}
+	return td.copy(td.clauses.SetTable(tables))
 }
 
 // Adds a CASCADE clause

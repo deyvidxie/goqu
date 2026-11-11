@@ -892,3 +892,25 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_nilCompoundSubquery() {
 		)
 	}
 }
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyWindows() {
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		SetWindows([]exp.WindowExpression{})
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc, err: "goqu: Window requires at least one window", isPrepared: prepared},
+		)
+	}
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyCommonTableName() {
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		CommonTablesAppend(exp.NewCommonTableExpression(false, "", newTestAppendableExpression(`SELECT 1`, nil, nil, nil)))
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc, err: "goqu: With requires a name", isPrepared: prepared},
+		)
+	}
+}

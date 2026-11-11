@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
@@ -102,6 +104,9 @@ func (ud *UpdateDataset) copy(clauses exp.UpdateClauses) *UpdateDataset {
 //
 // The name will refer to the results of the specified subquery.
 func (ud *UpdateDataset) With(name string, subquery exp.Expression) *UpdateDataset {
+	if strings.TrimSpace(name) == "" {
+		return ud.copy(ud.clauses).SetError(errEmptyCTEName)
+	}
 	return ud.copy(ud.clauses.CommonTablesAppend(exp.NewCommonTableExpression(false, name, subquery)))
 }
 
@@ -114,6 +119,9 @@ func (ud *UpdateDataset) With(name string, subquery exp.Expression) *UpdateDatas
 // a recursive query will always end with a UNION or UNION ALL with a clause that
 // refers to the CTE by name.
 func (ud *UpdateDataset) WithRecursive(name string, subquery exp.Expression) *UpdateDataset {
+	if strings.TrimSpace(name) == "" {
+		return ud.copy(ud.clauses).SetError(errEmptyCTEName)
+	}
 	return ud.copy(ud.clauses.CommonTablesAppend(exp.NewCommonTableExpression(true, name, subquery)))
 }
 
@@ -136,7 +144,15 @@ func (ud *UpdateDataset) Set(values interface{}) *UpdateDataset {
 
 // Allows specifying other tables to reference in your update (If your dialect supports it). See examples.
 func (ud *UpdateDataset) From(tables ...interface{}) *UpdateDataset {
-	return ud.copy(ud.clauses.SetFrom(exp.NewColumnListExpression(nil, ud.tagName, tables...)))
+	from := exp.NewColumnListExpression(nil, ud.tagName, tables...)
+	if from.IsEmpty() {
+		return ud.copy(ud.clauses).SetError(errEmptyFrom)
+	}
+	return ud.copy(ud.clauses.SetFrom(from))
+}
+
+func (ud *UpdateDataset) ClearFrom() *UpdateDataset {
+	return ud.copy(ud.clauses.SetFrom(nil))
 }
 
 // Adds a WHERE clause. See examples.
@@ -200,7 +216,19 @@ func (ud *UpdateDataset) ClearLimit() *UpdateDataset {
 
 // Adds a RETURNING clause to the dataset if the adapter supports it. See examples.
 func (ud *UpdateDataset) Returning(returning ...interface{}) *UpdateDataset {
-	return ud.copy(ud.clauses.SetReturning(exp.NewColumnListExpression(nil, ud.tagName, returning...)))
+	cols := exp.NewColumnListExpression(nil, ud.tagName, returning...)
+	if cols.IsEmpty() {
+		return ud.copy(ud.clauses).SetError(errEmptyReturning)
+	}
+	return ud.copy(ud.clauses.SetReturning(cols))
+}
+
+func (ud *UpdateDataset) ClearReturning() *UpdateDataset {
+	return ud.copy(ud.clauses.SetReturning(nil))
+}
+
+func (ud *UpdateDataset) ClearWith() *UpdateDataset {
+	return ud.copy(ud.clauses.ClearCommonTables())
 }
 
 // Get any error that has been set or nil if no error has been set.

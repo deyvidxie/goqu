@@ -24,6 +24,7 @@ type (
 
 		Joins() JoinExpressions
 		JoinsAppend(jc JoinExpression) SelectClauses
+		ClearJoins() SelectClauses
 
 		Where() ExpressionList
 		ClearWhere() SelectClauses
@@ -62,6 +63,7 @@ type (
 
 		CommonTables() []CommonTableExpression
 		CommonTablesAppend(cte CommonTableExpression) SelectClauses
+		ClearCommonTables() SelectClauses
 
 		Windows() []WindowExpression
 		SetWindows(ws []WindowExpression) SelectClauses
@@ -146,6 +148,12 @@ func (c *selectClauses) CommonTablesAppend(cte CommonTableExpression) SelectClau
 	return ret
 }
 
+func (c *selectClauses) ClearCommonTables() SelectClauses {
+	ret := c.clone()
+	ret.commonTables = nil
+	return ret
+}
+
 func (c *selectClauses) Select() ColumnListExpression {
 	return c.selectColumns
 }
@@ -210,6 +218,12 @@ func (c *selectClauses) Joins() JoinExpressions {
 func (c *selectClauses) JoinsAppend(jc JoinExpression) SelectClauses {
 	ret := c.clone()
 	ret.joins = append(ret.joins, jc)
+	return ret
+}
+
+func (c *selectClauses) ClearJoins() SelectClauses {
+	ret := c.clone()
+	ret.joins = nil
 	return ret
 }
 

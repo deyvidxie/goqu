@@ -2,6 +2,7 @@ package goqu
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
@@ -62,6 +63,11 @@ var (
 	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
 	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
 	errNilOnConflict       = errors.NewInvalidExpressionError("OnConflict requires a conflict expression; use ClearOnConflict to drop it")
+	errEmptyFrom           = errors.NewInvalidExpressionError("From requires at least one table; use ClearFrom to drop it")
+	errEmptyReturning      = errors.NewInvalidExpressionError("Returning requires at least one column; use ClearReturning to drop it")
+	errEmptyTruncateTable  = errors.NewInvalidExpressionError("Truncate requires at least one table")
+	errEmptyWindow         = errors.NewInvalidExpressionError("Window requires at least one window; use ClearWindow to drop it")
+	errEmptyCTEName        = errors.NewInvalidExpressionError("With requires a name")
 	errEmptyWindowAppend   = errors.NewInvalidExpressionError("WindowAppend requires at least one window")
 	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
 	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")
@@ -105,4 +111,10 @@ func checkOrder(order []exp.OrderedExpression, errEmpty, errNil error) error {
 
 func errNilSubquery(source interface{}) error {
 	return errors.NewInvalidExpressionError("subquery must not be nil, got %T", source)
+}
+
+func errEmptyLockOf(method string) error {
+	return errors.NewInvalidExpressionError(
+		"%s requires at least one table; use %s without Of to lock every table", method, strings.TrimSuffix(method, "Of"),
+	)
 }
