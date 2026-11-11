@@ -75,7 +75,8 @@ func (dds *deleteDatasetSuite) TestWithDialect() {
 	md := new(mocks.SQLDialect)
 	ds = ds.SetDialect(md)
 
-	dialect := goqu.GetDialect("default")
+	dialect, err := goqu.GetDialect("default")
+	dds.Require().NoError(err)
 	dialectDs := ds.WithDialect("default")
 	dds.Equal(md, ds.Dialect())
 	dds.Equal(dialect, dialectDs.Dialect())
@@ -440,7 +441,7 @@ func (dds *deleteDatasetSuite) TestExecutor() {
 	mDB, _, err := sqlmock.New()
 	dds.NoError(err)
 
-	ds := goqu.New("mock", mDB).Delete("items").Where(goqu.Ex{"id": goqu.Op{"gt": 10}})
+	ds := goqu.New("default", mDB).Delete("items").Where(goqu.Ex{"id": goqu.Op{"gt": 10}})
 
 	dsql, args, err := ds.Executor().ToSQL()
 	dds.NoError(err)

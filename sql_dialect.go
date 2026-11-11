@@ -84,11 +84,11 @@ func registeredDialect(name string) (*sqlDialect, bool) {
 	return d, ok
 }
 
-func GetDialect(name string) SQLDialect {
+func GetDialect(name string) (SQLDialect, error) {
 	if d, ok := registeredDialect(name); ok {
-		return d
+		return d, nil
 	}
-	return newDialect("default", "db", DefaultDialectOptions())
+	return nil, errUnknownDialect(name)
 }
 
 type tagRequest struct {
@@ -117,46 +117,46 @@ func registeredTagName(name string) string {
 	if d, ok := dialects[strings.ToLower(name)]; ok {
 		return d.tagName
 	}
-	if d, ok := dialects["default"]; ok {
-		return d.tagName
+	return ""
+}
+
+func GetDialectWithTag(name, requestedTag string) (SQLDialect, error) {
+	d, err := dialectFor(name, requestTag(requestedTag).resolve(name))
+	if err != nil {
+		return nil, err
 	}
-	return "db"
+	return d, nil
 }
 
-func GetDialectWithTag(name, requestedTag string) SQLDialect {
-	return dialectFor(name, requestTag(requestedTag).resolve(name))
-}
-
-func dialectFor(name, tagName string) *sqlDialect {
-	name = strings.ToLower(name)
-	key := taggedDialectKey{name: name, tagName: tagName}
+func dialectFor(name, tagName string) (*sqlDialect, error) {
+	key := taggedDialectKey{name: strings.ToLower(name), tagName: tagName}
 	dialectsMu.RLock()
-	d, registered := dialects[name]
-	tagged, cached := taggedDialects[key]
+	d, found, err := knownDialect(name, key)
 	dialectsMu.RUnlock()
-	switch {
-	case !registered:
-		return newDialect("default", tagName, DefaultDialectOptions())
-	case d.tagName == tagName:
-		return d
-	case cached:
-		return tagged
+	if found {
+		return d, err
 	}
 
 	dialectsMu.Lock()
 	defer dialectsMu.Unlock()
-	d, registered = dialects[name]
+	d, found, err = knownDialect(name, key)
+	if !found {
+		d = newDialect(key.name, key.tagName, dialects[key.name].dialectOptions)
+		taggedDialects[key] = d
+	}
+	return d, err
+}
+
+func knownDialect(name string, key taggedDialectKey) (d *sqlDialect, found bool, err error) {
+	registered, ok := dialects[key.name]
 	switch {
-	case !registered:
-		return newDialect("default", tagName, DefaultDialectOptions())
-	case d.tagName == tagName:
-		return d
+	case !ok:
+		return newDialect(key.name, key.tagName, DefaultDialectOptions()), true, errUnknownDialect(name)
+	case registered.tagName == key.tagName:
+		return registered, true, nil
 	}
-	if tagged, cached = taggedDialects[key]; !cached {
-		tagged = newDialect(name, tagName, d.dialectOptions)
-		taggedDialects[key] = tagged
-	}
-	return tagged
+	d, found = taggedDialects[key]
+	return d, found, nil
 }
 
 func newDialect(dialect, tagName string, do *SQLDialectOptions) *sqlDialect {

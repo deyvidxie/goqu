@@ -189,9 +189,8 @@ func (dws *dialectWrapperSuite) TestExpressionSQL_ignoresDefaultPrepared() {
 }
 
 func (dws *dialectWrapperSuite) TestExpressionSQL_unregisteredDialect() {
-	sql, _, err := goqu.Dialect("nope").ExpressionSQL(goqu.C("a").Eq(1))
-	dws.Require().NoError(err)
-	dws.Equal(`("a" = 1)`, sql)
+	_, _, err := goqu.Dialect("nope").ExpressionSQL(goqu.C("a").Eq(1))
+	dws.True(goqu.IsUnknownDialect(err))
 }
 
 func (dws *dialectWrapperSuite) TestPreparedExpressionSQL_tagName() {

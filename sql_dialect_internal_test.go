@@ -104,26 +104,41 @@ func (dts *dialectTestSuite) TestGetDialect() {
 	RegisterDialect("get-test", "db", DefaultDialectOptions())
 	defer DeregisterDialect("get-test")
 
-	dts.Equal("get-test", GetDialect("GET-TEST").Dialect())
-	dts.Equal("default", GetDialect("not-registered").Dialect())
+	d, err := GetDialect("GET-TEST")
+	dts.Require().NoError(err)
+	dts.Equal("get-test", d.Dialect())
+
+	d, err = GetDialect("not-registered")
+	dts.Nil(d)
+	dts.True(IsUnknownDialect(err))
 }
 
 func (dts *dialectTestSuite) TestGetDialectWithTag() {
 	RegisterDialect("tag-test", "db", DefaultDialectOptions())
 	defer DeregisterDialect("tag-test")
 
-	dbTagged := GetDialectWithTag("tag-test", "db")
-	dts.Same(GetDialect("tag-test"), dbTagged)
-	dts.Same(dbTagged, GetDialectWithTag("tag-test", ""))
-	dts.Equal("default", GetDialectWithTag("not-registered", "json").Dialect())
+	get := func(name, tag string) SQLDialect {
+		d, err := GetDialectWithTag(name, tag)
+		dts.Require().NoError(err)
+		return d
+	}
+	registered, err := GetDialect("tag-test")
+	dts.Require().NoError(err)
+	dbTagged := get("tag-test", "db")
+	dts.Same(registered, dbTagged)
+	dts.Same(dbTagged, get("tag-test", ""))
 
-	jsonTagged := GetDialectWithTag("tag-test", "json")
+	d, err := GetDialectWithTag("not-registered", "json")
+	dts.Nil(d)
+	dts.True(IsUnknownDialect(err))
+
+	jsonTagged := get("tag-test", "json")
 	dts.NotSame(dbTagged, jsonTagged)
-	dts.Same(jsonTagged, GetDialectWithTag("tag-test", "json"))
+	dts.Same(jsonTagged, get("tag-test", "json"))
 	dts.Equal("tag-test", jsonTagged.Dialect())
 
 	RegisterDialect("tag-test", "db", DefaultDialectOptions())
-	dts.NotSame(jsonTagged, GetDialectWithTag("tag-test", "json"))
+	dts.NotSame(jsonTagged, get("tag-test", "json"))
 }
 
 func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
@@ -137,8 +152,8 @@ func (dts *dialectTestSuite) TestGetDialectWithTag_concurrentRegister() {
 		}()
 		go func() {
 			defer wg.Done()
-			GetDialectWithTag("race-test", "json")
-			GetDialect("race-test")
+			_, _ = GetDialectWithTag("race-test", "json")
+			_, _ = GetDialect("race-test")
 			registeredTagName("race-test")
 		}()
 	}

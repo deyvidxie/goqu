@@ -56,7 +56,8 @@ func (ids *insertDatasetSuite) TestWithDialect() {
 	md := new(mocks.SQLDialect)
 	ds = ds.SetDialect(md)
 
-	dialect := goqu.GetDialect("default")
+	dialect, err := goqu.GetDialect("default")
+	ids.Require().NoError(err)
 	dialectDs := ds.WithDialect("default")
 	ids.Equal(md, ds.Dialect())
 	ids.Equal(dialect, dialectDs.Dialect())
@@ -233,7 +234,9 @@ func (ids *insertDatasetSuite) TestFromQueryDialectInheritance() {
 
 	ids.Run("ok, insert and select dialects are default", func() {
 		bd := goqu.Insert("items").FromQuery(goqu.From("other_items"))
-		ids.Require().Equal(goqu.GetDialect("default"), bd.GetClauses().From().(*goqu.SelectDataset).Dialect())
+		dialect, err := goqu.GetDialect("default")
+		ids.Require().NoError(err)
+		ids.Require().Equal(dialect, bd.GetClauses().From().(*goqu.SelectDataset).Dialect())
 	})
 
 	ids.Run("panic, insert and select dialects are different", func() {
@@ -607,7 +610,7 @@ func (ids *insertDatasetSuite) TestExecutor() {
 	mDB, _, err := sqlmock.New()
 	ids.NoError(err)
 
-	ds := goqu.New("mock", mDB).Insert("items").
+	ds := goqu.New("default", mDB).Insert("items").
 		Rows(goqu.Record{"address": "111 Test Addr", "name": "Test1"})
 
 	isql, args, err := ds.Executor().ToSQL()
@@ -641,7 +644,7 @@ func (ids *insertDatasetSuite) TestInsertStruct() {
 		Untagged: "Test2",
 	}
 
-	ds := goqu.New("mock", mDB).Insert("items").
+	ds := goqu.New("default", mDB).Insert("items").
 		Rows(item)
 
 	isql, args, err := ds.Executor().ToSQL()

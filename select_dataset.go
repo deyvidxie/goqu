@@ -26,9 +26,11 @@ type SelectDataset struct {
 
 func newDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *SelectDataset {
 	tagName := requestedTag.resolve(d)
+	dialect, err := dialectFor(d, tagName)
 	return &SelectDataset{
 		clauses:      exp.NewSelectClauses(),
-		dialect:      dialectFor(d, tagName),
+		dialect:      dialect,
+		err:          err,
 		queryFactory: queryFactory,
 		tagName:      tagName,
 		requestedTag: requestedTag,
@@ -47,8 +49,9 @@ func Select(cols ...interface{}) *SelectDataset {
 func (sd *SelectDataset) WithDialect(dl string) *SelectDataset {
 	ds := sd.copy(sd.GetClauses())
 	ds.tagName = ds.requestedTag.resolve(dl)
-	ds.dialect = dialectFor(dl, ds.tagName)
-	return ds
+	dialect, err := dialectFor(dl, ds.tagName)
+	ds.dialect = dialect
+	return ds.SetError(err)
 }
 
 // Set the parameter interpolation behavior. See examples

@@ -48,7 +48,8 @@ func (tds *truncateDatasetSuite) TestWithDialect() {
 	md := new(mocks.SQLDialect)
 	ds = ds.SetDialect(md)
 
-	dialect := goqu.GetDialect("default")
+	dialect, err := goqu.GetDialect("default")
+	tds.Require().NoError(err)
 	dialectDs := ds.WithDialect("default")
 	tds.Equal(md, ds.Dialect())
 	tds.Equal(dialect, dialectDs.Dialect())
@@ -269,7 +270,7 @@ func (tds *truncateDatasetSuite) TestExecutor() {
 	mDB, _, err := sqlmock.New()
 	tds.NoError(err)
 
-	ds := goqu.New("mock", mDB).Truncate("table1", "table2")
+	ds := goqu.New("default", mDB).Truncate("table1", "table2")
 
 	tsql, args, err := ds.Executor().ToSQL()
 	tds.NoError(err)

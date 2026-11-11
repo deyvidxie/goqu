@@ -46,7 +46,7 @@ func (r *beginTxRecordingDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 func (ds *databaseSuite) TestWithTxContext() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	ds.assertWithTxCases(mock, func(f func(*goqu.TxDatabase) error) error {
 		return db.WithTxContext(context.Background(), nil, f)
 	})
@@ -61,7 +61,7 @@ func (ds *databaseSuite) TestWithTxContext_beginsWithContextAndOptions() {
 	ctx := context.WithValue(context.Background(), ctxKey{}, "request-1")
 	opts := &sql.TxOptions{ReadOnly: true}
 
-	ds.NoError(goqu.New("mock", recorder).WithTxContext(ctx, opts, func(_ *goqu.TxDatabase) error { return nil }))
+	ds.NoError(goqu.New("default", recorder).WithTxContext(ctx, opts, func(_ *goqu.TxDatabase) error { return nil }))
 	ds.Equal("request-1", recorder.ctx.Value(ctxKey{}))
 	ds.Same(opts, recorder.opts)
 	ds.NoError(mock.ExpectationsWereMet())
@@ -74,7 +74,7 @@ func (ds *databaseSuite) TestWithTxContext_rollbackOnPanic() {
 	mock.ExpectRollback()
 
 	ds.PanicsWithValue("a problem has happened", func() {
-		_ = goqu.New("mock", mDB).WithTxContext(context.Background(), nil, func(_ *goqu.TxDatabase) error {
+		_ = goqu.New("default", mDB).WithTxContext(context.Background(), nil, func(_ *goqu.TxDatabase) error {
 			panic("a problem has happened")
 		})
 	})
@@ -95,7 +95,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnCommit() {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cause := newTestError("request aborted")
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
 		ds.awaitRollbackByDatabaseSQL(tx)
 		return nil
@@ -120,7 +120,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseWhenCommitSeesCancel(
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cause := newTestError("request aborted")
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: context.Canceled}
 		cancel(cause)
 		return nil
@@ -138,7 +138,7 @@ func (ds *databaseSuite) TestWithTxContext_doesNotJoinCauseIntoUnrelatedError() 
 	ctx, cancel := context.WithCancelCause(context.Background())
 	constraintErr := newTestError("unique constraint violated")
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		tx.Tx = commitErrTx{SQLTx: tx.Tx, err: constraintErr}
 		cancel(newTestError("request aborted"))
 		return nil
@@ -154,7 +154,7 @@ func (ds *databaseSuite) TestWithTxContext_keepsCancelCauseOnRollback() {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cause := newTestError("request aborted")
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
 		ds.awaitRollbackByDatabaseSQL(tx)
 		_, execErr := tx.ExecContext(ctx, `UPDATE "items" SET "a"=1`)
@@ -172,7 +172,7 @@ func (ds *databaseSuite) TestWithTxContext_plainCancelIsNotJoinedTwice() {
 	mock.ExpectBegin()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel()
 		ds.awaitRollbackByDatabaseSQL(tx)
 		return ctx.Err()
@@ -189,7 +189,7 @@ func (ds *databaseSuite) TestWithTxContext_causeWrappingCanceledIsNotJoinedTwice
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cause := fmt.Errorf("shutdown: %w", context.Canceled)
 
-	err = goqu.New("mock", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
+	err = goqu.New("default", mDB).WithTxContext(ctx, nil, func(tx *goqu.TxDatabase) error {
 		cancel(cause)
 		ds.awaitRollbackByDatabaseSQL(tx)
 		return nil
@@ -203,7 +203,7 @@ func (ds *databaseSuite) TestWithTxContext_causeWrappingCanceledIsNotJoinedTwice
 func (ds *databaseSuite) TestContextLogger_transactionBoundaries() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	logger := new(dbTestMockContextLogger)
 	db.Logger(logger)
 	ctx := context.WithValue(context.Background(), ctxKey{}, "request-1")
@@ -235,7 +235,7 @@ func (ds *databaseSuite) TestContextLogger_transactionBoundaries() {
 func (ds *databaseSuite) TestContextLogger_withoutContext() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	logger := new(dbTestMockContextLogger)
 	db.Logger(logger)
 
@@ -263,7 +263,7 @@ func (ds *databaseSuite) TestContextLogger_withoutContext() {
 func (ds *databaseSuite) TestContextLogger_queryTraces() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	logger := new(dbTestMockContextLogger)
 	db.Logger(logger)
 	ctx := context.WithValue(context.Background(), ctxKey{}, "request-1")
@@ -336,7 +336,7 @@ func (ds *databaseSuite) TestContextLogger_queryTraces() {
 func (ds *databaseSuite) TestPrintfLogger_withTxContext() {
 	mDB, mock, err := sqlmock.New()
 	ds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	logger := new(dbTestMockLogger)
 	db.Logger(logger)
 

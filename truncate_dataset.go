@@ -18,9 +18,11 @@ type TruncateDataset struct {
 
 func newTruncateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *TruncateDataset {
 	tagName := requestedTag.resolve(d)
+	dialect, err := dialectFor(d, tagName)
 	return &TruncateDataset{
 		clauses:      exp.NewTruncateClauses(),
-		dialect:      dialectFor(d, tagName),
+		dialect:      dialect,
+		err:          err,
 		tagName:      tagName,
 		requestedTag: requestedTag,
 		queryFactory: queryFactory,
@@ -35,8 +37,9 @@ func Truncate(table ...interface{}) *TruncateDataset {
 func (td *TruncateDataset) WithDialect(dl string) *TruncateDataset {
 	ds := td.copy(td.GetClauses())
 	ds.tagName = ds.requestedTag.resolve(dl)
-	ds.dialect = dialectFor(dl, ds.tagName)
-	return ds
+	dialect, err := dialectFor(dl, ds.tagName)
+	ds.dialect = dialect
+	return ds.SetError(err)
 }
 
 // Set the parameter interpolation behavior. See examples
