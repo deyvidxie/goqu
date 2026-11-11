@@ -282,7 +282,7 @@ func (*scanTestOpaqueScanner) Scan(interface{}) error {
 func (ss *scanSuite) SetupTest() {
 	mDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	ss.Require().NoError(err)
-	ss.db = goqu.New("mock", mDB)
+	ss.db = goqu.New("default", mDB)
 	ss.mock = mock
 }
 
@@ -621,7 +621,7 @@ func (ss *scanSuite) TestGenericScans_useDatasetTagName() {
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
 	mock.ExpectQuery(`SELECT "id" FROM "items" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(8)))
 	mock.ExpectQuery(`SELECT "id" FROM "items"`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(9)))
-	db := goqu.NewWithTagName("mock", "json", mDB)
+	db := goqu.NewWithTagName("default", "json", mDB)
 
 	rows, err := db.From("items").ScanAllStructs[scanTestTagged](context.Background())
 	ss.NoError(err)

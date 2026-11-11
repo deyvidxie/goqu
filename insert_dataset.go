@@ -19,9 +19,11 @@ type InsertDataset struct {
 
 func newInsertDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *InsertDataset {
 	tagName := requestedTag.resolve(d)
+	dialect, err := dialectFor(d, tagName)
 	return &InsertDataset{
 		clauses:      exp.NewInsertClauses(),
-		dialect:      dialectFor(d, tagName),
+		dialect:      dialect,
+		err:          err,
 		queryFactory: queryFactory,
 		tagName:      tagName,
 		requestedTag: requestedTag,
@@ -51,8 +53,9 @@ func (id *InsertDataset) IsPrepared() bool {
 func (id *InsertDataset) WithDialect(dl string) *InsertDataset {
 	ds := id.copy(id.GetClauses())
 	ds.tagName = ds.requestedTag.resolve(dl)
-	ds.dialect = dialectFor(dl, ds.tagName)
-	return ds
+	dialect, err := dialectFor(dl, ds.tagName)
+	ds.dialect = dialect
+	return ds.SetError(err)
 }
 
 // Returns the current adapter on the dataset
@@ -161,6 +164,9 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 		return id.copy(id.clauses).SetError(errNilInsertSource(from))
 	}
 	if sds, ok := from.(*SelectDataset); ok {
+		if sds.err != nil {
+			return id.copy(id.clauses).SetError(sds.err)
+		}
 		if sds.dialect.Dialect() != "default" && id.dialect.Dialect() != sds.dialect.Dialect() {
 			panic(errIncompatibleInsertDialects(id.dialect.Dialect(), sds.dialect.Dialect()))
 		}

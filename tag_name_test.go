@@ -195,15 +195,38 @@ func TestDatabaseKeepsRegisteredEmptyTagAcrossWithDialect(t *testing.T) {
 	)
 }
 
-func TestUnregisteredDialectUsesDefaultRegisteredTag(t *testing.T) {
-	goqu.RegisterDialect("default", "json", goqu.DefaultDialectOptions())
-	defer goqu.RegisterDialect("default", "db", goqu.DefaultDialectOptions())
+func TestUnregisteredDialectNameIsAnError(t *testing.T) {
+	const typo = "mysqll"
+	d := goqu.Dialect(typo)
+	for name, ds := range map[string]interface{ ToSQL() (string, []any, error) }{
+		"Dialect.From":             d.From("t"),
+		"Dialect.Select":           d.Select("a"),
+		"Dialect.Insert":           d.Insert("t").Rows(goqu.Record{"a": 1}),
+		"Dialect.Update":           d.Update("t").Set(goqu.Record{"a": 1}),
+		"Dialect.Delete":           d.Delete("t"),
+		"Dialect.Truncate":         d.Truncate("t"),
+		"DialectWithTagName.From":  goqu.DialectWithTagName(typo, "json").From("t"),
+		"New.From":                 goqu.New(typo, nil).From("t"),
+		"NewWithTagName.From":      goqu.NewWithTagName(typo, "json", nil).From("t"),
+		"NewTx.Insert":             goqu.NewTx(typo, nil).Insert("t").Rows(goqu.Record{"a": 1}),
+		"Select.WithDialect":       goqu.From("t").WithDialect(typo),
+		"Insert.WithDialect":       goqu.Insert("t").Rows(goqu.Record{"a": 1}).WithDialect(typo),
+		"Update.WithDialect":       goqu.Update("t").Set(goqu.Record{"a": 1}).WithDialect(typo),
+		"Delete.WithDialect":       goqu.Delete("t").WithDialect(typo),
+		"Truncate.WithDialect":     goqu.Truncate("t").WithDialect(typo),
+		"WithDialect then a valid": goqu.From("t").WithDialect(typo).WithDialect("default"),
+		"Select.Update":            d.From("t").Update().Set(goqu.Record{"a": 1}),
+		"FromQuery":                goqu.Dialect("postgres").Insert("t").FromQuery(d.From("s")),
+	} {
+		_, _, err := ds.ToSQL()
+		assert.True(t, goqu.IsUnknownDialect(err), name)
+		assert.EqualError(t, err, `goqu: dialect "mysqll" is not registered; blank-import its dialect package or call RegisterDialect`, name)
+	}
 
-	ds := goqu.Dialect("not-registered").From("items")
-	assertSQLCases(t,
-		sqlCase{ds: ds.Select(&taggedItem{}), sql: `SELECT "json_id", "json_name" FROM "items"`},
-		sqlCase{ds: ds.Insert().Rows(taggedItem{ID: 1, Name: "a"}), sql: `INSERT INTO "items" ("json_id", "json_name") VALUES (1, 'a')`},
-	)
+	_, _, err := d.ExpressionSQL(goqu.C("a").Eq(1))
+	assert.True(t, goqu.IsUnknownDialect(err))
+	_, _, err = goqu.New(typo, nil).PreparedExpressionSQL(goqu.C("a").Eq(1))
+	assert.True(t, goqu.IsUnknownDialect(err))
 }
 
 func TestFromQueryAcrossTagNamesOfOneDialect(t *testing.T) {

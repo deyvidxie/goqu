@@ -76,7 +76,8 @@ func (sds *selectDatasetSuite) TestWithDialect() {
 	md := new(mocks.SQLDialect)
 	ds = ds.SetDialect(md)
 
-	dialect := goqu.GetDialect("default")
+	dialect, err := goqu.GetDialect("default")
+	sds.Require().NoError(err)
 	dialectDs := ds.WithDialect("default")
 	sds.Equal(md, ds.Dialect())
 	sds.Equal(dialect, dialectDs.Dialect())
@@ -1478,7 +1479,7 @@ func (sds *selectDatasetSuite) TestScanStructs() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var items []dsTestActionItem
 	sds.NoError(db.From("items").ScanStructs(&items))
 	sds.Equal([]dsTestActionItem{
@@ -1520,7 +1521,7 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy").
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var items []dsTestActionItem
 	sds.NoError(db.From("items").Prepared(true).Where(goqu.Ex{
 		"name":    []string{"Bob", "Sally", "Billy"},
@@ -1549,7 +1550,7 @@ func (sds *selectDatasetSuite) TestScanStructs_WithPreparedStatements() {
 func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
 	mDB, _, err := sqlmock.New()
 	sds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var nullStrings []dbsql.NullString
 	var times []time.Time
 	var names []string
@@ -1580,7 +1581,7 @@ func (sds *selectDatasetSuite) TestStructScans_rejectsTargetsThatAreNotRows() {
 func (sds *selectDatasetSuite) TestStructScans_rejectedTargetLeavesTheDatasetUsable() {
 	mDB, sqlMock, err := sqlmock.New()
 	sds.Require().NoError(err)
-	ds := goqu.New("mock", mDB).From("items")
+	ds := goqu.New("default", mDB).From("items")
 	var nullStrings []dbsql.NullString
 	sds.True(goqu.IsUnsupportedScanType(ds.ScanStructs(&nullStrings)))
 
@@ -1597,7 +1598,7 @@ func (sds *selectDatasetSuite) TestStructScans_rejectedTargetLeavesTheDatasetUsa
 func (sds *selectDatasetSuite) TestStructScans_acceptsCallerFilledUnexportedEmbeds() {
 	mDB, sqlMock, err := sqlmock.New()
 	sds.Require().NoError(err)
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 
 	sqlMock.ExpectQuery(`SELECT "id", "x" FROM "items" LIMIT 1`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "x"}).AddRow(1, 2))
@@ -1626,7 +1627,7 @@ func (sds *selectDatasetSuite) TestSingleRowScansKeepLimitZero() {
 		sqlMock.ExpectQuery(q).WithArgs().WillReturnRows(sqlmock.NewRows([]string{"address", "name"}))
 	}
 
-	ds := goqu.New("mock", mDB).From("items").Limit(0)
+	ds := goqu.New("default", mDB).From("items").Limit(0)
 	var item dsTestActionItem
 	found, err := ds.ScanStruct(&item)
 	sds.NoError(err)
@@ -1662,7 +1663,7 @@ func (sds *selectDatasetSuite) TestScanStruct() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var item dsTestActionItem
 	found, err := db.From("items").ScanStruct(&item)
 	sds.NoError(err)
@@ -1703,7 +1704,7 @@ func (sds *selectDatasetSuite) TestScanStruct_WithPreparedStatements() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var item dsTestActionItem
 	found, err := db.From("items").Prepared(true).Where(goqu.Ex{
 		"name":    []string{"Bob", "Sally", "Billy"},
@@ -1737,7 +1738,7 @@ func (sds *selectDatasetSuite) TestScanStructSubqueries() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"test"}).FromCSVString("test1\ntest2"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var item dsSubQueryTestActionItem
 	found, err := db.From("items").SubQueries(map[string]exp.Aliaseable{"sub": goqu.L("(\"name\" IS NOT NULL)")}).ScanStruct(&item)
 	sds.NoError(err)
@@ -1771,7 +1772,7 @@ func (sds *selectDatasetSuite) TestScanStructUntagged() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"address", "name"}).FromCSVString("111 Test Addr,Test1"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var item dsUntaggedTestActionItem
 
 	found, err := db.From("items").ScanStruct(&item)
@@ -1800,7 +1801,7 @@ func (sds *selectDatasetSuite) TestScanVals() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var ids []uint32
 	sds.NoError(db.From("items").Select("id").ScanVals(&ids))
 	sds.Equal(ids, []uint32{1, 2, 3, 4, 5})
@@ -1823,7 +1824,7 @@ func (sds *selectDatasetSuite) TestScanVals_WithPreparedStatment() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("1\n2\n3\n4\n5"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var ids []uint32
 	sds.NoError(db.From("items").
 		Prepared(true).
@@ -1846,7 +1847,7 @@ func (sds *selectDatasetSuite) TestScanVal() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("10"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var id int64
 	found, err := db.From("items").Select("id").ScanVal(&id)
 	sds.NoError(err)
@@ -1873,7 +1874,7 @@ func (sds *selectDatasetSuite) TestScanVal_WithPreparedStatement() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).FromCSVString("10"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var id int64
 	found, err := db.From("items").
 		Prepared(true).
@@ -1899,7 +1900,7 @@ func (sds *selectDatasetSuite) TestCount() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).FromCSVString("10"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	count, err := db.From("items").Count()
 	sds.NoError(err)
 	sds.Equal(count, int64(10))
@@ -1914,7 +1915,7 @@ func (sds *selectDatasetSuite) TestCount_WithPreparedStatement() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).FromCSVString("10"))
 
-	ds := goqu.New("mock", mDB)
+	ds := goqu.New("default", mDB)
 	count, err := ds.From("items").
 		Prepared(true).
 		Where(goqu.Ex{"name": []string{"Bob", "Sally", "Billy"}, "address": "111 Test Addr"}).
@@ -1930,7 +1931,7 @@ func (sds *selectDatasetSuite) TestExists() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).FromCSVString("1"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	exists, err := db.From("items").Exists()
 	sds.NoError(err)
 	sds.True(exists)
@@ -1945,7 +1946,7 @@ func (sds *selectDatasetSuite) TestExists_WithPreparedStatement() {
 		WithArgs("111 Test Addr", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).FromCSVString("true"))
 
-	ds := goqu.New("mock", mDB)
+	ds := goqu.New("default", mDB)
 	exists, err := ds.From("items").
 		Prepared(true).
 		Where(goqu.Ex{"address": "111 Test Addr"}).
@@ -1961,7 +1962,7 @@ func (sds *selectDatasetSuite) TestPluck() {
 		WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).FromCSVString("test1\ntest2\ntest3\ntest4\ntest5"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var names []string
 	sds.NoError(db.From("items").Pluck(&names, "name"))
 	sds.Equal([]string{"test1", "test2", "test3", "test4", "test5"}, names)
@@ -1976,7 +1977,7 @@ func (sds *selectDatasetSuite) TestPluck_WithPreparedStatement() {
 		WithArgs("111 Test Addr", "Bob", "Sally", "Billy").
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).FromCSVString("Bob\nSally\nBilly"))
 
-	db := goqu.New("mock", mDB)
+	db := goqu.New("default", mDB)
 	var names []string
 	sds.NoError(db.From("items").
 		Prepared(true).

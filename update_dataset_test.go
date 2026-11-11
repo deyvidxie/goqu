@@ -55,7 +55,8 @@ func (uds *updateDatasetSuite) TestWithDialect() {
 	md := new(mocks.SQLDialect)
 	ds = ds.SetDialect(md)
 
-	dialect := goqu.GetDialect("default")
+	dialect, err := goqu.GetDialect("default")
+	uds.Require().NoError(err)
 	dialectDs := ds.WithDialect("default")
 	uds.Equal(md, ds.Dialect())
 	uds.Equal(dialect, dialectDs.Dialect())
@@ -453,7 +454,7 @@ func (uds *updateDatasetSuite) TestToSQL_WithError() {
 func (uds *updateDatasetSuite) TestExecutor() {
 	mDB, _, err := sqlmock.New()
 	uds.NoError(err)
-	ds := goqu.New("mock", mDB).
+	ds := goqu.New("default", mDB).
 		Update("items").
 		Set(goqu.Record{"address": "111 Test Addr", "name": "Test1"}).
 		Where(goqu.C("name").IsNull())

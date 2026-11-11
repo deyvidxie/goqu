@@ -18,9 +18,11 @@ type UpdateDataset struct {
 
 func newUpdateDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *UpdateDataset {
 	tagName := requestedTag.resolve(d)
+	dialect, err := dialectFor(d, tagName)
 	return &UpdateDataset{
 		clauses:      exp.NewUpdateClauses(),
-		dialect:      dialectFor(d, tagName),
+		dialect:      dialect,
+		err:          err,
 		queryFactory: queryFactory,
 		tagName:      tagName,
 		requestedTag: requestedTag,
@@ -48,8 +50,9 @@ func (ud *UpdateDataset) IsPrepared() bool {
 func (ud *UpdateDataset) WithDialect(dl string) *UpdateDataset {
 	ds := ud.copy(ud.GetClauses())
 	ds.tagName = ds.requestedTag.resolve(dl)
-	ds.dialect = dialectFor(dl, ds.tagName)
-	return ds
+	dialect, err := dialectFor(dl, ds.tagName)
+	ds.dialect = dialect
+	return ds.SetError(err)
 }
 
 // Returns the current adapter on the dataset

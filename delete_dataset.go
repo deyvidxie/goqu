@@ -18,14 +18,15 @@ type DeleteDataset struct {
 
 func newDeleteDataset(d string, requestedTag tagRequest, queryFactory exec.QueryFactory) *DeleteDataset {
 	tagName := requestedTag.resolve(d)
+	dialect, err := dialectFor(d, tagName)
 	return &DeleteDataset{
 		clauses:      exp.NewDeleteClauses(),
-		dialect:      dialectFor(d, tagName),
+		dialect:      dialect,
+		err:          err,
 		queryFactory: queryFactory,
 		isPrepared:   preparedNoPreference,
 		tagName:      tagName,
 		requestedTag: requestedTag,
-		err:          nil,
 	}
 }
 
@@ -60,8 +61,9 @@ func (dd *DeleteDataset) IsPrepared() bool {
 func (dd *DeleteDataset) WithDialect(dl string) *DeleteDataset {
 	ds := dd.copy(dd.GetClauses())
 	ds.tagName = ds.requestedTag.resolve(dl)
-	ds.dialect = dialectFor(dl, ds.tagName)
-	return ds
+	dialect, err := dialectFor(dl, ds.tagName)
+	ds.dialect = dialect
+	return ds.SetError(err)
 }
 
 // Returns the current SQLDialect on the dataset
