@@ -96,7 +96,7 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			toSQL(goqu.From("t").Select(goqu.C("a").As(1))),
 		},
 		{
-			"column type", "goqu: unsupported column type int, a string, expression or struct is required",
+			"column type", "goqu: unsupported column list value int, a string, expression or struct is required",
 			toSQL(goqu.From("t").Select(1)),
 		},
 		{

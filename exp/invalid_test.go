@@ -47,5 +47,5 @@ func TestUnsupportedAliasAndColumnTypes(t *testing.T) {
 	require.Len(t, cols, 2)
 	invalid, ok = cols[1].(exp.InvalidExpression)
 	require.True(t, ok)
-	assert.EqualError(t, invalid.Err(), "goqu: unsupported column type int, a string, expression or struct is required")
+	assert.EqualError(t, invalid.Err(), "goqu: unsupported column list value int, a string, expression or struct is required")
 }

@@ -80,5 +80,5 @@ func errUnsupportedAlias(alias interface{}) error {
 }
 
 func errUnsupportedColumn(col interface{}) error {
-	return errors.NewInvalidExpressionError("unsupported column type %T, a string, expression or struct is required", col)
+	return errors.NewInvalidExpressionError("unsupported column list value %T, a string, expression or struct is required", col)
 }
