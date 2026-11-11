@@ -58,8 +58,6 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 	return columnList{columns: cols}
 }
 
-// NewOrderedColumnList preserves nil entries as invalid expressions so that
-// SQL generation returns an error instead of panicking during construction.
 func NewOrderedColumnList(vals ...OrderedExpression) ColumnListExpression {
 	exps := make([]interface{}, 0, len(vals))
 	for _, col := range vals {

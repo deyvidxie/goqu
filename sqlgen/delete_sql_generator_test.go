@@ -279,10 +279,6 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withReturning() {
 	)
 }
 
-func TestDeleteSQLGenerator(t *testing.T) {
-	suite.Run(t, new(deleteSQLGeneratorSuite))
-}
-
 func (dsgs *deleteSQLGeneratorSuite) TestGenerate_nilOrder() {
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
 	opts := sqlgen.DefaultDialectOptions()
@@ -295,4 +291,8 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_nilOrder() {
 			deleteTestCase{clause: dc.OrderPrepend(a.Asc(), nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
 		)
 	}
+}
+
+func TestDeleteSQLGenerator(t *testing.T) {
+	suite.Run(t, new(deleteSQLGeneratorSuite))
 }
