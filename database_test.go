@@ -193,7 +193,7 @@ func (ds *databaseSuite) TestFromSQL() {
 }
 
 func (ds *databaseSuite) TestExpressionSQL() {
-	db := goqu.NewWithTagName("mysql", "json", nil)
+	db := goqu.New("mysql", nil)
 	sql, args, err := db.ExpressionSQL(goqu.C("a").Eq(1))
 	ds.NoError(err)
 	ds.Equal("(`a` = 1)", sql)
@@ -666,7 +666,7 @@ func (tds *txdatabaseSuite) TestFromSQL() {
 }
 
 func (tds *txdatabaseSuite) TestExpressionSQL() {
-	tx := goqu.NewTxWithTagName("mysql", "json", nil)
+	tx := goqu.NewTx("mysql", nil)
 	sql, args, err := tx.ExpressionSQL(goqu.C("a").Eq(1))
 	tds.NoError(err)
 	tds.Equal("(`a` = 1)", sql)

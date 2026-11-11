@@ -520,7 +520,7 @@ Output:
 ((`status` = ?) AND (`age` >= ?)) [active 18]
 ```
 
-`goqu.ExpressionSQL` and `goqu.PreparedExpressionSQL` render with the default dialect, and `Database` and `TxDatabase` have both methods for their own dialect and tag.
+`goqu.ExpressionSQL` and `goqu.PreparedExpressionSQL` render with the default dialect, and `Database` and `TxDatabase` have both methods for their own dialect.
 
 <a name="complex"></a>
 ## Complex Example
