@@ -1,7 +1,6 @@
 package exp
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/internal/util"
@@ -51,7 +50,7 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 					cols = append(cols, sc)
 				}
 			} else {
-				panic(fmt.Sprintf("Cannot create expression from  %+v", val))
+				cols = append(cols, newInvalidExpression(errUnsupportedColumn(val)))
 			}
 		}
 	}

@@ -135,9 +135,8 @@ func (uds *updateDatasetSuite) TestTable() {
 			clauses: exp.NewUpdateClauses().SetTable(goqu.C("items")),
 		},
 	)
-	uds.PanicsWithError("goqu: unsupported table type bool, a string or expression is required", func() {
-		bd.Table(true)
-	})
+	_, _, err := bd.Table(true).ToSQL()
+	uds.EqualError(err, "goqu: unsupported table type bool, a string or expression is required")
 }
 
 func (uds *updateDatasetSuite) TestSet() {

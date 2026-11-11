@@ -132,7 +132,7 @@ func (id *InsertDataset) Into(into interface{}) *InsertDataset {
 	case string:
 		return id.copy(id.clauses.SetInto(exp.ParseIdentifier(t)))
 	default:
-		panic(errUnsupportedTableType(into))
+		return id.copy(id.clauses).SetError(errUnsupportedTableType(into))
 	}
 }
 
@@ -169,7 +169,7 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 			return id.copy(id.clauses).SetError(sds.err)
 		}
 		if sds.dialect.Dialect() != "default" && id.dialect.Dialect() != sds.dialect.Dialect() {
-			panic(errIncompatibleInsertDialects(id.dialect.Dialect(), sds.dialect.Dialect()))
+			return id.copy(id.clauses).SetError(errIncompatibleInsertDialects(id.dialect.Dialect(), sds.dialect.Dialect()))
 		}
 		sds.dialect = id.dialect
 	}
