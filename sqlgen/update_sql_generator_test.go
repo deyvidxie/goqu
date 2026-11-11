@@ -339,3 +339,17 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withCommonTables() {
 func TestUpdateSQLGenerator(t *testing.T) {
 	suite.Run(t, new(updateSQLGeneratorSuite))
 }
+
+func (usgs *updateSQLGeneratorSuite) TestGenerate_nilOrder() {
+	uc := exp.NewUpdateClauses().SetTable(exp.NewIdentifierExpression("", "test", "")).SetSetValues(exp.Record{"a": 1})
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsOrderByOnUpdate = true
+	a := exp.NewIdentifierExpression("", "", "a")
+	for _, prepared := range []bool{false, true} {
+		usgs.assertCases(sqlgen.NewUpdateSQLGenerator("test", "db", opts),
+			updateTestCase{clause: uc.SetOrder(nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+			updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+			updateTestCase{clause: uc.OrderPrepend(a.Asc(), nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+		)
+	}
+}

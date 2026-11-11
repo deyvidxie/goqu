@@ -843,3 +843,16 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_customJoinNeedsLookupEntry() {
 		selectTestCase{clause: sc, err: "goqu: dialect does not support CustomJoinType [dialect=test]", isPrepared: true},
 	)
 }
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_nilOrder() {
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	opts := sqlgen.DefaultDialectOptions()
+	a := exp.NewIdentifierExpression("", "", "a")
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", opts),
+			selectTestCase{clause: sc.SetOrder(nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder(a.Asc()).OrderAppend(nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+			selectTestCase{clause: sc.OrderPrepend(a.Asc(), nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
+		)
+	}
+}
