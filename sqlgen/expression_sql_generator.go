@@ -583,14 +583,13 @@ func isInRHS(rhs interface{}) bool {
 	}
 }
 
-func (esg *expressionSQLGenerator) checkSingleValues(b sqlbuilder.SQLBuilder, position string, vals ...interface{}) bool {
+func firstNonSingleValueList(vals ...interface{}) (interface{}, bool) {
 	for _, v := range vals {
 		if isNotSingleValueList(v) {
-			b.SetError(errListAsSingleValue(position, v))
-			return false
+			return v, true
 		}
 	}
-	return true
+	return nil, false
 }
 
 func isEmptyList(rhs interface{}) bool {
@@ -651,8 +650,8 @@ func (esg *expressionSQLGenerator) likeEscapeSQL(b sqlbuilder.SQLBuilder, operat
 
 // Generates SQL for a BitwiseExpresion (e.g. I("a").BitwiseOr(2) - > "a" | 2)
 func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.BitwiseExpression) {
-	position := operatorPosition(esg.dialectOptions.BitwiseOperatorLookup[operator.Op()], operator.Op())
-	if !esg.checkSingleValues(b, position, operator.LHS(), operator.RHS()) {
+	if v, bad := firstNonSingleValueList(operator.LHS(), operator.RHS()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.BitwiseOperatorLookup[operator.Op()], operator.Op()), v))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -677,8 +676,8 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder,
 
 // Generates SQL for a ArithmeticExpresion (e.g. I("a").Add(1) -> "a" + 1)
 func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.ArithmeticExpression) {
-	position := operatorPosition(esg.dialectOptions.ArithmeticOperatorLookup[operator.Op()], operator.Op())
-	if !esg.checkSingleValues(b, position, operator.LHS(), operator.RHS()) {
+	if v, bad := firstNonSingleValueList(operator.LHS(), operator.RHS()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.ArithmeticOperatorLookup[operator.Op()], operator.Op()), v))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -698,8 +697,8 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuild
 
 // Generates SQL for a RangeExpresion (e.g. I("a").Between(RangeVal{Start:2,End:5}) -> "a" BETWEEN 2 AND 5)
 func (esg *expressionSQLGenerator) rangeExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.RangeExpression) {
-	position := operatorPosition(esg.dialectOptions.RangeOperatorLookup[operator.Op()], operator.Op())
-	if !esg.checkSingleValues(b, position, operator.RHS().Start(), operator.RHS().End()) {
+	if v, bad := firstNonSingleValueList(operator.RHS().Start(), operator.RHS().End()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.RangeOperatorLookup[operator.Op()], operator.Op()), v))
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -856,7 +855,8 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 		b.SetError(errListForAnyAll(sqlFunc.Name(), args[0]))
 		return
 	}
-	if !esg.checkSingleValues(b, fmt.Sprintf("function %q argument", strings.TrimSpace(name)), args...) {
+	if v, bad := firstNonSingleValueList(args...); bad {
+		b.SetError(errListAsSingleValue(fmt.Sprintf("function %q argument", strings.TrimSpace(name)), v))
 		return
 	}
 	b.WriteStrings(name)
@@ -1532,12 +1532,8 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sqlbuilder.SQLBuilder, ca
 		b.SetError(errEmptyCaseWhens)
 		return
 	}
-	for _, when := range whens {
-		if !esg.checkSingleValues(b, "CASE WHEN", when.Condition()) || !esg.checkSingleValues(b, "CASE THEN", when.Result()) {
-			return
-		}
-	}
-	if elseResult != nil && !esg.checkSingleValues(b, "CASE ELSE", elseResult.Result()) {
+	if err := caseValuesError(whens, elseResult); err != nil {
+		b.SetError(err)
 		return
 	}
 	b.Write(esg.dialectOptions.CaseFragment)
@@ -1599,4 +1595,22 @@ func operatorPosition(sql []byte, op fmt.Stringer) string {
 		return fmt.Sprintf("operator %q", name)
 	}
 	return fmt.Sprintf("operator %q", op.String())
+}
+
+func caseValuesError(whens []exp.CaseWhen, elseResult exp.CaseElse) error {
+	for _, when := range whens {
+		if v, bad := firstNonSingleValueList(when.Condition()); bad {
+			return errListAsSingleValue("CASE WHEN", v)
+		}
+		if v, bad := firstNonSingleValueList(when.Result()); bad {
+			return errListAsSingleValue("CASE THEN", v)
+		}
+	}
+	if elseResult == nil {
+		return nil
+	}
+	if v, bad := firstNonSingleValueList(elseResult.Result()); bad {
+		return errListAsSingleValue("CASE ELSE", v)
+	}
+	return nil
 }
