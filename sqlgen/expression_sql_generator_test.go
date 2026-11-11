@@ -2739,3 +2739,21 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_WindowWithoutColumns() {
 		expressionTestCase{val: goqu.W().PartitionBy(noColumns{}), err: "goqu: sqlgen_test.noColumns has no columns", isPrepared: true},
 	)
 }
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_nestedWithCTEIgnoresNonDatasetSubqueries() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsNestedWithCTE = false
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{val: newTestAppendableExpression(`select * from "a"`, []interface{}{}, nil, nil), sql: `(select * from "a")`},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_nilSubquery() {
+	var nilDS *goqu.SelectDataset
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: nilDS, err: "goqu: subquery must not be nil, got *goqu.SelectDataset"},
+		expressionTestCase{val: nilDS, err: "goqu: subquery must not be nil, got *goqu.SelectDataset", isPrepared: true},
+	)
+}

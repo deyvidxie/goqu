@@ -113,6 +113,21 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Union(withCTE(d))
 		}},
+		{"nested WITH in an INSERT CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("x").With("x", d.Insert("t").With("c", d.From("u")).Rows(goqu.Record{"a": 1}))
+		}},
+		{"nested WITH in an UPDATE CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("x").With("x", d.Update("t").With("c", d.From("u")).Set(goqu.Record{"a": 1}))
+		}},
+		{"nested WITH in an DELETE CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsNestedWithCTE = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("x").With("x", d.Delete("t").With("c", d.From("u")))
+		}},
 		{"nested WITH in a CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsNestedWithCTE = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
