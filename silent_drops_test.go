@@ -49,6 +49,7 @@ func TestSelectConversionsRejectClausesTheyCannotCarry(t *testing.T) {
 	}
 	assertSQLCases(t,
 		sqlCase{ds: goqu.From("t").Truncate(), sql: `TRUNCATE "t"`},
+		sqlCase{ds: goqu.From("a", "b").Truncate(), sql: `TRUNCATE "a", "b"`},
 		sqlCase{ds: base.Delete(), sql: `DELETE FROM "t" WHERE ("a" = 1)`},
 	)
 }

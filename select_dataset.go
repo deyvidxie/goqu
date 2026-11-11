@@ -207,7 +207,7 @@ func (sd *SelectDataset) uncarriedClauseError(method string, truncate bool) erro
 		{truncate && c.Where() != nil, "WHERE"},
 		{truncate && c.HasOrder(), "ORDER BY"},
 		{truncate && c.HasLimit(), "LIMIT"},
-		{c.From() != nil && len(c.From().Columns()) > 1, "second FROM table"},
+		{!truncate && c.From() != nil && len(c.From().Columns()) > 1, "second FROM table"},
 		{len(c.Joins()) > 0, "JOIN"},
 		{c.Offset() > 0, "OFFSET"},
 		{c.GroupBy() != nil, "GROUP BY"},

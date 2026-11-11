@@ -163,18 +163,8 @@ func (sds *selectDatasetSuite) TestDelete() {
 }
 
 func (sds *selectDatasetSuite) TestTruncate() {
-	where := goqu.Ex{"a": 1}
-	from := goqu.From("cte")
-	limit := uint(1)
-	order := []exp.OrderedExpression{goqu.C("a").Asc(), goqu.C("b").Desc()}
-	ds := goqu.From("test").
-		With("test-cte", from).
-		Where(where).
-		Limit(limit).
-		Order(order...)
-	ec := exp.NewTruncateClauses().
-		SetTable(exp.NewColumnListExpression(nil, "db", "test"))
-	sds.Equal(ec, ds.Truncate().GetClauses())
+	ec := exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "test"))
+	sds.Equal(ec, goqu.From("test").Truncate().GetClauses())
 }
 
 func (sds *selectDatasetSuite) TestWith() {
