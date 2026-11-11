@@ -305,13 +305,14 @@ func (sd *SelectDataset) From(from ...interface{}) *SelectDataset {
 	var sources []interface{}
 	numSources := 0
 	for _, source := range from {
-		if ds, ok := source.(*SelectDataset); ok && ds == nil {
+		ds, isDataset := source.(*SelectDataset)
+		switch {
+		case isDataset && ds == nil:
 			return sd.copy(sd.clauses).SetError(errNilSubquery(source))
-		}
-		if ds, ok := source.(*SelectDataset); ok && !ds.clauses.HasAlias() {
+		case isDataset && !ds.clauses.HasAlias():
 			numSources++
 			sources = append(sources, ds.As(fmt.Sprintf("t%d", numSources)))
-		} else {
+		default:
 			sources = append(sources, source)
 		}
 	}
