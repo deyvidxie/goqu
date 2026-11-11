@@ -90,7 +90,7 @@ func (dts *dialectTestSuite) TestToTruncateSQL() {
 
 func (dts *dialectTestSuite) TestToExpressionSQL() {
 	opts := DefaultDialectOptions()
-	d := sqlDialect{dialect: "test", dialectOptions: opts, expressionGen: sqlgen.NewExpressionSQLGenerator("test", opts)}
+	d := sqlDialect{dialect: "test", dialectOptions: opts, expressionGen: sqlgen.NewExpressionSQLGenerator("test", "db", opts)}
 
 	b := sb.NewSQLBuilder(true)
 	d.toExpressionSQL(b, exp.NewIdentifierExpression("", "", "a").Eq(1))

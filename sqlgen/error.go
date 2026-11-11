@@ -35,6 +35,8 @@ var (
 	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition`)
 	errEmptyOrder            = errors.NewInvalidExpressionError(`Order requires at least one expression`)
 	errEmptyGroupBy          = errors.NewInvalidExpressionError(`GroupBy requires at least one column`)
+	errEmptyPartitionBy      = errors.NewInvalidExpressionError(`PartitionBy requires at least one column`)
+	errEmptyWindowOrderBy    = errors.NewInvalidExpressionError(`OrderBy requires at least one column`)
 	errEmptySelect           = errors.NewInvalidExpressionError(`Select requires at least one column`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
@@ -331,4 +333,8 @@ func errEmptyListValue(val interface{}) error {
 
 func errListComparedToColumn(op exp.BooleanOperation, val interface{}) error {
 	return errors.NewInvalidExpressionError("operator %q compares a column with a single value, got a list (%T)", op, val)
+}
+
+func errStructWithoutColumns(v interface{}) error {
+	return errors.NewInvalidExpressionError("%T has no columns", v)
 }

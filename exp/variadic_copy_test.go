@@ -64,7 +64,7 @@ func TestArrayComparisonsCopyTheArray(t *testing.T) {
 
 func TestClauseSettersCopyTheCallersSlice(t *testing.T) {
 	window := func(name string) exp.WindowExpression {
-		return exp.NewWindowExpression("db", exp.ParseIdentifier(name), nil, nil, nil)
+		return exp.NewWindowExpression(exp.ParseIdentifier(name), nil, nil, nil)
 	}
 	ws := []exp.WindowExpression{window("w1")}
 	rows := []any{1, 2}
@@ -93,7 +93,7 @@ func TestSiblingAppendsDoNotShareBackingArrays(t *testing.T) {
 		return exp.NewCompoundExpression(exp.UnionCompoundType, newTestAppendableExpression(sql, []any{}))
 	}
 	window := func(name string) exp.WindowExpression {
-		return exp.NewWindowExpression("db", exp.ParseIdentifier(name), nil, nil, nil)
+		return exp.NewWindowExpression(exp.ParseIdentifier(name), nil, nil, nil)
 	}
 	withSpareCap := func(sc exp.SelectClauses) exp.SelectClauses {
 		return sc.CommonTablesAppend(cte("c0")).CommonTablesAppend(cte("c1")).CommonTablesAppend(cte("c2")).

@@ -58,6 +58,33 @@ func NewColumnListExpression(subquerys map[string]Aliaseable, tagName string, va
 	return columnList{columns: cols}
 }
 
+type structColumns struct{ value interface{} }
+
+func (sc structColumns) Expression() Expression { return sc }
+
+func (sc structColumns) Clone() Expression { return sc }
+
+func (sc structColumns) Struct() interface{} { return sc.value }
+
+func newRenderTaggedColumnList(vals ...interface{}) ColumnListExpression {
+	deferred := make([]interface{}, len(vals))
+	for i, val := range vals {
+		deferred[i] = deferStruct(val)
+	}
+	return NewColumnListExpression(nil, "", deferred...)
+}
+
+func deferStruct(val interface{}) interface{} {
+	switch val.(type) {
+	case nil, string, Expression:
+		return val
+	}
+	if _, kind := util.GetTypeInfo(val); kind == reflect.Struct {
+		return structColumns{value: val}
+	}
+	return val
+}
+
 func NewOrderedColumnList(vals ...OrderedExpression) ColumnListExpression {
 	exps := make([]interface{}, 0, len(vals))
 	for _, col := range vals {

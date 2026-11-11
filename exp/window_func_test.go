@@ -37,7 +37,6 @@ func (swfet *sqlWindowFunctionExpressionTest) TestFunc() {
 
 func (swfet *sqlWindowFunctionExpressionTest) TestWindow() {
 	w := exp.NewWindowExpression(
-		"db",
 		exp.NewIdentifierExpression("", "", "w"),
 		nil,
 		nil,

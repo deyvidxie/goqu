@@ -43,7 +43,7 @@ func fastPathGenerators() map[string]*sqlgen.SQLDialectOptions {
 
 func TestExpressionSQLGenerator_emptySlicesFailOnBothPaths(t *testing.T) {
 	const suffix = ") is only accepted as the whole right side of In or NotIn"
-	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
+	esg := sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions())
 	for _, prepared := range []bool{false, true} {
 		for _, c := range []struct {
 			val      interface{}
@@ -82,7 +82,7 @@ func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 		for _, c := range cases {
 			for _, prepared := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/%s/prepared=%v", optName, c.name, prepared), func(t *testing.T) {
-					esg := sqlgen.NewExpressionSQLGenerator("test", opts)
+					esg := sqlgen.NewExpressionSQLGenerator("test", "db", opts)
 
 					fastB := sb.NewSQLBuilder(prepared)
 					esg.Generate(fastB, c.fast)
@@ -106,7 +106,7 @@ func TestExpressionSQLGenerator_typedSlicesMatchReflection(t *testing.T) {
 }
 
 func TestExpressionSQLGenerator_bytesAndCTEFastPaths(t *testing.T) {
-	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
+	esg := sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions())
 
 	b := sb.NewSQLBuilder(false)
 	esg.Generate(b, []byte("abc"))
@@ -125,7 +125,7 @@ func TestExpressionSQLGenerator_bytesAndCTEFastPaths(t *testing.T) {
 // Literal expressions are split on '?' bytewise for valid UTF-8; invalid UTF-8 keeps its historical handling
 // (invalid bytes become U+FFFD).
 func TestExpressionSQLGenerator_literalExpressionText(t *testing.T) {
-	esg := sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions())
+	esg := sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions())
 	gen := func(l string, args ...any) string {
 		b := sb.NewSQLBuilder(false)
 		esg.Generate(b, exp.NewLiteralExpression(l, args...))
@@ -147,7 +147,7 @@ func TestExpressionSQLGenerator_isSafeForConcurrentUse(t *testing.T) {
 	numbered := sqlgen.DefaultDialectOptions()
 	numbered.PlaceHolderFragment = []byte("$")
 	numbered.IncludePlaceholderNum = true
-	esg := sqlgen.NewExpressionSQLGenerator("test", numbered)
+	esg := sqlgen.NewExpressionSQLGenerator("test", "db", numbered)
 
 	var wg sync.WaitGroup
 	for g := 0; g < 16; g++ {
@@ -186,7 +186,7 @@ func TestExpressionSQLGenerator_numberedPlaceholdersPastNine(t *testing.T) {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.PlaceHolderFragment = []byte("$")
 	opts.IncludePlaceholderNum = true
-	esg := sqlgen.NewExpressionSQLGenerator("test", opts)
+	esg := sqlgen.NewExpressionSQLGenerator("test", "db", opts)
 	b := sb.NewSQLBuilder(true)
 	esg.Generate(b, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
 	sql, args, err := b.ToSQL()

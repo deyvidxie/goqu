@@ -11,7 +11,7 @@ import (
 )
 
 func newESG(opts *sqlgen.SQLDialectOptions, prepared bool) (sqlgen.ExpressionSQLGenerator, sb.SQLBuilder) {
-	return sqlgen.NewExpressionSQLGenerator("bench", opts), sb.NewSQLBuilder(prepared)
+	return sqlgen.NewExpressionSQLGenerator("bench", "db", opts), sb.NewSQLBuilder(prepared)
 }
 
 // --- INSERT: single row, many columns; and multi-row bulk ---

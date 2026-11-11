@@ -326,6 +326,10 @@ type (
 		Expression
 		isDefault()
 	}
+	StructColumnsExpression interface {
+		Expression
+		Struct() interface{}
+	}
 	InvalidExpression interface {
 		Expression
 		Err() error

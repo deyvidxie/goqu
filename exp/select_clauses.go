@@ -436,6 +436,9 @@ func (c *selectClauses) SetWindows(ws []WindowExpression) SelectClauses {
 }
 
 func (c *selectClauses) WindowsAppend(ws ...WindowExpression) SelectClauses {
+	if len(ws) == 0 {
+		ws = []WindowExpression{emptyAppendWindow("WindowsAppend")}
+	}
 	ret := c.clone()
 	ret.windows = append(ret.windows, ws...)
 	return ret

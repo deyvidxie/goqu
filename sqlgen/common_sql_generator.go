@@ -32,7 +32,7 @@ type (
 )
 
 func NewCommonSQLGenerator(dialect, tagName string, do *SQLDialectOptions) CommonSQLGenerator {
-	return &commonSQLGenerator{dialect: dialect, tagName: tagName, esg: NewExpressionSQLGenerator(dialect, do), dialectOptions: do}
+	return &commonSQLGenerator{dialect: dialect, tagName: tagName, esg: NewExpressionSQLGenerator(dialect, tagName, do), dialectOptions: do}
 }
 
 func (csg *commonSQLGenerator) TagName() string {

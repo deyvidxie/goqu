@@ -1021,6 +1021,20 @@ func (sds *selectDatasetSuite) TestWindowAppend() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestWindowAppend_noWindows() {
+	var none []exp.WindowExpression
+	w := goqu.W("w").PartitionBy("a")
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"no arguments":            goqu.From("test").WindowAppend(),
+		"empty spread":            goqu.From("test").WindowAppend(none...),
+		"after an earlier window": goqu.From("test").Window(w).WindowAppend(),
+	} {
+		_, _, err := ds.ToSQL()
+		sds.EqualError(err, "goqu: WindowAppend requires at least one window", name)
+		sds.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
 func (sds *selectDatasetSuite) TestClearWindow() {
 	w1 := goqu.W("w1").PartitionBy("a").OrderBy("b")
 

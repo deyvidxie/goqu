@@ -44,6 +44,29 @@ func TestDialectWithTagName(t *testing.T) {
 	)
 }
 
+func TestWindowAndUsingStructsUseDatasetTag(t *testing.T) {
+	d := goqu.DialectWithTagName("default", "json")
+	byRow := goqu.W().PartitionBy(taggedItem{}).OrderBy(taggedItem{})
+	assertSQLCases(t,
+		sqlCase{
+			ds:  d.From("items").Select(goqu.ROW_NUMBER().Over(byRow)),
+			sql: `SELECT ROW_NUMBER() OVER (PARTITION BY "json_id", "json_name" ORDER BY "json_id", "json_name") FROM "items"`,
+		},
+		sqlCase{
+			ds:  d.From("items").Window(goqu.W("w").PartitionBy(taggedItem{})).Select(goqu.ROW_NUMBER().OverName(goqu.I("w"))),
+			sql: `SELECT ROW_NUMBER() OVER "w" FROM "items" WINDOW "w" AS (PARTITION BY "json_id", "json_name")`,
+		},
+		sqlCase{
+			ds:  d.From("items").Join(goqu.T("other"), goqu.Using(taggedItem{})),
+			sql: `SELECT * FROM "items" INNER JOIN "other" USING ("json_id", "json_name")`,
+		},
+		sqlCase{
+			ds:  goqu.From("items").Join(goqu.T("other"), goqu.Using(taggedItem{})),
+			sql: `SELECT * FROM "items" INNER JOIN "other" USING ("db_id", "db_name")`,
+		},
+	)
+}
+
 func TestSameStructDifferentTagNames(t *testing.T) {
 	jsonTagged := goqu.DialectWithTagName("default", "json")
 	assertSQLCases(t,

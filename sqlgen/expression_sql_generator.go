@@ -29,6 +29,7 @@ type (
 	// See (github.com/doug-martin/goqu/dialect/postgres)
 	expressionSQLGenerator struct {
 		dialect        string
+		tagName        string
 		dialectOptions *SQLDialectOptions
 	}
 )
@@ -58,8 +59,8 @@ var jsonFunctionNames = map[exp.JSONFunction]string{
 	exp.JSONContainsFunction: "JSONContains",
 }
 
-func NewExpressionSQLGenerator(dialect string, do *SQLDialectOptions) ExpressionSQLGenerator {
-	return &expressionSQLGenerator{dialect: dialect, dialectOptions: do}
+func NewExpressionSQLGenerator(dialect, tagName string, do *SQLDialectOptions) ExpressionSQLGenerator {
+	return &expressionSQLGenerator{dialect: dialect, tagName: tagName, dialectOptions: do}
 }
 
 func (esg *expressionSQLGenerator) Dialect() string {
@@ -240,6 +241,8 @@ func (esg *expressionSQLGenerator) expressionSQL(b sb.SQLBuilder, expression exp
 	switch e := expression.(type) {
 	case exp.ColumnListExpression:
 		esg.columnListSQL(b, e)
+	case exp.StructColumnsExpression:
+		esg.structColumnsSQL(b, e)
 	case exp.ExpressionList:
 		esg.expressionListSQL(b, e)
 	case exp.LiteralExpression:
@@ -733,6 +736,15 @@ func (esg *expressionSQLGenerator) columnListSQL(b sb.SQLBuilder, columnList exp
 	}
 }
 
+func (esg *expressionSQLGenerator) structColumnsSQL(b sb.SQLBuilder, sc exp.StructColumnsExpression) {
+	cols := exp.NewColumnListExpression(nil, esg.tagName, sc.Struct())
+	if cols.IsEmpty() {
+		b.SetError(errStructWithoutColumns(sc.Struct()))
+		return
+	}
+	esg.columnListSQL(b, cols)
+}
+
 // Generates SQL for an UpdateEpxresion
 func (esg *expressionSQLGenerator) updateExpressionSQL(b sb.SQLBuilder, update exp.UpdateExpression) {
 	esg.Generate(b, update.Col())
@@ -834,7 +846,7 @@ func (esg *expressionSQLGenerator) sqlWindowFunctionExpression(b sb.SQLBuilder, 
 		}
 		esg.Generate(b, sqlWinFunc.Window())
 	default:
-		esg.Generate(b, exp.NewWindowExpression("db", nil, nil, nil, nil))
+		esg.Generate(b, exp.NewWindowExpression(nil, nil, nil, nil))
 	}
 }
 
@@ -860,6 +872,10 @@ func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.W
 	}
 
 	if hasPartition {
+		if we.PartitionCols().IsEmpty() {
+			b.SetError(errEmptyPartitionBy)
+			return
+		}
 		b.Write(esg.dialectOptions.WindowPartitionByFragment)
 		esg.Generate(b, we.PartitionCols())
 		if hasOrder {
@@ -867,6 +883,10 @@ func (esg *expressionSQLGenerator) windowExpressionSQL(b sb.SQLBuilder, we exp.W
 		}
 	}
 	if hasOrder {
+		if we.OrderCols().IsEmpty() {
+			b.SetError(errEmptyWindowOrderBy)
+			return
+		}
 		b.Write(esg.dialectOptions.WindowOrderByFragment)
 		esg.Generate(b, we.OrderCols())
 	}

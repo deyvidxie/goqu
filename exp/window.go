@@ -5,26 +5,14 @@ type sqlWindowExpression struct {
 	parent        IdentifierExpression
 	partitionCols ColumnListExpression
 	orderCols     ColumnListExpression
-	tagName       string
 }
 
-func NewWindowExpression(
-	tagName string,
-	window, parent IdentifierExpression,
-	partitionCols, orderCols ColumnListExpression,
-) WindowExpression {
-	if partitionCols == nil {
-		partitionCols = NewColumnListExpression(nil, tagName)
-	}
-	if orderCols == nil {
-		orderCols = NewColumnListExpression(nil, tagName)
-	}
+func NewWindowExpression(window, parent IdentifierExpression, partitionCols, orderCols ColumnListExpression) WindowExpression {
 	return sqlWindowExpression{
 		name:          window,
 		parent:        parent,
 		partitionCols: partitionCols,
 		orderCols:     orderCols,
-		tagName:       tagName,
 	}
 }
 
@@ -32,10 +20,16 @@ func (we sqlWindowExpression) clone() sqlWindowExpression {
 	return sqlWindowExpression{
 		name:          we.name,
 		parent:        we.parent,
-		partitionCols: we.partitionCols.Clone().(ColumnListExpression),
-		orderCols:     we.orderCols.Clone().(ColumnListExpression),
-		tagName:       we.tagName,
+		partitionCols: cloneColumnList(we.partitionCols),
+		orderCols:     cloneColumnList(we.orderCols),
 	}
+}
+
+func cloneColumnList(cl ColumnListExpression) ColumnListExpression {
+	if cl == nil {
+		return nil
+	}
+	return cl.Clone().(ColumnListExpression)
 }
 
 func (we sqlWindowExpression) Clone() Expression {
@@ -67,7 +61,7 @@ func (we sqlWindowExpression) PartitionCols() ColumnListExpression {
 }
 
 func (we sqlWindowExpression) HasPartitionBy() bool {
-	return we.partitionCols != nil && !we.partitionCols.IsEmpty()
+	return we.partitionCols != nil
 }
 
 func (we sqlWindowExpression) OrderCols() ColumnListExpression {
@@ -75,18 +69,18 @@ func (we sqlWindowExpression) OrderCols() ColumnListExpression {
 }
 
 func (we sqlWindowExpression) HasOrder() bool {
-	return we.orderCols != nil && !we.orderCols.IsEmpty()
+	return we.orderCols != nil
 }
 
 func (we sqlWindowExpression) PartitionBy(cols ...interface{}) WindowExpression {
 	ret := we.clone()
-	ret.partitionCols = NewColumnListExpression(nil, we.tagName, cols...)
+	ret.partitionCols = windowColumns("PartitionBy", cols)
 	return ret
 }
 
 func (we sqlWindowExpression) OrderBy(cols ...interface{}) WindowExpression {
 	ret := we.clone()
-	ret.orderCols = NewColumnListExpression(nil, we.tagName, cols...)
+	ret.orderCols = windowColumns("OrderBy", cols)
 	return ret
 }
 
@@ -94,4 +88,12 @@ func (we sqlWindowExpression) Inherit(parent string) WindowExpression {
 	ret := we.clone()
 	ret.parent = ParseIdentifier(parent)
 	return ret
+}
+
+func windowColumns(method string, cols []interface{}) ColumnListExpression {
+	cl := newRenderTaggedColumnList(cols...)
+	if cl.IsEmpty() {
+		return emptyAppendList(nil, method, "column")
+	}
+	return cl
 }

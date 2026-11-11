@@ -128,7 +128,6 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withSelectedColumns() {
 	))
 
 	we := exp.NewWindowExpression(
-		"db",
 		nil,
 		nil,
 		exp.NewColumnListExpression(nil, "db", "a", "b"),
@@ -437,7 +436,6 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 
 	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
 	we1 := exp.NewWindowExpression(
-		"db",
 		exp.NewIdentifierExpression("", "", "w"),
 		nil,
 		nil,
@@ -449,7 +447,6 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 	weOrderAndPartitionBy := we1.PartitionBy("a", "b").OrderBy("a", "b")
 
 	weInherits := exp.NewWindowExpression(
-		"db",
 		exp.NewIdentifierExpression("", "", "w2"),
 		exp.NewIdentifierExpression("", "", "w"),
 		nil,
@@ -460,7 +457,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWindow() {
 
 	weInheritsOrderAndPartitionBy := weInherits.PartitionBy("c", "d").OrderBy("c", "d")
 
-	scNoName := sc.WindowsAppend(exp.NewWindowExpression("db", nil, nil, nil, nil))
+	scNoName := sc.WindowsAppend(exp.NewWindowExpression(nil, nil, nil, nil))
 
 	scWindow1 := sc.WindowsAppend(we1)
 	scWindow2 := sc.WindowsAppend(wePartitionBy)
@@ -855,4 +852,31 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_nilOrder() {
 			selectTestCase{clause: sc.OrderPrepend(a.Asc(), nil), err: "goqu: Order expressions must not be nil", isPrepared: prepared},
 		)
 	}
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_windowsAppendWithoutWindows() {
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	const errNoWindows = "goqu: WindowsAppend requires at least one window"
+	for _, prepared := range []bool{false, true} {
+		ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			selectTestCase{clause: sc.WindowsAppend(), err: errNoWindows, isPrepared: prepared},
+			selectTestCase{clause: sc.WindowsAppend(w).WindowsAppend(), err: errNoWindows, isPrepared: prepared},
+		)
+	}
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_joinUsingStructUsesGeneratorTag() {
+	type row struct {
+		ID int64 `db:"db_id" json:"json_id"`
+	}
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "a")).
+		JoinsAppend(exp.NewConditionedJoinExpression(
+			exp.InnerJoinType, exp.NewIdentifierExpression("", "b", ""), exp.NewJoinUsingCondition(row{}),
+		))
+	ssgs.assertCases(sqlgen.NewSelectSQLGenerator("test", "json", sqlgen.DefaultDialectOptions()),
+		selectTestCase{clause: sc, sql: `SELECT * FROM "a" INNER JOIN "b" USING ("json_id")`},
+		selectTestCase{clause: sc, sql: `SELECT * FROM "a" INNER JOIN "b" USING ("json_id")`, isPrepared: true},
+	)
 }

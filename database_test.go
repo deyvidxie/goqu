@@ -205,6 +205,12 @@ func (ds *databaseSuite) TestExpressionSQL() {
 	ds.Equal([]interface{}{int64(1)}, args)
 }
 
+func (ds *databaseSuite) TestExpressionSQL_usesDatabaseTag() {
+	sql, _, err := goqu.NewWithTagName("default", "json", nil).ExpressionSQL(goqu.W().PartitionBy(taggedItem{}))
+	ds.NoError(err)
+	ds.Equal(`(PARTITION BY "json_id", "json_name")`, sql)
+}
+
 func (ds *databaseSuite) TestExec() {
 	mDB, mock, err := sqlmock.New()
 	ds.NoError(err)
@@ -676,6 +682,12 @@ func (tds *txdatabaseSuite) TestExpressionSQL() {
 	tds.NoError(err)
 	tds.Equal("(`a` = ?)", sql)
 	tds.Equal([]interface{}{int64(1)}, args)
+}
+
+func (tds *txdatabaseSuite) TestExpressionSQL_usesDatabaseTag() {
+	sql, _, err := goqu.NewTxWithTagName("default", "json", nil).ExpressionSQL(goqu.W().PartitionBy(taggedItem{}))
+	tds.NoError(err)
+	tds.Equal(`(PARTITION BY "json_id", "json_name")`, sql)
 }
 
 func (tds *txdatabaseSuite) TestExec() {
