@@ -1599,18 +1599,18 @@ func operatorPosition(sql []byte, op fmt.Stringer) string {
 
 func caseValuesError(whens []exp.CaseWhen, elseResult exp.CaseElse) error {
 	for _, when := range whens {
-		if v, bad := firstNonSingleValueList(when.Condition()); bad {
-			return errListAsSingleValue("CASE WHEN", v)
+		if c := when.Condition(); isNotSingleValueList(c) {
+			return errListAsSingleValue("CASE WHEN", c)
 		}
-		if v, bad := firstNonSingleValueList(when.Result()); bad {
-			return errListAsSingleValue("CASE THEN", v)
+		if r := when.Result(); isNotSingleValueList(r) {
+			return errListAsSingleValue("CASE THEN", r)
 		}
 	}
 	if elseResult == nil {
 		return nil
 	}
-	if v, bad := firstNonSingleValueList(elseResult.Result()); bad {
-		return errListAsSingleValue("CASE ELSE", v)
+	if r := elseResult.Result(); isNotSingleValueList(r) {
+		return errListAsSingleValue("CASE ELSE", r)
 	}
 	return nil
 }
