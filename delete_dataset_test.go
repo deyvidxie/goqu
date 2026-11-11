@@ -505,6 +505,10 @@ func (dds *deleteDatasetSuite) TestSetError() {
 }
 
 func (dds *deleteDatasetSuite) TestEmptyOrder() {
+	const (
+		emptyOrderAppend  = "goqu: OrderAppend requires at least one expression"
+		emptyOrderPrepend = "goqu: OrderPrepend requires at least one expression"
+	)
 	var noOrder []exp.OrderedExpression
 	bd := goqu.Delete("test")
 	const (
@@ -517,13 +521,15 @@ func (dds *deleteDatasetSuite) TestEmptyOrder() {
 		}
 		err string
 	}{
-		"Order":            {bd.Order(noOrder...), emptyOrder},
-		"Order nil":        {bd.Order(nil), nilOrder},
-		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
-		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
-		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
-		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
-		"from select":      {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Delete(), emptyOrder},
+		"Order":                       {bd.Order(noOrder...), emptyOrder},
+		"Order nil":                   {bd.Order(nil), nilOrder},
+		"OrderAppend":                 {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrderAppend},
+		"OrderAppend nil":             {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
+		"OrderPrepend":                {bd.OrderPrepend(noOrder...), emptyOrderPrepend},
+		"OrderPrepend nil":            {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
+		"OrderAppend then ClearOrder": {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...).ClearOrder(), emptyOrderAppend},
+		"OrderPrepend then Order":     {bd.OrderPrepend(noOrder...).Order(goqu.C("a").Asc()), emptyOrderPrepend},
+		"from select":                 {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Delete(), emptyOrder},
 	} {
 		_, _, err := c.ds.ToSQL()
 		dds.EqualError(err, c.err, name)
@@ -543,7 +549,6 @@ func (dds *deleteDatasetSuite) TestEmptyWhere() {
 	}{
 		"no conditions": {bd.Where(), emptyWhere},
 		"empty spread":  {bd.Where(none...), emptyWhere},
-		"from select":   {goqu.From("test").Where(none...).Delete(), emptyWhere},
 		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition`},
 	} {
 		_, _, err := c.ds.ToSQL()

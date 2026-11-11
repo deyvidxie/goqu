@@ -47,7 +47,7 @@ var errNoDatabase = errors.NewNoDatabaseError(
 var (
 	errEmptySelect         = errors.NewInvalidExpressionError("Select requires at least one column; use ClearSelect for SELECT *")
 	errEmptySelectDistinct = errors.NewInvalidExpressionError("SelectDistinct requires at least one column")
-	errEmptyDistinctOn     = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
+	errEmptyDistinctOn     = errors.NewInvalidExpressionError("DistinctOn requires at least one column; use Distinct() for a plain DISTINCT")
 	errEmptyGroupBy        = errors.NewInvalidExpressionError("GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY")
 	errEmptyOrder          = errors.NewInvalidExpressionError("Order requires at least one expression; use ClearOrder to drop ORDER BY")
 	errEmptyOrderAppend    = errors.NewInvalidExpressionError("OrderAppend requires at least one expression")

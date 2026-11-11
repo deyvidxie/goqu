@@ -274,6 +274,10 @@ func (sds *selectDatasetSuite) TestSelectDistinct() {
 }
 
 func (sds *selectDatasetSuite) TestEmptyArguments() {
+	const (
+		emptyOrderAppend  = "goqu: OrderAppend requires at least one expression"
+		emptyOrderPrepend = "goqu: OrderPrepend requires at least one expression"
+	)
 	bd := goqu.From("test")
 	var none []interface{}
 	var noOrder []exp.OrderedExpression
@@ -292,23 +296,27 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"Select no columns": {bd.Select(struct {
 			A int `db:"-"`
 		}{}), emptySelect},
-		"package Select":      {goqu.Select(none...).From("test"), emptySelect},
-		"SelectDistinct":      {bd.SelectDistinct(none...), "goqu: SelectDistinct requires at least one column"},
-		"SelectAppend":        {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
-		"GroupBy":             {bd.GroupBy(none...), emptyGroupBy},
-		"GroupBy nil":         {bd.GroupBy(nil), emptyGroupBy},
-		"GroupByAppend":       {bd.GroupBy("a").GroupByAppend(none...), "goqu: GroupByAppend requires at least one column"},
-		"Order":               {bd.Order(noOrder...), emptyOrder},
-		"Order nil":           {bd.Order(nil), nilOrder},
-		"OrderAppend":         {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
-		"OrderAppend nil":     {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
-		"OrderPrepend":        {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
-		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
-		"Order with Limit":    {bd.Order(noOrder...).Limit(10), emptyOrder},
-		"Select then cleared": {bd.Select(none...).ClearSelect(), emptySelect},
-		"Where":               {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
-		"Having":              {bd.Having(), "goqu: Having requires at least one expression; use ClearHaving to drop HAVING"},
-		"Qualify":             {bd.Qualify(), "goqu: Qualify requires at least one expression; use ClearQualify to drop QUALIFY"},
+		"package Select":                  {goqu.Select(none...).From("test"), emptySelect},
+		"SelectDistinct":                  {bd.SelectDistinct(none...), "goqu: SelectDistinct requires at least one column"},
+		"SelectAppend":                    {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
+		"GroupBy":                         {bd.GroupBy(none...), emptyGroupBy},
+		"GroupBy nil":                     {bd.GroupBy(nil), emptyGroupBy},
+		"GroupByAppend":                   {bd.GroupBy("a").GroupByAppend(none...), "goqu: GroupByAppend requires at least one column"},
+		"Order":                           {bd.Order(noOrder...), emptyOrder},
+		"Order nil":                       {bd.Order(nil), nilOrder},
+		"OrderAppend":                     {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrderAppend},
+		"OrderAppend nil":                 {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), "goqu: OrderAppend expressions must not be nil"},
+		"OrderPrepend":                    {bd.OrderPrepend(noOrder...), emptyOrderPrepend},
+		"OrderPrepend nil":                {bd.OrderPrepend(goqu.C("a").Asc(), nil), "goqu: OrderPrepend expressions must not be nil"},
+		"OrderAppend then ClearOrder":     {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...).ClearOrder(), emptyOrderAppend},
+		"OrderPrepend then Order":         {bd.OrderPrepend(noOrder...).Order(goqu.C("a").Asc()), emptyOrderPrepend},
+		"SelectAppend then Select":        {bd.SelectAppend(none...).Select("a"), "goqu: SelectAppend requires at least one column"},
+		"GroupByAppend then ClearGroupBy": {bd.GroupByAppend(none...).ClearGroupBy(), "goqu: GroupByAppend requires at least one column"},
+		"Order with Limit":                {bd.Order(noOrder...).Limit(10), emptyOrder},
+		"Select then cleared":             {bd.Select(none...).ClearSelect(), emptySelect},
+		"Where":                           {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
+		"Having":                          {bd.Having(), "goqu: Having requires at least one expression; use ClearHaving to drop HAVING"},
+		"Qualify":                         {bd.Qualify(), "goqu: Qualify requires at least one expression; use ClearQualify to drop QUALIFY"},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
@@ -378,7 +386,7 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 		"empty list":   bd.DistinctOn(exp.NewColumnListExpression(nil, "db")),
 	} {
 		_, _, err := ds.ToSQL()
-		sds.EqualError(err, "goqu: DistinctOn requires at least one column", name)
+		sds.EqualError(err, "goqu: DistinctOn requires at least one column; use Distinct() for a plain DISTINCT", name)
 		sds.True(goqu.IsInvalidExpression(err), name)
 	}
 	sds.NoError(bd.Error())
@@ -1148,11 +1156,10 @@ func (sds *selectDatasetSuite) TestOrderPrepend() {
 	)
 }
 
-const emptyWhereMessage = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
-
 func (sds *selectDatasetSuite) TestConversionsKeepError() {
 	var none []interface{}
 	const (
+		emptyWhereMessage  = "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"
 		emptySelectAppend  = "goqu: SelectAppend requires at least one column"
 		emptyGroupByAppend = "goqu: GroupByAppend requires at least one column"
 	)
@@ -1169,8 +1176,6 @@ func (sds *selectDatasetSuite) TestConversionsKeepError() {
 			goqu.From("test").GroupByAppend(none...).Update().Set(goqu.Record{"a": 1}),
 			emptyGroupByAppend,
 		},
-		"SelectAppend then Select":        {goqu.From("test").SelectAppend(none...).Select("a"), emptySelectAppend},
-		"GroupByAppend then ClearGroupBy": {goqu.From("test").GroupByAppend(none...).ClearGroupBy(), emptyGroupByAppend},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)

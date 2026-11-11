@@ -25,11 +25,11 @@ ds := goqu.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley'
 ```
 
 **[`SelectDataset.Update`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Update)**
@@ -44,17 +44,17 @@ ds := goqu.From("user")
 updateSQL, _, _ := ds.Update().Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 ).ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 
 updateSQL, _, _ = ds.Where(goqu.C("first_name").Eq("Gregory")).Update().Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 ).ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley'
-UPDATE "user" SET "first_name"='Greg', "last_name"='Farley' WHERE "first_name"='Gregory'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley'
+UPDATE "user" SET "first_name"='Greg',"last_name"='Farley' WHERE ("first_name" = 'Gregory')
 ```
 
 **[`DialectWrapper.Update`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Update)**
@@ -70,11 +70,11 @@ ds := dialect.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE `user` SET `first_name`='Greg', `last_name`='Farley'
+UPDATE `user` SET `first_name`='Greg',`last_name`='Farley'
 ```
 
 **[`Database.Update`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Update)**
@@ -91,11 +91,11 @@ ds := db.Update("user").Set(
     goqu.Record{"first_name": "Greg", "last_name": "Farley"},
 )
 updateSQL, _, _ := ds.ToSQL()
-fmt.Println(insertSQL, args)
+fmt.Println(updateSQL)
 ```
 Output:
 ```
-UPDATE `user` SET `first_name`='Greg', `last_name`='Farley'
+UPDATE `user` SET `first_name`='Greg',`last_name`='Farley'
 ```
 
 ### Examples

@@ -46,7 +46,7 @@ fmt.Println(sql)
 Output:
 ```
 DELETE FROM "table"
-DELETE FROM "table" WHERE "foo"='bar'
+DELETE FROM "table" WHERE ("foo" = 'bar')
 ```
 
 **[`DialectWrapper.Delete`](https://godoc.org/github.com/doug-martin/goqu/#DialectWrapper.Delete)**

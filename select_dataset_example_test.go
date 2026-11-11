@@ -1183,7 +1183,7 @@ func ExampleSelectDataset_DistinctOn() {
 	fmt.Println(err)
 	// Output:
 	// SELECT DISTINCT ON ("a") * FROM "test"
-	// goqu: DistinctOn requires at least one column
+	// goqu: DistinctOn requires at least one column; use Distinct() for a plain DISTINCT
 }
 
 func ExampleSelectDataset_ClearGroupBy() {

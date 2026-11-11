@@ -381,7 +381,6 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 	}
 	const (
 		noRows      = "goqu: Rows requires at least one row"
-		emptyRows   = "goqu: Rows requires at least one row"
 		emptyVals   = "goqu: Vals requires at least one row"
 		emptyCols   = "goqu: Cols requires at least one column; use ClearCols to drop Cols"
 		colsOnly    = "goqu: Cols without Vals or FromQuery found when generating insert sql"
@@ -394,7 +393,7 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"empty slice":                 {goqu.Insert("t").Rows([]row{}), noRows},
 		"empty array":                 {goqu.Insert("t").Rows([0]row{}), noRows},
 		"pointer to empty slice":      {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
-		"no rows":                     {goqu.Insert("t").Rows(), emptyRows},
+		"no rows":                     {goqu.Insert("t").Rows(), noRows},
 		"empty record":                {goqu.Insert("t").Rows(goqu.Record{}), "goqu: insert rows have no columns"},
 		"skipinsert-only struct":      {goqu.Insert("t").Rows(skipped{ID: 1}), "goqu: insert rows have no columns"},
 		"omitempty zero struct":       {goqu.Insert("t").Rows(omitted{}), "goqu: insert rows have no columns"},
