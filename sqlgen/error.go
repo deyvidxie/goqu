@@ -342,3 +342,7 @@ func errStructWithoutColumns(v interface{}) error {
 func errNilSubquery(a exp.AppendableExpression) error {
 	return errors.NewInvalidExpressionError("subquery must not be nil, got %T", a)
 }
+
+func errInvalidUTF8Literal(v interface{}) error {
+	return errors.NewInvalidExpressionError("%T value is not valid UTF-8 and cannot be interpolated; use Prepared(true)", v)
+}

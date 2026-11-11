@@ -35,7 +35,7 @@ type (
 	}
 )
 
-// replacementByte is replacementRune as a byte so placeholders can be found bytewise in valid UTF-8 text.
+// replacementByte never occurs inside a multi-byte UTF-8 sequence, so placeholders are found bytewise.
 const (
 	replacementByte byte = '?'
 	// quoteOverhead is the room reserved for the surrounding quotes of a string/bytes literal.
@@ -437,6 +437,10 @@ func (esg *expressionSQLGenerator) literalString(b sqlbuilder.SQLBuilder, s stri
 		esg.placeHolderSQL(b, s)
 		return
 	}
+	if !utf8.ValidString(s) {
+		b.SetError(errInvalidUTF8Literal(s))
+		return
+	}
 	b.GrowBuffer(len(s) + quoteOverhead)
 	b.WriteRunes(esg.dialectOptions.StringQuote)
 	for _, char := range s {
@@ -455,9 +459,12 @@ func (esg *expressionSQLGenerator) literalBytes(b sqlbuilder.SQLBuilder, bs []by
 		esg.placeHolderSQL(b, bs)
 		return
 	}
+	if !utf8.Valid(bs) {
+		b.SetError(errInvalidUTF8Literal(bs))
+		return
+	}
 	b.GrowBuffer(len(bs) + quoteOverhead)
 	b.WriteRunes(esg.dialectOptions.StringQuote)
-	i := 0
 	for len(bs) > 0 {
 		char, l := utf8.DecodeRune(bs)
 		if e, ok := esg.dialectOptions.EscapedRunes[char]; ok {
@@ -465,7 +472,6 @@ func (esg *expressionSQLGenerator) literalBytes(b sqlbuilder.SQLBuilder, bs []by
 		} else {
 			b.WriteRunes(char)
 		}
-		i++
 		bs = bs[l:]
 	}
 	b.WriteRunes(esg.dialectOptions.StringQuote)
@@ -774,19 +780,6 @@ func (esg *expressionSQLGenerator) literalExpressionSQL(b sqlbuilder.SQLBuilder,
 	args := literal.Args()
 	if argsLen := len(args); argsLen > 0 {
 		currIndex := 0
-		if !utf8.ValidString(l) {
-			// Keep the historical behavior for invalid UTF-8: ranging over the string turns invalid bytes into U+FFFD.
-			for _, char := range l {
-				if char == replacementRune && currIndex < argsLen {
-					esg.Generate(b, args[currIndex])
-					currIndex++
-				} else {
-					b.WriteRunes(char)
-				}
-			}
-			return
-		}
-		// '?' is ASCII, so it can be found bytewise and the text between placeholders written in one go.
 		for l != "" {
 			i := strings.IndexByte(l, replacementByte)
 			if i == -1 {
