@@ -470,8 +470,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyConditions() {
 	and := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.AndType, e...) }
 	or := func(e ...exp.Expression) exp.ExpressionList { return exp.NewExpressionList(exp.OrType, e...) }
 	const (
-		emptyAnd = `goqu: empty AND condition (And() or Ex{})`
-		emptyOr  = `goqu: empty OR condition (Or() or ExOr{})`
+		emptyAnd = `goqu: empty AND condition`
+		emptyOr  = `goqu: empty OR condition`
 	)
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", sqlgen.DefaultDialectOptions()),

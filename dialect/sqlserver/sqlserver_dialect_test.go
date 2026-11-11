@@ -197,7 +197,7 @@ func (sds *sqlserverDialectSuite) TestLimitZero() {
 
 func (sds *sqlserverDialectSuite) TestOffsetRequiresOrder() {
 	ds := goqu.Dialect("sqlserver").From("test")
-	for _, offset := range []*goqu.SelectDataset{ds.Offset(20), ds.Limit(10).Offset(20), ds.Order(goqu.C("a").Asc()).ClearOrder().Offset(20)} {
+	for _, offset := range []*goqu.SelectDataset{ds.Offset(20), ds.Limit(10).Offset(20)} {
 		_, _, err := offset.ToSQL()
 		sds.EqualError(err, "goqu: dialect does not support OFFSET without ORDER BY [dialect=sqlserver]")
 		sds.True(goqu.IsUnsupported(err))

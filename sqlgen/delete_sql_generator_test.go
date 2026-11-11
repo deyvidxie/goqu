@@ -197,6 +197,18 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 	)
 }
 
+func (dsgs *deleteSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
+	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
+	dsgs.assertCases(
+		sqlgen.NewDeleteSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		deleteTestCase{clause: dc.WhereAppend(), err: "goqu: empty AND condition"},
+		deleteTestCase{
+			clause: dc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
+			err:    "goqu: empty AND condition",
+		},
+	)
+}
+
 func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withLimitUnsupported() {
 	opts := sqlgen.DefaultDialectOptions()
 	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))

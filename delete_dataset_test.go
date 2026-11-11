@@ -544,7 +544,7 @@ func (dds *deleteDatasetSuite) TestEmptyWhere() {
 		"no conditions": {bd.Where(), emptyWhere},
 		"empty spread":  {bd.Where(none...), emptyWhere},
 		"from select":   {goqu.From("test").Where(none...).Delete(), emptyWhere},
-		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{})`},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition`},
 	} {
 		_, _, err := c.ds.ToSQL()
 		dds.EqualError(err, c.err, name)

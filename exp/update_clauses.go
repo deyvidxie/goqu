@@ -132,7 +132,7 @@ func (uc *updateClauses) ClearWhere() UpdateClauses {
 
 func (uc *updateClauses) WhereAppend(expressions ...Expression) UpdateClauses {
 	if len(expressions) == 0 {
-		return uc
+		expressions = []Expression{NewExpressionList(AndType)}
 	}
 	ret := uc.clone()
 	if ret.where == nil {

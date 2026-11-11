@@ -138,9 +138,8 @@ func (sds *duckdbDialectSuite) TestEmptyQualify() {
 		ds  *goqu.SelectDataset
 		err string
 	}{
-		"no arguments": {ds.Qualify(), "goqu: Qualify requires at least one expression"},
-		"empty Or":     {ds.Qualify(goqu.Or()), "goqu: empty OR condition (Or() or ExOr{})"},
-		"empty Ex":     {ds.Qualify(goqu.Ex{}), "goqu: empty AND condition (And() or Ex{})"},
+		"empty Or": {ds.Qualify(goqu.Or()), "goqu: empty OR condition"},
+		"empty Ex": {ds.Qualify(goqu.Ex{}), "goqu: empty AND condition"},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)

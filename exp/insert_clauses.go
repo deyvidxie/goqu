@@ -27,7 +27,6 @@ type (
 		SetFrom(ae AppendableExpression) InsertClauses
 
 		Rows() []interface{}
-		HasRows() bool
 		SetRows(rows []interface{}) InsertClauses
 
 		HasAlias() bool
@@ -35,7 +34,6 @@ type (
 		SetAlias(ie IdentifierExpression) InsertClauses
 
 		Vals() [][]interface{}
-		HasVals() bool
 		SetVals(vals [][]interface{}) InsertClauses
 		ValsAppend(vals [][]interface{}) InsertClauses
 
@@ -167,10 +165,6 @@ func (ic *insertClauses) Rows() []interface{} {
 	return ic.rows
 }
 
-func (ic *insertClauses) HasRows() bool {
-	return len(ic.rows) > 0
-}
-
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 	ret := ic.clone()
 	ret.rows = slices.Clone(rows)
@@ -182,10 +176,6 @@ func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
 
 func (ic *insertClauses) Vals() [][]interface{} {
 	return ic.values
-}
-
-func (ic *insertClauses) HasVals() bool {
-	return len(ic.values) > 0
 }
 
 func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {

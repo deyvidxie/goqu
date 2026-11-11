@@ -70,9 +70,9 @@ func (gis *githubIssuesSuite) TestIssue49() {
 		where exp.Expression
 		err   string
 	}{
-		{goqu.Or(), "goqu: empty OR condition (Or() or ExOr{})"},
-		{goqu.ExOr{}, "goqu: empty OR condition (Or() or ExOr{})"},
-		{goqu.Ex{}, "goqu: empty AND condition (And() or Ex{})"},
+		{goqu.Or(), "goqu: empty OR condition"},
+		{goqu.ExOr{}, "goqu: empty OR condition"},
+		{goqu.Ex{}, "goqu: empty AND condition"},
 	} {
 		_, _, err := dialect.From("table").Where(c.where).ToSQL()
 		gis.EqualError(err, c.err)

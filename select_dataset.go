@@ -243,7 +243,7 @@ func (sd *SelectDataset) Select(selects ...interface{}) *SelectDataset {
 //	Struct: If passing in a struct, a nil pointer to one, or a slice or array of them, we will select the struct's columns.
 //	See examples
 //
-// Deprecated: Use Distinct() instead.
+// Deprecated: Use Select(...).Distinct() instead.
 func (sd *SelectDataset) SelectDistinct(selects ...interface{}) *SelectDataset {
 	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
 	if cols.IsEmpty() {
@@ -472,6 +472,10 @@ func (sd *SelectDataset) Having(expressions ...exp.Expression) *SelectDataset {
 	return sd.copy(sd.clauses.HavingAppend(expressions...))
 }
 
+func (sd *SelectDataset) ClearHaving() *SelectDataset {
+	return sd.copy(sd.clauses.ClearHaving())
+}
+
 // Adds a QUALIFY clause, which filters on the result of window functions. Of the built in dialects only duckdb supports
 // QUALIFY; the others return an error unless registered with SQLDialectOptions.SupportsQualify set to true.
 // See examples.
@@ -480,6 +484,10 @@ func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 		return sd.copy(sd.clauses).SetError(errEmptyQualify)
 	}
 	return sd.copy(sd.clauses.QualifyAppend(expressions...))
+}
+
+func (sd *SelectDataset) ClearQualify() *SelectDataset {
+	return sd.copy(sd.clauses.ClearQualify())
 }
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.

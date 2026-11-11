@@ -187,8 +187,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 	csgWhereFrag := sqlgen.NewCommonSQLGenerator("test", "db", opts)
 
 	const (
-		emptyAnd = `goqu: empty AND condition (And() or Ex{})`
-		emptyOr  = `goqu: empty OR condition (Or() or ExOr{})`
+		emptyAnd = `goqu: empty AND condition`
+		emptyOr  = `goqu: empty OR condition`
 	)
 	w := exp.Ex{"a": "b"}
 	w2 := exp.Ex{"b": "c"}

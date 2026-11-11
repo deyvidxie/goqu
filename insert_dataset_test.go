@@ -374,8 +374,8 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		A int `db:"a"`
 	}
 	const (
-		noRows      = "goqu: no rows found when generating insert sql"
-		emptyCols   = "goqu: empty Cols found when generating insert sql"
+		noRows      = "goqu: empty Rows list"
+		emptyCols   = "goqu: Cols requires at least one column"
 		colsOnly    = "goqu: Cols without Vals or FromQuery found when generating insert sql"
 		emptyValRow = "goqu: empty Vals row without Cols found when generating insert sql"
 	)
@@ -386,8 +386,9 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		"empty slice":             {goqu.Insert("t").Rows([]row{}), noRows},
 		"empty array":             {goqu.Insert("t").Rows([0]row{}), noRows},
 		"pointer to empty slice":  {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
-		"no rows":                 {goqu.Insert("t").Rows(), noRows},
-		"empty spread":            {goqu.Insert("t").Rows([]interface{}{}...), noRows},
+		"no rows":                 {goqu.Insert("t").Rows(), "goqu: Rows requires at least one row"},
+		"empty spread":            {goqu.Insert("t").Rows([]interface{}{}...), "goqu: Rows requires at least one row"},
+		"empty record":            {goqu.Insert("t").Rows(goqu.Record{}), "goqu: Rows row without columns found when generating insert sql"},
 		"no vals":                 {goqu.Insert("t").Vals(), "goqu: Vals requires at least one row"},
 		"vals then empty Vals()":  {goqu.Insert("t").Vals(goqu.Vals{1}).Vals(), "goqu: Vals requires at least one row"},
 		"ColsAppend()":            {goqu.Insert("t").Cols("a").ColsAppend(), "goqu: ColsAppend requires at least one column"},
@@ -419,7 +420,6 @@ func (ids *insertDatasetSuite) TestMultipleSources() {
 func (ids *insertDatasetSuite) TestDefaultValuesSources() {
 	for name, ds := range map[string]*goqu.InsertDataset{
 		"no source":    goqu.Insert("t"),
-		"empty record": goqu.Insert("t").Rows(goqu.Record{}),
 		"cleared rows": goqu.Insert("t").Rows([]goqu.Record{}).ClearRows(),
 		"cleared vals": goqu.Insert("t").Vals(goqu.Vals{1}).ClearVals(),
 		"cleared cols": goqu.Insert("t").Cols("a").ClearCols(),

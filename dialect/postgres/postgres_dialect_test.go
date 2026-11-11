@@ -110,21 +110,22 @@ func TestInsertOnConflictWhereEmptyInOnExcluded(t *testing.T) {
 
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("postgres").Insert("test").Rows(goqu.Record{"a": 1})
+	upsert := func() exp.ConflictUpdateExpression { return goqu.DoUpdate("a", goqu.Record{"a": 2}) }
 	for name, c := range map[string]struct {
-		where []goqu.Expression
-		err   string
+		ds  *goqu.InsertDataset
+		err string
 	}{
-		"empty Ex":     {[]goqu.Expression{goqu.Ex{}}, "goqu: empty AND condition (And() or Ex{})"},
-		"empty ExOr":   {[]goqu.Expression{goqu.ExOr{}}, "goqu: empty OR condition (Or() or ExOr{})"},
-		"no arguments": {nil, "goqu: DoUpdate Where requires at least one expression"},
+		"empty Ex":          {ds.OnConflict(upsert().Where(goqu.Ex{})), "goqu: empty AND condition"},
+		"empty ExOr":        {ds.OnConflict(upsert().Where(goqu.ExOr{})), "goqu: empty OR condition"},
+		"no arguments":      {ds.OnConflict(upsert().Where()), "goqu: empty AND condition"},
+		"empty then real":   {ds.OnConflict(upsert().Where().Where(goqu.C("a").Eq(1))), "goqu: empty AND condition"},
+		"real, empty, real": {ds.OnConflict(upsert().Where(goqu.C("a").Eq(1)).Where().Where(goqu.C("b").Eq(2))), "goqu: empty AND condition"},
+		"real then empty":   {ds.OnConflict(upsert().Where(goqu.C("a").Eq(1)).Where()), "goqu: empty AND condition"},
 	} {
-		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(c.where...)).ToSQL()
+		_, _, err := c.ds.ToSQL()
 		assert.EqualError(t, err, c.err, name)
 		assert.True(t, goqu.IsInvalidExpression(err), name)
 	}
-	_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.C("a").Eq(1)).Where()).ToSQL()
-	assert.EqualError(t, err, "goqu: DoUpdate Where requires at least one expression")
-	assert.True(t, goqu.IsInvalidExpression(err))
 }
 
 func TestJSONFunctionsAreErrors(t *testing.T) {

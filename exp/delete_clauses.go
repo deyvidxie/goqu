@@ -93,7 +93,7 @@ func (dc *deleteClauses) ClearWhere() DeleteClauses {
 
 func (dc *deleteClauses) WhereAppend(expressions ...Expression) DeleteClauses {
 	if len(expressions) == 0 {
-		return dc
+		expressions = []Expression{NewExpressionList(AndType)}
 	}
 	ret := dc.clone()
 	if ret.where == nil {

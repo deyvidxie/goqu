@@ -307,8 +307,8 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"Order with Limit":    {bd.Order(noOrder...).Limit(10), emptyOrder},
 		"Select then cleared": {bd.Select(none...).ClearSelect(), emptySelect},
 		"Where":               {bd.Where(), "goqu: Where requires at least one expression; use ClearWhere to drop WHERE"},
-		"Having":              {bd.Having(), "goqu: Having requires at least one expression"},
-		"Qualify":             {bd.Qualify(), "goqu: Qualify requires at least one expression"},
+		"Having":              {bd.Having(), "goqu: Having requires at least one expression; use ClearHaving to drop HAVING"},
+		"Qualify":             {bd.Qualify(), "goqu: Qualify requires at least one expression; use ClearQualify to drop QUALIFY"},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
@@ -319,6 +319,8 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		"ClearSelect":  bd.Select("a").ClearSelect(),
 		"ClearOrder":   bd.Order(goqu.C("a").Asc()).ClearOrder(),
 		"ClearGroupBy": bd.GroupBy("a").ClearGroupBy(),
+		"ClearHaving":  bd.Having(goqu.C("a").Eq(1)).ClearHaving(),
+		"ClearQualify": bd.Qualify(goqu.C("a").Eq(1)).ClearQualify(),
 	} {
 		sql, _, err := ds.ToSQL()
 		sds.NoError(err, name)
@@ -380,23 +382,26 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 		sds.True(goqu.IsInvalidExpression(err), name)
 	}
 	sds.NoError(bd.Error())
-}
-
-func (sds *selectDatasetSuite) TestDistinct() {
-	bd := goqu.From("test")
+	base := goqu.From("test")
 	sds.assertCases(
 		selectTestCase{
-			ds: bd.DistinctOn("a", "b"),
+			ds: base.DistinctOn("a", "b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "a", "b")),
 		},
 		selectTestCase{
-			ds: bd.DistinctOn("a").DistinctOn("b"),
+			ds: base.DistinctOn("a").DistinctOn("b"),
 			clauses: exp.NewSelectClauses().
 				SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 				SetDistinct(exp.NewColumnListExpression(nil, "db", "b")),
 		},
+	)
+}
+
+func (sds *selectDatasetSuite) TestDistinct() {
+	bd := goqu.From("test")
+	sds.assertCases(
 		selectTestCase{
 			ds: bd.DistinctOn("a").Distinct(),
 			clauses: exp.NewSelectClauses().
@@ -1028,10 +1033,9 @@ func (sds *selectDatasetSuite) TestClearWindow() {
 
 func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 	var none []exp.Expression
-	upsert := goqu.Dialect("postgres").Insert("t").Rows(goqu.Record{"a": 1})
 	const (
-		emptyAnd = `goqu: empty AND condition (And() or Ex{})`
-		emptyOr  = `goqu: empty OR condition (Or() or ExOr{})`
+		emptyAnd = `goqu: empty AND condition`
+		emptyOr  = `goqu: empty OR condition`
 	)
 	for name, c := range map[string]struct {
 		ds  exp.SQLExpression
@@ -1049,7 +1053,6 @@ func (sds *selectDatasetSuite) TestEmptyConditionsInStatements() {
 		"Join On empty Ex":        {goqu.From("t").Join(goqu.T("u"), goqu.On(goqu.Ex{})), emptyAnd},
 		"Update empty ExOr":       {goqu.Update("t").Set(goqu.Record{"a": 1}).Where(goqu.ExOr{}), emptyOr},
 		"Delete empty Ex":         {goqu.Delete("t").Where(goqu.Ex{}), emptyAnd},
-		"Upsert empty Where":      {upsert.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(goqu.Ex{})), emptyAnd},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)

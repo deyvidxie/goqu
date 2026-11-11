@@ -217,7 +217,7 @@ func (c *selectClauses) ClearWhere() SelectClauses {
 
 func (c *selectClauses) WhereAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		return c
+		expressions = []Expression{NewExpressionList(AndType)}
 	}
 	ret := c.clone()
 	if ret.where == nil {
@@ -240,7 +240,7 @@ func (c *selectClauses) ClearHaving() SelectClauses {
 
 func (c *selectClauses) HavingAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		return c
+		expressions = []Expression{NewExpressionList(AndType)}
 	}
 	ret := c.clone()
 	if ret.having == nil {
@@ -263,7 +263,7 @@ func (c *selectClauses) ClearQualify() SelectClauses {
 
 func (c *selectClauses) QualifyAppend(expressions ...Expression) SelectClauses {
 	if len(expressions) == 0 {
-		return c
+		expressions = []Expression{NewExpressionList(AndType)}
 	}
 	ret := c.clone()
 	if ret.qualify == nil {

@@ -340,6 +340,8 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 			selectTestCase{clause: sc.SetSelect(empty), err: "goqu: empty SELECT column list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetGroupBy(empty), err: "goqu: empty GROUP BY list", isPrepared: prepared},
 			selectTestCase{clause: sc.SetOrder(), err: "goqu: empty ORDER BY list", isPrepared: prepared},
+			selectTestCase{clause: sc.WhereAppend(), err: "goqu: empty AND condition", isPrepared: prepared},
+			selectTestCase{clause: sc.HavingAppend(), err: "goqu: empty AND condition", isPrepared: prepared},
 		)
 	}
 }
@@ -769,8 +771,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withQualify() {
 			clause: scAfterHaving,
 			sql:    `SELECT * FROM "test" HAVING ("a" = 'b') qualify ("b" = 'c') ORDER BY "a" ASC`,
 		},
-		// an empty QUALIFY writes nothing
-		selectTestCase{clause: sc.QualifyAppend(), sql: `SELECT * FROM "test"`},
+		selectTestCase{clause: sc.QualifyAppend(), err: "goqu: empty AND condition"},
 	)
 }
 

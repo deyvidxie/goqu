@@ -134,7 +134,11 @@ func (id *InsertDataset) Into(into interface{}) *InsertDataset {
 
 // Sets the Columns to insert into
 func (id *InsertDataset) Cols(cols ...interface{}) *InsertDataset {
-	return id.copy(id.clauses.SetCols(exp.NewColumnListExpression(nil, id.tagName, cols...)))
+	cl := exp.NewColumnListExpression(nil, id.tagName, cols...)
+	if cl.IsEmpty() {
+		return id.copy(id.clauses).SetError(errEmptyCols)
+	}
+	return id.copy(id.clauses.SetCols(cl))
 }
 
 // Clears the Columns to insert into
@@ -180,8 +184,8 @@ func (id *InsertDataset) ClearVals() *InsertDataset {
 
 // Insert rows. Rows can be a map, goqu.Record or struct. See examples.
 func (id *InsertDataset) Rows(rows ...interface{}) *InsertDataset {
-	if rows == nil {
-		rows = []interface{}{}
+	if len(rows) == 0 {
+		return id.copy(id.clauses).SetError(errEmptyRows)
 	}
 	return id.copy(id.clauses.SetRows(rows))
 }

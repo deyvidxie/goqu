@@ -53,9 +53,11 @@ var (
 	errNilOrderAppend      = errors.NewInvalidExpressionError("OrderAppend expressions must not be nil")
 	errNilOrderPrepend     = errors.NewInvalidExpressionError("OrderPrepend expressions must not be nil")
 	errEmptyWhere          = errors.NewInvalidExpressionError("Where requires at least one expression; use ClearWhere to drop WHERE")
-	errEmptyHaving         = errors.NewInvalidExpressionError("Having requires at least one expression")
-	errEmptyQualify        = errors.NewInvalidExpressionError("Qualify requires at least one expression")
+	errEmptyHaving         = errors.NewInvalidExpressionError("Having requires at least one expression; use ClearHaving to drop HAVING")
+	errEmptyQualify        = errors.NewInvalidExpressionError("Qualify requires at least one expression; use ClearQualify to drop QUALIFY")
+	errEmptyCols           = errors.NewInvalidExpressionError("Cols requires at least one column")
 	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
+	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")
 	errEmptyVals           = errors.NewInvalidExpressionError("Vals requires at least one row")
 )
 

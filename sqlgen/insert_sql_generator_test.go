@@ -239,41 +239,25 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valuePositions() {
 	)
 }
 
-func (igs *insertSQLGeneratorSuite) TestGenerate_withEmptyRows() {
-	ic := exp.NewInsertClauses().
-		SetInto(exp.NewIdentifierExpression("", "test", "")).
-		SetRows([]interface{}{exp.Record{}})
-
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES`},
-		insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: true},
-	)
-
-	opts2 := sqlgen.DefaultDialectOptions()
-	opts2.DefaultValuesFragment = []byte(" default values")
-
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", opts2),
-		insertTestCase{clause: ic, sql: `INSERT INTO "test" default values`},
-		insertTestCase{clause: ic, sql: `INSERT INTO "test" default values`, isPrepared: true},
-	)
-}
-
 func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
-	const noRows = "goqu: no rows found when generating insert sql"
+	const (
+		noRows = "goqu: empty Rows list"
+		noVals = "goqu: empty Vals list"
+	)
+	const rowWithoutCols = "goqu: Rows row without columns found when generating insert sql"
 	const colsWithoutVals = "goqu: Cols without Vals or FromQuery found when generating insert sql"
-	const emptyCols = "goqu: empty Cols found when generating insert sql"
+	const emptyCols = "goqu: empty Cols list"
 	cases := make([]insertTestCase, 0, 16)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
 			insertTestCase{clause: ic.SetRows([]interface{}{}), err: noRows, isPrepared: prepared},
 			insertTestCase{clause: ic.SetRows([]interface{}{[]exp.Record{}}), err: noRows, isPrepared: prepared},
-			insertTestCase{clause: ic.SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
-			insertTestCase{clause: ic.SetCols(cols).SetVals([][]interface{}{}), err: noRows, isPrepared: prepared},
+			insertTestCase{clause: ic.SetVals([][]interface{}{}), err: noVals, isPrepared: prepared},
+			insertTestCase{clause: ic.SetCols(cols).SetVals([][]interface{}{}), err: noVals, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(cols), err: colsWithoutVals, isPrepared: prepared},
+			insertTestCase{clause: ic.SetRows([]interface{}{exp.Record{}}), err: rowWithoutCols, isPrepared: prepared},
 			insertTestCase{clause: ic.SetCols(exp.NewColumnListExpression(nil, "db")), err: emptyCols, isPrepared: prepared},
 			insertTestCase{
 				clause:     ic.SetCols(exp.NewColumnListExpression(nil, "db")).SetVals([][]interface{}{{1}}),
@@ -1229,13 +1213,11 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictExcludedRowAliasOptio
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
 	doNothing := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
-	emptyRows := doNothing.SetRows([]interface{}{exp.Record{}})
 	targeted := ic.SetOnConflict(exp.NewDoNothingConflictExpression().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		insertTestCase{clause: doNothing, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
-		insertTestCase{clause: emptyRows, sql: `INSERT INTO "test" DEFAULT VALUES ON CONFLICT DO NOTHING`},
 	)
 
 	opts := sqlgen.DefaultDialectOptions()
@@ -1245,7 +1227,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
 			insertTestCase{clause: doNothing, err: unsupported, isPrepared: prepared},
-			insertTestCase{clause: emptyRows, err: unsupported, isPrepared: prepared},
 			insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: prepared},
 		)
 	}
@@ -1257,7 +1238,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", ignoreOpts),
 		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`},
-		insertTestCase{clause: emptyRows, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
+		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
 		insertTestCase{clause: targeted, err: unsupported},
 	)
 	rowAliasIgnoreOpts := sqlgen.DefaultDialectOptions()

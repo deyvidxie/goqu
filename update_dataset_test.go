@@ -560,7 +560,7 @@ func (uds *updateDatasetSuite) TestEmptyWhere() {
 		"no conditions": {bd.Where(), emptyWhere},
 		"empty spread":  {bd.Where(none...), emptyWhere},
 		"from select":   {goqu.From("test").Where(none...).Update().Set(goqu.Record{"a": 1}), emptyWhere},
-		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition (And() or Ex{})`},
+		"empty Ex":      {bd.Where(goqu.Ex{}), `goqu: empty AND condition`},
 	} {
 		_, _, err := c.ds.ToSQL()
 		uds.EqualError(err, c.err, name)

@@ -238,6 +238,20 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 	)
 }
 
+func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyWhereAppend() {
+	uc := exp.NewUpdateClauses().
+		SetTable(exp.NewIdentifierExpression("", "test", "")).
+		SetSetValues(exp.Record{"a": "b"})
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		updateTestCase{clause: uc.WhereAppend(), err: "goqu: empty AND condition"},
+		updateTestCase{
+			clause: uc.WhereAppend(exp.NewIdentifierExpression("", "", "a").Eq(1)).WhereAppend(),
+			err:    "goqu: empty AND condition",
+		},
+	)
+}
+
 func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitUnsupported() {
 	opts := sqlgen.DefaultDialectOptions()
 	uc := exp.NewUpdateClauses().
