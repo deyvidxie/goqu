@@ -64,6 +64,10 @@ Unsigned integer values (`uint`, `uint8`...`uint64`) are supported in both inter
 
 Whether the database accepts a value that large depends on the driver and the column type. Many databases (for example SQL Server `BIGINT`, PostgreSQL `BIGINT`) only store signed 64-bit integers, so such a value is typically rejected by the database or the driver rather than by `goqu`.
 
+## Strings and bytes
+
+An interpolated `string` or `[]byte` that is not valid UTF-8 (a hash, UUID bytes, a BLOB) returns an `InvalidExpressionError`; use `Prepared(true)` to send it as an argument unchanged.
+
 ## Other value types
 
 Values of types `goqu` has no built-in mapping for (for example structs, maps, and arrays such as a `uuid.UUID`) behave differently depending on the mode:

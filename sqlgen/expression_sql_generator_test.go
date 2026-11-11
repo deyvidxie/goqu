@@ -263,12 +263,20 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_StringTypes() {
 
 		expressionTestCase{val: &str, sql: "''"},
 		expressionTestCase{val: &str, sql: "?", isPrepared: true, args: []interface{}{str}},
+
+		expressionTestCase{val: "日本語", sql: "'日本語'"},
+		expressionTestCase{val: "a\xff", err: "goqu: string value is not valid UTF-8 and cannot be interpolated; use Prepared(true)"},
+		expressionTestCase{val: "a\xff", sql: "?", isPrepared: true, args: []interface{}{"a\xff"}},
 	)
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BytesTypes() {
+	invalid := []byte{0x61, 0xff, 0xfe}
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: invalid, err: "goqu: []uint8 value is not valid UTF-8 and cannot be interpolated; use Prepared(true)"},
+		expressionTestCase{val: invalid, sql: "?", isPrepared: true, args: []interface{}{invalid}},
+		expressionTestCase{val: []byte("日本語"), sql: "'日本語'"},
 		expressionTestCase{val: []byte("Hello"), sql: "'Hello'"},
 		expressionTestCase{val: []byte("Hello"), sql: "?", isPrepared: true, args: []interface{}{[]byte("Hello")}},
 

@@ -122,8 +122,6 @@ func TestExpressionSQLGenerator_bytesAndCTEFastPaths(t *testing.T) {
 	assert.Equal(t, []any{[]byte("abc")}, args)
 }
 
-// Literal expressions are split on '?' bytewise for valid UTF-8; invalid UTF-8 keeps its historical handling
-// (invalid bytes become U+FFFD).
 func TestExpressionSQLGenerator_literalExpressionText(t *testing.T) {
 	esg := sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions())
 	gen := func(l string, args ...any) string {
@@ -139,7 +137,7 @@ func TestExpressionSQLGenerator_literalExpressionText(t *testing.T) {
 	assert.Equal(t, `日本語 = 1 ü`, gen(`日本語 = ? ü`, 1), "multi byte text around placeholders is kept")
 	assert.Equal(t, `1`, gen(`?`, 1))
 	assert.Equal(t, `no placeholders`, gen(`no placeholders`, 1))
-	assert.Equal(t, "a\uFFFD = 1", gen("a\xff = ?", 1), "invalid UTF-8 is replaced like before")
+	assert.Equal(t, "a\xff = 1", gen("a\xff = ?", 1), "a literal is written byte for byte, invalid UTF-8 included")
 }
 
 // Generators are shared by every dataset of a dialect, so they must not hold per call state. Run with -race.
