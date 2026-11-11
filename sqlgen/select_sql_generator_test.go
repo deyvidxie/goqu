@@ -334,6 +334,11 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withWhere() {
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
 	empty := exp.NewColumnListExpression(nil, "db")
+	const (
+		emptySelect  = "goqu: Select requires at least one column"
+		emptyGroupBy = "goqu: GroupBy requires at least one column"
+		emptyOrder   = "goqu: Order requires at least one expression"
+	)
 	cols := exp.NewColumnListExpression(nil, "db", "a")
 	a := exp.NewIdentifierExpression("", "", "a")
 	cond := a.Eq(1)
@@ -343,9 +348,9 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 	for _, prepared := range []bool{false, true} {
 		ssgs.assertCases(
 			sqlgen.NewSelectSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-			selectTestCase{clause: sc.SetSelect(empty), err: "goqu: empty Select list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetGroupBy(empty), err: "goqu: empty GroupBy list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetOrder(), err: "goqu: empty Order list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(empty), err: emptySelect, isPrepared: prepared},
+			selectTestCase{clause: sc.SetGroupBy(empty), err: emptyGroupBy, isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder(), err: emptyOrder, isPrepared: prepared},
 			selectTestCase{clause: sc.WhereAppend(), err: "goqu: WhereAppend requires at least one expression", isPrepared: prepared},
 			selectTestCase{clause: sc.HavingAppend(), err: "goqu: HavingAppend requires at least one expression", isPrepared: prepared},
 			selectTestCase{clause: set.OrderAppend(), err: "goqu: OrderAppend requires at least one expression", isPrepared: prepared},
@@ -366,17 +371,17 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_emptyLists() {
 				err:        "goqu: HavingAppend requires at least one expression",
 				isPrepared: prepared,
 			},
-			selectTestCase{clause: sc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetOrder().OrderAppend(), err: "goqu: empty Order list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder().OrderAppend(a.Asc()), err: emptyOrder, isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder().OrderPrepend(a.Asc()), err: emptyOrder, isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder().OrderAppend(), err: emptyOrder, isPrepared: prepared},
 			selectTestCase{clause: set.SelectAppend(nil), err: "goqu: SelectAppend requires at least one column", isPrepared: prepared},
-			selectTestCase{clause: sc.SetSelect(nil), err: "goqu: empty Select list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetSelect(nil).SelectAppend(cols), err: "goqu: empty Select list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetOrder().OrderPrepend(), err: "goqu: empty Order list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(empty), err: "goqu: empty GroupBy list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(empty), err: "goqu: empty Select list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(cols), err: "goqu: empty GroupBy list", isPrepared: prepared},
-			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(cols), err: "goqu: empty Select list", isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(nil), err: emptySelect, isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(nil).SelectAppend(cols), err: emptySelect, isPrepared: prepared},
+			selectTestCase{clause: sc.SetOrder().OrderPrepend(), err: emptyOrder, isPrepared: prepared},
+			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(empty), err: emptyGroupBy, isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(empty), err: emptySelect, isPrepared: prepared},
+			selectTestCase{clause: sc.SetGroupBy(empty).GroupByAppend(cols), err: emptyGroupBy, isPrepared: prepared},
+			selectTestCase{clause: sc.SetSelect(empty).SelectAppend(cols), err: emptySelect, isPrepared: prepared},
 		)
 	}
 }

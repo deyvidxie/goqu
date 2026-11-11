@@ -117,7 +117,7 @@ func (ssg *selectSQLGenerator) selectColumnsSQL(b sb.SQLBuilder, clauses exp.Sel
 	case clauses.IsDefaultSelect():
 		b.WriteRunes(ssg.DialectOptions().StarRune)
 	case cols == nil || len(cols.Columns()) == 0:
-		b.SetError(errEmptySelectList)
+		b.SetError(errEmptySelect)
 	default:
 		ssg.ExpressionSQLGenerator().Generate(b, cols)
 	}
@@ -186,7 +186,7 @@ func (ssg *selectSQLGenerator) GroupBySQL(b sb.SQLBuilder, groupBy exp.ColumnLis
 		return
 	}
 	if len(groupBy.Columns()) == 0 {
-		b.SetError(errEmptyGroupByList)
+		b.SetError(errEmptyGroupBy)
 		return
 	}
 	b.Write(ssg.DialectOptions().GroupByFragment)

@@ -23,9 +23,9 @@ var (
 	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
 		"more than one of Rows, Vals and FromQuery found when generating insert sql",
 	)
-	errEmptyRowsList = errors.NewInvalidExpressionError(`empty Rows list`)
-	errEmptyValsList = errors.NewInvalidExpressionError(`empty Vals list`)
-	errEmptyColsList = errors.NewInvalidExpressionError(`empty Cols list`)
+	errEmptyRows = errors.NewInvalidExpressionError(`Rows requires at least one row`)
+	errEmptyVals = errors.NewInvalidExpressionError(`Vals requires at least one row`)
+	errEmptyCols = errors.NewInvalidExpressionError(`Cols requires at least one column`)
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
@@ -33,9 +33,9 @@ var (
 	errEmptyCaseWhens        = errors.NewInvalidExpressionError(`when conditions not found for case statement`)
 	errEmptyAndCondition     = errors.NewInvalidExpressionError(`empty AND condition`)
 	errEmptyOrCondition      = errors.NewInvalidExpressionError(`empty OR condition`)
-	errEmptyOrderList        = errors.NewInvalidExpressionError(`empty Order list`)
-	errEmptyGroupByList      = errors.NewInvalidExpressionError(`empty GroupBy list`)
-	errEmptySelectList       = errors.NewInvalidExpressionError(`empty Select list`)
+	errEmptyOrder            = errors.NewInvalidExpressionError(`Order requires at least one expression`)
+	errEmptyGroupBy          = errors.NewInvalidExpressionError(`GroupBy requires at least one column`)
+	errEmptySelect           = errors.NewInvalidExpressionError(`Select requires at least one column`)
 	errUnexpectedNamedWindow = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errNoWindowName          = errors.NewInvalidExpressionError("window expression has no valid name")
 

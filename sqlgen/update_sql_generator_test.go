@@ -259,10 +259,10 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_emptyAppends() {
 		updateTestCase{clause: uc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
 		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
 		updateTestCase{clause: uc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
-		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
-		updateTestCase{clause: uc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list"},
-		updateTestCase{clause: uc.SetOrder().OrderAppend(), err: "goqu: empty Order list"},
-		updateTestCase{clause: uc.SetOrder().OrderPrepend(), err: "goqu: empty Order list"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderAppend(), err: "goqu: Order requires at least one expression"},
+		updateTestCase{clause: uc.SetOrder().OrderPrepend(), err: "goqu: Order requires at least one expression"},
 	)
 }
 

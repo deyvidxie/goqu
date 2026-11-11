@@ -216,10 +216,10 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_emptyAppends() {
 		deleteTestCase{clause: dc.OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
 		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderAppend(), err: "goqu: OrderAppend requires at least one expression"},
 		deleteTestCase{clause: dc.SetOrder(a.Asc()).OrderPrepend(), err: "goqu: OrderPrepend requires at least one expression"},
-		deleteTestCase{clause: dc.SetOrder().OrderAppend(a.Asc()), err: "goqu: empty Order list"},
-		deleteTestCase{clause: dc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: empty Order list"},
-		deleteTestCase{clause: dc.SetOrder().OrderAppend(), err: "goqu: empty Order list"},
-		deleteTestCase{clause: dc.SetOrder().OrderPrepend(), err: "goqu: empty Order list"},
+		deleteTestCase{clause: dc.SetOrder().OrderAppend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		deleteTestCase{clause: dc.SetOrder().OrderPrepend(a.Asc()), err: "goqu: Order requires at least one expression"},
+		deleteTestCase{clause: dc.SetOrder().OrderAppend(), err: "goqu: Order requires at least one expression"},
+		deleteTestCase{clause: dc.SetOrder().OrderPrepend(), err: "goqu: Order requires at least one expression"},
 	)
 }
 

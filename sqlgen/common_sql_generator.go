@@ -103,7 +103,7 @@ func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExp
 		return
 	}
 	if len(order.Columns()) == 0 {
-		b.SetError(errEmptyOrderList)
+		b.SetError(errEmptyOrder)
 		return
 	}
 	b.Write(csg.dialectOptions.OrderByFragment)

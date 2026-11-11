@@ -380,7 +380,7 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 		A int `db:"a" goqu:"omitempty"`
 	}
 	const (
-		noRows      = "goqu: empty Rows list"
+		noRows      = "goqu: Rows requires at least one row"
 		emptyRows   = "goqu: Rows requires at least one row"
 		emptyVals   = "goqu: Vals requires at least one row"
 		emptyCols   = "goqu: Cols requires at least one column; use ClearCols to drop Cols"

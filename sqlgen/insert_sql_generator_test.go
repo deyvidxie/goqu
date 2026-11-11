@@ -243,12 +243,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
 	const (
-		noRows = "goqu: empty Rows list"
-		noVals = "goqu: empty Vals list"
+		noRows = "goqu: Rows requires at least one row"
+		noVals = "goqu: Vals requires at least one row"
 	)
 	const rowWithoutCols = "goqu: insert rows have no columns"
 	const colsWithoutVals = "goqu: Cols without Vals or FromQuery found when generating insert sql"
-	const emptyCols = "goqu: empty Cols list"
+	const emptyCols = "goqu: Cols requires at least one column"
 	cases := make([]insertTestCase, 0, 34)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,

@@ -54,12 +54,12 @@ func TestInvalidExpressionErrors(t *testing.T) {
 		},
 		{"errEmptyAndCondition", "goqu: empty AND condition", errEmptyAndCondition},
 		{"errEmptyOrCondition", "goqu: empty OR condition", errEmptyOrCondition},
-		{"errEmptyRowsList", "goqu: empty Rows list", errEmptyRowsList},
-		{"errEmptyValsList", "goqu: empty Vals list", errEmptyValsList},
-		{"errEmptyColsList", "goqu: empty Cols list", errEmptyColsList},
-		{"errEmptyOrderList", "goqu: empty Order list", errEmptyOrderList},
-		{"errEmptyGroupByList", "goqu: empty GroupBy list", errEmptyGroupByList},
-		{"errEmptySelectList", "goqu: empty Select list", errEmptySelectList},
+		{"errEmptyRows", "goqu: Rows requires at least one row", errEmptyRows},
+		{"errEmptyVals", "goqu: Vals requires at least one row", errEmptyVals},
+		{"errEmptyCols", "goqu: Cols requires at least one column", errEmptyCols},
+		{"errEmptyOrder", "goqu: Order requires at least one expression", errEmptyOrder},
+		{"errEmptyGroupBy", "goqu: GroupBy requires at least one column", errEmptyGroupBy},
+		{"errEmptySelect", "goqu: Select requires at least one column", errEmptySelect},
 	} {
 		assert.EqualError(t, c.err, c.want, c.name)
 		assert.True(t, errors.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
