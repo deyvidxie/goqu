@@ -54,7 +54,7 @@ func (q QueryExecutor) QueryContext(ctx context.Context) (*gsql.Rows, error) {
 //
 //	var myStructs []MyStruct
 //	if err := db.From("test").ScanStructs(&myStructs); err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	//use your structs
 //
@@ -67,7 +67,7 @@ func (q QueryExecutor) ScanStructs(i interface{}) error {
 //
 //	var myStructs []MyStruct
 //	if err := db.From("test").ScanStructsContext(ctx, &myStructs); err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	//use your structs
 //
@@ -90,7 +90,7 @@ func (q QueryExecutor) ScanStructsContext(ctx context.Context, i interface{}) er
 //	var myStruct MyStruct
 //	found, err := db.From("test").Limit(1).ScanStruct(&myStruct)
 //	if err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	if !found{
 //	      fmt.Println("NOT FOUND")
@@ -107,7 +107,7 @@ func (q QueryExecutor) ScanStruct(i interface{}) (bool, error) {
 //	var myStruct MyStruct
 //	found, err := db.From("test").Limit(1).ScanStructContext(ctx, &myStruct)
 //	if err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	if !found{
 //	      fmt.Println("NOT FOUND")
@@ -153,7 +153,7 @@ func (q QueryExecutor) ScanStructContext(ctx context.Context, i interface{}) (bo
 //
 //	var ids []uint32
 //	if err := db.From("test").Select("id").ScanVals(&ids); err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 func (q QueryExecutor) ScanVals(i interface{}) error {
 	return q.ScanValsContext(context.Background(), i)
@@ -163,7 +163,7 @@ func (q QueryExecutor) ScanVals(i interface{}) error {
 //
 //	var ids []uint32
 //	if err := db.From("test").Select("id").ScanValsContext(ctx, &ids); err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error {
 	if _, err := checkScanValsTarget(i, q.tagName); err != nil {
@@ -182,7 +182,7 @@ func (q QueryExecutor) ScanValsContext(ctx context.Context, i interface{}) error
 //	var id uint32
 //	found, err := db.From("test").Select("id").Limit(1).ScanVal(&id)
 //	if err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	if !found{
 //	    fmt.Println("NOT FOUND")
@@ -196,7 +196,7 @@ func (q QueryExecutor) ScanVal(i interface{}) (bool, error) {
 //	var id uint32
 //	found, err := db.From("test").Select("id").Limit(1).ScanValContext(ctx, &id)
 //	if err != nil{
-//	    panic(err.Error()
+//	    panic(err.Error())
 //	}
 //	if !found{
 //	    fmt.Println("NOT FOUND")

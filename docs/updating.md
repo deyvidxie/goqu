@@ -545,16 +545,20 @@ error on a dataset if one has not already been set to simplify query building.
 Set an Error on a dataset:
 
 ```go
+type emptyFieldError struct{ field string }
+
+func (e emptyFieldError) Error() string { return e.field + " is empty" }
+
 func GetUpdate(name string, value string) *goqu.UpdateDataset {
 
     var ds = goqu.Update("test")
 
     if len(name) == 0 {
-        return ds.SetError(fmt.Errorf("name is empty"))
+        return ds.SetError(emptyFieldError{field: "name"})
     }
 
     if len(value) == 0 {
-        return ds.SetError(fmt.Errorf("value is empty"))
+        return ds.SetError(emptyFieldError{field: "value"})
     }
 
     return ds.Set(goqu.Record{name: value})
