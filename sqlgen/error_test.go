@@ -123,7 +123,7 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("x").With("x", d.Update("t").With("c", d.From("u")).Set(goqu.Record{"a": 1}))
 		}},
-		{"nested WITH in an DELETE CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
+		{"nested WITH in a DELETE CTE body", "WITH clause inside a subquery", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsNestedWithCTE = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("x").With("x", d.Delete("t").With("c", d.From("u")))
