@@ -895,8 +895,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionRejectsListsComparedToAColumn() {
 	ident := exp.NewIdentifierExpression("", "", "a")
 	const (
-		gt   = `goqu: operator "gt" compares a column with a single value, got a list ([]int)`
-		like = `goqu: operator "like" compares a column with a single value, got a list ([]string)`
+		gt   = `goqu: operator "gt" takes a single value, got a list ([]int)`
+		like = `goqu: operator "like" takes a single value, got a list ([]string)`
 	)
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
@@ -907,7 +907,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionRejectsLi
 		expressionTestCase{val: exp.Ex{"a": exp.Op{"like": []string{"x", "y"}}}, err: like},
 		expressionTestCase{
 			val: exp.NewBooleanExpression(exp.EqOp, ident, []int{1, 2}),
-			err: `goqu: operator "eq" compares a column with a single value, got a list ([]int)`,
+			err: `goqu: operator "eq" takes a single value, got a list ([]int)`,
 		},
 		expressionTestCase{val: ident.Gt([]int{5}), sql: `("a" > (5))`},
 		expressionTestCase{val: ident.Gt([]int{5}), sql: `("a" > (?))`, isPrepared: true, args: []interface{}{int64(5)}},
@@ -957,25 +957,35 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_BooleanExpressionEmptyList
 		expressionTestCase{val: ident.NotIn(nilBytesPtr), sql: `("a" NOT IN (NULL))`},
 		expressionTestCase{val: ident.NotIn(nilJSONPtr), sql: `("a" NOT IN (NULL))`},
 		expressionTestCase{val: ident.NotIn(nilValuerPtr), sql: `("a" NOT IN (NULL))`},
-		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN '')`},
-		expressionTestCase{
-			val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), sql: `("a" IN ?)`, isPrepared: true, args: []interface{}{[]byte{}},
-		},
-		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, json.RawMessage{}), sql: `("a" IN '')`},
-		expressionTestCase{
-			val:        exp.NewBooleanExpression(exp.InOp, ident, json.RawMessage{}),
-			sql:        `("a" IN ?)`,
-			isPrepared: true,
-			args:       []interface{}{[]byte{}},
-		},
-		expressionTestCase{val: exp.NewBooleanExpression(exp.InOp, ident, arrayLiteralValuer{}), sql: `("a" IN '{}')`},
-		expressionTestCase{
-			val:        exp.NewBooleanExpression(exp.InOp, ident, arrayLiteralValuer{}),
-			sql:        `("a" IN ?)`,
-			isPrepared: true,
-			args:       []interface{}{"{}"},
-		},
 	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_InWithoutAListFails() {
+	ident := exp.NewIdentifierExpression("", "", "a")
+	for _, prepared := range []bool{false, true} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			expressionTestCase{
+				val: exp.NewBooleanExpression(exp.InOp, ident, 1), isPrepared: prepared,
+				err: `goqu: operator "in" takes a list or a subquery, got int; use In or NotIn`,
+			},
+			expressionTestCase{
+				val: exp.NewBooleanExpression(exp.NotInOp, ident, "x"), isPrepared: prepared,
+				err: `goqu: operator "notin" takes a list or a subquery, got string; use In or NotIn`,
+			},
+			expressionTestCase{
+				val: exp.NewBooleanExpression(exp.InOp, ident, []byte{}), isPrepared: prepared,
+				err: `goqu: operator "in" takes a list or a subquery, got []uint8; use In or NotIn`,
+			},
+			expressionTestCase{
+				val: exp.NewBooleanExpression(exp.InOp, ident, arrayLiteralValuer{}), isPrepared: prepared,
+				err: `goqu: operator "in" takes a list or a subquery, got sqlgen_test.arrayLiteralValuer; use In or NotIn`,
+			},
+			expressionTestCase{
+				val: exp.NewBooleanExpression(exp.InOp, ident, exp.NewLiteralExpression("(1, 2)")), sql: `("a" IN (1, 2))`, isPrepared: prepared,
+			},
+		)
+	}
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyListOutsideInFails() {
@@ -986,8 +996,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_EmptyListOutsideInFails() 
 			sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 			expressionTestCase{val: ident.In([]interface{}{1, []int{}}), err: empty, isPrepared: prepared},
 			expressionTestCase{val: exp.NewLiteralExpression("(a, b)").In([]interface{}{[]int{}}), err: empty, isPrepared: prepared},
-			expressionTestCase{val: ident.Eq(exp.NewSQLFunctionExpression("ANY ", []int{})), err: empty, isPrepared: prepared},
-			expressionTestCase{val: ident.Neq(exp.NewSQLFunctionExpression("ALL ", []int{})), err: empty, isPrepared: prepared},
 			expressionTestCase{val: exp.NewLiteralExpression("a IN ?", []int{}), err: empty, isPrepared: prepared},
 			expressionTestCase{val: exp.NewLiteralExpression("a IN ?", []int(nil)), err: empty, isPrepared: prepared},
 		)
@@ -2755,5 +2763,62 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_nilSubquery() {
 		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		expressionTestCase{val: nilDS, err: "goqu: subquery must not be nil, got *goqu.SelectDataset"},
 		expressionTestCase{val: nilDS, err: "goqu: subquery must not be nil, got *goqu.SelectDataset", isPrepared: true},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListsWhereASingleValueIsExpected() {
+	a := exp.NewIdentifierExpression("", "", "a")
+	pair := []int{1, 2}
+	const anyErr = "goqu: %s takes an array value or a subquery, got a list ([]int); use In or NotIn, a driver.Valuer array or a subquery"
+	single := func(position string) string {
+		return fmt.Sprintf("goqu: %s takes a single value, got a list ([]int)", position)
+	}
+	for _, prepared := range []bool{false, true} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+			expressionTestCase{
+				val: a.Eq(exp.NewSQLFunctionExpression(exp.AnyFunctionName, pair)), err: fmt.Sprintf(anyErr, "ANY"), isPrepared: prepared,
+			},
+			expressionTestCase{
+				val: a.Neq(exp.NewSQLFunctionExpression(exp.AllFunctionName, pair)), err: fmt.Sprintf(anyErr, "ALL"), isPrepared: prepared,
+			},
+			expressionTestCase{
+				val: a.Eq(exp.NewSQLFunctionExpression(exp.AnyFunctionName, []int{})), err: fmt.Sprintf(anyErr, "ANY"), isPrepared: prepared,
+			},
+			expressionTestCase{val: a.Cast("INT").Gt(pair), err: single(`operator "gt"`), isPrepared: prepared},
+			expressionTestCase{val: a.Between(exp.NewRangeVal(pair, 3)), err: single(`operator "BETWEEN"`), isPrepared: prepared},
+			expressionTestCase{val: a.BitwiseAnd(pair), err: single(`operator "&"`), isPrepared: prepared},
+			expressionTestCase{val: a.Add(pair), err: single(`operator "+"`), isPrepared: prepared},
+			expressionTestCase{
+				val: exp.NewCaseExpression().Value(a).When(pair, "x").Else("y"), err: single("CASE WHEN"), isPrepared: prepared,
+			},
+			expressionTestCase{val: exp.NewCaseExpression().When(a.Eq(1), pair), err: single("CASE THEN"), isPrepared: prepared},
+			expressionTestCase{val: exp.NewCaseExpression().When(a.Eq(1), "x").Else(pair), err: single("CASE ELSE"), isPrepared: prepared},
+			expressionTestCase{
+				val: exp.NewSQLFunctionExpression("COALESCE", a, pair), err: single(`function "COALESCE" argument`), isPrepared: prepared,
+			},
+		)
+	}
+
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: exp.NewLiteralExpression("(a, b)").Gt(pair), sql: `((a, b) > (1, 2))`},
+		expressionTestCase{val: a.Add([]int{3}), sql: `("a" + (3))`},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("COALESCE", a, []int{3}), sql: `COALESCE("a", (3))`},
+		expressionTestCase{val: a.Between(exp.NewRangeVal([]int{1}, 3)), sql: `("a" BETWEEN (1) AND 3)`},
+		expressionTestCase{val: exp.NewCaseExpression().Value(a).When([]int{1}, "x"), sql: `CASE "a" WHEN (1) THEN 'x' END`},
+		expressionTestCase{val: a.Eq(exp.NewSQLFunctionExpression(exp.AnyFunctionName, arrayLiteralValuer{})), sql: `("a" = ANY ('{}'))`},
+	)
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListOperandNamesOperatorMissingFromDialect() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ArithmeticOperatorLookup = map[exp.ArithmeticOperation][]byte{}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{
+			val: exp.NewIdentifierExpression("", "", "a").Add([]int{1, 2}),
+			err: `goqu: operator "Addition" takes a single value, got a list ([]int)`,
+		},
 	)
 }

@@ -448,12 +448,12 @@ func Lateral(table exp.AppendableExpression) exp.LateralExpression {
 
 // Create a new ANY comparison
 func Any(val interface{}) exp.SQLFunctionExpression {
-	return Func("ANY ", val)
+	return Func(exp.AnyFunctionName, val)
 }
 
 // Create a new ALL comparison
 func All(val interface{}) exp.SQLFunctionExpression {
-	return Func("ALL ", val)
+	return Func(exp.AllFunctionName, val)
 }
 
 // Creates a new EXISTS expression for the given subquery.

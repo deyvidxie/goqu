@@ -339,8 +339,19 @@ func errEmptyListValue(val interface{}) error {
 	)
 }
 
-func errListComparedToColumn(op exp.BooleanOperation, val interface{}) error {
-	return errors.NewInvalidExpressionError("operator %q compares a column with a single value, got a list (%T)", op, val)
+func errListAsSingleValue(position string, val interface{}) error {
+	return errors.NewInvalidExpressionError("%s takes a single value, got a list (%T)", position, val)
+}
+
+func errInWithoutList(op exp.BooleanOperation, val interface{}) error {
+	return errors.NewInvalidExpressionError("operator %q takes a list or a subquery, got %T; use In or NotIn", op, val)
+}
+
+func errListForAnyAll(name string, val interface{}) error {
+	return errors.NewInvalidExpressionError(
+		"%s takes an array value or a subquery, got a list (%T); use In or NotIn, a driver.Valuer array or a subquery",
+		strings.TrimSpace(name), val,
+	)
 }
 
 func errStructWithoutColumns(v interface{}) error {

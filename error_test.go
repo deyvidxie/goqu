@@ -213,3 +213,15 @@ func TestExecutorWithoutDatabaseKeepsTheDatasetTag(t *testing.T) {
 		assert.True(t, goqu.IsNoDatabase(err), name)
 	}
 }
+
+func TestAnyAllWithAGoSliceIsAnError(t *testing.T) {
+	for name, ds := range map[string]*goqu.SelectDataset{
+		"Any": goqu.From("t").Where(goqu.C("a").Eq(goqu.Any([]int{1, 2}))),
+		"All": goqu.From("t").Prepared(true).Where(goqu.C("a").Neq(goqu.All([]int{1, 2}))),
+	} {
+		_, _, err := ds.ToSQL()
+		assert.True(t, goqu.IsInvalidExpression(err), name)
+	}
+	_, _, err := goqu.From("t").Where(goqu.C("a").Eq(goqu.Any(goqu.From("u").Select("id")))).ToSQL()
+	assert.NoError(t, err)
+}

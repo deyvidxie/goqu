@@ -509,8 +509,8 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sqlbuilder.SQLBuilder,
 		esg.emptyListSQL(b, operator)
 		return
 	}
-	if comparesListToColumn(operator) {
-		b.SetError(errListComparedToColumn(operatorOp, operator.RHS()))
+	if err := booleanOperandsError(operator); err != nil {
+		b.SetError(err)
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -556,11 +556,40 @@ func (esg *expressionSQLGenerator) booleanExpressionSQL(b sqlbuilder.SQLBuilder,
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
-func comparesListToColumn(operator exp.BooleanExpression) bool {
-	_, column := operator.LHS().(exp.IdentifierExpression)
-	op := operator.Op()
-	return column && op != exp.InOp && op != exp.NotInOp && util.IsListValue(operator.RHS()) &&
-		reflect.Indirect(reflect.ValueOf(operator.RHS())).Len() != 1
+func booleanOperandsError(operator exp.BooleanExpression) error {
+	op, rhs := operator.Op(), operator.RHS()
+	if op == exp.InOp || op == exp.NotInOp {
+		if !isInRHS(rhs) {
+			return errInWithoutList(op, rhs)
+		}
+		return nil
+	}
+	if _, rowValue := operator.LHS().(exp.LiteralExpression); !rowValue && isNotSingleValueList(rhs) {
+		return errListAsSingleValue(fmt.Sprintf("operator %q", op), rhs)
+	}
+	return nil
+}
+
+func isNotSingleValueList(v interface{}) bool {
+	return util.IsListValue(v) && reflect.Indirect(reflect.ValueOf(v)).Len() != 1
+}
+
+func isInRHS(rhs interface{}) bool {
+	switch rhs.(type) {
+	case exp.AppendableExpression, exp.LiteralExpression:
+		return true
+	default:
+		return util.IsListValue(rhs)
+	}
+}
+
+func firstNonSingleValueList(vals ...interface{}) (interface{}, bool) {
+	for _, v := range vals {
+		if isNotSingleValueList(v) {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 func isEmptyList(rhs interface{}) bool {
@@ -621,6 +650,10 @@ func (esg *expressionSQLGenerator) likeEscapeSQL(b sqlbuilder.SQLBuilder, operat
 
 // Generates SQL for a BitwiseExpresion (e.g. I("a").BitwiseOr(2) - > "a" | 2)
 func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.BitwiseExpression) {
+	if v, bad := firstNonSingleValueList(operator.LHS(), operator.RHS()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.BitwiseOperatorLookup[operator.Op()], operator.Op()), v))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 
 	if operator.LHS() != nil {
@@ -643,6 +676,10 @@ func (esg *expressionSQLGenerator) bitwiseExpressionSQL(b sqlbuilder.SQLBuilder,
 
 // Generates SQL for a ArithmeticExpresion (e.g. I("a").Add(1) -> "a" + 1)
 func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.ArithmeticExpression) {
+	if v, bad := firstNonSingleValueList(operator.LHS(), operator.RHS()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.ArithmeticOperatorLookup[operator.Op()], operator.Op()), v))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, operator.LHS())
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -660,6 +697,10 @@ func (esg *expressionSQLGenerator) arithmeticExpressionSQL(b sqlbuilder.SQLBuild
 
 // Generates SQL for a RangeExpresion (e.g. I("a").Between(RangeVal{Start:2,End:5}) -> "a" BETWEEN 2 AND 5)
 func (esg *expressionSQLGenerator) rangeExpressionSQL(b sqlbuilder.SQLBuilder, operator exp.RangeExpression) {
+	if v, bad := firstNonSingleValueList(operator.RHS().Start(), operator.RHS().End()); bad {
+		b.SetError(errListAsSingleValue(operatorPosition(esg.dialectOptions.RangeOperatorLookup[operator.Op()], operator.Op()), v))
+		return
+	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	esg.Generate(b, operator.LHS())
 	b.WriteRunes(esg.dialectOptions.SpaceRune)
@@ -809,8 +850,17 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 	if val, ok := esg.dialectOptions.FunctionNameLookup[name]; ok {
 		name = string(val)
 	}
+	args := sqlFunc.Args()
+	if isAnyOrAll(sqlFunc.Name()) && len(args) == 1 && util.IsListValue(args[0]) {
+		b.SetError(errListForAnyAll(sqlFunc.Name(), args[0]))
+		return
+	}
+	if v, bad := firstNonSingleValueList(args...); bad {
+		b.SetError(errListAsSingleValue(fmt.Sprintf("function %q argument", strings.TrimSpace(name)), v))
+		return
+	}
 	b.WriteStrings(name)
-	esg.argumentsSQL(b, sqlFunc.Args())
+	esg.argumentsSQL(b, args)
 }
 
 func (esg *expressionSQLGenerator) argumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}) {
@@ -1482,6 +1532,10 @@ func (esg *expressionSQLGenerator) caseExpressionSQL(b sqlbuilder.SQLBuilder, ca
 		b.SetError(errEmptyCaseWhens)
 		return
 	}
+	if err := caseValuesError(whens, elseResult); err != nil {
+		b.SetError(err)
+		return
+	}
 	b.Write(esg.dialectOptions.CaseFragment)
 	if caseVal != nil {
 		esg.Generate(b, caseVal)
@@ -1530,4 +1584,33 @@ func hasCommonTables(a exp.AppendableExpression) bool {
 	default:
 		return false
 	}
+}
+
+func isAnyOrAll(name string) bool {
+	return name == exp.AnyFunctionName || name == exp.AllFunctionName
+}
+
+func operatorPosition(sql []byte, op fmt.Stringer) string {
+	if name := strings.TrimSpace(string(sql)); name != "" {
+		return fmt.Sprintf("operator %q", name)
+	}
+	return fmt.Sprintf("operator %q", op.String())
+}
+
+func caseValuesError(whens []exp.CaseWhen, elseResult exp.CaseElse) error {
+	for _, when := range whens {
+		if c := when.Condition(); isNotSingleValueList(c) {
+			return errListAsSingleValue("CASE WHEN", c)
+		}
+		if r := when.Result(); isNotSingleValueList(r) {
+			return errListAsSingleValue("CASE THEN", r)
+		}
+	}
+	if elseResult == nil {
+		return nil
+	}
+	if r := elseResult.Result(); isNotSingleValueList(r) {
+		return errListAsSingleValue("CASE ELSE", r)
+	}
+	return nil
 }
