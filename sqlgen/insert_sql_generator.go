@@ -66,7 +66,7 @@ func (isg *insertSQLGenerator) Generate(
 		case CommonTableSQLFragment:
 			isg.ExpressionSQLGenerator().Generate(b, clauses.CommonTables())
 		case InsertBeingSQLFragment:
-			isg.InsertBeginSQL(b, clauses.OnConflict())
+			isg.InsertBeginSQL(b)
 		case IntoSQLFragment:
 			b.WriteRunes(isg.DialectOptions().SpaceRune)
 			isg.ExpressionSQLGenerator().Generate(b, clauses.Into())
@@ -81,7 +81,7 @@ func (isg *insertSQLGenerator) Generate(
 }
 
 // Adds the correct fragment to being an INSERT statement
-func (isg *insertSQLGenerator) InsertBeginSQL(b sqlbuilder.SQLBuilder, _ exp.ConflictExpression) {
+func (isg *insertSQLGenerator) InsertBeginSQL(b sqlbuilder.SQLBuilder) {
 	b.Write(isg.DialectOptions().InsertClause)
 }
 
