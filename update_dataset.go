@@ -4,6 +4,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exec"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type UpdateDataset struct {
@@ -231,7 +232,7 @@ func (ud *UpdateDataset) ToSQL() (sql string, params []interface{}, err error) {
 
 // Appends this Dataset's UPDATE statement to the SQLBuilder
 // This is used internally when using updates in CTEs
-func (ud *UpdateDataset) AppendSQL(b sb.SQLBuilder) {
+func (ud *UpdateDataset) AppendSQL(b sqlbuilder.SQLBuilder) {
 	if ud.err != nil {
 		b.SetError(ud.err)
 		return
@@ -259,7 +260,7 @@ func (ud *UpdateDataset) Executor() exec.QueryExecutor {
 	return ud.queryFactory.FromSQLBuilder(builder)
 }
 
-func (ud *UpdateDataset) updateSQLBuilder() sb.SQLBuilder {
+func (ud *UpdateDataset) updateSQLBuilder() sqlbuilder.SQLBuilder {
 	buf := sb.NewSQLBuilder(ud.isPrepared.Bool())
 	if ud.err != nil {
 		return buf.SetError(ud.err)

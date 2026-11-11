@@ -4,7 +4,7 @@ import (
 	"reflect"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type (
@@ -13,15 +13,15 @@ type (
 		Dialect() string
 		DialectOptions() *SQLDialectOptions
 		ExpressionSQLGenerator() ExpressionSQLGenerator
-		ReturningSQL(b sb.SQLBuilder, returns exp.ColumnListExpression)
-		ConflictTargetSQL(b sb.SQLBuilder, targets exp.ColumnListExpression)
-		FromSQL(b sb.SQLBuilder, from exp.ColumnListExpression)
-		SourcesSQL(b sb.SQLBuilder, from exp.ColumnListExpression)
-		WhereSQL(b sb.SQLBuilder, where exp.ExpressionList)
-		OrderSQL(b sb.SQLBuilder, order exp.ColumnListExpression)
-		OrderWithOffsetFetchSQL(b sb.SQLBuilder, order exp.ColumnListExpression, offset uint, limit interface{})
-		LimitSQL(b sb.SQLBuilder, limit interface{})
-		UpdateExpressionSQL(b sb.SQLBuilder, updates ...exp.UpdateExpression)
+		ReturningSQL(b sqlbuilder.SQLBuilder, returns exp.ColumnListExpression)
+		ConflictTargetSQL(b sqlbuilder.SQLBuilder, targets exp.ColumnListExpression)
+		FromSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression)
+		SourcesSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression)
+		WhereSQL(b sqlbuilder.SQLBuilder, where exp.ExpressionList)
+		OrderSQL(b sqlbuilder.SQLBuilder, order exp.ColumnListExpression)
+		OrderWithOffsetFetchSQL(b sqlbuilder.SQLBuilder, order exp.ColumnListExpression, offset uint, limit interface{})
+		LimitSQL(b sqlbuilder.SQLBuilder, limit interface{})
+		UpdateExpressionSQL(b sqlbuilder.SQLBuilder, updates ...exp.UpdateExpression)
 	}
 	commonSQLGenerator struct {
 		dialect        string
@@ -51,7 +51,7 @@ func (csg *commonSQLGenerator) ExpressionSQLGenerator() ExpressionSQLGenerator {
 	return csg.esg
 }
 
-func (csg *commonSQLGenerator) ReturningSQL(b sb.SQLBuilder, returns exp.ColumnListExpression) {
+func (csg *commonSQLGenerator) ReturningSQL(b sqlbuilder.SQLBuilder, returns exp.ColumnListExpression) {
 	if returns != nil && len(returns.Columns()) > 0 {
 		if csg.dialectOptions.SupportsReturn {
 			b.Write(csg.dialectOptions.ReturningFragment)
@@ -62,7 +62,7 @@ func (csg *commonSQLGenerator) ReturningSQL(b sb.SQLBuilder, returns exp.ColumnL
 	}
 }
 
-func (csg *commonSQLGenerator) ConflictTargetSQL(b sb.SQLBuilder, targets exp.ColumnListExpression) {
+func (csg *commonSQLGenerator) ConflictTargetSQL(b sqlbuilder.SQLBuilder, targets exp.ColumnListExpression) {
 	if targets != nil && len(targets.Columns()) > 0 {
 		if csg.dialectOptions.SupportsConflictTarget {
 			b.WriteRunes(csg.dialectOptions.SpaceRune)
@@ -76,7 +76,7 @@ func (csg *commonSQLGenerator) ConflictTargetSQL(b sb.SQLBuilder, targets exp.Co
 }
 
 // Adds the FROM clause and tables to an sql statement
-func (csg *commonSQLGenerator) FromSQL(b sb.SQLBuilder, from exp.ColumnListExpression) {
+func (csg *commonSQLGenerator) FromSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression) {
 	if from != nil && !from.IsEmpty() {
 		b.Write(csg.dialectOptions.FromFragment)
 		csg.SourcesSQL(b, from)
@@ -84,13 +84,13 @@ func (csg *commonSQLGenerator) FromSQL(b sb.SQLBuilder, from exp.ColumnListExpre
 }
 
 // Adds the generates the SQL for a column list
-func (csg *commonSQLGenerator) SourcesSQL(b sb.SQLBuilder, from exp.ColumnListExpression) {
+func (csg *commonSQLGenerator) SourcesSQL(b sqlbuilder.SQLBuilder, from exp.ColumnListExpression) {
 	b.WriteRunes(csg.dialectOptions.SpaceRune)
 	csg.esg.Generate(b, from)
 }
 
 // Generates the WHERE clause for an SQL statement
-func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionList) {
+func (csg *commonSQLGenerator) WhereSQL(b sqlbuilder.SQLBuilder, where exp.ExpressionList) {
 	if where != nil {
 		b.Write(csg.dialectOptions.WhereFragment)
 		csg.esg.Generate(b, where)
@@ -98,7 +98,7 @@ func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionLis
 }
 
 // Generates the ORDER BY clause for an SQL statement
-func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExpression) {
+func (csg *commonSQLGenerator) OrderSQL(b sqlbuilder.SQLBuilder, order exp.ColumnListExpression) {
 	if order == nil {
 		return
 	}
@@ -111,7 +111,7 @@ func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExp
 }
 
 func (csg *commonSQLGenerator) OrderWithOffsetFetchSQL(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	order exp.ColumnListExpression,
 	offset uint,
 	limit interface{},
@@ -167,7 +167,7 @@ func hasRealLimit(limit interface{}) bool {
 }
 
 // Generates the LIMIT clause for an SQL statement
-func (csg *commonSQLGenerator) LimitSQL(b sb.SQLBuilder, limit interface{}) {
+func (csg *commonSQLGenerator) LimitSQL(b sqlbuilder.SQLBuilder, limit interface{}) {
 	if limit != nil && !isUnsupportedLimitAll(csg.dialectOptions, limit) {
 		b.Write(csg.dialectOptions.LimitFragment)
 		if csg.dialectOptions.SurroundLimitWithParentheses {
@@ -180,7 +180,7 @@ func (csg *commonSQLGenerator) LimitSQL(b sb.SQLBuilder, limit interface{}) {
 	}
 }
 
-func (csg *commonSQLGenerator) UpdateExpressionSQL(b sb.SQLBuilder, updates ...exp.UpdateExpression) {
+func (csg *commonSQLGenerator) UpdateExpressionSQL(b sqlbuilder.SQLBuilder, updates ...exp.UpdateExpression) {
 	if len(updates) == 0 {
 		b.SetError(errNoUpdatedValuesProvided)
 		return

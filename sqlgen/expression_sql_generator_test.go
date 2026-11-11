@@ -15,6 +15,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
 )
@@ -53,7 +54,7 @@ func (tae *testAppendableExpression) ReturnsColumns() bool {
 	return tae.returnsColumns
 }
 
-func (tae *testAppendableExpression) AppendSQL(b sb.SQLBuilder) {
+func (tae *testAppendableExpression) AppendSQL(b sqlbuilder.SQLBuilder) {
 	if tae.err != nil {
 		b.SetError(tae.err)
 		return

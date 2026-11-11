@@ -1,10 +1,9 @@
-package sb
+package sqlbuilder
 
 import (
 	"bytes"
 	"slices"
 	"strconv"
-	"sync"
 )
 
 const (
@@ -12,11 +11,6 @@ const (
 	float64Bits = 64
 )
 
-// maxPooledBufferCap is the largest buffer capacity that is kept when a builder is released back to the pool.
-// Larger buffers (e.g. from a huge bulk insert) are dropped so a single big statement does not pin memory.
-const maxPooledBufferCap = 64 << 10
-
-// Builder that is composed of a bytes.Buffer. It is used internally and by adapters to build SQL statements
 type (
 	SQLBuilder interface {
 		Error() error
@@ -50,19 +44,8 @@ type (
 	}
 )
 
-var builderPool = sync.Pool{
-	New: func() any {
-		return newSQLBuilder(false)
-	},
-}
-
-// NewSQLBuilder returns a builder. Builders come from a pool; call ReleaseSQLBuilder once you are done with one
-// (after ToSQL) to make it available for reuse. Not releasing a builder is always safe, it is just garbage collected.
-func NewSQLBuilder(isPrepared bool) SQLBuilder {
-	b, _ := builderPool.Get().(*sqlBuilder)
-	b.released = false
-	b.isPrepared = isPrepared
-	return b
+func New(isPrepared bool) SQLBuilder {
+	return newSQLBuilder(isPrepared)
 }
 
 func newSQLBuilder(isPrepared bool) *sqlBuilder {
@@ -73,17 +56,19 @@ func newSQLBuilder(isPrepared bool) *sqlBuilder {
 	}
 }
 
-// ReleaseSQLBuilder returns a builder to the pool. The builder must not be used afterwards. The sql string and the
-// args returned from ToSQL stay valid: the string is a copy and the args slice is never reused. Releasing a builder
-// that is already in the pool is a no-op.
-func ReleaseSQLBuilder(b SQLBuilder) {
-	sbImpl, ok := b.(*sqlBuilder)
-	if !ok || sbImpl.released || sbImpl.buf.Cap() > maxPooledBufferCap {
-		return
+func (b *sqlBuilder) Reuse(isPrepared bool) {
+	b.released = false
+	b.isPrepared = isPrepared
+}
+
+// Recycle leaves the sql string and args returned from ToSQL valid.
+func (b *sqlBuilder) Recycle(maxBufferCap int) bool {
+	if b.released || b.buf.Cap() > maxBufferCap {
+		return false
 	}
-	sbImpl.reset()
-	sbImpl.released = true
-	builderPool.Put(sbImpl)
+	b.reset()
+	b.released = true
+	return true
 }
 
 func (b *sqlBuilder) reset() {

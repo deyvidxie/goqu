@@ -5,13 +5,14 @@ import (
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/suite"
 )
 
 type (
 	commonSQLTestCase struct {
-		gen        func(builder sb.SQLBuilder)
+		gen        func(builder sqlbuilder.SQLBuilder)
 		sql        string
 		isPrepared bool
 		err        string
@@ -38,20 +39,20 @@ func (csgs *commonSQLGeneratorSuite) assertCases(testCases ...commonSQLTestCase)
 }
 
 func (csgs *commonSQLGeneratorSuite) TestReturningSQL() {
-	returningGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	returningGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ReturningSQL(sb, exp.NewColumnListExpression(nil, "db", "a", "b"))
 		}
 	}
 
-	returningNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	returningNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ReturningSQL(sb, exp.NewColumnListExpression(nil, "db"))
 		}
 	}
 
-	returningNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	returningNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ReturningSQL(sb, nil)
 		}
 	}
@@ -80,20 +81,20 @@ func (csgs *commonSQLGeneratorSuite) TestReturningSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestConflictTargetSQL() {
-	conflictTargetGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	conflictTargetGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ConflictTargetSQL(sb, exp.NewColumnListExpression(nil, "db", "a", "b"))
 		}
 	}
 
-	conflictTargetNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	conflictTargetNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ConflictTargetSQL(sb, exp.NewColumnListExpression(nil, "db"))
 		}
 	}
 
-	conflictTargetNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	conflictTargetNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.ConflictTargetSQL(sb, nil)
 		}
 	}
@@ -122,20 +123,20 @@ func (csgs *commonSQLGeneratorSuite) TestConflictTargetSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestFromSQL() {
-	fromGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	fromGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.FromSQL(sb, exp.NewColumnListExpression(nil, "db", "a", "b"))
 		}
 	}
 
-	fromNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	fromNoColsGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.FromSQL(sb, exp.NewColumnListExpression(nil, "db"))
 		}
 	}
 
-	fromNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	fromNilExpGen := func(csgs sqlgen.CommonSQLGenerator) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.FromSQL(sb, nil)
 		}
 	}
@@ -168,14 +169,14 @@ func (csgs *commonSQLGeneratorSuite) TestFromSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
-	whereAndGen := func(csgs sqlgen.CommonSQLGenerator, exps ...exp.Expression) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	whereAndGen := func(csgs sqlgen.CommonSQLGenerator, exps ...exp.Expression) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.WhereSQL(sb, exp.NewExpressionList(exp.AndType, exps...))
 		}
 	}
 
-	whereOrGen := func(csgs sqlgen.CommonSQLGenerator, exps ...exp.Expression) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	whereOrGen := func(csgs sqlgen.CommonSQLGenerator, exps ...exp.Expression) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.WhereSQL(sb, exp.NewExpressionList(exp.OrType, exps...))
 		}
 	}
@@ -243,8 +244,8 @@ func (csgs *commonSQLGeneratorSuite) TestWhereSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
-	orderGen := func(csgs sqlgen.CommonSQLGenerator, o ...exp.OrderedExpression) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	orderGen := func(csgs sqlgen.CommonSQLGenerator, o ...exp.OrderedExpression) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.OrderSQL(sb, exp.NewOrderedColumnList(o...))
 		}
 	}
@@ -322,8 +323,10 @@ func (csgs *commonSQLGeneratorSuite) TestOrderSQL() {
 
 func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 	const zeroLimitWithOffset = "goqu: dialect does not support LIMIT 0 with an OFFSET [dialect=test]"
-	offsetFetchGen := func(csg sqlgen.CommonSQLGenerator, order exp.ColumnListExpression, offset uint, limit interface{}) func(sb.SQLBuilder) {
-		return func(b sb.SQLBuilder) {
+	offsetFetchGen := func(
+		csg sqlgen.CommonSQLGenerator, order exp.ColumnListExpression, offset uint, limit interface{},
+	) func(sqlbuilder.SQLBuilder) {
+		return func(b sqlbuilder.SQLBuilder) {
 			csg.OrderWithOffsetFetchSQL(b, order, offset, limit)
 		}
 	}
@@ -366,8 +369,8 @@ func (csgs *commonSQLGeneratorSuite) TestOrderWithOffsetFetchSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
-	limitGen := func(csgs sqlgen.CommonSQLGenerator, l interface{}) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	limitGen := func(csgs sqlgen.CommonSQLGenerator, l interface{}) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.LimitSQL(sb, l)
 		}
 	}
@@ -411,8 +414,8 @@ func (csgs *commonSQLGeneratorSuite) TestLimitSQL() {
 }
 
 func (csgs *commonSQLGeneratorSuite) TestUpdateExpressionSQL() {
-	updateGen := func(csgs sqlgen.CommonSQLGenerator, ues ...exp.UpdateExpression) func(sb.SQLBuilder) {
-		return func(sb sb.SQLBuilder) {
+	updateGen := func(csgs sqlgen.CommonSQLGenerator, ues ...exp.UpdateExpression) func(sqlbuilder.SQLBuilder) {
+		return func(sb sqlbuilder.SQLBuilder) {
 			csgs.UpdateExpressionSQL(sb, ues...)
 		}
 	}

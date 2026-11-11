@@ -1,7 +1,7 @@
 package sqlgen_test
 
 import (
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -9,7 +9,7 @@ type baseSQLGeneratorSuite struct {
 	suite.Suite
 }
 
-func (bsgs *baseSQLGeneratorSuite) assertNotPreparedSQL(b sb.SQLBuilder, expectedSQL string) {
+func (bsgs *baseSQLGeneratorSuite) assertNotPreparedSQL(b sqlbuilder.SQLBuilder, expectedSQL string) {
 	actualSQL, actualArgs, err := b.ToSQL()
 	bsgs.NoError(err)
 	bsgs.Equal(expectedSQL, actualSQL)
@@ -17,7 +17,7 @@ func (bsgs *baseSQLGeneratorSuite) assertNotPreparedSQL(b sb.SQLBuilder, expecte
 }
 
 func (bsgs *baseSQLGeneratorSuite) assertPreparedSQL(
-	b sb.SQLBuilder,
+	b sqlbuilder.SQLBuilder,
 	expectedSQL string,
 	expectedArgs []interface{},
 ) {
@@ -31,7 +31,7 @@ func (bsgs *baseSQLGeneratorSuite) assertPreparedSQL(
 	}
 }
 
-func (bsgs *baseSQLGeneratorSuite) assertErrorSQL(b sb.SQLBuilder, errMsg string) {
+func (bsgs *baseSQLGeneratorSuite) assertErrorSQL(b sqlbuilder.SQLBuilder, errMsg string) {
 	actualSQL, actualArgs, err := b.ToSQL()
 	bsgs.EqualError(err, errMsg)
 	bsgs.Empty(actualSQL)

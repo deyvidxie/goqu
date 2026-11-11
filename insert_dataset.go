@@ -5,6 +5,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/util"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 type InsertDataset struct {
@@ -258,7 +259,7 @@ func (id *InsertDataset) ToSQL() (sql string, params []interface{}, err error) {
 
 // Appends this Dataset's INSERT statement to the SQLBuilder
 // This is used internally when using inserts in CTEs
-func (id *InsertDataset) AppendSQL(b sb.SQLBuilder) {
+func (id *InsertDataset) AppendSQL(b sqlbuilder.SQLBuilder) {
 	if id.err != nil {
 		b.SetError(id.err)
 		return
@@ -292,7 +293,7 @@ func (id *InsertDataset) Executor() exec.QueryExecutor {
 	return id.queryFactory.FromSQLBuilder(builder)
 }
 
-func (id *InsertDataset) insertSQLBuilder() sb.SQLBuilder {
+func (id *InsertDataset) insertSQLBuilder() sqlbuilder.SQLBuilder {
 	buf := sb.NewSQLBuilder(id.isPrepared.Bool())
 	if id.err != nil {
 		return buf.SetError(id.err)

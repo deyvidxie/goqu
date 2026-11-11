@@ -6,6 +6,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
@@ -216,14 +217,14 @@ func (unknownErrorTestExpression) Clone() exp.Expression      { return unknownEr
 
 func TestGeneratorErrorsAreTyped(t *testing.T) {
 	opts := sqlgen.DefaultDialectOptions()
-	toSQL := func(generate func(sb.SQLBuilder)) error {
+	toSQL := func(generate func(sqlbuilder.SQLBuilder)) error {
 		b := sb.NewSQLBuilder(false)
 		generate(b)
 		_, _, err := b.ToSQL()
 		return err
 	}
 	expression := func(e any) error {
-		return toSQL(func(b sb.SQLBuilder) { sqlgen.NewExpressionSQLGenerator("test", "db", opts).Generate(b, e) })
+		return toSQL(func(b sqlbuilder.SQLBuilder) { sqlgen.NewExpressionSQLGenerator("test", "db", opts).Generate(b, e) })
 	}
 	mismatched := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "t", "")).
@@ -253,14 +254,14 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 			"empty list outside IN", "an empty list ([]int) is only accepted as the whole right side of In or NotIn",
 			expression(exp.NewLiteralExpression("?", []int{})),
 		},
-		{"list as an UPDATE value", "a list ([]int) is not an INSERT or UPDATE value", toSQL(func(b sb.SQLBuilder) {
+		{"list as an UPDATE value", "a list ([]int) is not an INSERT or UPDATE value", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewUpdateSQLGenerator("test", "db", opts).Generate(b, exp.NewUpdateClauses().
 				SetTable(exp.NewIdentifierExpression("", "t", "")).SetSetValues(exp.Record{"a": []int{1}}))
 		})},
-		{"mismatched row length", "rows with different value length, expected 1 got 2", toSQL(func(b sb.SQLBuilder) {
+		{"mismatched row length", "rows with different value length, expected 1 got 2", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, mismatched)
 		})},
-		{"truncate without source", "no source found when generating truncate sql", toSQL(func(b sb.SQLBuilder) {
+		{"truncate without source", "no source found when generating truncate sql", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewTruncateSQLGenerator("test", "db", opts).Generate(b, exp.NewTruncateClauses())
 		})},
 	}
@@ -269,7 +270,7 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		assert.True(t, goqu.IsInvalidExpression(c.err), "%s: %v", c.name, c.err)
 	}
 
-	err := toSQL(func(b sb.SQLBuilder) {
+	err := toSQL(func(b sqlbuilder.SQLBuilder) {
 		sqlgen.NewSelectSQLGenerator("test", "db", badFragment).Generate(b, exp.NewSelectClauses())
 	})
 	assert.EqualError(t, err, "goqu: dialect does not support SELECT SQL fragment InsertBeingSQLFragment [dialect=test]")

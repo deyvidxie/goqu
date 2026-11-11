@@ -1,11 +1,9 @@
-package sb //nolint:testpackage // exercises unexported reset/pool state
+package sqlbuilder //nolint:testpackage // exercises unexported reset state
 
 import (
 	"errors"
 	"math"
 	"reflect"
-	"strings"
-	"sync"
 	"testing"
 )
 
@@ -34,74 +32,41 @@ func TestSQLBuilder_ResetDoesNotMutateReturnedArgs(t *testing.T) {
 	}
 }
 
-// The sql string returned by ToSQL must stay valid after the builder is released and reused.
-func TestSQLBuilder_ReleaseDoesNotMutateReturnedSQL(t *testing.T) {
-	b := NewSQLBuilder(false)
-	b.WriteStrings("SELECT 1")
-	sql, _, err := b.ToSQL()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ReleaseSQLBuilder(b)
-
-	// grab builders until we (very likely) get the released one back, then overwrite its buffer
-	for i := 0; i < 8; i++ {
-		other := NewSQLBuilder(false)
-		other.WriteStrings("XXXXXXXX")
-		ReleaseSQLBuilder(other)
-	}
-	if sql != "SELECT 1" {
-		t.Fatalf("sql returned by ToSQL changed after release; got %q", sql)
-	}
-}
-
-// Ensures that releasing a builder resets its state, so a reused builder behaves like a new one.
-func TestReleaseSQLBuilderResetsState(t *testing.T) {
-	b := NewSQLBuilder(true)
+func TestSQLBuilder_RecycleResetsState(t *testing.T) {
+	b := newSQLBuilder(true)
 	b.WriteStrings("SELECT ")
 	b.WriteRunes('1')
 	b.WriteArg(123)
 	b.SetError(newTestError("assert"))
 
-	sbImpl, ok := b.(*sqlBuilder)
-	if !ok {
-		t.Fatalf("expected *sqlBuilder implementation")
+	if !b.Recycle(1 << 10) {
+		t.Fatal("a small builder must be recyclable")
 	}
-
-	ReleaseSQLBuilder(b)
-
-	if got := sbImpl.buf.String(); got != "" {
+	if got := b.buf.String(); got != "" {
 		t.Fatalf("buffer not reset; got %q", got)
 	}
-	if sbImpl.args != nil {
-		t.Fatalf("args not reset; got %v", sbImpl.args)
-	}
-	if sbImpl.err != nil {
-		t.Fatalf("error not reset; got %v", sbImpl.err)
-	}
-	if sbImpl.isPrepared {
-		t.Fatalf("isPrepared not reset; got true, want false")
-	}
-	if sbImpl.currentArgPosition != 1 {
-		t.Fatalf("currentArgPosition not reset; got %d, want 1", sbImpl.currentArgPosition)
+	if b.args != nil || b.err != nil || b.isPrepared || b.currentArgPosition != 1 {
+		t.Fatalf("state not reset: %+v", b)
 	}
 }
 
-// Huge buffers are dropped instead of being pinned by the pool.
-func TestReleaseSQLBuilderDropsOversizedBuffers(t *testing.T) {
+func TestSQLBuilder_RecycleRefusesOversizedBuffersAndSecondRecycle(t *testing.T) {
 	big := newSQLBuilder(false)
-	big.GrowBuffer(maxPooledBufferCap * 2)
-	// Put a marker in the pool's way: if big were pooled, Get could hand it back with its huge capacity.
-	ReleaseSQLBuilder(big)
-	for i := 0; i < 64; i++ {
-		b, _ := NewSQLBuilder(false).(*sqlBuilder)
-		if b == big {
-			t.Fatal("oversized builder was returned to the pool")
-		}
+	big.GrowBuffer(2 << 10)
+	if big.Recycle(1 << 10) {
+		t.Fatal("an oversized builder must not be recyclable")
+	}
+	b := newSQLBuilder(false)
+	if !b.Recycle(1<<10) || b.Recycle(1<<10) {
+		t.Fatal("a builder must be recyclable exactly once until it is reused")
+	}
+	b.Reuse(true)
+	if !b.IsPrepared() || !b.Recycle(1<<10) {
+		t.Fatal("Reuse must make the builder recyclable again")
 	}
 }
 
-// A new builder, a reset builder and a pooled builder must be indistinguishable (matters for equality in tests).
+// A new builder and a reset builder must be indistinguishable (matters for equality in tests).
 func TestFreshAndResetBuildersAreEqual(t *testing.T) {
 	used := newSQLBuilder(false)
 	used.WriteStrings("abc")
@@ -175,50 +140,5 @@ func TestSQLBuilder_Grow(t *testing.T) {
 	errB.GrowBuffer(10)
 	if cap(errB.args) != 0 {
 		t.Fatalf("GrowArgs must be a no-op on a builder with an error; cap=%d", cap(errB.args))
-	}
-}
-
-// Builders are pooled, so hammer the pool from many goroutines (run with -race) and make sure no state leaks
-// between statements.
-func TestSQLBuilder_PoolIsSafeForConcurrentUse(t *testing.T) {
-	var wg sync.WaitGroup
-	for g := 0; g < 16; g++ {
-		wg.Add(1)
-		go func(g int) {
-			defer wg.Done()
-			marker := strings.Repeat(string("abcdefgh"[g%8]), 5)
-			for i := 0; i < 2000; i++ {
-				b := NewSQLBuilder(i%2 == 0)
-				if b.CurrentArgPosition() != 1 {
-					t.Errorf("goroutine %d: reused builder has arg position %d", g, b.CurrentArgPosition())
-					return
-				}
-				b.WriteStrings(marker).WriteInt(int64(i)).WriteArg(g, i)
-				sql, args, err := b.ToSQL()
-				if err != nil || sql != marker+itoa(i) || len(args) != 2 || args[0] != g || args[1] != i {
-					t.Errorf("goroutine %d: leaked state; sql=%q args=%v err=%v", g, sql, args, err)
-					return
-				}
-				ReleaseSQLBuilder(b)
-			}
-		}(g)
-	}
-	wg.Wait()
-}
-
-func itoa(i int) string {
-	b := newSQLBuilder(false)
-	b.WriteInt(int64(i))
-	s, _, _ := b.ToSQL()
-	return s
-}
-
-func TestReleaseSQLBuilder_doubleReleaseIsIgnored(t *testing.T) {
-	b := NewSQLBuilder(false)
-	ReleaseSQLBuilder(b)
-	ReleaseSQLBuilder(b) // must not put the same builder in the pool twice
-	first, second := NewSQLBuilder(false), NewSQLBuilder(false)
-	if first == second {
-		t.Fatal("the same builder was handed out twice")
 	}
 }

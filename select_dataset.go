@@ -10,6 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/internal/scantype"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
 
 // Dataset for creating and/or executing SELECT SQL statements.
@@ -665,7 +666,7 @@ func (sd *SelectDataset) Executor() exec.QueryExecutor {
 
 // Appends this Dataset's SELECT statement to the SQLBuilder
 // This is used internally for sub-selects by the dialect
-func (sd *SelectDataset) AppendSQL(b sb.SQLBuilder) {
+func (sd *SelectDataset) AppendSQL(b sqlbuilder.SQLBuilder) {
 	if sd.err != nil {
 		b.SetError(sd.err)
 		return
@@ -869,7 +870,7 @@ func (sd *SelectDataset) PluckContext(ctx context.Context, i interface{}, col st
 	return sd.Select(col).ScanValsContext(ctx, i)
 }
 
-func (sd *SelectDataset) selectSQLBuilder() sb.SQLBuilder {
+func (sd *SelectDataset) selectSQLBuilder() sqlbuilder.SQLBuilder {
 	buf := sb.NewSQLBuilder(sd.isPrepared.Bool())
 	if sd.err != nil {
 		return buf.SetError(sd.err)

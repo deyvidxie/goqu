@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/doug-martin/goqu/v9/internal/sb"
+	"github.com/doug-martin/goqu/v9/sqlbuilder"
 	"github.com/doug-martin/goqu/v9/sqlgen"
 )
 
@@ -15,11 +15,11 @@ type (
 	// See DefaultAdapter for a concrete implementation and examples.
 	SQLDialect interface {
 		Dialect() string
-		ToSelectSQL(b sb.SQLBuilder, clauses exp.SelectClauses)
-		ToUpdateSQL(b sb.SQLBuilder, clauses exp.UpdateClauses)
-		ToInsertSQL(b sb.SQLBuilder, clauses exp.InsertClauses)
-		ToDeleteSQL(b sb.SQLBuilder, clauses exp.DeleteClauses)
-		ToTruncateSQL(b sb.SQLBuilder, clauses exp.TruncateClauses)
+		ToSelectSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses)
+		ToUpdateSQL(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses)
+		ToInsertSQL(b sqlbuilder.SQLBuilder, clauses exp.InsertClauses)
+		ToDeleteSQL(b sqlbuilder.SQLBuilder, clauses exp.DeleteClauses)
+		ToTruncateSQL(b sqlbuilder.SQLBuilder, clauses exp.TruncateClauses)
 	}
 	// The default adapter. This class should be used when building a new adapter. When creating a new adapter you can
 	// either override methods, or more typically update default values.
@@ -177,26 +177,26 @@ func (d *sqlDialect) Dialect() string {
 	return d.dialect
 }
 
-func (d *sqlDialect) ToSelectSQL(b sb.SQLBuilder, clauses exp.SelectClauses) {
+func (d *sqlDialect) ToSelectSQL(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
 	d.selectGen.Generate(b, clauses)
 }
 
-func (d *sqlDialect) ToUpdateSQL(b sb.SQLBuilder, clauses exp.UpdateClauses) {
+func (d *sqlDialect) ToUpdateSQL(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses) {
 	d.updateGen.Generate(b, clauses)
 }
 
-func (d *sqlDialect) ToInsertSQL(b sb.SQLBuilder, clauses exp.InsertClauses) {
+func (d *sqlDialect) ToInsertSQL(b sqlbuilder.SQLBuilder, clauses exp.InsertClauses) {
 	d.insertGen.Generate(b, clauses)
 }
 
-func (d *sqlDialect) ToDeleteSQL(b sb.SQLBuilder, clauses exp.DeleteClauses) {
+func (d *sqlDialect) ToDeleteSQL(b sqlbuilder.SQLBuilder, clauses exp.DeleteClauses) {
 	d.deleteGen.Generate(b, clauses)
 }
 
-func (d *sqlDialect) ToTruncateSQL(b sb.SQLBuilder, clauses exp.TruncateClauses) {
+func (d *sqlDialect) ToTruncateSQL(b sqlbuilder.SQLBuilder, clauses exp.TruncateClauses) {
 	d.truncateGen.Generate(b, clauses)
 }
 
-func (d *sqlDialect) toExpressionSQL(b sb.SQLBuilder, e exp.Expression) {
+func (d *sqlDialect) toExpressionSQL(b sqlbuilder.SQLBuilder, e exp.Expression) {
 	d.expressionGen.Generate(b, e)
 }

@@ -1,4 +1,4 @@
-package sb
+package sqlbuilder
 
 type testError struct{ msg string }
 
