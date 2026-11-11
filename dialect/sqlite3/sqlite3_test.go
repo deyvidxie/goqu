@@ -764,10 +764,29 @@ func (st *sqlite3Suite) TestInsert_withoutRows() {
 		st.Require().NoError(err, "prepared=%v", prepared)
 	}
 	_, err = st.db.Insert("empty_insert").OnConflict(goqu.DoNothing()).Executor().Exec()
-	st.Require().NoError(err)
+	st.True(goqu.IsUnsupported(err))
 	var as []string
 	st.Require().NoError(st.db.From("empty_insert").Order(goqu.C("id").Asc()).Select("a").ScanVals(&as))
-	st.Equal([]string{"x", "x", "x"}, as)
+	st.Equal([]string{"x", "x"}, as)
+}
+
+func (st *sqlite3Suite) TestDoNothingSkipsOnlyConflicts() {
+	_, err := st.db.Exec("CREATE TABLE do_nothing (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+	st.Require().NoError(err)
+	t := st.T()
+	t.Cleanup(func() {
+		_, err := st.db.Exec("DROP TABLE do_nothing")
+		assert.NoError(t, err)
+	})
+	ds := st.db.Insert("do_nothing").OnConflict(goqu.DoNothing())
+	_, err = ds.Rows(goqu.Record{"id": 1, "name": "x"}, goqu.Record{"id": 1, "name": "y"}).Executor().Exec()
+	st.Require().NoError(err)
+	var names []string
+	st.Require().NoError(st.db.From("do_nothing").Select("name").ScanVals(&names))
+	st.Equal([]string{"x"}, names)
+
+	_, err = ds.Rows(goqu.Record{"id": 2, "name": nil}).Executor().Exec()
+	st.ErrorContains(err, "NOT NULL constraint failed")
 }
 
 func (st *sqlite3Suite) TestValsWithoutColsAndLimitZero() {

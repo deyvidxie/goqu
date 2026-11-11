@@ -15,7 +15,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsReturn = true
 	opts.SupportsTruncateIdentity = false
 	opts.SupportsMultipleTruncateTables = false
-	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = true
 	opts.WrapCompoundsInParens = false
 	opts.SupportsQualify = true

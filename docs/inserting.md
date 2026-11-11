@@ -407,7 +407,7 @@ Output:
 INSERT INTO "test" ("a", "b") VALUES ('a', 'b') ON CONFLICT DO NOTHING
 ```
 
-**NOTE** `OnConflict` returns an error on SQL Server, and on SQLite3 for an insert that renders `DEFAULT VALUES` unless it is an untargeted `DoNothing`.
+**NOTE** `OnConflict` returns an error on SQL Server, and on SQLite3 for an insert that renders `DEFAULT VALUES`. MySQL has no `DO NOTHING`, so `DoNothing()` renders `ON DUPLICATE KEY UPDATE` with the first insert column set to itself, which skips duplicate keys only; on a conflict MySQL still runs the table's BEFORE/AFTER UPDATE triggers. An insert without a column list (`DEFAULT VALUES`, `FromQuery` without `Cols`) returns an error. `OnConflict(nil)` returns an error; use `ClearOnConflict()`.
 
 To specify the conflict target columns, use `SetCols`. This is supported by dialects that support a conflict target
 (Postgres, SQLite3, DuckDB). Using it with a dialect that does not (MySQL) returns an error.

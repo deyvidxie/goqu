@@ -134,7 +134,7 @@ func TestBuilderInputErrorsAreInvalidExpressions(t *testing.T) {
 			toSQL(goqu.Insert("t").Rows((*goqu.SelectDataset)(nil))),
 		},
 		{
-			"nil FromQuery source", "goqu: insert source must not be nil, got *goqu.SelectDataset",
+			"nil FromQuery source", "goqu: FromQuery requires a query, got *goqu.SelectDataset; use ClearFromQuery to drop it",
 			toSQL(goqu.Insert("t").FromQuery((*goqu.SelectDataset)(nil))),
 		},
 		{"nil pointer update", "goqu: update values must not be nil, got *goqu_test.row", toSQL(goqu.Update("t").Set((*row)(nil)))},

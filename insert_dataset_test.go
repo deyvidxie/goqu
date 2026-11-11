@@ -10,6 +10,7 @@ import (
 	"github.com/doug-martin/goqu/v9/internal/sb"
 	"github.com/doug-martin/goqu/v9/mocks"
 	"github.com/doug-martin/goqu/v9/sqlbuilder"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -208,7 +209,7 @@ func (ids *insertDatasetSuite) TestFromQuery() {
 				SetFrom(goqu.From("other_items").Where(goqu.C("b").Gt(10))),
 		},
 		insertTestCase{
-			ds:      bd.FromQuery(goqu.From("other_items")).FromQuery(nil),
+			ds:      bd.FromQuery(goqu.From("other_items")).ClearFromQuery(),
 			clauses: exp.NewInsertClauses().SetInto(goqu.C("items")),
 		},
 		insertTestCase{
@@ -748,4 +749,28 @@ func (ids *insertDatasetSuite) TestSetError() {
 
 func TestInsertDataset(t *testing.T) {
 	suite.Run(t, new(insertDatasetSuite))
+}
+
+func TestInsertNilFromQueryAndOnConflictAreErrors(t *testing.T) {
+	bd := goqu.Insert("items").Rows(goqu.Record{"a": 1})
+	for name, c := range map[string]struct {
+		ds  *goqu.InsertDataset
+		err string
+	}{
+		"FromQuery(nil)": {
+			goqu.Insert("items").FromQuery(goqu.From("other")).FromQuery(nil),
+			"goqu: FromQuery requires a query, got <nil>; use ClearFromQuery to drop it",
+		},
+		"OnConflict(nil)": {
+			bd.OnConflict(goqu.DoNothing()).OnConflict(nil),
+			"goqu: OnConflict requires a conflict expression; use ClearOnConflict to drop it",
+		},
+	} {
+		_, _, err := c.ds.ToSQL()
+		assert.EqualError(t, err, c.err, name)
+		assert.True(t, goqu.IsInvalidExpression(err), name)
+	}
+	sql, _, err := bd.OnConflict(goqu.DoNothing()).ClearOnConflict().ToSQL()
+	assert.NoError(t, err)
+	assert.Equal(t, `INSERT INTO "items" ("a") VALUES (1)`, sql)
 }

@@ -662,6 +662,24 @@ func (mt *mysqlTest) TestInsertIgnore() {
 	mt.Equal(count, int64(11))
 }
 
+func (mt *mysqlTest) TestDoNothingSkipsOnlyDuplicateKeys() {
+	_, err := mt.db.Exec("CREATE TABLE do_nothing (id INT PRIMARY KEY, name VARCHAR(5) NOT NULL)")
+	mt.Require().NoError(err)
+	mt.T().Cleanup(func() {
+		_, err := mt.db.Exec("DROP TABLE do_nothing")
+		mt.NoError(err)
+	})
+	ds := mt.db.Insert("do_nothing").OnConflict(goqu.DoNothing())
+	_, err = ds.Rows(goqu.Record{"id": 1, "name": "x"}, goqu.Record{"id": 1, "name": "y"}).Executor().Exec()
+	mt.Require().NoError(err)
+	var names []string
+	mt.Require().NoError(mt.db.From("do_nothing").Select("name").ScanVals(&names))
+	mt.Equal([]string{"x"}, names)
+
+	_, err = ds.Rows(goqu.Record{"id": 2, "name": nil}).Executor().Exec()
+	mt.ErrorContains(err, "cannot be null")
+}
+
 func (mt *mysqlTest) TestInsert_OnConflict() {
 	ds := mt.db.From("entry")
 	now := time.Now()

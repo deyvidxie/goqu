@@ -161,7 +161,7 @@ func (id *InsertDataset) ColsAppend(cols ...interface{}) *InsertDataset {
 
 // Adds a subquery to the insert. See examples.
 func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset {
-	if from != nil && util.IsNilOrNilPointer(from) {
+	if util.IsNilOrNilPointer(from) {
 		return id.copy(id.clauses).SetError(errNilInsertSource(from))
 	}
 	if sds, ok := from.(*SelectDataset); ok {
@@ -174,6 +174,10 @@ func (id *InsertDataset) FromQuery(from exp.AppendableExpression) *InsertDataset
 		sds.dialect = id.dialect
 	}
 	return id.copy(id.clauses.SetFrom(from))
+}
+
+func (id *InsertDataset) ClearFromQuery() *InsertDataset {
+	return id.copy(id.clauses.SetFrom(nil))
 }
 
 // Manually set values to insert See examples.
@@ -209,12 +213,15 @@ func (id *InsertDataset) Returning(returning ...interface{}) *InsertDataset {
 
 // Adds an (ON CONFLICT/ON DUPLICATE KEY) clause to the dataset if the dialect supports it. See examples.
 func (id *InsertDataset) OnConflict(conflict exp.ConflictExpression) *InsertDataset {
+	if util.IsNilOrNilPointer(conflict) {
+		return id.copy(id.clauses).SetError(errNilOnConflict)
+	}
 	return id.copy(id.clauses.SetOnConflict(conflict))
 }
 
 // Clears the on conflict clause. See example
 func (id *InsertDataset) ClearOnConflict() *InsertDataset {
-	return id.OnConflict(nil)
+	return id.copy(id.clauses.SetOnConflict(nil))
 }
 
 // Get any error that has been set or nil if no error has been set.

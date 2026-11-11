@@ -111,8 +111,8 @@ func (csgs *commonSQLGeneratorSuite) TestConflictTargetSQL() {
 		commonSQLTestCase{gen: conflictTargetGen(csgs1), sql: ` ("a", "b")`},
 		commonSQLTestCase{gen: conflictTargetGen(csgs1), sql: ` ("a", "b")`, isPrepared: true, args: emptyArgs},
 
-		commonSQLTestCase{gen: conflictTargetNoColsGen(csgs1), sql: ``},
-		commonSQLTestCase{gen: conflictTargetNoColsGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
+		commonSQLTestCase{gen: conflictTargetNoColsGen(csgs1), err: `goqu: DoNothing target requires at least one column`},
+		commonSQLTestCase{gen: conflictTargetNoColsGen(csgs1), err: `goqu: DoNothing target requires at least one column`, isPrepared: true},
 
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``},
 		commonSQLTestCase{gen: conflictTargetNilExpGen(csgs1), sql: ``, isPrepared: true, args: emptyArgs},
