@@ -2810,3 +2810,15 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListsWhereASingleValueIsEx
 		expressionTestCase{val: a.Eq(exp.NewSQLFunctionExpression(exp.AnyFunctionName, arrayLiteralValuer{})), sql: `("a" = ANY ('{}'))`},
 	)
 }
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_ListOperandNamesOperatorMissingFromDialect() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ArithmeticOperatorLookup = map[exp.ArithmeticOperation][]byte{}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{
+			val: exp.NewIdentifierExpression("", "", "a").Add([]int{1, 2}),
+			err: `goqu: operator "Addition" takes a single value, got a list ([]int)`,
+		},
+	)
+}
