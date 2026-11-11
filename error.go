@@ -40,10 +40,15 @@ var errNoDatabase = errors.NewNoDatabaseError(
 )
 
 var (
-	errEmptyDistinctOn = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
-	errEmptySelect     = errors.NewInvalidExpressionError("Select requires at least one column; use ClearSelect for SELECT *")
-	errEmptyGroupBy    = errors.NewInvalidExpressionError("GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY")
-	errEmptyOrder      = errors.NewInvalidExpressionError("Order requires at least one expression; use ClearOrder to drop ORDER BY")
+	errEmptyDistinctOn    = errors.NewInvalidExpressionError("DistinctOn requires at least one column")
+	errEmptySelect        = errors.NewInvalidExpressionError("Select requires at least one column; use ClearSelect for SELECT *")
+	errEmptyGroupBy       = errors.NewInvalidExpressionError("GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY")
+	errEmptyOrder         = errors.NewInvalidExpressionError("Order requires at least one expression; use ClearOrder to drop ORDER BY")
+	errEmptySelectAppend  = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
+	errEmptyGroupByAppend = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
+	errEmptyOrderAppend   = errors.NewInvalidExpressionError("OrderAppend requires at least one expression")
+	errEmptyOrderPrepend  = errors.NewInvalidExpressionError("OrderPrepend requires at least one expression")
+	errNilOrder           = errors.NewInvalidExpressionError("Order expressions must not be nil")
 )
 
 func errUnsupportedFromArgument(from interface{}) error {

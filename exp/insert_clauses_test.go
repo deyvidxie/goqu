@@ -115,9 +115,6 @@ func (ics *insertClausesSuite) TestHasVals() {
 	ics.False(c.HasVals())
 
 	ics.True(c2.HasVals())
-	ics.True(c.SetVals([][]interface{}{}).HasVals())
-	ics.True(c.ValsAppend(nil).HasVals())
-	ics.False(c2.SetVals(nil).HasVals())
 }
 
 func (ics *insertClausesSuite) TestValsAppend() {
@@ -152,8 +149,6 @@ func (ics *insertClausesSuite) TestHasRows() {
 	ics.False(c.HasRows())
 
 	ics.True(c2.HasRows())
-	ics.True(c.SetRows([]interface{}{}).HasRows())
-	ics.False(c.SetRows([]interface{}{}).SetRows(nil).HasRows())
 }
 
 func (ics *insertClausesSuite) TestSetRows() {

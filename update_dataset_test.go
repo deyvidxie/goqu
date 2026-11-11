@@ -527,18 +527,28 @@ func (uds *updateDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
 
 func (uds *updateDatasetSuite) TestEmptyOrder() {
 	var noOrder []exp.OrderedExpression
-	for name, ds := range map[string]interface {
-		ToSQL() (string, []interface{}, error)
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
+	const (
+		emptyOrder = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder   = "goqu: Order expressions must not be nil"
+	)
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
 	}{
-		"Order":            goqu.Update("test").Set(goqu.Record{"a": 1}).Order(noOrder...),
-		"Order nil":        goqu.Update("test").Set(goqu.Record{"a": 1}).Order(nil),
-		"OrderAppend":      goqu.Update("test").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc()).OrderAppend(noOrder...),
-		"OrderAppend nil":  goqu.Update("test").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc()).OrderAppend(nil),
-		"OrderPrepend":     goqu.Update("test").Set(goqu.Record{"a": 1}).OrderPrepend(noOrder...),
-		"OrderPrepend nil": goqu.Update("test").Set(goqu.Record{"a": 1}).OrderPrepend(goqu.C("a").Asc(), nil),
+		"Order":            {bd.Order(noOrder...), emptyOrder},
+		"Order nil":        {bd.Order(nil), nilOrder},
+		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
+		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), nilOrder},
+		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
+		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
+		"from select":      {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Update().Set(goqu.Record{"a": 1}), emptyOrder},
 	} {
-		_, _, err := ds.ToSQL()
-		uds.EqualError(err, "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY", name)
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsInvalidExpression(err), name)
 	}
 }
 
@@ -560,6 +570,7 @@ func (uds *updateDatasetSuite) TestToSQL_emptyWhere() {
 	} {
 		_, _, err := d.ToSQL()
 		uds.EqualError(err, "goqu: WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row", name)
+		uds.True(goqu.IsInvalidExpression(err), name)
 	}
 
 	for name, c := range map[string]struct {

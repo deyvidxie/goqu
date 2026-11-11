@@ -189,6 +189,10 @@ func (sds *sqlserverDialectSuite) TestLimitZero() {
 		sqlTestCase{ds: sel.Order(goqu.C("a").Asc()).Limit(0).Offset(20), err: zeroFetch},
 		sqlTestCase{ds: sel.Prepared(true).Order(goqu.C("a").Asc()).Limit(0).Offset(20), err: zeroFetch, isPrepared: true},
 	)
+	for _, prepared := range []bool{false, true} {
+		_, _, err := sel.Prepared(prepared).Order(goqu.C("a").Asc()).Limit(0).Offset(20).ToSQL()
+		sds.True(goqu.IsUnsupported(err), "prepared=%v: %v", prepared, err)
+	}
 }
 
 func (sds *sqlserverDialectSuite) TestOffsetRequiresOrder() {

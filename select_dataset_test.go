@@ -281,6 +281,7 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		emptySelect  = "goqu: Select requires at least one column; use ClearSelect for SELECT *"
 		emptyGroupBy = "goqu: GroupBy requires at least one column; use ClearGroupBy to drop GROUP BY"
 		emptyOrder   = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder     = "goqu: Order expressions must not be nil"
 	)
 	for name, c := range map[string]struct {
 		ds  *goqu.SelectDataset
@@ -293,21 +294,22 @@ func (sds *selectDatasetSuite) TestEmptyArguments() {
 		}{}), emptySelect},
 		"package Select":      {goqu.Select(none...).From("test"), emptySelect},
 		"SelectDistinct":      {bd.SelectDistinct(none...), emptySelect},
-		"SelectAppend":        {bd.Select("a").SelectAppend(none...), emptySelect},
+		"SelectAppend":        {bd.Select("a").SelectAppend(none...), "goqu: SelectAppend requires at least one column"},
 		"GroupBy":             {bd.GroupBy(none...), emptyGroupBy},
 		"GroupBy nil":         {bd.GroupBy(nil), emptyGroupBy},
-		"GroupByAppend":       {bd.GroupBy("a").GroupByAppend(none...), emptyGroupBy},
+		"GroupByAppend":       {bd.GroupBy("a").GroupByAppend(none...), "goqu: GroupByAppend requires at least one column"},
 		"Order":               {bd.Order(noOrder...), emptyOrder},
-		"Order nil":           {bd.Order(nil), emptyOrder},
-		"OrderAppend":         {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), emptyOrder},
-		"OrderAppend nil":     {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), emptyOrder},
-		"OrderPrepend":        {bd.OrderPrepend(noOrder...), emptyOrder},
-		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), emptyOrder},
+		"Order nil":           {bd.Order(nil), nilOrder},
+		"OrderAppend":         {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
+		"OrderAppend nil":     {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), nilOrder},
+		"OrderPrepend":        {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
+		"OrderPrepend nil":    {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
 		"Order with Limit":    {bd.Order(noOrder...).Limit(10), emptyOrder},
 		"Select then cleared": {bd.Select(none...).ClearSelect(), emptySelect},
 	} {
 		_, _, err := c.ds.ToSQL()
 		sds.EqualError(err, c.err, name)
+		sds.True(goqu.IsInvalidExpression(err), name)
 	}
 
 	for name, ds := range map[string]*goqu.SelectDataset{
@@ -373,7 +375,8 @@ func (sds *selectDatasetSuite) TestDistinctOn() {
 		"empty list":   bd.DistinctOn(exp.NewColumnListExpression(nil, "db")),
 	} {
 		_, _, err := ds.ToSQL()
-		sds.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
+		sds.EqualError(err, "goqu: DistinctOn requires at least one column", name)
+		sds.True(goqu.IsInvalidExpression(err), name)
 	}
 	sds.NoError(bd.Error())
 }
@@ -1124,6 +1127,22 @@ func (sds *selectDatasetSuite) TestOrderPrepend() {
 	)
 }
 
+func (sds *selectDatasetSuite) TestClearGroupBy() {
+	bd := goqu.From("test").GroupBy("a")
+	sds.assertCases(
+		selectTestCase{
+			ds: bd.ClearGroupBy(),
+			clauses: exp.NewSelectClauses().
+				SetFrom(exp.NewColumnListExpression(nil, "db", "test")),
+		},
+		selectTestCase{
+			ds: bd,
+			clauses: exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+				SetGroupBy(exp.NewColumnListExpression(nil, "db", "a")),
+		},
+	)
+}
+
 func (sds *selectDatasetSuite) TestClearOrder() {
 	bd := goqu.From("test").Order(goqu.C("a").Asc())
 	sds.assertCases(
@@ -1523,6 +1542,39 @@ func (sds *selectDatasetSuite) TestStructScans_acceptsCallerFilledUnexportedEmbe
 	var rows []dsUnexportedEmbedRow
 	sds.Require().NoError(db.From("items").Select("id").ScanStructs(&rows))
 	sds.Equal([]dsUnexportedEmbedRow{{ID: 3}}, rows)
+}
+
+func (sds *selectDatasetSuite) TestSingleRowScansKeepLimitZero() {
+	mDB, sqlMock, err := sqlmock.New()
+	sds.NoError(err)
+	for _, q := range []string{
+		`SELECT "address", "name" FROM "items" LIMIT 0`,
+		`SELECT "name" FROM "items" LIMIT 0`,
+		`SELECT "address", "name" FROM "items" LIMIT 0`,
+		`SELECT "name" FROM "items" LIMIT 0`,
+	} {
+		sqlMock.ExpectQuery(q).WithArgs().WillReturnRows(sqlmock.NewRows([]string{"address", "name"}))
+	}
+
+	ds := goqu.New("mock", mDB).From("items").Limit(0)
+	var item dsTestActionItem
+	found, err := ds.ScanStruct(&item)
+	sds.NoError(err)
+	sds.False(found)
+
+	var name string
+	found, err = ds.Select("name").ScanVal(&name)
+	sds.NoError(err)
+	sds.False(found)
+
+	_, found, err = ds.ScanOneStruct[dsTestActionItem](sds.T().Context())
+	sds.NoError(err)
+	sds.False(found)
+
+	_, found, err = ds.Select("name").ScanOneVal[string](sds.T().Context())
+	sds.NoError(err)
+	sds.False(found)
+	sds.NoError(sqlMock.ExpectationsWereMet())
 }
 
 func (sds *selectDatasetSuite) TestScanStruct() {

@@ -168,7 +168,7 @@ func (ic *insertClauses) Rows() []interface{} {
 }
 
 func (ic *insertClauses) HasRows() bool {
-	return ic.rows != nil
+	return len(ic.rows) > 0
 }
 
 func (ic *insertClauses) SetRows(rows []interface{}) InsertClauses {
@@ -185,7 +185,7 @@ func (ic *insertClauses) Vals() [][]interface{} {
 }
 
 func (ic *insertClauses) HasVals() bool {
-	return ic.values != nil
+	return len(ic.values) > 0
 }
 
 func (ic *insertClauses) SetVals(vals [][]interface{}) InsertClauses {

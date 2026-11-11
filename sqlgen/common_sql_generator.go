@@ -98,6 +98,17 @@ func (csg *commonSQLGenerator) WhereSQL(b sb.SQLBuilder, where exp.ExpressionLis
 	}
 }
 
+func matchesEveryRow(e exp.Expression) bool {
+	list, ok := e.(exp.ExpressionList)
+	if !ok {
+		return false
+	}
+	if list.Type() == exp.OrType {
+		return slices.ContainsFunc(list.Expressions(), matchesEveryRow)
+	}
+	return !slices.ContainsFunc(list.Expressions(), func(e exp.Expression) bool { return !matchesEveryRow(e) })
+}
+
 // Generates the ORDER BY clause for an SQL statement
 func (csg *commonSQLGenerator) OrderSQL(b sb.SQLBuilder, order exp.ColumnListExpression) {
 	if order != nil && len(order.Columns()) > 0 {
@@ -144,22 +155,6 @@ func isZeroLimit(limit interface{}) bool {
 		return v.Int() == 0
 	case v.CanUint():
 		return v.Uint() == 0
-	default:
-		return false
-	}
-}
-
-func matchesEveryRow(e exp.Expression) bool {
-	switch t := e.(type) {
-	case exp.ExpressionList:
-		if t.Type() == exp.OrType {
-			return slices.ContainsFunc(t.Expressions(), matchesEveryRow)
-		}
-		return !slices.ContainsFunc(t.Expressions(), func(e exp.Expression) bool { return !matchesEveryRow(e) })
-	case exp.Ex:
-		return len(t) == 0
-	case exp.LiteralExpression:
-		return t.Literal() == "" && len(t.Args()) == 0
 	default:
 		return false
 	}

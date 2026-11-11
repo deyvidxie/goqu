@@ -137,7 +137,7 @@ func (sd *SelectDataset) Update() *UpdateDataset {
 		}
 	}
 	u.clauses = c
-	return u
+	return u.SetError(sd.err)
 }
 
 // Creates a new InsertDataset using the FROM of this dataset. This method will also copy over the `WITH` clause to the
@@ -180,7 +180,7 @@ func (sd *SelectDataset) Delete() *DeleteDataset {
 		}
 	}
 	d.clauses = c
-	return d
+	return d.SetError(sd.err)
 }
 
 // Creates a new TruncateDataset using the FROM of this dataset.
@@ -275,7 +275,7 @@ func (sd *SelectDataset) ClearSelect() *SelectDataset {
 func (sd *SelectDataset) SelectAppend(selects ...interface{}) *SelectDataset {
 	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, selects...)
 	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptySelect)
+		return sd.copy(sd.clauses).SetError(errEmptySelectAppend)
 	}
 	return sd.copy(sd.clauses.SelectAppend(cols))
 }
@@ -407,7 +407,7 @@ func (sd *SelectDataset) joinTable(join exp.JoinExpression) *SelectDataset {
 
 // Adds a WHERE clause. See examples.
 func (sd *SelectDataset) Where(expressions ...exp.Expression) *SelectDataset {
-	if len(expressions) == 0 && sd.clauses.Where() == nil {
+	if len(expressions) == 0 {
 		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
 	}
 	return sd.copy(sd.clauses.WhereAppend(expressions...))
@@ -455,9 +455,13 @@ func (sd *SelectDataset) GroupBy(groupBy ...interface{}) *SelectDataset {
 func (sd *SelectDataset) GroupByAppend(groupBy ...interface{}) *SelectDataset {
 	cols := exp.NewColumnListExpression(sd.subqueries, sd.tagName, groupBy...)
 	if cols.IsEmpty() {
-		return sd.copy(sd.clauses).SetError(errEmptyGroupBy)
+		return sd.copy(sd.clauses).SetError(errEmptyGroupByAppend)
 	}
 	return sd.copy(sd.clauses.GroupByAppend(cols))
+}
+
+func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
+	return sd.copy(sd.clauses.SetGroupBy(nil))
 }
 
 // Adds a HAVING clause. See examples.
@@ -474,8 +478,8 @@ func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
-	if noOrder(order) {
-		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrder); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.SetOrder(order...))
 }
@@ -483,8 +487,8 @@ func (sd *SelectDataset) Order(order ...exp.OrderedExpression) *SelectDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectDataset {
-	if noOrder(order) {
-		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrderAppend); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.OrderAppend(order...))
 }
@@ -492,14 +496,10 @@ func (sd *SelectDataset) OrderAppend(order ...exp.OrderedExpression) *SelectData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (sd *SelectDataset) OrderPrepend(order ...exp.OrderedExpression) *SelectDataset {
-	if noOrder(order) {
-		return sd.copy(sd.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrderPrepend); err != nil {
+		return sd.copy(sd.clauses).SetError(err)
 	}
 	return sd.copy(sd.clauses.OrderPrepend(order...))
-}
-
-func (sd *SelectDataset) ClearGroupBy() *SelectDataset {
-	return sd.copy(sd.clauses.SetGroupBy(nil))
 }
 
 // Removes the ORDER BY clause. See examples.
@@ -705,7 +705,7 @@ func (sd *SelectDataset) ScanStructContext(ctx context.Context, i interface{}) (
 	if sd.queryFactory == nil {
 		return false, errNoDatabase
 	}
-	return sd.selectStructColumns(i).Limit(1).Executor().ScanStructContext(ctx, i)
+	return sd.selectStructColumns(i).limitOne().Executor().ScanStructContext(ctx, i)
 }
 
 // Generates the SELECT sql for this dataset and uses Exec#ScanVals to scan the results into a slice of primitive values
@@ -732,7 +732,7 @@ func (sd *SelectDataset) ScanValContext(ctx context.Context, i interface{}) (boo
 	if sd.queryFactory == nil {
 		return false, errNoDatabase
 	}
-	return sd.Limit(1).Executor().ScanValContext(ctx, i)
+	return sd.limitOne().Executor().ScanValContext(ctx, i)
 }
 
 func (sd *SelectDataset) ScanAllStructs[T any](ctx context.Context) ([]T, error) {
@@ -746,7 +746,7 @@ func (sd *SelectDataset) ScanOneStruct[T any](ctx context.Context) (row T, found
 	if sd.queryFactory == nil {
 		return row, false, errNoDatabase
 	}
-	return sd.selectStructColumns(new([]T)).Limit(1).Executor().ScanOneStruct[T](ctx)
+	return sd.selectStructColumns(new([]T)).limitOne().Executor().ScanOneStruct[T](ctx)
 }
 
 func (sd *SelectDataset) IterStructs[T any](ctx context.Context) iter.Seq2[T, error] {
@@ -768,11 +768,25 @@ func (sd *SelectDataset) ScanOneVal[T any](ctx context.Context) (val T, found bo
 	if sd.queryFactory == nil {
 		return val, false, errNoDatabase
 	}
-	return sd.Limit(1).Executor().ScanOneVal[T](ctx)
+	return sd.limitOne().Executor().ScanOneVal[T](ctx)
 }
 
-func noOrder(order []exp.OrderedExpression) bool {
-	return len(order) == 0 || slices.Contains(order, nil)
+func (sd *SelectDataset) limitOne() *SelectDataset {
+	if limit, ok := sd.clauses.Limit().(uint); ok && limit == 0 {
+		return sd
+	}
+	return sd.Limit(1)
+}
+
+func checkOrder(order []exp.OrderedExpression, errEmpty error) error {
+	switch {
+	case len(order) == 0:
+		return errEmpty
+	case slices.Contains(order, nil):
+		return errNilOrder
+	default:
+		return nil
+	}
 }
 
 func (sd *SelectDataset) selectStructColumns(target interface{}) *SelectDataset {

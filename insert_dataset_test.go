@@ -373,24 +373,45 @@ func (ids *insertDatasetSuite) TestEmptySources() {
 	type row struct {
 		A int `db:"a"`
 	}
+	const (
+		noRows      = "goqu: no rows found when generating insert sql"
+		emptyCols   = "goqu: empty Cols found when generating insert sql"
+		colsOnly    = "goqu: Cols without Vals or FromQuery found when generating insert sql"
+		emptyValRow = "goqu: empty Vals row without Cols found when generating insert sql"
+	)
+	for name, c := range map[string]struct {
+		ds  *goqu.InsertDataset
+		err string
+	}{
+		"empty slice":             {goqu.Insert("t").Rows([]row{}), noRows},
+		"empty array":             {goqu.Insert("t").Rows([0]row{}), noRows},
+		"pointer to empty slice":  {goqu.Insert("t").Rows(&[]goqu.Record{}), noRows},
+		"no rows":                 {goqu.Insert("t").Rows(), noRows},
+		"empty spread":            {goqu.Insert("t").Rows([]interface{}{}...), noRows},
+		"no vals":                 {goqu.Insert("t").Vals(), noRows},
+		"cols then empty Vals()":  {goqu.Insert("t").Cols("a", "b").Vals(), noRows},
+		"empty cols":              {goqu.Insert("t").Cols(), emptyCols},
+		"empty cols with vals":    {goqu.Insert("t").Cols().Vals(goqu.Vals{1}), emptyCols},
+		"empty cols with query":   {goqu.Insert("t").Cols().FromQuery(goqu.From("s")), emptyCols},
+		"cols only":               {goqu.Insert("t").Cols("a", "b"), colsOnly},
+		"cols after ClearVals":    {goqu.Insert("t").Cols("a").Vals(goqu.Vals{1}).ClearVals(), colsOnly},
+		"empty vals row, no cols": {goqu.Insert("t").Vals(goqu.Vals{}), emptyValRow},
+	} {
+		_, _, err := c.ds.ToSQL()
+		ids.EqualError(err, c.err, name)
+		ids.True(goqu.IsInvalidExpression(err), name)
+	}
+}
+
+func (ids *insertDatasetSuite) TestMultipleSources() {
 	for name, ds := range map[string]*goqu.InsertDataset{
-		"empty slice":             goqu.Insert("t").Rows([]row{}),
-		"empty array":             goqu.Insert("t").Rows([0]row{}),
-		"pointer to empty slice":  goqu.Insert("t").Rows(&[]goqu.Record{}),
-		"no rows":                 goqu.Insert("t").Rows(),
-		"empty spread":            goqu.Insert("t").Rows([]interface{}{}...),
-		"empty cols":              goqu.Insert("t").Cols(),
-		"empty cols with vals":    goqu.Insert("t").Cols().Vals(goqu.Vals{1}),
-		"empty cols with query":   goqu.Insert("t").Cols().FromQuery(goqu.From("s")),
-		"vals and query":          goqu.Insert("t").Vals(goqu.Vals{1}).FromQuery(goqu.From("s")),
-		"rows and query":          goqu.Insert("t").Rows(goqu.Record{"a": 1}).FromQuery(goqu.From("s")),
-		"cols with no vals":       goqu.Insert("t").Cols("a", "b").Vals(),
-		"no vals":                 goqu.Insert("t").Vals(),
-		"cols without vals":       goqu.Insert("t").Cols("a", "b"),
-		"empty vals row, no cols": goqu.Insert("t").Vals(goqu.Vals{}),
+		"vals and query": goqu.Insert("t").Vals(goqu.Vals{1}).FromQuery(goqu.From("s")),
+		"rows and query": goqu.Insert("t").Rows(goqu.Record{"a": 1}).FromQuery(goqu.From("s")),
+		"rows and vals":  goqu.Insert("t").Rows(goqu.Record{"a": 1}).Vals(goqu.Vals{1}),
 	} {
 		_, _, err := ds.ToSQL()
-		ids.True(goqu.IsInvalidExpression(err), "%s: %v", name, err)
+		ids.EqualError(err, "goqu: more than one of Rows, Vals and FromQuery found when generating insert sql", name)
+		ids.True(goqu.IsInvalidExpression(err), name)
 	}
 }
 

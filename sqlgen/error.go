@@ -10,24 +10,25 @@ import (
 )
 
 var (
-	errNoSourceForInsert    = errors.NewInvalidExpressionError("no source found when generating insert sql")
-	errNoSourceForUpdate    = errors.NewInvalidExpressionError("no source found when generating update sql")
-	errNoSourceForDelete    = errors.NewInvalidExpressionError("no source found when generating delete sql")
-	errNoSourceForTruncate  = errors.NewInvalidExpressionError("no source found when generating truncate sql")
-	errNoSetValuesForUpdate = errors.NewInvalidExpressionError("no set values found when generating update sql")
-	errEmptyWhereForUpdate  = errors.NewInvalidExpressionError(
+	errNoSourceForInsert            = errors.NewInvalidExpressionError("no source found when generating insert sql")
+	errNoSourceForUpdate            = errors.NewInvalidExpressionError("no source found when generating update sql")
+	errNoSourceForDelete            = errors.NewInvalidExpressionError("no source found when generating delete sql")
+	errNoSourceForTruncate          = errors.NewInvalidExpressionError("no source found when generating truncate sql")
+	errNoSetValuesForUpdate         = errors.NewInvalidExpressionError("no set values found when generating update sql")
+	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
+	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
+
+	errNoRowsForInsert       = errors.NewInvalidExpressionError("no rows found when generating insert sql")
+	errInsertColsWithoutVals = errors.NewInvalidExpressionError("Cols without Vals or FromQuery found when generating insert sql")
+	errEmptyValsWithoutCols  = errors.NewInvalidExpressionError("empty Vals row without Cols found when generating insert sql")
+	errEmptyInsertCols       = errors.NewInvalidExpressionError("empty Cols found when generating insert sql")
+	errMultipleInsertSources = errors.NewInvalidExpressionError("more than one of Rows, Vals and FromQuery found when generating insert sql")
+	errEmptyWhereForUpdate   = errors.NewInvalidExpressionError(
 		"WHERE matches every row when generating update sql; omit Where or call ClearWhere to update every row",
 	)
 	errEmptyWhereForDelete = errors.NewInvalidExpressionError(
 		"WHERE matches every row when generating delete sql; omit Where or call ClearWhere to delete every row",
 	)
-	errNoRowsForInsert              = errors.NewInvalidExpressionError("no rows found when generating insert sql")
-	errInsertColsWithoutVals        = errors.NewInvalidExpressionError("insert Cols requires Vals or FromQuery")
-	errEmptyValsWithoutCols         = errors.NewInvalidExpressionError("insert Vals without Cols requires a non-empty row")
-	errEmptyInsertCols              = errors.NewInvalidExpressionError("insert Cols requires at least one column")
-	errMultipleInsertSources        = errors.NewInvalidExpressionError("insert accepts only one of Rows, Vals and FromQuery")
-	errNoUpdatedValuesProvided      = errors.NewInvalidExpressionError("no update values provided")
-	errConflictUpdateValuesRequired = errors.NewInvalidExpressionError("values are required for on conflict update expression")
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
@@ -106,10 +107,6 @@ func errFragmentNotSupported(dialect, sqlType string, f SQLFragmentType) error {
 
 func errRowLengthMismatch(expected, actual int) error {
 	return errors.NewInvalidExpressionError("rows with different value length, expected %d got %d", expected, actual)
-}
-
-func errLimitZeroWithOffsetNotSupported(dialect string) error {
-	return errors.NewUnsupportedError("dialect does not support LIMIT 0 with an OFFSET [dialect=%s]", dialect)
 }
 
 func errOnConflictNotSupported(dialect string) error {
@@ -286,6 +283,10 @@ func errJSONCandidate(cause error) error {
 
 func errOffsetWithoutOrder(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support OFFSET without ORDER BY [dialect=%s]", dialect)
+}
+
+func errLimitZeroWithOffsetNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support LIMIT 0 with an OFFSET [dialect=%s]", dialect)
 }
 
 func errMultipleTruncateTablesNotSupported(dialect string) error {

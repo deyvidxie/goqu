@@ -511,18 +511,28 @@ func (dds *deleteDatasetSuite) TestToSQL_postgresRejectsLimitZero() {
 
 func (dds *deleteDatasetSuite) TestEmptyOrder() {
 	var noOrder []exp.OrderedExpression
-	for name, ds := range map[string]interface {
-		ToSQL() (string, []interface{}, error)
+	bd := goqu.Delete("test")
+	const (
+		emptyOrder = "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY"
+		nilOrder   = "goqu: Order expressions must not be nil"
+	)
+	for name, c := range map[string]struct {
+		ds interface {
+			ToSQL() (string, []interface{}, error)
+		}
+		err string
 	}{
-		"Order":            goqu.Delete("test").Order(noOrder...),
-		"Order nil":        goqu.Delete("test").Order(nil),
-		"OrderAppend":      goqu.Delete("test").Order(goqu.C("a").Asc()).OrderAppend(noOrder...),
-		"OrderAppend nil":  goqu.Delete("test").Order(goqu.C("a").Asc()).OrderAppend(nil),
-		"OrderPrepend":     goqu.Delete("test").OrderPrepend(noOrder...),
-		"OrderPrepend nil": goqu.Delete("test").OrderPrepend(goqu.C("a").Asc(), nil),
+		"Order":            {bd.Order(noOrder...), emptyOrder},
+		"Order nil":        {bd.Order(nil), nilOrder},
+		"OrderAppend":      {bd.Order(goqu.C("a").Asc()).OrderAppend(noOrder...), "goqu: OrderAppend requires at least one expression"},
+		"OrderAppend nil":  {bd.Order(goqu.C("a").Asc()).OrderAppend(nil), nilOrder},
+		"OrderPrepend":     {bd.OrderPrepend(noOrder...), "goqu: OrderPrepend requires at least one expression"},
+		"OrderPrepend nil": {bd.OrderPrepend(goqu.C("a").Asc(), nil), nilOrder},
+		"from select":      {goqu.Dialect("mysql").From("test").Order(noOrder...).Limit(10).Delete(), emptyOrder},
 	} {
-		_, _, err := ds.ToSQL()
-		dds.EqualError(err, "goqu: Order requires at least one expression; use ClearOrder to drop ORDER BY", name)
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsInvalidExpression(err), name)
 	}
 }
 
@@ -543,6 +553,7 @@ func (dds *deleteDatasetSuite) TestToSQL_emptyWhere() {
 	} {
 		_, _, err := d.ToSQL()
 		dds.EqualError(err, "goqu: WHERE matches every row when generating delete sql; omit Where or call ClearWhere to delete every row", name)
+		dds.True(goqu.IsInvalidExpression(err), name)
 	}
 
 	for name, c := range map[string]struct {

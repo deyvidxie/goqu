@@ -264,8 +264,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_emptySources() {
 	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
 	const noRows = "goqu: no rows found when generating insert sql"
-	const colsWithoutVals = "goqu: insert Cols requires Vals or FromQuery"
-	const emptyCols = "goqu: insert Cols requires at least one column"
+	const colsWithoutVals = "goqu: Cols without Vals or FromQuery found when generating insert sql"
+	const emptyCols = "goqu: empty Cols found when generating insert sql"
 	cases := make([]insertTestCase, 0, 16)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
@@ -308,8 +308,8 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_valsWithoutCols() {
 		},
 		insertTestCase{clause: mismatched, err: `goqu: rows with different value length, expected 2 got 1`},
 		insertTestCase{clause: mismatched, err: `goqu: rows with different value length, expected 2 got 1`, isPrepared: true},
-		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`},
-		insertTestCase{clause: emptyRow, err: `goqu: insert Vals without Cols requires a non-empty row`, isPrepared: true},
+		insertTestCase{clause: emptyRow, err: `goqu: empty Vals row without Cols found when generating insert sql`},
+		insertTestCase{clause: emptyRow, err: `goqu: empty Vals row without Cols found when generating insert sql`, isPrepared: true},
 	)
 }
 
@@ -961,7 +961,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_multipleInsertSources() {
 		SetCols(exp.NewColumnListExpression(nil, "db", "a", "b"))
 	vals := [][]interface{}{{"a1", "b1"}}
 	rows := []interface{}{exp.Record{"a": "a1", "b": "b1"}}
-	const multiple = "goqu: insert accepts only one of Rows, Vals and FromQuery"
+	const multiple = "goqu: more than one of Rows, Vals and FromQuery found when generating insert sql"
 	cases := make([]insertTestCase, 0, 8)
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,

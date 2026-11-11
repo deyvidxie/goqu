@@ -137,7 +137,7 @@ func (ud *UpdateDataset) From(tables ...interface{}) *UpdateDataset {
 
 // Adds a WHERE clause. See examples.
 func (ud *UpdateDataset) Where(expressions ...exp.Expression) *UpdateDataset {
-	if len(expressions) == 0 && ud.clauses.Where() == nil {
+	if len(expressions) == 0 {
 		expressions = []exp.Expression{exp.NewExpressionList(exp.AndType)}
 	}
 	return ud.copy(ud.clauses.WhereAppend(expressions...))
@@ -150,8 +150,8 @@ func (ud *UpdateDataset) ClearWhere() *UpdateDataset {
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.
 func (ud *UpdateDataset) Order(order ...exp.OrderedExpression) *UpdateDataset {
-	if noOrder(order) {
-		return ud.copy(ud.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrder); err != nil {
+		return ud.copy(ud.clauses).SetError(err)
 	}
 	return ud.copy(ud.clauses.SetOrder(order...))
 }
@@ -159,8 +159,8 @@ func (ud *UpdateDataset) Order(order ...exp.OrderedExpression) *UpdateDataset {
 // Adds a more columns to the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (ud *UpdateDataset) OrderAppend(order ...exp.OrderedExpression) *UpdateDataset {
-	if noOrder(order) {
-		return ud.copy(ud.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrderAppend); err != nil {
+		return ud.copy(ud.clauses).SetError(err)
 	}
 	return ud.copy(ud.clauses.OrderAppend(order...))
 }
@@ -168,8 +168,8 @@ func (ud *UpdateDataset) OrderAppend(order ...exp.OrderedExpression) *UpdateData
 // Adds a more columns to the beginning of the current ORDER BY clause. If no order has be previously specified it is the same as
 // calling Order. See examples.
 func (ud *UpdateDataset) OrderPrepend(order ...exp.OrderedExpression) *UpdateDataset {
-	if noOrder(order) {
-		return ud.copy(ud.clauses).SetError(errEmptyOrder)
+	if err := checkOrder(order, errEmptyOrderPrepend); err != nil {
+		return ud.copy(ud.clauses).SetError(err)
 	}
 	return ud.copy(ud.clauses.OrderPrepend(order...))
 }
