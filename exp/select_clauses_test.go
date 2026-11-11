@@ -310,7 +310,7 @@ func (scs *selectClausesSuite) TestQualifyAppend() {
 }
 
 func (scs *selectClausesSuite) TestWindows() {
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 
 	c := exp.NewSelectClauses()
 	c2 := c.WindowsAppend(w)
@@ -321,7 +321,7 @@ func (scs *selectClausesSuite) TestWindows() {
 }
 
 func (scs *selectClausesSuite) TestSetWindows() {
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 
 	c := exp.NewSelectClauses()
 	c2 := c.SetWindows([]exp.WindowExpression{w})
@@ -332,8 +332,8 @@ func (scs *selectClausesSuite) TestSetWindows() {
 }
 
 func (scs *selectClausesSuite) TestWindowsAppend() {
-	w1 := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w1"), nil, nil, nil)
-	w2 := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w2"), nil, nil, nil)
+	w1 := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w1"), nil, nil, nil)
+	w2 := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w2"), nil, nil, nil)
 
 	c := exp.NewSelectClauses()
 	c2 := c.WindowsAppend(w1).WindowsAppend(w2)
@@ -343,8 +343,18 @@ func (scs *selectClausesSuite) TestWindowsAppend() {
 	scs.Equal([]exp.WindowExpression{w1, w2}, c2.Windows())
 }
 
+func (scs *selectClausesSuite) TestWindowsAppend_noWindows() {
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	for _, c := range []exp.SelectClauses{exp.NewSelectClauses(), exp.NewSelectClauses().WindowsAppend(w)} {
+		ws := c.WindowsAppend().Windows()
+		invalid, ok := ws[len(ws)-1].(exp.InvalidExpression)
+		scs.Require().True(ok)
+		scs.EqualError(invalid.Err(), "goqu: WindowsAppend requires at least one window")
+	}
+}
+
 func (scs *selectClausesSuite) TestClearWindows() {
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 
 	c := exp.NewSelectClauses().SetWindows([]exp.WindowExpression{w})
 	scs.Nil(c.ClearWindows().Windows())

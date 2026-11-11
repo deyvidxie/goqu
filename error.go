@@ -61,6 +61,7 @@ var (
 	errEmptyCols           = errors.NewInvalidExpressionError("Cols requires at least one column; use ClearCols to drop Cols")
 	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
 	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
+	errEmptyWindowAppend   = errors.NewInvalidExpressionError("WindowAppend requires at least one window")
 	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
 	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")
 	errEmptyVals           = errors.NewInvalidExpressionError("Vals requires at least one row")

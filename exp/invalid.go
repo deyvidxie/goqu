@@ -20,6 +20,26 @@ func emptyAppendList(cl ColumnListExpression, method, noun string) ColumnListExp
 	return cl.Append(invalid)
 }
 
+type invalidWindowExpression struct {
+	WindowExpression
+	err error
+}
+
+func (iw invalidWindowExpression) Expression() Expression { return iw }
+
+func (iw invalidWindowExpression) Clone() Expression { return iw }
+
+func (iw invalidWindowExpression) Err() error { return iw.err }
+
+func (invalidWindowExpression) isInvalid() {}
+
+func emptyAppendWindow(method string) WindowExpression {
+	return invalidWindowExpression{
+		WindowExpression: NewWindowExpression(nil, nil, nil, nil),
+		err:              errEmptyAppend(method, "window"),
+	}
+}
+
 func emptyAppendExpressions(method string) []Expression {
 	return []Expression{newInvalidExpression(errEmptyAppend(method, "expression"))}
 }

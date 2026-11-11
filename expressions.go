@@ -16,7 +16,7 @@ type (
 )
 
 // emptyWindow is an empty WINDOW clause without name
-var emptyWindow = exp.NewWindowExpression("db", nil, nil, nil, nil)
+var emptyWindow = exp.NewWindowExpression(nil, nil, nil, nil)
 
 const (
 	Wait       = exp.Wait
@@ -379,9 +379,9 @@ func W(ws ...string) exp.WindowExpression {
 	case 0:
 		return emptyWindow
 	case 1:
-		return exp.NewWindowExpression("db", I(ws[0]), nil, nil, nil)
+		return exp.NewWindowExpression(I(ws[0]), nil, nil, nil)
 	default:
-		return exp.NewWindowExpression("db", I(ws[0]), I(ws[1]), nil, nil)
+		return exp.NewWindowExpression(I(ws[0]), I(ws[1]), nil, nil)
 	}
 }
 

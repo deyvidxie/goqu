@@ -616,6 +616,9 @@ func (sd *SelectDataset) Window(ws ...exp.WindowExpression) *SelectDataset {
 
 // Sets the WINDOW clauses
 func (sd *SelectDataset) WindowAppend(ws ...exp.WindowExpression) *SelectDataset {
+	if len(ws) == 0 {
+		return sd.copy(sd.clauses).SetError(errEmptyWindowAppend)
+	}
 	return sd.copy(sd.clauses.WindowsAppend(ws...))
 }
 

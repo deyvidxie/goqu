@@ -223,7 +223,7 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		return err
 	}
 	expression := func(e any) error {
-		return toSQL(func(b sb.SQLBuilder) { sqlgen.NewExpressionSQLGenerator("test", opts).Generate(b, e) })
+		return toSQL(func(b sb.SQLBuilder) { sqlgen.NewExpressionSQLGenerator("test", "db", opts).Generate(b, e) })
 	}
 	mismatched := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "t", "")).

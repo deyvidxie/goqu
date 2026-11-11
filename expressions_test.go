@@ -192,10 +192,10 @@ func (ges *goquExpressionsSuite) TestT() {
 }
 
 func (ges *goquExpressionsSuite) TestW() {
-	ges.Equal(exp.NewWindowExpression("db", nil, nil, nil, nil), goqu.W())
-	ges.Equal(exp.NewWindowExpression("db", goqu.I("a"), nil, nil, nil), goqu.W("a"))
-	ges.Equal(exp.NewWindowExpression("db", goqu.I("a"), goqu.I("b"), nil, nil), goqu.W("a", "b"))
-	ges.Equal(exp.NewWindowExpression("db", goqu.I("a"), goqu.I("b"), nil, nil), goqu.W("a", "b", "c"))
+	ges.Equal(exp.NewWindowExpression(nil, nil, nil, nil), goqu.W())
+	ges.Equal(exp.NewWindowExpression(goqu.I("a"), nil, nil, nil), goqu.W("a"))
+	ges.Equal(exp.NewWindowExpression(goqu.I("a"), goqu.I("b"), nil, nil), goqu.W("a", "b"))
+	ges.Equal(exp.NewWindowExpression(goqu.I("a"), goqu.I("b"), nil, nil), goqu.W("a", "b", "c"))
 }
 
 func (ges *goquExpressionsSuite) TestOn() {

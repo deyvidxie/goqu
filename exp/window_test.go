@@ -16,14 +16,14 @@ func TestWindowExpressionSuite(t *testing.T) {
 }
 
 func (wet *windowExpressionTest) TestClone() {
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 	w2 := w.Clone()
 
 	wet.Equal(w, w2)
 }
 
 func (wet *windowExpressionTest) TestExpression() {
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 	w2 := w.Expression()
 
 	wet.Equal(w, w2)
@@ -31,14 +31,14 @@ func (wet *windowExpressionTest) TestExpression() {
 
 func (wet *windowExpressionTest) TestName() {
 	name := exp.NewIdentifierExpression("", "", "w")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil)
 
 	wet.Equal(name, w.Name())
 }
 
 func (wet *windowExpressionTest) TestPartitionCols() {
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, cols, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, cols, nil)
 
 	wet.Equal(cols, w.PartitionCols())
 	wet.Equal(cols, w.Clone().(exp.WindowExpression).PartitionCols())
@@ -46,7 +46,7 @@ func (wet *windowExpressionTest) TestPartitionCols() {
 
 func (wet *windowExpressionTest) TestOrderCols() {
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, cols)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, cols)
 
 	wet.Equal(cols, w.OrderCols())
 	wet.Equal(cols, w.Clone().(exp.WindowExpression).OrderCols())
@@ -54,31 +54,63 @@ func (wet *windowExpressionTest) TestOrderCols() {
 
 func (wet *windowExpressionTest) TestPartitionBy() {
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil).PartitionBy("a", "b")
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil).PartitionBy("a", "b")
 
 	wet.Equal(cols, w.PartitionCols())
 }
 
 func (wet *windowExpressionTest) TestOrderBy() {
 	cols := exp.NewColumnListExpression(nil, "db", "a", "b")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), nil, nil, nil).OrderBy("a", "b")
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), nil, nil, nil).OrderBy("a", "b")
 
 	wet.Equal(cols, w.OrderCols())
 }
 
 func (wet *windowExpressionTest) TestParent() {
 	parent := exp.NewIdentifierExpression("", "", "w1")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), parent, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), parent, nil, nil)
 
 	wet.Equal(parent, w.Parent())
 }
 
 func (wet *windowExpressionTest) TestInherit() {
 	parent := exp.NewIdentifierExpression("", "", "w1")
-	w := exp.NewWindowExpression("db", exp.NewIdentifierExpression("", "", "w"), parent, nil, nil)
+	w := exp.NewWindowExpression(exp.NewIdentifierExpression("", "", "w"), parent, nil, nil)
 
 	wet.Equal(parent, w.Parent())
 
 	w = w.Inherit("w2")
 	wet.Equal(exp.NewIdentifierExpression("", "", "w2"), w.Parent())
+}
+
+func (wet *windowExpressionTest) TestPartitionByAndOrderBy_noColumns() {
+	w := exp.NewWindowExpression(nil, nil, nil, nil)
+	var none []interface{}
+	for _, c := range []struct {
+		cols exp.ColumnListExpression
+		err  string
+	}{
+		{w.PartitionBy().PartitionCols(), "goqu: PartitionBy requires at least one column"},
+		{w.PartitionBy(none...).PartitionCols(), "goqu: PartitionBy requires at least one column"},
+		{w.PartitionBy(nil).PartitionCols(), "goqu: PartitionBy requires at least one column"},
+		{w.OrderBy().OrderCols(), "goqu: OrderBy requires at least one column"},
+		{w.OrderBy(none...).OrderCols(), "goqu: OrderBy requires at least one column"},
+	} {
+		wet.Require().Len(c.cols.Columns(), 1, c.err)
+		invalid, ok := c.cols.Columns()[0].(exp.InvalidExpression)
+		wet.Require().True(ok, c.err)
+		wet.EqualError(invalid.Err(), c.err)
+	}
+}
+
+func (wet *windowExpressionTest) TestPartitionBy_keepsStructsForRender() {
+	type row struct {
+		A string `db:"a"`
+	}
+	cols := exp.NewWindowExpression(nil, nil, nil, nil).PartitionBy("x", row{}).PartitionCols().Columns()
+	wet.Require().Len(cols, 2)
+	wet.Equal(exp.NewIdentifierExpression("", "", "x"), cols[0])
+	sc, ok := cols[1].(exp.StructColumnsExpression)
+	wet.Require().True(ok)
+	wet.Equal(row{}, sc.Struct())
 }

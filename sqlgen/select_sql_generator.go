@@ -300,6 +300,10 @@ func (ssg *selectSQLGenerator) WindowSQL(b sb.SQLBuilder, windows []exp.WindowEx
 	}
 	b.Write(ssg.DialectOptions().WindowFragment)
 	for i, we := range windows {
+		if invalid, ok := we.(exp.InvalidExpression); ok {
+			b.SetError(invalid.Err())
+			return
+		}
 		if !we.HasName() {
 			b.SetError(errNoWindowName)
 		}

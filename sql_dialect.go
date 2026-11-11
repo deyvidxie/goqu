@@ -169,7 +169,7 @@ func newDialect(dialect, tagName string, do *SQLDialectOptions) *sqlDialect {
 		insertGen:      sqlgen.NewInsertSQLGenerator(dialect, tagName, do),
 		deleteGen:      sqlgen.NewDeleteSQLGenerator(dialect, tagName, do),
 		truncateGen:    sqlgen.NewTruncateSQLGenerator(dialect, tagName, do),
-		expressionGen:  sqlgen.NewExpressionSQLGenerator(dialect, do),
+		expressionGen:  sqlgen.NewExpressionSQLGenerator(dialect, tagName, do),
 	}
 }
 

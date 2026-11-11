@@ -124,7 +124,7 @@ func (joc joinOnCondition) IsEmpty() bool {
 
 // Creates a new USING clause to be used within a join
 func NewJoinUsingCondition(expressions ...interface{}) JoinCondition {
-	return joinUsingCondition{using: NewColumnListExpression(nil, "db", expressions...)}
+	return joinUsingCondition{using: newRenderTaggedColumnList(expressions...)}
 }
 
 func (juc joinUsingCondition) Type() JoinConditionType {
