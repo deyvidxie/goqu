@@ -1429,6 +1429,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_doNothingAsNoOpUpdate() {
 				isPrepared: prepared,
 			},
 			insertTestCase{clause: into.SetFrom(from).SetOnConflict(doNothing), err: noCols, isPrepared: prepared},
+			insertTestCase{clause: into.SetRows([]any{from}).SetOnConflict(doNothing), err: noCols, isPrepared: prepared},
 			insertTestCase{clause: into.SetOnConflict(doNothing), err: noCols, isPrepared: prepared},
 		)
 	}
