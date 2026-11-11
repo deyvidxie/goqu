@@ -95,6 +95,7 @@ func (wet *windowExpressionTest) TestPartitionByAndOrderBy_noColumns() {
 		{w.PartitionBy(nil).PartitionCols(), "goqu: PartitionBy requires at least one column"},
 		{w.OrderBy().OrderCols(), "goqu: OrderBy requires at least one column"},
 		{w.OrderBy(none...).OrderCols(), "goqu: OrderBy requires at least one column"},
+		{w.OrderBy(nil).OrderCols(), "goqu: OrderBy requires at least one column"},
 	} {
 		wet.Require().Len(c.cols.Columns(), 1, c.err)
 		invalid, ok := c.cols.Columns()[0].(exp.InvalidExpression)

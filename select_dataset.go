@@ -609,12 +609,10 @@ func (sd *SelectDataset) GetAs() exp.IdentifierExpression {
 	return sd.clauses.Alias()
 }
 
-// Sets the WINDOW clauses
 func (sd *SelectDataset) Window(ws ...exp.WindowExpression) *SelectDataset {
 	return sd.copy(sd.clauses.SetWindows(ws))
 }
 
-// Sets the WINDOW clauses
 func (sd *SelectDataset) WindowAppend(ws ...exp.WindowExpression) *SelectDataset {
 	if len(ws) == 0 {
 		return sd.copy(sd.clauses).SetError(errEmptyWindowAppend)
@@ -622,7 +620,6 @@ func (sd *SelectDataset) WindowAppend(ws ...exp.WindowExpression) *SelectDataset
 	return sd.copy(sd.clauses.WindowsAppend(ws...))
 }
 
-// Sets the WINDOW clauses
 func (sd *SelectDataset) ClearWindow() *SelectDataset {
 	return sd.copy(sd.clauses.ClearWindows())
 }
