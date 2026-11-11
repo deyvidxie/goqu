@@ -229,6 +229,9 @@ func TestUnregisteredDialectNameIsAnError(t *testing.T) {
 	assert.True(t, goqu.IsUnknownDialect(err))
 	_, _, err = goqu.NewTx(typo, nil).ExpressionSQL(goqu.C("a").Eq(1))
 	assert.True(t, goqu.IsUnknownDialect(err))
+
+	_, _, err = goqu.Dialect("MySQLL").From("t").ToSQL()
+	assert.EqualError(t, err, `goqu: dialect "MySQLL" is not registered; blank-import its dialect package or call RegisterDialect`)
 }
 
 func TestUnregisteredDialectNameFailsRawSQLScans(t *testing.T) {
