@@ -283,10 +283,10 @@ This error is returned on any subsequent call to `Error` or `ToSQL`:
 
 ```go
 var field, value string
-ds = GetDelete(field, value)
+ds := GetDelete(field, value)
 fmt.Println(ds.Error())
 
-sql, args, err = ds.ToSQL()
+_, _, err := ds.ToSQL()
 fmt.Println(err)
 ```
 

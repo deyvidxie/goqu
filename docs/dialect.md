@@ -3,7 +3,7 @@
 Dialects allow goqu to build the correct SQL for each database. Dialects packaged with `goqu`:
 
 * [mysql](../dialect/mysql/mysql.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/mysql"`, which also registers:
-  * `mysql8` - MySQL 8.0: CTEs, window functions, `LATERAL`, row-alias upserts
+  * `mysql8` - MySQL 8.0: CTEs, window functions, `LATERAL`, `FOR SHARE`/`NOWAIT`/`SKIP LOCKED`/`OF` locking, row-alias upserts
   * `mysql8nano` - `mysql8` with nanosecond time literals
 * [postgres](../dialect/postgres/postgres.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/postgres"`
 * [sqlite3](../dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`

@@ -942,10 +942,10 @@ This error is returned on any subsequent call to `Error` or `ToSQL`:
 
 ```go
 var name string = ""
-ds = GetSelect(name)
+ds := GetSelect(name)
 fmt.Println(ds.Error())
 
-sql, args, err = ds.ToSQL()
+_, _, err := ds.ToSQL()
 fmt.Println(err)
 ```
 
