@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	goqumysql "github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -433,38 +433,19 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 }
 
 func TestInsertOnConflictDoUpdateTarget(t *testing.T) {
-	upserts := func(d goqu.DialectWrapper) []*goqu.InsertDataset {
-		ds := d.Insert("test").Rows(goqu.Record{"a": "a", "b": 1})
-		return []*goqu.InsertDataset{
+	for _, dialect := range []string{"mysql", "mysql8", "mysql8nano"} {
+		ds := goqu.Dialect(dialect).Insert("test").Rows(goqu.Record{"a": "a", "b": 1})
+		for _, upsert := range []*goqu.InsertDataset{
 			ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"b": 2})),
 			ds.OnConflict(goqu.DoUpdateExcluded("a", "b")),
+		} {
+			_, _, err := upsert.ToSQL()
+			assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect="+dialect+"]")
+			assert.True(t, goqu.IsUnsupported(err), dialect)
 		}
-	}
-	for dialect, dialectOptions := range map[string]func() *goqu.SQLDialectOptions{
-		"mysql": goqumysql.DialectOptions, "mysql8": goqumysql.DialectOptionsV8, "mysql8nano": goqumysql.DialectOptionsV8Nano,
-	} {
-		t.Run(dialect, func(t *testing.T) {
-			for _, ds := range upserts(goqu.Dialect(dialect)) {
-				sql, _, err := ds.ToSQL()
-				assert.NoError(t, err)
-				assert.Contains(t, sql, " ON DUPLICATE KEY UPDATE `b`=")
-				assert.NotContains(t, sql, "(a)")
-			}
-
-			opts := dialectOptions()
-			opts.ErrorOnUnsupportedConflictTarget = true
-			strict := dialect + "-strict-conflict-target"
-			goqu.RegisterDialect(strict, "db", opts)
-			t.Cleanup(func() { goqu.DeregisterDialect(strict) })
-			for _, ds := range upserts(goqu.Dialect(strict)) {
-				_, _, err := ds.ToSQL()
-				assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect="+strict+"]")
-				assert.True(t, goqu.IsUnsupported(err))
-			}
-			_, _, err := goqu.Dialect(strict).Insert("test").Rows(goqu.Record{"a": "a"}).
-				OnConflict(goqu.DoUpdate("", goqu.Record{"a": "b"})).ToSQL()
-			assert.NoError(t, err)
-		})
+		sql, _, err := ds.OnConflict(goqu.DoUpdate("", goqu.Record{"b": 2})).ToSQL()
+		assert.NoError(t, err, dialect)
+		assert.Contains(t, sql, " ON DUPLICATE KEY UPDATE `b`=", dialect)
 	}
 }
 
@@ -574,7 +555,7 @@ func TestEmptyInList(t *testing.T) {
 func TestInsertOnConflictExcludedBesideEmptyIn(t *testing.T) {
 	sql, args, err := goqu.Dialect("mysql8").Insert("test").
 		Rows(goqu.Record{"a": "a", "b": 1, "c": 1}).
-		OnConflict(goqu.DoUpdate("a", goqu.Record{
+		OnConflict(goqu.DoUpdate("", goqu.Record{
 			"b": goqu.Excluded("b"),
 			"c": goqu.Case().When(goqu.C("c").In([]int{}), 1).Else(2),
 		})).
@@ -588,7 +569,7 @@ func TestInsertOnConflictExcludedBesideEmptyIn(t *testing.T) {
 func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 	sql, args, err := goqu.Dialect("mysql8").Insert("test").
 		Rows(goqu.Record{"a": "a", "b": 1}).
-		OnConflict(goqu.DoUpdate("a", goqu.Record{"b": goqu.Case().When(goqu.Excluded("b").In([]int{}), 1).Else(2)})).
+		OnConflict(goqu.DoUpdate("", goqu.Record{"b": goqu.Case().When(goqu.Excluded("b").In([]int{}), 1).Else(2)})).
 		ToSQL()
 	assert.NoError(t, err)
 	assert.Equal(t, "INSERT INTO `test` (`a`, `b`) VALUES ('a', 1) AS `excluded` "+
@@ -599,11 +580,11 @@ func TestInsertOnConflictEmptyInOnExcluded(t *testing.T) {
 func TestInsertOnConflictEmptyWhere(t *testing.T) {
 	ds := goqu.Dialect("mysql").Insert("test").Rows(goqu.Record{"a": 1})
 	for _, where := range [][]goqu.Expression{{goqu.Ex{}}, {goqu.ExOr{}}, {goqu.C("a").Eq(1)}} {
-		_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where(where...)).ToSQL()
+		_, _, err := ds.OnConflict(goqu.DoUpdate("", goqu.Record{"a": 2}).Where(where...)).ToSQL()
 		assert.EqualError(t, err, "goqu: dialect does not support upsert with where clause [dialect=mysql]", "%v", where)
 		assert.True(t, goqu.IsUnsupported(err), "%v", where)
 	}
-	_, _, err := ds.OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}).Where()).ToSQL()
+	_, _, err := ds.OnConflict(goqu.DoUpdate("", goqu.Record{"a": 2}).Where()).ToSQL()
 	assert.EqualError(t, err, "goqu: DoUpdate Where requires at least one expression")
 }
 

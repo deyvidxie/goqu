@@ -214,20 +214,11 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrder() {
 			args:       []interface{}{"b", "c"},
 		},
 	)
-
-	opts = sqlgen.DefaultDialectOptions()
-	opts.SupportsOrderByOnUpdate = false
-	usgs.assertCases(
-		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c'`},
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=?`, isPrepared: true, args: []interface{}{"b", "c"}},
-	)
 }
 
-func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderErrorOnUnsupported() {
+func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderUnsupported() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.SupportsOrderByOnUpdate = false
-	opts.ErrorOnUnsupportedOrderByOnUpdate = true
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b"})
@@ -247,9 +238,8 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withOrderErrorOnUnsupported() 
 	)
 }
 
-func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitErrorOnUnsupported() {
+func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimitUnsupported() {
 	opts := sqlgen.DefaultDialectOptions()
-	opts.ErrorOnUnsupportedLimitOnUpdate = true
 	uc := exp.NewUpdateClauses().
 		SetTable(exp.NewIdentifierExpression("", "test", "")).
 		SetSetValues(exp.Record{"a": "b"})
@@ -286,14 +276,6 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_withLimit() {
 		sqlgen.NewUpdateSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
 		updateTestCase{clause: uc, err: "goqu: dialect does not support LIMIT on UPDATE [dialect=test]"},
 		updateTestCase{clause: uc.SetLimit(uint(0)), err: "goqu: dialect does not support LIMIT on UPDATE [dialect=test]"},
-	)
-
-	opts = sqlgen.DefaultDialectOptions()
-	opts.ErrorOnUnsupportedLimitOnUpdate = false
-	usgs.assertCases(
-		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"='b',"b"='c'`},
-		updateTestCase{clause: uc, sql: `UPDATE "test" SET "a"=?,"b"=?`, isPrepared: true, args: []interface{}{"b", "c"}},
 	)
 }
 

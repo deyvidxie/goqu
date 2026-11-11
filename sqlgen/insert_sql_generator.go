@@ -419,7 +419,7 @@ func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sb.SQLBuilder, target s
 		} else {
 			b.WriteRunes(opts.LeftParenRune).WriteStrings(target).WriteRunes(opts.RightParenRune)
 		}
-	case opts.ErrorOnUnsupportedConflictTarget:
+	default:
 		b.SetError(errConflictTargetNotSupported(isg.Dialect()))
 	}
 }

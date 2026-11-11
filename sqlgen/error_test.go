@@ -44,7 +44,6 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}},
 		{"DoUpdate target", "conflict target clause", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsConflictTarget = false
-			o.ErrorOnUnsupportedConflictTarget = true
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Insert("t").Rows(goqu.Record{"a": 1}).OnConflict(goqu.DoUpdate("a", goqu.Record{"a": 2}))
 		}},
@@ -84,24 +83,16 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": 1}).From("u")
 		}},
-		{"UPDATE ORDER BY", "ORDER BY on UPDATE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedOrderByOnUpdate = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
+		{"UPDATE ORDER BY", "ORDER BY on UPDATE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": 1}).Order(goqu.C("a").Asc())
 		}},
-		{"UPDATE LIMIT", "LIMIT on UPDATE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedLimitOnUpdate = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
+		{"UPDATE LIMIT", "LIMIT on UPDATE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Update("t").Set(goqu.Record{"a": 1}).Limit(1)
 		}},
-		{"DELETE ORDER BY", "ORDER BY on DELETE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedOrderByOnDelete = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
+		{"DELETE ORDER BY", "ORDER BY on DELETE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Delete("t").Order(goqu.C("a").Asc())
 		}},
-		{"DELETE LIMIT", "LIMIT on DELETE", func(o *sqlgen.SQLDialectOptions) {
-			o.ErrorOnUnsupportedLimitOnDelete = true
-		}, func(d goqu.DialectWrapper) sqlBuilder {
+		{"DELETE LIMIT", "LIMIT on DELETE", func(*sqlgen.SQLDialectOptions) {}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.Delete("t").Limit(1)
 		}},
 		{"DISTINCT ON", "DISTINCT ON clause", func(o *sqlgen.SQLDialectOptions) {

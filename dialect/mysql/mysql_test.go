@@ -681,7 +681,7 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	e2 := entry{Int: 10, String: "2.000000"}
 	_, err = ds.Insert().
 		Rows(e2).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"})).
+		OnConflict(goqu.DoUpdate("", goqu.Record{"string": "upsert"})).
 		Executor().Exec()
 	mt.NoError(err)
 	_, err = ds.Where(goqu.C("int").Eq(10)).ScanStruct(&entryActual)
@@ -695,7 +695,7 @@ func (mt *mysqlTest) TestInsert_OnConflict() {
 	}
 	_, err = ds.Insert().
 		Rows(entries).
-		OnConflict(goqu.DoUpdate("int", goqu.Record{"string": "upsert"}).Where(goqu.C("int").Eq(9))).
+		OnConflict(goqu.DoUpdate("", goqu.Record{"string": "upsert"}).Where(goqu.C("int").Eq(9))).
 		Executor().Exec()
 	mt.EqualError(err, "goqu: dialect does not support upsert with where clause [dialect=mysql]")
 }

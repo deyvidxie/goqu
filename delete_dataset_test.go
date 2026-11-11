@@ -556,13 +556,21 @@ func (dds *deleteDatasetSuite) TestEmptyWhere() {
 	dds.Equal(`DELETE FROM "test"`, sql)
 }
 
-func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {
-	for _, limit := range []uint{0, 1} {
-		_, _, err := goqu.Delete("test").Limit(limit).ToSQL()
-		dds.EqualError(err, "goqu: dialect does not support LIMIT on DELETE [dialect=default]")
-		dds.True(goqu.IsUnsupported(err))
+func (dds *deleteDatasetSuite) TestToSQL_defaultDialectRejectsLimitAndOrder() {
+	bd := goqu.Delete("test")
+	for name, c := range map[string]struct {
+		ds  *goqu.DeleteDataset
+		err string
+	}{
+		"Limit(0)": {bd.Limit(0), "goqu: dialect does not support LIMIT on DELETE [dialect=default]"},
+		"Limit(1)": {bd.Limit(1), "goqu: dialect does not support LIMIT on DELETE [dialect=default]"},
+		"Order":    {bd.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on DELETE [dialect=default]"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		dds.EqualError(err, c.err, name)
+		dds.True(goqu.IsUnsupported(err), name)
 	}
-	sql, _, err := goqu.Delete("test").LimitAll().Order(goqu.C("a").Asc()).ToSQL()
+	sql, _, err := bd.LimitAll().ToSQL()
 	dds.NoError(err)
 	dds.Equal(`DELETE FROM "test"`, sql)
 }

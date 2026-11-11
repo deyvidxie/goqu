@@ -409,7 +409,7 @@ UPDATE "test" SET "foo"='bar' WHERE (("a" > 10) AND ("b" < 10) AND ("c" IS NULL)
 <a name="order"></a>
 **[Order](https://godoc.org/github.com/doug-martin/goqu/#UpdateDataset.Order)**
 
-**NOTE** This will only work if your dialect supports it. Dialects that do not support it return an error, except the default dialect, which drops the clause.
+**NOTE** This will only work if your dialect supports it. Dialects that do not support it, including the default dialect, return an error.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"

@@ -572,13 +572,21 @@ func (uds *updateDatasetSuite) TestEmptyWhere() {
 	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
 }
 
-func (uds *updateDatasetSuite) TestToSQL_defaultDialectRejectsLimitDropsOrder() {
-	for _, limit := range []uint{0, 1} {
-		_, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).Limit(limit).ToSQL()
-		uds.EqualError(err, "goqu: dialect does not support LIMIT on UPDATE [dialect=default]")
-		uds.True(goqu.IsUnsupported(err))
+func (uds *updateDatasetSuite) TestToSQL_defaultDialectRejectsLimitAndOrder() {
+	bd := goqu.Update("test").Set(goqu.Record{"a": 1})
+	for name, c := range map[string]struct {
+		ds  *goqu.UpdateDataset
+		err string
+	}{
+		"Limit(0)": {bd.Limit(0), "goqu: dialect does not support LIMIT on UPDATE [dialect=default]"},
+		"Limit(1)": {bd.Limit(1), "goqu: dialect does not support LIMIT on UPDATE [dialect=default]"},
+		"Order":    {bd.Order(goqu.C("a").Asc()), "goqu: dialect does not support ORDER BY on UPDATE [dialect=default]"},
+	} {
+		_, _, err := c.ds.ToSQL()
+		uds.EqualError(err, c.err, name)
+		uds.True(goqu.IsUnsupported(err), name)
 	}
-	sql, _, err := goqu.Update("test").Set(goqu.Record{"a": 1}).LimitAll().Order(goqu.C("a").Asc()).ToSQL()
+	sql, _, err := bd.LimitAll().ToSQL()
 	uds.NoError(err)
 	uds.Equal(`UPDATE "test" SET "a"=1`, sql)
 }

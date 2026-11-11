@@ -530,7 +530,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 	icDn := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
 	icDnCols := ic.SetOnConflict(exp.NewDoNothingConflictExpression().SetCols(exp.NewColumnListExpression(nil, "db", "a")))
 	icDnEmptyCols := ic.SetOnConflict(exp.NewDoNothingConflictExpression().SetCols(exp.NewColumnListExpression(nil, "db")))
-	icDu := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("test", exp.Record{"a": "b"}))
+	icDu := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("", exp.Record{"a": "b"}))
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
 		insertTestCase{clause: icDnEmptyCols, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
@@ -570,7 +570,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictConstraintTargetIgnor
 	)
 }
 
-func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsupported() {
+func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetUnsupported() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", "")).
 		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
@@ -581,7 +581,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsuppor
 	icDn := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
 
 	opts := sqlgen.DefaultDialectOptions()
-	opts.ErrorOnUnsupportedConflictTarget = true
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
 		insertTestCase{clause: icDu, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON CONFLICT (test) DO UPDATE SET "a"='b'`},
@@ -595,7 +594,6 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetErrorOnUnsuppor
 	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
 	opts.ConflictDoNothingFragment = []byte("")
 	opts.SupportsConflictTarget = false
-	opts.ErrorOnUnsupportedConflictTarget = true
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
 		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]"},

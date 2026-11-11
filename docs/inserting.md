@@ -437,10 +437,10 @@ To update the existing row from the row proposed for insertion, use `goqu.Exclud
 // import _ "github.com/doug-martin/goqu/v9/dialect/postgres"
 // import _ "github.com/doug-martin/goqu/v9/dialect/mysql"
 
-for _, d := range []string{"postgres", "mysql", "mysql8"} {
-	sql, _, _ := goqu.Dialect(d).Insert("item").
+for _, c := range []struct{ dialect, target string }{{"postgres", "id"}, {"mysql", ""}, {"mysql8", ""}} {
+	sql, _, _ := goqu.Dialect(c.dialect).Insert("item").
 		Rows(goqu.Record{"id": 1, "price": 10, "qty": 2}).
-		OnConflict(goqu.DoUpdate("id", goqu.Record{
+		OnConflict(goqu.DoUpdate(c.target, goqu.Record{
 			"price": goqu.Excluded("price"),
 			"qty":   goqu.T("item").Col("qty").Add(goqu.Excluded("qty")),
 		})).
@@ -480,14 +480,8 @@ INSERT INTO "item" ("id", "price", "qty") VALUES (1, 10, 2) ON CONFLICT (id) DO 
 that uses `Excluded` or `As` needs `Cols(...)`, renders the select as `SELECT * FROM (...) AS alias (cols)`, and cannot
 reference the tables of the `SELECT` in the update.
 
-`DoUpdate` and `DoUpdateExcluded` drop their target on MySQL, so `ON DUPLICATE KEY UPDATE` fires on any unique key. Set
-`ErrorOnUnsupportedConflictTarget` on the dialect options to return a Conflict Target error for a non-empty target instead:
-
-```go
-opts := mysql.DialectOptions()
-opts.ErrorOnUnsupportedConflictTarget = true
-goqu.RegisterDialect("mysql-strict", "db", opts)
-```
+MySQL has no conflict target (`ON DUPLICATE KEY UPDATE` fires on any unique key), so `DoUpdate` and `DoUpdateExcluded`
+take an empty target there; a non-empty target returns a `goqu.UnsupportedError`.
 
 <a name="returning"></a>
 **Returning Clause**

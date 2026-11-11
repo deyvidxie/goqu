@@ -74,7 +74,7 @@ func (usg *updateSQLGenerator) updateLimitSQL(b sb.SQLBuilder, clauses exp.Updat
 	switch {
 	case usg.DialectOptions().SupportsLimitOnUpdate:
 		usg.LimitSQL(b, clauses.Limit())
-	case hasRealLimit(clauses.Limit()) && usg.DialectOptions().ErrorOnUnsupportedLimitOnUpdate:
+	case hasRealLimit(clauses.Limit()):
 		b.SetError(errLimitOnUpdateNotSupported(usg.Dialect()))
 	}
 }
@@ -83,7 +83,7 @@ func (usg *updateSQLGenerator) updateOrderSQL(b sb.SQLBuilder, clauses exp.Updat
 	switch {
 	case usg.DialectOptions().SupportsOrderByOnUpdate:
 		usg.OrderSQL(b, clauses.Order())
-	case clauses.HasOrder() && usg.DialectOptions().ErrorOnUnsupportedOrderByOnUpdate:
+	case clauses.HasOrder():
 		b.SetError(errOrderByOnUpdateNotSupported(usg.Dialect()))
 	}
 }
