@@ -81,23 +81,8 @@ func (isg *insertSQLGenerator) Generate(
 }
 
 // Adds the correct fragment to being an INSERT statement
-func (isg *insertSQLGenerator) InsertBeginSQL(b sqlbuilder.SQLBuilder, o exp.ConflictExpression) {
-	if isg.rendersInsertIgnore(o) {
-		b.Write(isg.DialectOptions().InsertIgnoreClause)
-	} else {
-		b.Write(isg.DialectOptions().InsertClause)
-	}
-}
-
-func (isg *insertSQLGenerator) rendersInsertIgnore(o exp.ConflictExpression) bool {
-	_, isNotDoNothingConflictExpression := o.(exp.ConflictUpdateExpression)
-	// A conflict target requires a real ON CONFLICT clause: INSERT IGNORE / INSERT OR IGNORE would swallow
-	// violations of every constraint, not just the targeted one.
-	hasTarget := false
-	if dn, ok := o.(exp.ConflictNothingExpression); ok {
-		hasTarget = dn.Cols() != nil && len(dn.Cols().Columns()) > 0
-	}
-	return isg.DialectOptions().SupportsInsertIgnoreSyntax && o != nil && !isNotDoNothingConflictExpression && !hasTarget
+func (isg *insertSQLGenerator) InsertBeginSQL(b sqlbuilder.SQLBuilder, _ exp.ConflictExpression) {
+	b.Write(isg.DialectOptions().InsertClause)
 }
 
 func (isg *insertSQLGenerator) InsertSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
@@ -107,11 +92,7 @@ func (isg *insertSQLGenerator) InsertSQL(b sqlbuilder.SQLBuilder, ic exp.InsertC
 	}
 	opts := isg.DialectOptions()
 	if source == insertSourceDefaults && ic.OnConflict() != nil && opts.SupportsOnConflict && !opts.SupportsConflictWithDefaultValues {
-		if !isg.rendersInsertIgnore(ic.OnConflict()) {
-			b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
-			return
-		}
-		isg.insertAliasAndConflictSQL(b, ic.SetOnConflict(nil), nil, renderedConflictUpdate{})
+		b.SetError(errConflictWithDefaultValuesNotSupported(isg.Dialect()))
 		return
 	}
 	rowAlias, rendered, err := isg.excludedRowAlias(b.IsPrepared(), ic)
@@ -241,7 +222,7 @@ func (isg *insertSQLGenerator) insertColumnsFromSQL(b sqlbuilder.SQLBuilder, ic 
 		return
 	}
 	isg.insertFromRowAliasSQL(b, writeFrom, ic.Cols(), rowAlias)
-	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
+	isg.onConflictSQL(b, ic, rowAlias, rendered)
 }
 
 func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
@@ -257,7 +238,7 @@ func (isg *insertSQLGenerator) insertAliasAndConflictSQL(
 		b.Write(isg.DialectOptions().AsFragment)
 		isg.ExpressionSQLGenerator().Generate(b, rowAlias)
 	}
-	isg.onConflictSQL(b, ic.OnConflict(), rowAlias, rendered)
+	isg.onConflictSQL(b, ic, rowAlias, rendered)
 }
 
 func (isg *insertSQLGenerator) InsertExpressionSQL(b sqlbuilder.SQLBuilder, ie exp.InsertExpression) {
@@ -406,10 +387,11 @@ func rowAliasTable(alias exp.IdentifierExpression) exp.IdentifierExpression {
 
 func (isg *insertSQLGenerator) onConflictSQL(
 	b sqlbuilder.SQLBuilder,
-	o exp.ConflictExpression,
+	ic exp.InsertClauses,
 	rowAlias exp.IdentifierExpression,
 	rendered renderedConflictUpdate,
 ) {
+	o := ic.OnConflict()
 	if o == nil {
 		return
 	}
@@ -427,10 +409,40 @@ func (isg *insertSQLGenerator) onConflictSQL(
 		if b.Error() != nil {
 			return
 		}
+		if isg.DialectOptions().ConflictDoNothingAsNoOpUpdate {
+			isg.noOpConflictUpdateSQL(b, ic)
+			return
+		}
 		b.Write(isg.DialectOptions().ConflictDoNothingFragment)
 	default:
-		b.Write(isg.DialectOptions().ConflictDoNothingFragment)
+		b.SetError(errUnknownConflictExpression(o))
 	}
+}
+
+func (isg *insertSQLGenerator) noOpConflictUpdateSQL(b sqlbuilder.SQLBuilder, ic exp.InsertClauses) {
+	col, ok := isg.firstInsertColumn(ic)
+	if !ok {
+		b.SetError(errNoOpConflictUpdateWithoutColumns(isg.Dialect()))
+		return
+	}
+	b.Write(isg.DialectOptions().ConflictDoUpdateFragment)
+	isg.UpdateExpressionSQL(b, col.Set(col))
+}
+
+func (isg *insertSQLGenerator) firstInsertColumn(ic exp.InsertClauses) (exp.IdentifierExpression, bool) {
+	cols := ic.Cols()
+	if ic.Rows() != nil {
+		ie, err := exp.NewInsertExpression(isg.TagName(), ic.Rows()...)
+		if err != nil || ie.IsInsertFrom() {
+			return nil, false
+		}
+		cols = ie.Cols()
+	}
+	if cols == nil || cols.IsEmpty() {
+		return nil, false
+	}
+	col, ok := cols.Columns()[0].(exp.IdentifierExpression)
+	return col, ok
 }
 
 func (isg *insertSQLGenerator) conflictUpdateTargetSQL(b sqlbuilder.SQLBuilder, target string) {

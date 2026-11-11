@@ -61,6 +61,7 @@ var (
 	errEmptyCols           = errors.NewInvalidExpressionError("Cols requires at least one column; use ClearCols to drop Cols")
 	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
 	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")
+	errNilOnConflict       = errors.NewInvalidExpressionError("OnConflict requires a conflict expression; use ClearOnConflict to drop it")
 	errEmptyWindowAppend   = errors.NewInvalidExpressionError("WindowAppend requires at least one window")
 	errEmptyGroupByAppend  = errors.NewInvalidExpressionError("GroupByAppend requires at least one column")
 	errEmptyRows           = errors.NewInvalidExpressionError("Rows requires at least one row")
@@ -84,7 +85,7 @@ func errUnknownDialect(dialect string) error {
 }
 
 func errNilInsertSource(from interface{}) error {
-	return errors.NewInvalidExpressionError("insert source must not be nil, got %T", from)
+	return errors.NewInvalidExpressionError("FromQuery requires a query, got %T; use ClearFromQuery to drop it", from)
 }
 
 func errIncompatibleInsertDialects(insertDialect, selectDialect string) error {

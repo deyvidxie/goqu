@@ -17,7 +17,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsLimitOnUpdate = true
 	opts.SupportsLimitOnDelete = true
 	opts.SupportsConflictUpdateWhere = false
-	opts.SupportsInsertIgnoreSyntax = false
 	opts.SupportsConflictTarget = false
 	opts.SupportsOnConflict = false
 	opts.RecursiveFragment = []byte("")

@@ -63,7 +63,11 @@ func (csg *commonSQLGenerator) ReturningSQL(b sqlbuilder.SQLBuilder, returns exp
 }
 
 func (csg *commonSQLGenerator) ConflictTargetSQL(b sqlbuilder.SQLBuilder, targets exp.ColumnListExpression) {
-	if targets != nil && len(targets.Columns()) > 0 {
+	if targets != nil && len(targets.Columns()) == 0 {
+		b.SetError(errEmptyConflictTarget)
+		return
+	}
+	if targets != nil {
 		if csg.dialectOptions.SupportsConflictTarget {
 			b.WriteRunes(csg.dialectOptions.SpaceRune)
 			b.WriteRunes(csg.dialectOptions.LeftParenRune)

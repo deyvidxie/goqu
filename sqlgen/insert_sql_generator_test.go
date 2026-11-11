@@ -439,14 +439,12 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflict() {
 			clause: icDuBad, err: "goqu: unsupported update value type bool, a map, goqu.Record or struct is required", isPrepared: true,
 		},
 	)
-	opts.SupportsInsertIgnoreSyntax = true
-	opts.InsertIgnoreClause = []byte("insert ignore into")
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: icDn, sql: `insert ignore into "test" ("a") VALUES ('a1') on conflict do nothing`},
+		insertTestCase{clause: icDn, sql: `INSERT INTO "test" ("a") VALUES ('a1') on conflict do nothing`},
 		insertTestCase{
 			clause:     icDn,
-			sql:        `insert ignore into "test" ("a") VALUES (?) on conflict do nothing`,
+			sql:        `INSERT INTO "test" ("a") VALUES (?) on conflict do nothing`,
 			isPrepared: true,
 			args:       []interface{}{"a1"},
 		},
@@ -523,15 +521,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictDoNothingTarget() {
 			isPrepared: true,
 			args:       []any{"a1"},
 		},
-		insertTestCase{clause: icDnEmptyCols, sql: `INSERT INTO "test" ("a") VALUES ('a1') on conflict do nothing`},
+		insertTestCase{clause: icDnEmptyCols, err: "goqu: DoNothing target requires at least one column"},
+		insertTestCase{clause: icDnEmptyCols, err: "goqu: DoNothing target requires at least one column", isPrepared: true},
 	)
 }
 
-// MySQL style: plain INSERT for upserts, INSERT IGNORE only for DO NOTHING.
 func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 	opts := sqlgen.DefaultDialectOptions()
-	opts.SupportsInsertIgnoreSyntax = true
-	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")
+	opts.ConflictDoNothingAsNoOpUpdate = true
 	opts.ConflictFragment = []byte("")
 	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
 	opts.ConflictDoNothingFragment = []byte("")
@@ -549,8 +546,11 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictOnDuplicateKey() {
 	icDu := ic.SetOnConflict(exp.NewDoUpdateConflictExpression("", exp.Record{"a": "b"}))
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", opts),
-		insertTestCase{clause: icDnEmptyCols, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
-		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
+		insertTestCase{clause: icDnEmptyCols, err: "goqu: DoNothing target requires at least one column"},
+		insertTestCase{clause: icDn, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"="a"`},
+		insertTestCase{
+			clause: icDn, sql: `INSERT INTO "test" ("a") VALUES (?) ON DUPLICATE KEY UPDATE "a"="a"`, isPrepared: true, args: []any{"a1"},
+		},
 		insertTestCase{
 			clause: icDnCols,
 			err:    "goqu: dialect does not support conflict target clause [dialect=test]",
@@ -597,8 +597,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetUnsupported() {
 	icDn := ic.SetOnConflict(exp.NewDoNothingConflictExpression())
 
 	opts := sqlgen.DefaultDialectOptions()
-	opts.SupportsInsertIgnoreSyntax = true
-	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")
+	opts.ConflictDoNothingAsNoOpUpdate = true
 	opts.ConflictFragment = []byte("")
 	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
 	opts.ConflictDoNothingFragment = []byte("")
@@ -609,7 +608,7 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictTargetUnsupported() {
 		insertTestCase{clause: icDu, err: "goqu: dialect does not support conflict target clause [dialect=test]", isPrepared: true},
 		insertTestCase{clause: icDuConstraint, err: "goqu: dialect does not support conflict target clause [dialect=test]"},
 		insertTestCase{clause: icDuNoTarget, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"='b'`},
-		insertTestCase{clause: icDn, sql: `INSERT IGNORE INTO "test" ("a") VALUES ('a1')`},
+		insertTestCase{clause: icDn, sql: `INSERT INTO "test" ("a") VALUES ('a1') ON DUPLICATE KEY UPDATE "a"="a"`},
 	)
 }
 
@@ -1259,35 +1258,14 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_onConflictWithDefaultValues() {
 	for _, prepared := range []bool{false, true} {
 		cases = append(cases,
 			insertTestCase{clause: doNothing, err: unsupported, isPrepared: prepared},
+			insertTestCase{clause: targeted, err: unsupported, isPrepared: prepared},
 			insertTestCase{clause: ic, sql: `INSERT INTO "test" DEFAULT VALUES`, isPrepared: prepared},
 		)
 	}
 	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", opts), cases...)
 
-	ignoreOpts := sqlgen.DefaultDialectOptions()
-	ignoreOpts.SupportsConflictWithDefaultValues = false
-	ignoreOpts.SupportsInsertIgnoreSyntax = true
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", ignoreOpts),
-		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`},
-		insertTestCase{clause: doNothing, sql: `INSERT IGNORE INTO "test" DEFAULT VALUES`, isPrepared: true},
-		insertTestCase{clause: targeted, err: unsupported},
-	)
-	rowAliasIgnoreOpts := sqlgen.DefaultDialectOptions()
-	rowAliasIgnoreOpts.SupportsConflictWithDefaultValues = false
-	rowAliasIgnoreOpts.SupportsInsertIgnoreSyntax = true
-	rowAliasIgnoreOpts.ExcludedStyle = sqlgen.ExcludedRowAliasStyle
-	igs.assertCases(
-		sqlgen.NewInsertSQLGenerator("test", "db", rowAliasIgnoreOpts),
-		insertTestCase{
-			clause: doNothing.SetAlias(exp.NewIdentifierExpression("", "new", nil)),
-			sql:    `INSERT IGNORE INTO "test" DEFAULT VALUES AS "new"`,
-		},
-	)
-
 	noUpsertOpts := sqlgen.DefaultDialectOptions()
 	noUpsertOpts.SupportsConflictWithDefaultValues = false
-	noUpsertOpts.SupportsInsertIgnoreSyntax = true
 	noUpsertOpts.SupportsOnConflict = false
 	igs.assertCases(
 		sqlgen.NewInsertSQLGenerator("test", "db", noUpsertOpts),
@@ -1425,4 +1403,64 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_nilFromSubquery() {
 			insertTestCase{clause: ic.SetCols(exp.NewColumnListExpression(nil, "db", "a")), err: errNil, isPrepared: prepared},
 		)
 	}
+}
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_doNothingAsNoOpUpdate() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.ConflictDoNothingAsNoOpUpdate = true
+	opts.ConflictFragment = []byte("")
+	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
+	opts.SupportsConflictTarget = false
+	into := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	doNothing := exp.NewDoNothingConflictExpression()
+	from := newTestAppendableExpression(`SELECT "a" FROM "src"`, nil, nil, nil)
+	const noCols = "goqu: dialect renders DoNothing as a no-op ON DUPLICATE KEY UPDATE, which needs an insert column list [dialect=test]"
+	for _, prepared := range []bool{false, true} {
+		igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", opts),
+			insertTestCase{
+				clause: into.SetRows([]any{exp.Record{"id": 1, "name": "x"}}).SetOnConflict(doNothing),
+				sql: sqlIf(prepared, `INSERT INTO "test" ("id", "name") VALUES (?, ?)`, `INSERT INTO "test" ("id", "name") VALUES (1, 'x')`) +
+					` ON DUPLICATE KEY UPDATE "id"="id"`,
+				isPrepared: prepared, args: argsIf(prepared, int64(1), "x"),
+			},
+			insertTestCase{
+				clause:     into.SetCols(exp.NewColumnListExpression(nil, "db", "a")).SetFrom(from).SetOnConflict(doNothing),
+				sql:        `INSERT INTO "test" ("a") SELECT "a" FROM "src" ON DUPLICATE KEY UPDATE "a"="a"`,
+				isPrepared: prepared,
+			},
+			insertTestCase{clause: into.SetFrom(from).SetOnConflict(doNothing), err: noCols, isPrepared: prepared},
+			insertTestCase{clause: into.SetOnConflict(doNothing), err: noCols, isPrepared: prepared},
+		)
+	}
+}
+
+type unknownConflict struct{}
+
+func (unknownConflict) Clone() exp.Expression      { return unknownConflict{} }
+func (unknownConflict) Expression() exp.Expression { return unknownConflict{} }
+func (unknownConflict) Action() exp.ConflictAction { return exp.DoNothingConflictAction }
+
+func (igs *insertSQLGeneratorSuite) TestGenerate_unknownConflictExpression() {
+	ic := exp.NewInsertClauses().
+		SetInto(exp.NewIdentifierExpression("", "test", "")).
+		SetCols(exp.NewColumnListExpression(nil, "db", "a")).
+		SetVals([][]any{{"a1"}}).
+		SetOnConflict(unknownConflict{})
+	igs.assertCases(sqlgen.NewInsertSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		insertTestCase{clause: ic, err: "goqu: unsupported conflict expression sqlgen_test.unknownConflict, use DoNothing or DoUpdate"},
+	)
+}
+
+func argsIf(prepared bool, args ...any) []any {
+	if prepared {
+		return args
+	}
+	return nil
+}
+
+func sqlIf(prepared bool, preparedSQL, interpolatedSQL string) string {
+	if prepared {
+		return preparedSQL
+	}
+	return interpolatedSQL
 }

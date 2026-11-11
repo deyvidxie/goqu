@@ -17,7 +17,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsLimitOnDelete = true
 	opts.SupportsOrderByOnDelete = true
 	opts.SupportsConflictUpdateWhere = false
-	opts.SupportsInsertIgnoreSyntax = true
+	opts.ConflictDoNothingAsNoOpUpdate = true
 	opts.SupportsConflictTarget = false
 	opts.SupportsWithCTE = false
 	opts.SupportsWithCTERecursive = false
@@ -88,7 +88,6 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	delete(opts.JoinTypeLookup, exp.FullOuterJoinType)
 	delete(opts.JoinTypeLookup, exp.FullJoinType)
 	delete(opts.JoinTypeLookup, exp.NaturalFullJoinType)
-	opts.InsertIgnoreClause = []byte("INSERT IGNORE INTO")
 	opts.ConflictFragment = []byte("")
 	opts.ConflictDoUpdateFragment = []byte(" ON DUPLICATE KEY UPDATE ")
 	opts.ConflictDoNothingFragment = []byte("")

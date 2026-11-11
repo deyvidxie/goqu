@@ -34,10 +34,11 @@ type (
 		// Set to true if the dialect supports upsert (ON CONFLICT / ON DUPLICATE KEY); when false, OnConflict returns an
 		// error (DEFAULT=true)
 		SupportsOnConflict bool
-		// Set to true if the dialect supports Insert Ignore syntax (DEFAULT=false)
-		SupportsInsertIgnoreSyntax bool
+		// Set to true if DoNothing renders as ConflictDoUpdateFragment with the first insert column set to itself, for
+		// dialects without a DO NOTHING clause (DEFAULT=false)
+		ConflictDoNothingAsNoOpUpdate bool
 		// Set to true if the dialect accepts an upsert clause after DefaultValuesFragment; when false, OnConflict there
-		// returns an error unless it renders as Insert Ignore syntax (DEFAULT=true)
+		// returns an error (DEFAULT=true)
 		SupportsConflictWithDefaultValues bool
 		// Set to true if the dialect supports Common Table Expressions (DEFAULT=true)
 		SupportsWithCTE bool
@@ -80,8 +81,6 @@ type (
 		UpdateClause []byte
 		// The INSERT fragment to use when generating sql. (DEFAULT=[]byte("INSERT INTO"))
 		InsertClause []byte
-		// The INSERT IGNORE INTO fragment to use when generating sql. (DEFAULT=[]byte("INSERT IGNORE INTO"))
-		InsertIgnoreClause []byte
 		// The SELECT fragment to use when generating sql. (DEFAULT=[]byte("SELECT"))
 		SelectClause []byte
 		// The DELETE fragment to use when generating sql. (DEFAULT=[]byte("DELETE"))
@@ -526,7 +525,6 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsReturn:                    true,
 		SupportsConflictUpdateWhere:       true,
 		SupportsOnConflict:                true,
-		SupportsInsertIgnoreSyntax:        false,
 		SupportsConflictWithDefaultValues: true,
 		SupportsConflictTarget:            true,
 		SupportsWithCTE:                   true,
@@ -549,7 +547,6 @@ func DefaultDialectOptions() *SQLDialectOptions {
 
 		UpdateClause:              []byte("UPDATE"),
 		InsertClause:              []byte("INSERT INTO"),
-		InsertIgnoreClause:        []byte("INSERT IGNORE INTO"),
 		SelectClause:              []byte("SELECT"),
 		DeleteClause:              []byte("DELETE"),
 		TruncateClause:            []byte("TRUNCATE"),

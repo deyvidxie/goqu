@@ -423,13 +423,18 @@ func TestInsertOnConflictDoNothingTargetNotSupported(t *testing.T) {
 		OnConflict(goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "a"))).
 		ToSQL()
 	assert.EqualError(t, err, "goqu: dialect does not support conflict target clause [dialect=mysql]")
+}
 
-	// no target is still fine
-	_, _, err = goqu.Dialect("mysql").Insert("test").
-		Rows(goqu.Record{"a": "a"}).
-		OnConflict(goqu.DoNothing()).
-		ToSQL()
-	assert.NoError(t, err)
+func TestInsertDoNothingIsANoOpUpdate(t *testing.T) {
+	for _, dialect := range []string{"mysql", "mysql8"} {
+		d := goqu.Dialect(dialect)
+		sql, _, err := d.Insert("test").Rows(goqu.Record{"id": 1, "name": "x"}).OnConflict(goqu.DoNothing()).ToSQL()
+		assert.NoError(t, err, dialect)
+		assert.Equal(t, "INSERT INTO `test` (`id`, `name`) VALUES (1, 'x') ON DUPLICATE KEY UPDATE `id`=`id`", sql, dialect)
+
+		_, _, err = d.Insert("test").FromQuery(d.From("src")).OnConflict(goqu.DoNothing()).ToSQL()
+		assert.True(t, goqu.IsUnsupported(err), dialect)
+	}
 }
 
 func TestInsertOnConflictDoUpdateTarget(t *testing.T) {

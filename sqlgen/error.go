@@ -23,9 +23,10 @@ var (
 	errMultipleSourcesForInsert = errors.NewInvalidExpressionError(
 		"more than one of Rows, Vals and FromQuery found when generating insert sql",
 	)
-	errEmptyRows = errors.NewInvalidExpressionError(`Rows requires at least one row`)
-	errEmptyVals = errors.NewInvalidExpressionError(`Vals requires at least one row`)
-	errEmptyCols = errors.NewInvalidExpressionError(`Cols requires at least one column`)
+	errEmptyRows           = errors.NewInvalidExpressionError(`Rows requires at least one row`)
+	errEmptyConflictTarget = errors.NewInvalidExpressionError(`DoNothing target requires at least one column`)
+	errEmptyVals           = errors.NewInvalidExpressionError(`Vals requires at least one row`)
+	errEmptyCols           = errors.NewInvalidExpressionError(`Cols requires at least one column`)
 
 	errEmptyIdentifier = errors.NewInvalidExpressionError(
 		`an empty identifier was encountered, please specify a "schema", "table" or "column"`,
@@ -127,6 +128,16 @@ func errOnConflictNotSupported(dialect string) error {
 
 func errConflictTargetNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support conflict target clause [dialect=%s]", dialect)
+}
+
+func errNoOpConflictUpdateWithoutColumns(dialect string) error {
+	return errors.NewUnsupportedError(
+		"dialect renders DoNothing as a no-op ON DUPLICATE KEY UPDATE, which needs an insert column list [dialect=%s]", dialect,
+	)
+}
+
+func errUnknownConflictExpression(o exp.ConflictExpression) error {
+	return errors.NewInvalidExpressionError("unsupported conflict expression %T, use DoNothing or DoUpdate", o)
 }
 
 func errConflictWithDefaultValuesNotSupported(dialect string) error {

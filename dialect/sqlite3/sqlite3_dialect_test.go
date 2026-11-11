@@ -361,10 +361,8 @@ func TestInsertWithoutRows(t *testing.T) {
 	sql, _, err = ds.Returning("id").ToSQL()
 	assert.NoError(t, err)
 	assert.Equal(t, "INSERT INTO `test` DEFAULT VALUES RETURNING `id`", sql)
-	sql, _, err = ds.OnConflict(goqu.DoNothing()).ToSQL()
-	assert.NoError(t, err)
-	assert.Equal(t, "INSERT OR IGNORE INTO  `test` DEFAULT VALUES", sql)
 	for name, conflict := range map[string]exp.ConflictExpression{
+		"do nothing":             goqu.DoNothing(),
 		"do nothing on a target": goqu.DoNothing().SetCols(exp.NewColumnListExpression(nil, "db", "id")),
 		"do update":              goqu.DoUpdate("id", goqu.Record{"a": "b"}),
 	} {
