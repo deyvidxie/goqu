@@ -143,6 +143,19 @@ func (st *sqlite3Suite) TestTimeFunctions() {
 	st.WithinDuration(time.Now(), localTime, time.Minute)
 }
 
+func (st *sqlite3Suite) TestAggregateOrderBy() {
+	for _, prepared := range []bool{false, true} {
+		var joined string
+		found, err := st.db.From("entry").Prepared(prepared).
+			Select(goqu.Func("group_concat", goqu.C("int"), ",").OrderBy(goqu.C("int").Desc())).
+			Where(goqu.C("int").Lt(3)).
+			ScanVal(&joined)
+		st.Require().NoError(err, "prepared=%v", prepared)
+		st.True(found)
+		st.Equal("2,1,0", joined, "prepared=%v", prepared)
+	}
+}
+
 func (st *sqlite3Suite) TestSelectSQL() {
 	ds := st.db.From("entry")
 	st.assertSQL(

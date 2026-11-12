@@ -149,6 +149,19 @@ func (pt *postgresTest) TestTimeFunctions() {
 	}
 }
 
+func (pt *postgresTest) TestAggregateOrderBy() {
+	for _, prepared := range []bool{false, true} {
+		var joined string
+		found, err := pt.db.From("entry").Prepared(prepared).
+			Select(goqu.Func("string_agg", goqu.Cast(goqu.C("int"), "TEXT"), ",").OrderBy(goqu.C("int").Desc())).
+			Where(goqu.C("int").Lt(3)).
+			ScanVal(&joined)
+		pt.Require().NoError(err, "prepared=%v", prepared)
+		pt.True(found)
+		pt.Equal("2,1,0", joined, "prepared=%v", prepared)
+	}
+}
+
 func (pt *postgresTest) TestToSQL() {
 	ds := pt.db.From("entry")
 	s, _, err := ds.Select("id", "float", "string", "time", "bool").ToSQL()

@@ -22,6 +22,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.RecursiveFragment = []byte("")
 	opts.SupportsNestedWithCTE = false
 	opts.SupportsLateral = false
+	opts.SupportsAggregateOrderBy = false
 	opts.SupportsDistinctOn = false
 	opts.SupportsWindowClause = false
 	opts.SurroundLimitWithParentheses = true

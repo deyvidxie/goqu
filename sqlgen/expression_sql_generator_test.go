@@ -1263,6 +1263,54 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_UpdateExpression() {
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionOrderBy() {
+	price := exp.NewIdentifierExpression("", "", "price")
+	ts := exp.NewIdentifierExpression("", "", "ts")
+	zeroLast := exp.NewCaseExpression().When(price.Eq(0), 1).Else(0)
+	firstValue := exp.NewSQLFunctionExpression("first_value", price)
+	stringAgg := exp.NewSQLFunctionExpression("string_agg", exp.NewIdentifierExpression("", "", "name"), ",")
+	opts := sqlgen.DefaultDialectOptions()
+	opts.FunctionNameLookup = map[string][]byte{"first_value": []byte("FIRST_VALUE")}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{val: firstValue.OrderBy(ts.Asc()), sql: `FIRST_VALUE("price" ORDER BY "ts" ASC)`},
+		expressionTestCase{val: firstValue.OrderBy(price.Desc()), sql: `FIRST_VALUE("price" ORDER BY "price" DESC)`, isPrepared: true},
+		expressionTestCase{
+			val: firstValue.OrderBy(zeroLast.Asc(), ts.Asc()),
+			sql: `FIRST_VALUE("price" ORDER BY CASE  WHEN ("price" = 0) THEN 1 ELSE 0 END ASC, "ts" ASC)`,
+		},
+		expressionTestCase{
+			val:        firstValue.OrderBy(zeroLast.Asc(), ts.Asc()),
+			sql:        `FIRST_VALUE("price" ORDER BY CASE  WHEN ("price" = ?) THEN ? ELSE ? END ASC, "ts" ASC)`,
+			isPrepared: true,
+			args:       []interface{}{int64(0), int64(1), int64(0)},
+		},
+		expressionTestCase{
+			val:        stringAgg.OrderBy(ts.Desc()),
+			sql:        `string_agg("name", ? ORDER BY "ts" DESC)`,
+			isPrepared: true,
+			args:       []interface{}{","},
+		},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("f").OrderBy(ts.Asc()), sql: `f(ORDER BY "ts" ASC)`},
+		expressionTestCase{
+			val: firstValue.OrderBy(ts.Asc()).Over(exp.NewWindowExpression(nil, nil, exp.NewColumnListExpression(nil, "", "host"), nil)),
+			sql: `FIRST_VALUE("price" ORDER BY "ts" ASC) OVER (PARTITION BY "host")`,
+		},
+		expressionTestCase{val: firstValue.OrderBy(ts.Asc()).As("p"), sql: `FIRST_VALUE("price" ORDER BY "ts" ASC) AS "p"`},
+		expressionTestCase{val: firstValue.OrderBy(), err: "goqu: OrderBy requires at least one expression"},
+		expressionTestCase{val: firstValue.OrderBy(ts.Asc(), nil), err: "goqu: Order expressions must not be nil"},
+	)
+	unsupported := sqlgen.DefaultDialectOptions()
+	unsupported.SupportsAggregateOrderBy = false
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", unsupported),
+		expressionTestCase{
+			val: firstValue.OrderBy(ts.Asc()), err: "goqu: dialect does not support ORDER BY in function arguments [dialect=test]",
+		},
+		expressionTestCase{val: firstValue, sql: `first_value("price")`},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpression() {
 	minimum := exp.NewSQLFunctionExpression("MIN", exp.NewIdentifierExpression("", "", "a"))
 	coalesce := exp.NewSQLFunctionExpression("COALESCE", exp.NewIdentifierExpression("", "", "a"), "a")

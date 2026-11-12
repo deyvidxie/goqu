@@ -865,7 +865,31 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 		return
 	}
 	b.WriteStrings(name)
+	if sqlFunc.HasOrder() {
+		esg.orderedArgumentsSQL(b, args, sqlFunc.OrderCols())
+		return
+	}
 	esg.argumentsSQL(b, args)
+}
+
+func (esg *expressionSQLGenerator) orderedArgumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}, order exp.ColumnListExpression) {
+	if !esg.dialectOptions.SupportsAggregateOrderBy {
+		b.SetError(errAggregateOrderByNotSupported(esg.dialect))
+		return
+	}
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	for i, arg := range args {
+		if i > 0 {
+			b.WriteRunes(esg.dialectOptions.CommaRune, esg.dialectOptions.SpaceRune)
+		}
+		esg.Generate(b, arg)
+	}
+	if len(args) > 0 {
+		b.WriteRunes(esg.dialectOptions.SpaceRune)
+	}
+	b.Write(esg.dialectOptions.WindowOrderByFragment)
+	esg.Generate(b, order)
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
 func (esg *expressionSQLGenerator) argumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}) {

@@ -7,8 +7,9 @@ const (
 
 type (
 	sqlFunctionExpression struct {
-		name string
-		args []interface{}
+		name    string
+		args    []interface{}
+		orderBy ColumnListExpression
 	}
 )
 
@@ -17,7 +18,7 @@ func NewSQLFunctionExpression(name string, args ...interface{}) SQLFunctionExpre
 }
 
 func (sfe sqlFunctionExpression) Clone() Expression {
-	return NewSQLFunctionExpression(sfe.name, sfe.args...)
+	return sqlFunctionExpression{name: sfe.name, args: cloneArgs(sfe.args), orderBy: cloneColumnList(sfe.orderBy)}
 }
 
 func (sfe sqlFunctionExpression) Expression() Expression { return sfe }
@@ -25,6 +26,18 @@ func (sfe sqlFunctionExpression) Expression() Expression { return sfe }
 func (sfe sqlFunctionExpression) Args() []interface{} { return sfe.args }
 
 func (sfe sqlFunctionExpression) Name() string { return sfe.name }
+
+func (sfe sqlFunctionExpression) OrderCols() ColumnListExpression { return sfe.orderBy }
+
+func (sfe sqlFunctionExpression) HasOrder() bool { return sfe.orderBy != nil }
+
+func (sfe sqlFunctionExpression) OrderBy(order ...OrderedExpression) SQLFunctionExpression {
+	sfe.orderBy = NewOrderedColumnList(order...)
+	if sfe.orderBy.IsEmpty() {
+		sfe.orderBy = emptyAppendList(nil, "OrderBy", "expression")
+	}
+	return sfe
+}
 
 func (sfe sqlFunctionExpression) As(val interface{}) AliasedExpression {
 	return NewAliasExpression(sfe, val)

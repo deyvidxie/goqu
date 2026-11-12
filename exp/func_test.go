@@ -34,6 +34,29 @@ func (sfes *sqlFunctionExpressionSuite) TestName() {
 	sfes.Equal("COUNT", sfes.fn.Name())
 }
 
+func (sfes *sqlFunctionExpressionSuite) TestOrderBy() {
+	ts := exp.NewIdentifierExpression("", "", "ts")
+	ordered := sfes.fn.OrderBy(ts.Desc(), ts.Asc())
+
+	sfes.False(sfes.fn.HasOrder())
+	sfes.Nil(sfes.fn.OrderCols())
+	sfes.True(ordered.HasOrder())
+	sfes.Equal(exp.NewColumnListExpression(nil, "", ts.Desc(), ts.Asc()), ordered.OrderCols())
+	sfes.Equal(ordered, ordered.Clone())
+	sfes.Equal(sfes.fn.Args(), ordered.Args())
+
+	for name, fn := range map[string]exp.SQLFunctionExpression{
+		"no expressions": sfes.fn.OrderBy(),
+		"nil expression": sfes.fn.OrderBy(ts.Asc(), nil),
+	} {
+		cols := fn.OrderCols().Columns()
+		invalid, ok := cols[len(cols)-1].(exp.InvalidExpression)
+		sfes.Require().True(ok, name)
+		sfes.Error(invalid.Err(), name)
+	}
+	sfes.EqualError(sfes.fn.OrderBy().OrderCols().Columns()[0].(exp.InvalidExpression).Err(), "goqu: OrderBy requires at least one expression")
+}
+
 func (sfes *sqlFunctionExpressionSuite) TestAllOthers() {
 	fn := sfes.fn
 

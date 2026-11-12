@@ -15,6 +15,7 @@
 * [`Collate`](#collate) - Applies a collation to an expression.
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
 * [`Now`, `UTCTimestamp`, `Interval`](#time) - Current time with fractional seconds and interval arithmetic.
+* [`Func(...).OrderBy`](#func-order-by) - `ORDER BY` inside function arguments.
 * [`JSONExtract`, `JSONValue`, `JSONContains`](#json) - MySQL JSON functions.
 * [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
@@ -473,6 +474,26 @@ fmt.Println(sql, args)
 Output:
 ```sql
 SELECT * FROM `events` WHERE (`created` > (NOW(6) - INTERVAL ? HOUR)) [1]
+```
+
+<a name="func-order-by"></a>
+**[`SQLFunctionExpression.OrderBy`](https://godoc.org/github.com/doug-martin/goqu/exp#SQLFunctionExpression)**
+
+Adds `ORDER BY` after the arguments of an order-sensitive aggregate. `OrderBy` with no expressions returns an error.
+
+**NOTE** sqlserver returns a `goqu.UnsupportedError`; set `SupportsAggregateOrderBy` to `false` for a registered dialect without it.
+
+```go
+sql, _, _ := goqu.From("prices").Select(
+	goqu.Func("string_agg", goqu.C("symbol"), ",").OrderBy(goqu.C("ts").Desc()),
+	goqu.Func("first_value", goqu.C("price")).OrderBy(goqu.Case().When(goqu.C("price").Eq(0), 1).Else(0).Asc(), goqu.C("ts").Asc()),
+).ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```sql
+SELECT string_agg("symbol", ',' ORDER BY "ts" DESC), first_value("price" ORDER BY CASE  WHEN ("price" = 0) THEN 1 ELSE 0 END ASC, "ts" ASC) FROM "prices"
 ```
 
 <a name="json"></a>
