@@ -1862,10 +1862,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeAggregate() {
 			val: exp.NewRangeAggregateExpression(nil, time.Minute), err: "goqu: RangeAggregate requires an aggregate expression",
 		},
 	)
-	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
-		expressionTestCase{val: ra(time.Minute), err: "goqu: dialect does not support range queries [dialect=test]"},
-	)
+	withoutAlign := rangeQueryOptions()
+	withoutAlign.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.SelectSQLFragment, sqlgen.FromSQLFragment}
+	for _, opts := range []*sqlgen.SQLDialectOptions{sqlgen.DefaultDialectOptions(), withoutAlign} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+			expressionTestCase{val: ra(time.Minute), err: "goqu: dialect does not support range queries [dialect=test]"},
+		)
+	}
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_AlignExpression() {
