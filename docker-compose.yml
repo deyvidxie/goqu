@@ -30,9 +30,19 @@ services:
     ports:
       - "1433:1433"
 
+  greptimedb:
+    image: "greptime/greptimedb:${GREPTIMEDB_VERSION}"
+    command: ["standalone", "start", "--http-addr=0.0.0.0:4000", "--grpc-bind-addr=0.0.0.0:4001", "--mysql-addr=0.0.0.0:4002", "--postgres-addr=0.0.0.0:4003"]
+    expose:
+      - "4002"
+      - "4003"
+    ports:
+      - "4002:4002"
+      - "4003:4003"
+
   goqu:
     image: "golang:${GO_VERSION}"
-    command: ["./wait-for-it.sh", "postgres:5432", "-t", "60", "--", "./wait-for-it.sh", "mysql:3306", "-t", "60", "--", "./wait-for-it.sh", "sqlserver:1433", "-t", "180", "--", "./go.test.sh"]
+    command: ["./wait-for-it.sh", "postgres:5432", "-t", "60", "--", "./wait-for-it.sh", "mysql:3306", "-t", "60", "--", "./wait-for-it.sh", "sqlserver:1433", "-t", "180", "--", "./wait-for-it.sh", "greptimedb:4002", "-t", "60", "--", "./wait-for-it.sh", "greptimedb:4003", "-t", "60", "--", "./go.test.sh"]
     working_dir: /go/src/github.com/doug-martin/goqu
     volumes:
       - "./:/go/src/github.com/doug-martin/goqu"
@@ -40,14 +50,17 @@ services:
       MYSQL_URI: 'root@tcp(mysql:3306)/goqumysql?parseTime=true'
       PG_URI: 'postgres://postgres:@postgres:5432/goqupostgres?sslmode=disable'
       SQLSERVER_URI: 'sqlserver://sa:qwe123QWE@sqlserver:1433?database=master&connection+timeout=30'
+      GREPTIMEDB_MYSQL_URI: 'root@tcp(greptimedb:4002)/public'
+      GREPTIMEDB_PG_URI: 'postgres://root@greptimedb:4003/public?sslmode=disable'
       WAITFORIT_TIMEOUT: 60
     depends_on:
       - postgres
       - mysql
       - sqlserver
+      - greptimedb
   goqu-coverage:
     image: "golang:${GO_VERSION}"
-    command: ["./wait-for-it.sh", "postgres:5432", "-t", "60", "--", "./wait-for-it.sh", "mysql:3306", "-t", "60", "--", "./wait-for-it.sh", "sqlserver:1433", "-t", "180", "--", "./go.coverage.sh"]
+    command: ["./wait-for-it.sh", "postgres:5432", "-t", "60", "--", "./wait-for-it.sh", "mysql:3306", "-t", "60", "--", "./wait-for-it.sh", "sqlserver:1433", "-t", "180", "--", "./wait-for-it.sh", "greptimedb:4002", "-t", "60", "--", "./wait-for-it.sh", "greptimedb:4003", "-t", "60", "--", "./go.coverage.sh"]
     working_dir: /go/src/github.com/doug-martin/goqu
     volumes:
       - "./:/go/src/github.com/doug-martin/goqu"
@@ -55,7 +68,10 @@ services:
       MYSQL_URI: 'root@tcp(mysql:3306)/goqumysql?parseTime=true'
       PG_URI: 'postgres://postgres:@postgres:5432/goqupostgres?sslmode=disable'
       SQLSERVER_URI: 'sqlserver://sa:qwe123QWE@sqlserver:1433?database=master&connection+timeout=30'
+      GREPTIMEDB_MYSQL_URI: 'root@tcp(greptimedb:4002)/public'
+      GREPTIMEDB_PG_URI: 'postgres://root@greptimedb:4003/public?sslmode=disable'
     depends_on:
       - postgres
       - mysql
       - sqlserver
+      - greptimedb

@@ -31,6 +31,7 @@ jobs:
       MYSQL_VERSION: ${{ matrix.db_versions.mysql_version }}
       POSTGRES_VERSION: ${{ matrix.db_versions.postgres_version }}
       SQLSERVER_VERSION: ${{ matrix.db_versions.sqlserver_version }}
+      GREPTIMEDB_VERSION: v1.2.1
       WAITFORIT_TIMEOUT: 60
     steps:
     - name: checkout
