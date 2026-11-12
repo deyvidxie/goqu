@@ -123,6 +123,10 @@ func errMultipleUpdateTablesNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support multiple tables in UPDATE [dialect=%s]", dialect)
 }
 
+func errStatementNotSupported(dialect, sqlType string) error {
+	return errors.NewUnsupportedError("dialect does not support %s statements [dialect=%s]", sqlType, dialect)
+}
+
 func errFragmentNotSupported(dialect, sqlType string, f SQLFragmentType) error {
 	return errors.NewUnsupportedError("dialect does not support %s SQL fragment %s [dialect=%s]", sqlType, f, dialect)
 }

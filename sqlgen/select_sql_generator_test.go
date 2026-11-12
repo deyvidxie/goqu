@@ -100,6 +100,18 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	)
 }
 
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_unsupportedStatement() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SelectSQLOrder = nil
+	sc := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	expectedErr := "goqu: dialect does not support SELECT statements [dialect=test]"
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", opts),
+		selectTestCase{clause: sc, err: expectedErr},
+		selectTestCase{clause: sc, err: expectedErr, isPrepared: true},
+	)
+}
+
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}

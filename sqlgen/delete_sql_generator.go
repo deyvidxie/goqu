@@ -25,6 +25,10 @@ func NewDeleteSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Delet
 }
 
 func (dsg *deleteSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.DeleteClauses) {
+	if len(dsg.DialectOptions().DeleteSQLOrder) == 0 {
+		b.SetError(errStatementNotSupported(dsg.Dialect(), "DELETE"))
+		return
+	}
 	if !clauses.HasFrom() {
 		b.SetError(errNoSourceForDelete)
 		return

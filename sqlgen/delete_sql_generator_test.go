@@ -83,6 +83,18 @@ func (dsgs *deleteSQLGeneratorSuite) TestGenerate_withUnsupportedFragment() {
 	)
 }
 
+func (dsgs *deleteSQLGeneratorSuite) TestGenerate_unsupportedStatement() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.DeleteSQLOrder = nil
+	dc := exp.NewDeleteClauses().SetFrom(exp.NewIdentifierExpression("", "test", ""))
+	expectedErr := "goqu: dialect does not support DELETE statements [dialect=test]"
+	dsgs.assertCases(
+		sqlgen.NewDeleteSQLGenerator("test", "db", opts),
+		deleteTestCase{clause: dc, err: expectedErr},
+		deleteTestCase{clause: dc, err: expectedErr, isPrepared: true},
+	)
+}
+
 func (dsgs *deleteSQLGeneratorSuite) TestGenerate_noFrom() {
 	dc := exp.NewDeleteClauses()
 	dsgs.assertCases(
