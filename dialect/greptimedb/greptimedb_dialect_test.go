@@ -240,6 +240,24 @@ func (gds *greptimedbDialectSuite) TestAggregateOrderBy() {
 	)
 }
 
+func (gds *greptimedbDialectSuite) TestWithinGroup() {
+	median := func() exp.SQLFunctionExpression {
+		return goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("cpu").Asc())
+	}
+	gds.assertSQL(
+		sqlTestCase{
+			ds:  dialect.From("m").Select(goqu.RangeAggregate(median(), 5*time.Minute)).Align(goqu.Align(5 * time.Minute)),
+			sql: "SELECT (percentile_cont(0.5) WITHIN GROUP (ORDER BY `cpu` ASC) RANGE '5m') FROM `m` ALIGN '5m'",
+		},
+		sqlTestCase{
+			ds:         pgDialect.From("m").Prepared(true).Select(median()).Where(goqu.C("host").Eq("a")),
+			sql:        `SELECT percentile_cont($1) WITHIN GROUP (ORDER BY "cpu" ASC) FROM "m" WHERE ("host" = $2)`,
+			isPrepared: true,
+			args:       []interface{}{0.5, "a"},
+		},
+	)
+}
+
 func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 	for _, name := range []string{"greptimedb", "greptimedb-pg"} {
 		gds.Run(name, func() {

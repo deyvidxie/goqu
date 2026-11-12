@@ -1342,6 +1342,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionWithi
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", unsupported),
 		expressionTestCase{val: percentile.WithinGroup(v.Asc()), err: "goqu: dialect does not support WITHIN GROUP [dialect=test]"},
+		expressionTestCase{
+			val: percentile.OrderBy(v.Asc()).WithinGroup(v.Asc()), err: "goqu: dialect does not support WITHIN GROUP [dialect=test]",
+		},
 		expressionTestCase{val: percentile, sql: `percentile_cont(0.5)`},
 	)
 }
