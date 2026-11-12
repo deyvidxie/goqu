@@ -9,7 +9,8 @@ Dialects allow goqu to build the correct SQL for each database. Dialects package
 * [sqlite3](../dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`
 * [sqlserver](../dialect/sqlserver/sqlserver.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"`
 * [duckdb](../dialect/duckdb/duckdb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"`
-* [greptimedb](../dialect/greptimedb/greptimedb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/greptimedb"`, for the MySQL wire protocol
+* [greptimedb](../dialect/greptimedb/greptimedb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/greptimedb"`, for the MySQL wire protocol, which also registers:
+  * `greptimedb-pg` - the PostgreSQL wire protocol: `"` quoting, `$n` placeholders and `#` for XOR; the notes for `greptimedb` apply to it
 
 **NOTE** Dialects work like drivers in go where they are not registered until you import the package.
 
