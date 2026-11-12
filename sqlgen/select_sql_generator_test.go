@@ -1,9 +1,8 @@
 package sqlgen_test
 
 import (
-	"time"
-
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -869,7 +868,7 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withAlign() {
 	)
 }
 
-func (ssgs *selectSQLGeneratorSuite) TestGenerate_withAlignNotRendered() {
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_withAlignNotSupported() {
 	sc := exp.NewSelectClauses().
 		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
 		SetAlign(exp.NewAlignExpression(time.Minute))

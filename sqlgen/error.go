@@ -104,6 +104,10 @@ func errRangeDuration(clause string, d time.Duration) error {
 	return errors.NewInvalidExpressionError("%s duration must be a positive whole number of milliseconds, got %s", clause, d)
 }
 
+func errAlignOrigin(origin time.Time) error {
+	return errors.NewInvalidExpressionError("ALIGN TO origin must be a whole number of milliseconds, got %s", origin.Format(time.RFC3339Nano))
+}
+
 func errRangeFillValue(v float64) error {
 	return errors.NewInvalidExpressionError("FILL value must be a finite non-negative number, got %v", v)
 }

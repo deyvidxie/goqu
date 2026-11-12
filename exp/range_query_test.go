@@ -30,15 +30,16 @@ func (rqt *rangeQueryTest) TestRangeAggregate() {
 
 	rqt.Equal(agg, ra.Aggregate())
 	rqt.Equal(time.Minute, ra.Duration())
-	_, ok := ra.GetFill()
-	rqt.False(ok)
-	fill, ok := withFill.GetFill()
-	rqt.True(ok)
-	rqt.Equal(exp.RangeFillPrev, fill.Kind())
+	rqt.False(ra.HasFill())
+	rqt.Equal(exp.RangeFill{}, ra.GetFill())
+	rqt.True(withFill.HasFill())
+	rqt.Equal(exp.RangeFillPrev, withFill.GetFill().Kind())
 
 	rqt.Equal(ra, ra.Expression())
 	rqt.Equal(ra, ra.Clone())
 	rqt.Equal(exp.NewAliasExpression(ra, "a"), ra.As("a"))
+	rqt.Equal(exp.NewOrderedExpression(ra, exp.AscDir, exp.NoNullsSortType), ra.Asc())
+	rqt.Equal(exp.NewOrderedExpression(ra, exp.DescSortDir, exp.NoNullsSortType), ra.Desc())
 }
 
 func (rqt *rangeQueryTest) TestRangeAggregateWithoutAggregate() {
@@ -53,26 +54,28 @@ func (rqt *rangeQueryTest) TestAlign() {
 
 	rqt.Equal(time.Second, a.Duration())
 	rqt.Equal(a, a.Expression())
-	_, ok := a.ToTime()
-	rqt.False(ok)
+	rqt.False(a.HasTo())
 	rqt.False(a.IsToNow())
+	rqt.True(a.ToTime().IsZero())
+	rqt.False(a.HasBy())
 	rqt.Nil(a.ByCols())
-	_, ok = a.GetFill()
-	rqt.False(ok)
+	rqt.False(a.HasFill())
+	rqt.Equal(exp.RangeFill{}, a.GetFill())
 
-	to, ok := a.To(origin).ToTime()
-	rqt.True(ok)
-	rqt.Equal(origin, to)
+	rqt.True(a.To(origin).HasTo())
+	rqt.False(a.To(origin).IsToNow())
+	rqt.Equal(origin, a.To(origin).ToTime())
+	rqt.True(a.ToNow().HasTo())
 	rqt.True(a.To(origin).ToNow().IsToNow())
-	_, ok = a.ToNow().ToTime()
-	rqt.False(ok)
+	rqt.True(a.ToNow().ToTime().IsZero())
 	rqt.False(a.ToNow().To(origin).IsToNow())
 
+	rqt.True(a.By("host").HasBy())
 	rqt.Equal(exp.NewColumnListExpression(nil, "", "host", "dc"), a.By("host", "dc").ByCols())
+	rqt.True(a.ByNone().HasBy())
 	rqt.True(a.ByNone().ByCols().IsEmpty())
-	fill, ok := a.Fill(exp.NewRangeFillValue(2)).GetFill()
-	rqt.True(ok)
-	rqt.Equal(2.0, fill.Value())
+	rqt.True(a.Fill(exp.NewRangeFillValue(2)).HasFill())
+	rqt.Equal(2.0, a.Fill(exp.NewRangeFillValue(2)).GetFill().Value())
 }
 
 func (rqt *rangeQueryTest) TestAlignByWithoutColumns() {

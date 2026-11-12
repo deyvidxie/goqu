@@ -220,7 +220,7 @@ func (ssg *selectSQLGenerator) unsupportedSelectError(clauses exp.SelectClauses)
 	switch {
 	case len(opts.SelectSQLOrder) == 0:
 		return errStatementNotSupported(ssg.Dialect(), "SELECT")
-	case clauses.Align() != nil && (!opts.SupportsRangeQuery || !slices.Contains(opts.SelectSQLOrder, AlignSQLFragment)):
+	case clauses.Align() != nil && !supportsRangeQuery(opts):
 		return errRangeQueryNotSupported(ssg.Dialect())
 	}
 	return nil

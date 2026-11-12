@@ -543,6 +543,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsWindowClause:              true,
 		SupportsLateral:                   true,
 		SupportsQualify:                   false,
+		SupportsRangeQuery:                false,
 		SupportsMySQLJSONFunctions:        false,
 		SupportsLockOf:                    true,
 

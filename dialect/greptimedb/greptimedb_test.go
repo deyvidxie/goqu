@@ -139,13 +139,14 @@ func (gt *greptimedbTest) TestRangeQuery() {
 		TS  string  `db:"ts"`
 		CPU float64 `db:"cpu"`
 	}
+	alignOrigin := baseTime.Truncate(time.Millisecond)
 	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
 		var buckets []bucket
 		gt.Require().NoError(ds.
 			Select(goqu.Cast(goqu.C("ts"), "STRING").As("ts"),
 				goqu.RangeAggregate(goqu.AVG("cpu"), time.Minute).Fill(goqu.FillLinear()).As("cpu")).
 			Where(goqu.C("host").In("a", "c")).
-			Align(goqu.Align(time.Minute).To(baseTime).ByNone()).
+			Align(goqu.Align(time.Minute).To(alignOrigin).ByNone()).
 			Order(goqu.C("ts").Asc()).ScanStructs(&buckets))
 		gt.Equal([]bucket{
 			{TS: "2024-01-02T03:04:05.123", CPU: 0},
@@ -153,10 +154,22 @@ func (gt *greptimedbTest) TestRangeQuery() {
 			{TS: "2024-01-02T03:06:05.123", CPU: 3},
 		}, buckets, prepared)
 
+		var constant []bucket
+		gt.Require().NoError(ds.
+			Select(goqu.Cast(goqu.C("ts"), "STRING").As("ts"), goqu.RangeAggregate(goqu.AVG("cpu"), time.Minute).As("cpu")).
+			Where(goqu.C("host").In("a", "c")).
+			Align(goqu.Align(time.Minute).To(alignOrigin).ByNone().Fill(goqu.FillValue(7))).
+			Order(goqu.C("ts").Asc()).ScanStructs(&constant))
+		gt.Equal([]bucket{
+			{TS: "2024-01-02T03:04:05.123", CPU: 0},
+			{TS: "2024-01-02T03:05:05.123", CPU: 7},
+			{TS: "2024-01-02T03:06:05.123", CPU: 3},
+		}, constant, prepared)
+
 		var counts []int64
 		gt.Require().NoError(ds.
 			Select(goqu.RangeAggregate(goqu.COUNT(goqu.Star()), 5*time.Minute).As("n")).
-			Align(goqu.Align(5 * time.Minute).To(baseTime).By("ok")).
+			Align(goqu.Align(5 * time.Minute).To(alignOrigin).By("ok")).
 			Order(goqu.C("n").Asc()).ScanVals(&counts))
 		gt.Equal([]int64{2, 3}, counts, prepared)
 	})

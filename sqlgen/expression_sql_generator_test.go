@@ -1853,6 +1853,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeAggregate() {
 		expressionTestCase{
 			val: ra(time.Minute).Fill(exp.NewRangeFillValue(math.Inf(1))), err: "goqu: FILL value must be a finite non-negative number, got +Inf",
 		},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(math.Copysign(0, -1))),
+			err: "goqu: FILL value must be a finite non-negative number, got -0",
+		},
 		expressionTestCase{val: ra(time.Minute).Fill(exp.RangeFill{}), err: "goqu: unknown FILL kind 0"},
 		expressionTestCase{
 			val: exp.NewRangeAggregateExpression(nil, time.Minute), err: "goqu: RangeAggregate requires an aggregate expression",
@@ -1871,7 +1875,10 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_AlignExpression() {
 		sqlgen.NewExpressionSQLGenerator("test", "db", rangeQueryOptions()),
 		expressionTestCase{val: a, sql: `ALIGN '10s'`},
 		expressionTestCase{val: a.ToNow(), sql: `ALIGN '10s' TO NOW`},
-		expressionTestCase{val: a.To(origin), sql: `ALIGN '10s' TO '2024-01-02T02:04:05.123456789Z'`, isPrepared: true},
+		expressionTestCase{val: a.To(origin.Truncate(time.Millisecond)), sql: `ALIGN '10s' TO '2024-01-02T02:04:05.123Z'`, isPrepared: true},
+		expressionTestCase{
+			val: a.To(origin), err: "goqu: ALIGN TO origin must be a whole number of milliseconds, got 2024-01-02T03:04:05.123456789+01:00",
+		},
 		expressionTestCase{val: a.By("host", "dc"), sql: `ALIGN '10s' BY ("host", "dc")`},
 		expressionTestCase{val: a.ByNone(), sql: `ALIGN '10s' BY ()`},
 		expressionTestCase{val: a.Fill(exp.NewRangeFillValue(7)), sql: `ALIGN '10s' FILL 7`, isPrepared: true},

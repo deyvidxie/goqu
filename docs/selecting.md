@@ -757,9 +757,9 @@ SELECT "a", ROW_NUMBER() OVER (PARTITION BY "a" ORDER BY "b" ASC) AS "rn" FROM "
 <a name="align"></a>
 **[`Align`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Align) and [`RangeAggregate`](https://godoc.org/github.com/doug-martin/goqu/#RangeAggregate)**
 
-GreptimeDB range queries. Durations are `time.Duration` values in whole milliseconds; they, the `To` origin and `FILL` values are written inline in prepared mode too. `By` with no columns returns an error; `ByNone` renders `BY ()`.
+Durations must be positive whole milliseconds, the `To` origin whole milliseconds and `FillValue` finite and non-negative; durations, the `To` origin and `FILL` values are inlined in prepared mode. `ByNone` renders `BY ()`.
 
-**NOTE** Only `greptimedb` and `greptimedb-pg` support range queries; the others return a `goqu.UnsupportedError`.
+**NOTE** Only `greptimedb` and `greptimedb-pg` support range queries; the others return a `goqu.UnsupportedError`. A registered dialect needs `SupportsRangeQuery` and `sqlgen.AlignSQLFragment` in its `SelectSQLOrder`.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/greptimedb"

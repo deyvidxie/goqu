@@ -10,30 +10,6 @@ type (
 		value float64
 	}
 
-	RangeAggregateExpression interface {
-		Expression
-		Aliaseable
-		Aggregate() Expression
-		Duration() time.Duration
-		GetFill() (RangeFill, bool)
-		Fill(fill RangeFill) RangeAggregateExpression
-	}
-
-	AlignExpression interface {
-		Expression
-		Duration() time.Duration
-		ToTime() (time.Time, bool)
-		IsToNow() bool
-		ByCols() ColumnListExpression
-		GetFill() (RangeFill, bool)
-
-		To(origin time.Time) AlignExpression
-		ToNow() AlignExpression
-		By(cols ...interface{}) AlignExpression
-		ByNone() AlignExpression
-		Fill(fill RangeFill) AlignExpression
-	}
-
 	rangeAggregate struct {
 		aggregate Expression
 		duration  time.Duration
@@ -84,11 +60,17 @@ func (ra rangeAggregate) Expression() Expression { return ra }
 
 func (ra rangeAggregate) As(val interface{}) AliasedExpression { return NewAliasExpression(ra, val) }
 
+func (ra rangeAggregate) Asc() OrderedExpression { return asc(ra) }
+
+func (ra rangeAggregate) Desc() OrderedExpression { return desc(ra) }
+
 func (ra rangeAggregate) Aggregate() Expression { return ra.aggregate }
 
 func (ra rangeAggregate) Duration() time.Duration { return ra.duration }
 
-func (ra rangeAggregate) GetFill() (RangeFill, bool) { return derefFill(ra.fill) }
+func (ra rangeAggregate) HasFill() bool { return ra.fill != nil }
+
+func (ra rangeAggregate) GetFill() RangeFill { return fillOrZero(ra.fill) }
 
 func (ra rangeAggregate) Fill(fill RangeFill) RangeAggregateExpression {
 	ra.fill = &fill
@@ -108,18 +90,24 @@ func (a align) Expression() Expression { return a }
 
 func (a align) Duration() time.Duration { return a.duration }
 
-func (a align) ToTime() (time.Time, bool) {
-	if a.to == nil || a.to.now {
-		return time.Time{}, false
-	}
-	return a.to.time, true
-}
+func (a align) HasTo() bool { return a.to != nil }
 
 func (a align) IsToNow() bool { return a.to != nil && a.to.now }
 
+func (a align) ToTime() time.Time {
+	if a.to == nil {
+		return time.Time{}
+	}
+	return a.to.time
+}
+
+func (a align) HasBy() bool { return a.by != nil }
+
 func (a align) ByCols() ColumnListExpression { return a.by }
 
-func (a align) GetFill() (RangeFill, bool) { return derefFill(a.fill) }
+func (a align) HasFill() bool { return a.fill != nil }
+
+func (a align) GetFill() RangeFill { return fillOrZero(a.fill) }
 
 func (a align) To(origin time.Time) AlignExpression {
 	a.to = &alignOrigin{time: origin}
@@ -149,9 +137,9 @@ func (a align) Fill(fill RangeFill) AlignExpression {
 	return a
 }
 
-func derefFill(fill *RangeFill) (RangeFill, bool) {
+func fillOrZero(fill *RangeFill) RangeFill {
 	if fill == nil {
-		return RangeFill{}, false
+		return RangeFill{}
 	}
-	return *fill, true
+	return *fill
 }

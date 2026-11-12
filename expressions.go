@@ -94,12 +94,12 @@ func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
 	return exp.NewUTCTimestampExpression(fsp...)
 }
 
-// Creates a GreptimeDB range aggregate; duration must be a positive whole number of milliseconds.
+// duration must be a positive whole number of milliseconds.
 func RangeAggregate(aggregate exp.Expression, duration time.Duration) exp.RangeAggregateExpression {
 	return exp.NewRangeAggregateExpression(aggregate, duration)
 }
 
-// Creates the ALIGN clause for SelectDataset.Align; duration must be a positive whole number of milliseconds.
+// duration must be a positive whole number of milliseconds.
 func Align(duration time.Duration) exp.AlignExpression {
 	return exp.NewAlignExpression(duration)
 }
@@ -110,6 +110,7 @@ func FillPrev() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillPrev) }
 
 func FillLinear() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillLinear) }
 
+// value must be finite and non-negative.
 func FillValue(value float64) exp.RangeFill { return exp.NewRangeFillValue(value) }
 
 func Interval(count any, unit exp.IntervalUnit) exp.IntervalExpression {

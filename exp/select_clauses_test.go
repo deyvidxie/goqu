@@ -1,9 +1,8 @@
 package exp_test
 
 import (
-	"time"
-
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stretchr/testify/suite"

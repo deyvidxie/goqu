@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1289,8 +1290,12 @@ func (esg *expressionSQLGenerator) greptimeDBTimeSQL(b sqlbuilder.SQLBuilder, ut
 	return nil
 }
 
+func supportsRangeQuery(opts *SQLDialectOptions) bool {
+	return opts.SupportsRangeQuery && slices.Contains(opts.SelectSQLOrder, AlignSQLFragment)
+}
+
 func (esg *expressionSQLGenerator) rangeAggregateSQL(b sqlbuilder.SQLBuilder, e exp.RangeAggregateExpression) {
-	if !esg.dialectOptions.SupportsRangeQuery {
+	if !supportsRangeQuery(esg.dialectOptions) {
 		b.SetError(errRangeQueryNotSupported(esg.dialect))
 		return
 	}
@@ -1298,38 +1303,49 @@ func (esg *expressionSQLGenerator) rangeAggregateSQL(b sqlbuilder.SQLBuilder, e 
 	esg.Generate(b, e.Aggregate())
 	b.WriteStrings(" RANGE ")
 	esg.rangeDurationSQL(b, "RANGE", e.Duration())
-	if fill, ok := e.GetFill(); ok {
-		esg.rangeFillSQL(b, fill)
+	if e.HasFill() {
+		esg.rangeFillSQL(b, e.GetFill())
 	}
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 
 func (esg *expressionSQLGenerator) alignExpressionSQL(b sqlbuilder.SQLBuilder, a exp.AlignExpression) {
-	if !esg.dialectOptions.SupportsRangeQuery {
+	if !supportsRangeQuery(esg.dialectOptions) {
 		b.SetError(errRangeQueryNotSupported(esg.dialect))
 		return
 	}
 	b.WriteStrings("ALIGN ")
 	esg.rangeDurationSQL(b, "ALIGN", a.Duration())
-	if a.IsToNow() {
-		b.WriteStrings(" TO NOW")
-	} else if origin, ok := a.ToTime(); ok {
-		b.WriteStrings(" TO ")
-		b.WriteRunes(esg.dialectOptions.StringQuote)
-		b.WriteStrings(origin.In(timeLocation).Format(esg.dialectOptions.TimeFormat))
-		b.WriteRunes(esg.dialectOptions.StringQuote)
+	if a.HasTo() {
+		esg.alignToSQL(b, a)
 	}
-	if by := a.ByCols(); by != nil {
+	if a.HasBy() {
 		b.WriteStrings(" BY ")
 		b.WriteRunes(esg.dialectOptions.LeftParenRune)
-		if !by.IsEmpty() {
-			esg.Generate(b, by)
+		if !a.ByCols().IsEmpty() {
+			esg.Generate(b, a.ByCols())
 		}
 		b.WriteRunes(esg.dialectOptions.RightParenRune)
 	}
-	if fill, ok := a.GetFill(); ok {
-		esg.rangeFillSQL(b, fill)
+	if a.HasFill() {
+		esg.rangeFillSQL(b, a.GetFill())
 	}
+}
+
+func (esg *expressionSQLGenerator) alignToSQL(b sqlbuilder.SQLBuilder, a exp.AlignExpression) {
+	if a.IsToNow() {
+		b.WriteStrings(" TO NOW")
+		return
+	}
+	origin := a.ToTime()
+	if origin.Nanosecond()%int(time.Millisecond) != 0 {
+		b.SetError(errAlignOrigin(origin))
+		return
+	}
+	b.WriteStrings(" TO ")
+	b.WriteRunes(esg.dialectOptions.StringQuote)
+	b.WriteStrings(origin.In(timeLocation).Format(esg.dialectOptions.TimeFormat))
+	b.WriteRunes(esg.dialectOptions.StringQuote)
 }
 
 var rangeDurationUnits = []struct {
@@ -1367,7 +1383,7 @@ func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill ex
 		b.WriteStrings(" FILL LINEAR")
 	case exp.RangeFillValue:
 		v := fill.Value()
-		if v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+		if math.Signbit(v) || math.IsNaN(v) || math.IsInf(v, 0) {
 			b.SetError(errRangeFillValue(v))
 			return
 		}
