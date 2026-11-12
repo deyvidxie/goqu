@@ -147,6 +147,24 @@ func (sst *sqlserverTest) TestToSQL() {
 	sst.Equal("SELECT * FROM \"entry\" WHERE \"int\" = @p1", s)
 }
 
+func (sst *sqlserverTest) TestWithinGroup() {
+	for _, prepared := range []bool{false, true} {
+		var joined string
+		found, err := sst.db.From("entry").Prepared(prepared).Where(goqu.C("int").Lt(3)).
+			Select(goqu.Func("STRING_AGG", goqu.Cast(goqu.C("int"), "VARCHAR(10)"), goqu.L("','")).WithinGroup(goqu.C("int").Desc())).
+			ScanVal(&joined)
+		sst.Require().NoError(err, "prepared=%v", prepared)
+		sst.True(found)
+		sst.Equal("2,1,0", joined, "prepared=%v", prepared)
+
+		var medians []float64
+		sst.Require().NoError(sst.db.From("entry").Prepared(prepared).
+			Select(goqu.Func("PERCENTILE_CONT", 0.5).WithinGroup(goqu.C("int").Asc()).Over(goqu.W())).ScanVals(&medians))
+		sst.Len(medians, 10)
+		sst.Equal(4.5, medians[0], "prepared=%v", prepared)
+	}
+}
+
 func (sst *sqlserverTest) TestQuery() {
 	ds := sst.db.From("entry")
 	floatVal := float64(0)

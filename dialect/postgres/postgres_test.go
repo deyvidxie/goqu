@@ -173,6 +173,24 @@ func (pt *postgresTest) TestTimeFunctions() {
 	}
 }
 
+func (pt *postgresTest) TestWithinGroup() {
+	for _, prepared := range []bool{false, true} {
+		var median float64
+		found, err := pt.db.From("entry").Prepared(prepared).
+			Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("int").Asc())).ScanVal(&median)
+		pt.Require().NoError(err, "prepared=%v", prepared)
+		pt.True(found)
+		pt.Equal(4.5, median, "prepared=%v", prepared)
+
+		var last int64
+		found, err = pt.db.From("entry").Prepared(prepared).Where(goqu.C("int").Lt(3)).
+			Select(goqu.Func("percentile_disc", 1).WithinGroup(goqu.C("int").Desc())).ScanVal(&last)
+		pt.Require().NoError(err, "prepared=%v", prepared)
+		pt.True(found)
+		pt.Equal(int64(0), last, "prepared=%v", prepared)
+	}
+}
+
 func (pt *postgresTest) TestAggregateOrderBy() {
 	for _, prepared := range []bool{false, true} {
 		var joined string

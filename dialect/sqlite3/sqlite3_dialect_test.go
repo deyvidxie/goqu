@@ -27,6 +27,13 @@ func (sds *sqlite3DialectSuite) GetDs(table string) *goqu.SelectDataset {
 	return goqu.Dialect("sqlite3").From(table)
 }
 
+func (sds *sqlite3DialectSuite) TestWithinGroup() {
+	sds.assertSQL(sqlTestCase{
+		ds:  goqu.Dialect("sqlite3").From("t").Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("a").Asc())),
+		err: "goqu: dialect does not support WITHIN GROUP [dialect=sqlite3]",
+	})
+}
+
 func (sds *sqlite3DialectSuite) assertSQL(cases ...sqlTestCase) {
 	for i, c := range cases {
 		actualSQL, actualArgs, err := c.ds.ToSQL()

@@ -175,6 +175,14 @@ func (gt *greptimedbTest) TestRangeQuery() {
 	})
 }
 
+func (gt *greptimedbTest) TestWithinGroup() {
+	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
+		var median []float64
+		gt.Require().NoError(ds.Select(goqu.Func("percentile_cont", goqu.L("0.5")).WithinGroup(goqu.C("cpu").Asc())).ScanVals(&median))
+		gt.Equal([]float64{3}, median, prepared)
+	})
+}
+
 func (gt *greptimedbTest) TestAggregateOrderBy() {
 	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
 		var latest []string

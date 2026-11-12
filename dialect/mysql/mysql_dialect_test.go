@@ -29,6 +29,13 @@ func (mds *mysqlDialectSuite) GetDs(table string) *goqu.SelectDataset {
 	return goqu.Dialect("mysql").From(table)
 }
 
+func (mds *mysqlDialectSuite) TestWithinGroup() {
+	mds.assertSQL(sqlTestCase{
+		ds:  goqu.Dialect("mysql").From("t").Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("a").Asc())),
+		err: "goqu: dialect does not support WITHIN GROUP [dialect=mysql]",
+	})
+}
+
 func (mds *mysqlDialectSuite) assertSQL(cases ...sqlTestCase) {
 	for i, c := range cases {
 		actualSQL, actualArgs, err := c.ds.ToSQL()

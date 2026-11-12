@@ -19,6 +19,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.WrapCompoundsInParens = false
 	opts.SupportsDistinctOn = false
 	opts.SupportsLateral = false
+	opts.SupportsWithinGroup = false
 
 	opts.TruncateClause = []byte("DELETE FROM")
 	opts.SupportsTruncateIdentity = false

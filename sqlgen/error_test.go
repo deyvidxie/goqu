@@ -149,6 +149,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Qualify(goqu.C("a").Eq(1))
 		}},
+		{"WITHIN GROUP", "WITHIN GROUP", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsWithinGroup = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("a").Asc()))
+		}},
 		{"aggregate ORDER BY", "ORDER BY in function arguments", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsAggregateOrderBy = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -346,6 +351,11 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		{
 			"ALIGN TO origin", "ALIGN TO origin must be a whole number of milliseconds",
 			rangeExpression(exp.NewAlignExpression(time.Second).To(time.Unix(0, 1))),
+		},
+		{
+			"OrderBy with WithinGroup", "OrderBy and WithinGroup cannot both order one function",
+			expression(exp.NewSQLFunctionExpression("f").OrderBy(exp.NewIdentifierExpression("", "", "a").Asc()).
+				WithinGroup(exp.NewIdentifierExpression("", "", "a").Asc())),
 		},
 		{"truncate without source", "no source found when generating truncate sql", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewTruncateSQLGenerator("test", "db", opts).Generate(b, exp.NewTruncateClauses())

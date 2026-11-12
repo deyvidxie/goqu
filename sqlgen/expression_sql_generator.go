@@ -864,12 +864,35 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 		b.SetError(errListAsSingleValue(fmt.Sprintf("function %q argument", strings.TrimSpace(name)), v))
 		return
 	}
+	if sqlFunc.HasWithinGroup() {
+		if err := esg.withinGroupError(sqlFunc); err != nil {
+			b.SetError(err)
+			return
+		}
+	}
 	b.WriteStrings(name)
 	if sqlFunc.HasOrder() {
 		esg.orderedArgumentsSQL(b, args, sqlFunc.OrderCols())
-		return
+	} else {
+		esg.argumentsSQL(b, args)
 	}
-	esg.argumentsSQL(b, args)
+	if sqlFunc.HasWithinGroup() {
+		b.WriteStrings(" WITHIN GROUP ")
+		b.WriteRunes(esg.dialectOptions.LeftParenRune)
+		b.Write(esg.dialectOptions.WindowOrderByFragment)
+		esg.Generate(b, sqlFunc.WithinGroupCols())
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	}
+}
+
+func (esg *expressionSQLGenerator) withinGroupError(sqlFunc exp.SQLFunctionExpression) error {
+	switch {
+	case !esg.dialectOptions.SupportsWithinGroup:
+		return errWithinGroupNotSupported(esg.dialect)
+	case sqlFunc.HasOrder():
+		return errOrderByWithWithinGroup
+	}
+	return nil
 }
 
 func (esg *expressionSQLGenerator) orderedArgumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}, order exp.ColumnListExpression) {

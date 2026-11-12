@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	errOrderByWithWithinGroup       = errors.NewInvalidExpressionError("OrderBy and WithinGroup cannot both order one function")
 	errNoSourceForInsert            = errors.NewInvalidExpressionError("no source found when generating insert sql")
 	errNoSourceForUpdate            = errors.NewInvalidExpressionError("no source found when generating update sql")
 	errNoSourceForDelete            = errors.NewInvalidExpressionError("no source found when generating delete sql")
@@ -82,6 +83,10 @@ func errReturnNotSupported(dialect string) error {
 
 func errDistinctOnNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
+}
+
+func errWithinGroupNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support WITHIN GROUP [dialect=%s]", dialect)
 }
 
 func errAggregateOrderByNotSupported(dialect string) error {

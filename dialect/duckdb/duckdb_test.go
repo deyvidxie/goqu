@@ -172,6 +172,17 @@ func (st *duckdbSuite) TestTimeFunctions() {
 	}
 }
 
+func (st *duckdbSuite) TestWithinGroup() {
+	for _, prepared := range []bool{false, true} {
+		var median float64
+		found, err := st.db.From("entry").Prepared(prepared).Where(goqu.C("int").Lt(4)).
+			Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("int").Asc())).ScanVal(&median)
+		st.Require().NoError(err, "prepared=%v", prepared)
+		st.True(found)
+		st.Equal(1.5, median, "prepared=%v", prepared)
+	}
+}
+
 func (st *duckdbSuite) TestAggregateOrderBy() {
 	for _, prepared := range []bool{false, true} {
 		var joined string
