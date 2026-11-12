@@ -566,8 +566,8 @@ func (sd *SelectDataset) ClearHaving() *SelectDataset {
 	return sd.copy(sd.clauses.ClearHaving())
 }
 
-// Adds a QUALIFY clause, which filters on the result of window functions. Of the built in dialects only duckdb supports
-// QUALIFY; the others return an error unless registered with SQLDialectOptions.SupportsQualify set to true.
+// Adds a QUALIFY clause, which filters on the result of window functions. Of the built in dialects only duckdb and greptimedb
+// support QUALIFY; the others return an error unless registered with SQLDialectOptions.SupportsQualify set to true.
 // See examples.
 func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 	if len(expressions) == 0 {

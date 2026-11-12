@@ -19,6 +19,22 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsTruncateIdentity = false
 	opts.UnsupportedLockStrengths = []exp.LockStrength{exp.ForUpdate, exp.ForNoKeyUpdate, exp.ForShare, exp.ForKeyShare}
 	opts.UpdateSQLOrder = nil
+	opts.SelectSQLOrder = []sqlgen.SQLFragmentType{
+		sqlgen.CommonTableSQLFragment,
+		sqlgen.SelectSQLFragment,
+		sqlgen.FromSQLFragment,
+		sqlgen.JoinSQLFragment,
+		sqlgen.WhereSQLFragment,
+		sqlgen.GroupBySQLFragment,
+		sqlgen.HavingSQLFragment,
+		sqlgen.WindowSQLFragment,
+		sqlgen.QualifySQLFragment,
+		sqlgen.CompoundsSQLFragment,
+		sqlgen.OrderSQLFragment,
+		sqlgen.LimitSQLFragment,
+		sqlgen.OffsetSQLFragment,
+		sqlgen.ForSQLFragment,
+	}
 
 	opts.TruncateClause = []byte("TRUNCATE TABLE")
 	opts.QuoteRune = '`'

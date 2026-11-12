@@ -115,6 +115,10 @@ func (gds *greptimedbDialectSuite) TestSelectFeatures() {
 			sql: "SELECT `host` FROM `m` QUALIFY (ROW_NUMBER() OVER (PARTITION BY `host` ORDER BY `ts` DESC) = 1)",
 		},
 		sqlTestCase{
+			ds:  ds.Select("host").Window(goqu.W("w").PartitionBy("host")).Qualify(goqu.C("host").Eq("a")),
+			sql: "SELECT `host` FROM `m` WINDOW `w` AS (PARTITION BY `host`) QUALIFY (`host` = 'a')",
+		},
+		sqlTestCase{
 			ds:  ds.Select("host", "ts").DistinctOn("host").Order(goqu.C("host").Asc(), goqu.C("ts").Desc()),
 			sql: "SELECT DISTINCT ON (`host`) `host`, `ts` FROM `m` ORDER BY `host` ASC, `ts` DESC",
 		},
@@ -156,11 +160,12 @@ func (gds *greptimedbDialectSuite) TestTimeFunctions() {
 			sql: "SELECT date_bin(INTERVAL 5 MINUTE, `ts`) FROM `m` WHERE (`ts` > (NOW() - INTERVAL 2 DAY))",
 		},
 		sqlTestCase{
-			ds:         ds.Prepared(true).Select(bucket).Where(goqu.C("ts").Gt(goqu.UTCTimestamp().Sub(goqu.Interval(1.5, exp.SecondInterval)))),
+			ds:         ds.Prepared(true).Select(bucket).Where(goqu.C("ts").Gt(goqu.Now().Sub(goqu.Interval(1.5, exp.SecondInterval)))),
 			sql:        "SELECT date_bin(INTERVAL 5 MINUTE, `ts`) FROM `m` WHERE (`ts` > (NOW() - INTERVAL 1.5 SECOND))",
 			isPrepared: true,
 		},
-		sqlTestCase{ds: ds.Select(goqu.Now(3)), err: "goqu: dialect does not support fsp [dialect=greptimedb]"},
+		sqlTestCase{ds: ds.Select(goqu.Now(3)), err: "goqu: dialect does not support fsp 3 [dialect=greptimedb]"},
+		sqlTestCase{ds: ds.Select(goqu.UTCTimestamp()), err: "goqu: dialect does not support UTCTimestamp [dialect=greptimedb]"},
 		sqlTestCase{
 			ds:  ds.Select(goqu.Interval(1, exp.QuarterInterval)),
 			err: "goqu: dialect does not support Interval unit QUARTER [dialect=greptimedb]",

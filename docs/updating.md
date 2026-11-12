@@ -18,6 +18,8 @@ To create a [`UpdateDataset`](https://godoc.org/github.com/doug-martin/goqu/#Upd
 
 **[`goqu.Update`](https://godoc.org/github.com/doug-martin/goqu/#Update)**
 
+**NOTE** `greptimedb` has no `UPDATE` and returns a `goqu.UnsupportedError`.
+
 When you just want to create some quick SQL, this mostly follows the `Postgres` with the exception of placeholders for prepared statements.
 
 ```go

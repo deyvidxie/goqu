@@ -1274,9 +1274,12 @@ func (esg *expressionSQLGenerator) duckDBTimeSQL(b sqlbuilder.SQLBuilder, utc bo
 	return nil
 }
 
-func (esg *expressionSQLGenerator) greptimeDBTimeSQL(b sqlbuilder.SQLBuilder, _ bool, _ int, hasFSP bool) error {
-	if hasFSP {
-		return errTimeFSPNotSupportedAtAll(esg.dialect)
+func (esg *expressionSQLGenerator) greptimeDBTimeSQL(b sqlbuilder.SQLBuilder, utc bool, fsp int, hasFSP bool) error {
+	switch {
+	case utc:
+		return errUTCTimestampNotSupported(esg.dialect)
+	case hasFSP:
+		return errTimeFSPNotSupported(esg.dialect, fsp)
 	}
 	esg.Generate(b, exp.NewSQLFunctionExpression("NOW"))
 	return nil
@@ -1309,24 +1312,27 @@ func (esg *expressionSQLGenerator) greptimeDBIntervalSQL(b sqlbuilder.SQLBuilder
 	if unit == exp.QuarterInterval {
 		return errIntervalUnitNotSupported(esg.dialect, unit)
 	}
-	if _, isExpression := count.(exp.Expression); !isExpression {
-		count = exp.NewLiteralExpression(inlineNumber(count))
+	if expression, isExpression := count.(exp.Expression); isExpression {
+		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), expression))
+		return nil
 	}
-	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
+	b.WriteStrings("INTERVAL ")
+	esg.inlineNumberSQL(b, count)
+	b.WriteStrings(" " + string(unit))
 	return nil
 }
 
-func inlineNumber(n any) string {
+func (esg *expressionSQLGenerator) inlineNumberSQL(b sqlbuilder.SQLBuilder, n any) {
 	rv := reflect.Indirect(reflect.ValueOf(n))
 	switch {
 	case !rv.IsValid():
-		return "NULL"
+		b.Write(esg.dialectOptions.Null)
 	case util.IsInt(rv.Kind()):
-		return strconv.FormatInt(rv.Int(), 10)
+		b.WriteInt(rv.Int())
 	case util.IsUint(rv.Kind()):
-		return strconv.FormatUint(rv.Uint(), 10)
+		b.WriteStrings(strconv.FormatUint(rv.Uint(), 10))
 	default:
-		return strconv.FormatFloat(rv.Float(), 'f', -1, 64)
+		b.WriteFloat(rv.Float())
 	}
 }
 

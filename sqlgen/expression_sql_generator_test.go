@@ -1518,6 +1518,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 		expressionTestCase{val: utc0, sql: "UTC_TIMESTAMP(0)", isPrepared: true},
 	)
 	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.GreptimeDBTimeStyle)),
+		expressionTestCase{val: now, sql: "NOW()"},
+		expressionTestCase{val: now, sql: "NOW()", isPrepared: true},
+		expressionTestCase{val: now3, err: "goqu: dialect does not support fsp 3 [dialect=test]"},
+		expressionTestCase{val: utc, err: "goqu: dialect does not support UTCTimestamp [dialect=test]"},
+		expressionTestCase{val: utc0, err: "goqu: dialect does not support UTCTimestamp [dialect=test]"},
+	)
+	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.SQLiteTimeStyle)),
 		expressionTestCase{val: now, sql: "datetime('now', 'localtime')"},
 		expressionTestCase{val: now3, sql: "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"},
@@ -1561,12 +1569,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 	mysql := sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.MySQLTimeStyle))
 	standard := sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.PostgresTimeStyle))
+	greptimedb := sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.GreptimeDBTimeStyle))
 	units := []exp.IntervalUnit{
 		exp.MicrosecondInterval, exp.SecondInterval, exp.MinuteInterval, exp.HourInterval,
 		exp.DayInterval, exp.WeekInterval, exp.MonthInterval, exp.YearInterval,
 	}
 	for _, unit := range units {
 		esgs.assertCases(mysql, expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit)})
+		esgs.assertCases(greptimedb,
+			expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit)},
+			expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit), isPrepared: true},
+		)
 		esgs.assertCases(standard, expressionTestCase{
 			val: exp.NewIntervalExpression(2, unit), sql: "(2 * INTERVAL '1 " + string(unit) + "')",
 		})
@@ -1631,6 +1644,24 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.DuckDBTimeStyle)),
 		expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), sql: "(1 * INTERVAL '1 SECOND')"},
 	)
+	esgs.assertCases(greptimedb,
+		expressionTestCase{val: exp.NewIntervalExpression(-3, exp.MinuteInterval), sql: "INTERVAL -3 MINUTE"},
+		expressionTestCase{val: exp.NewIntervalExpression(uint8(2), exp.DayInterval), sql: "INTERVAL 2 DAY", isPrepared: true},
+		expressionTestCase{val: exp.NewIntervalExpression(&two, exp.DayInterval), sql: "INTERVAL 2 DAY", isPrepared: true},
+		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "INTERVAL 1.5 SECOND", isPrepared: true},
+		expressionTestCase{val: exp.NewIntervalExpression(nil, exp.DayInterval), sql: "INTERVAL NULL DAY", isPrepared: true},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `INTERVAL "n" DAY`,
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(1, exp.QuarterInterval), err: "goqu: dialect does not support Interval unit QUARTER [dialect=test]",
+		},
+	)
+	nullOpts := timeStyleOptions(sqlgen.GreptimeDBTimeStyle)
+	nullOpts.Null = []byte("null")
+	esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", "db", nullOpts),
+		expressionTestCase{val: exp.NewIntervalExpression(nil, exp.DayInterval), sql: "INTERVAL null DAY", isPrepared: true},
+	)
 	for _, style := range []sqlgen.TimeStyle{sqlgen.SQLiteTimeStyle, sqlgen.SQLServerTimeStyle} {
 		esgs.assertCases(
 			sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(style)),
@@ -1640,42 +1671,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(99)),
 		expressionTestCase{val: exp.NewIntervalExpression(1, exp.SecondInterval), err: "goqu: dialect has unknown TimeStyle 99 [dialect=test]"},
-	)
-}
-
-func (esgs *expressionSQLGeneratorSuite) TestGenerate_GreptimeDBTimeStyle() {
-	greptimedb := sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.GreptimeDBTimeStyle))
-	two := 2
-	for _, unit := range []exp.IntervalUnit{
-		exp.MicrosecondInterval, exp.SecondInterval, exp.MinuteInterval, exp.HourInterval,
-		exp.DayInterval, exp.WeekInterval, exp.MonthInterval, exp.YearInterval,
-	} {
-		esgs.assertCases(greptimedb,
-			expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit)},
-			expressionTestCase{val: exp.NewIntervalExpression(2, unit), sql: "INTERVAL 2 " + string(unit), isPrepared: true},
-		)
-	}
-	esgs.assertCases(greptimedb,
-		expressionTestCase{val: exp.NewNowExpression(), sql: "NOW()"},
-		expressionTestCase{val: exp.NewUTCTimestampExpression(), sql: "NOW()"},
-		expressionTestCase{val: exp.NewNowExpression(3), err: "goqu: dialect does not support fsp [dialect=test]"},
-		expressionTestCase{val: exp.NewUTCTimestampExpression(0), err: "goqu: dialect does not support fsp [dialect=test]"},
-		expressionTestCase{val: exp.NewIntervalExpression(-3, exp.MinuteInterval), sql: "INTERVAL -3 MINUTE"},
-		expressionTestCase{val: exp.NewIntervalExpression(uint8(2), exp.DayInterval), sql: "INTERVAL 2 DAY", isPrepared: true},
-		expressionTestCase{val: exp.NewIntervalExpression(&two, exp.DayInterval), sql: "INTERVAL 2 DAY", isPrepared: true},
-		expressionTestCase{val: exp.NewIntervalExpression(countValuer{int64(2)}, exp.DayInterval), sql: "INTERVAL 2 DAY", isPrepared: true},
-		expressionTestCase{val: exp.NewIntervalExpression(1.5, exp.SecondInterval), sql: "INTERVAL 1.5 SECOND", isPrepared: true},
-		expressionTestCase{val: exp.NewIntervalExpression(nil, exp.DayInterval), sql: "INTERVAL NULL DAY", isPrepared: true},
-		expressionTestCase{
-			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `INTERVAL "n" DAY`,
-		},
-		expressionTestCase{
-			val: exp.NewIntervalExpression(1, exp.QuarterInterval), err: "goqu: dialect does not support Interval unit QUARTER [dialect=test]",
-		},
-		expressionTestCase{
-			val: exp.NewIntervalExpression(1.5, exp.HourInterval),
-			err: "goqu: Interval count must be an integer, an expression or, with SECOND, a finite number, got float64 1.5 for HOUR [dialect=test]",
-		},
 	)
 }
 
@@ -1710,6 +1705,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 	esgs.True(goqu.IsUnsupported(render(sqlgen.SQLiteTimeStyle, exp.NewIntervalExpression(1, "x"))))
 	esgs.True(goqu.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewNowExpression(3))))
+	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewUTCTimestampExpression())))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewIntervalExpression(1, exp.QuarterInterval))))
 }
 
@@ -1730,8 +1726,9 @@ func (s sequenceValuer) Value() (driver.Value, error) {
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountValuerResolvedOnce() {
 	for style, sql := range map[sqlgen.TimeStyle]string{
-		sqlgen.PostgresTimeStyle: "(2 * INTERVAL '1 DAY')",
-		sqlgen.MySQLTimeStyle:    "INTERVAL 2 DAY",
+		sqlgen.PostgresTimeStyle:   "(2 * INTERVAL '1 DAY')",
+		sqlgen.MySQLTimeStyle:      "INTERVAL 2 DAY",
+		sqlgen.GreptimeDBTimeStyle: "INTERVAL 2 DAY",
 	} {
 		values := []driver.Value{int64(2), 1.5}
 		esgs.assertCases(
@@ -1758,6 +1755,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalCountErrors() {
 		{sqlgen.PostgresTimeStyle, time.Second, exp.HourInterval, anyNumber + "time.Duration 1s for HOUR [dialect=test]"},
 		{sqlgen.PostgresTimeStyle, math.NaN(), exp.SecondInterval, anyNumber + "float64 NaN for SECOND [dialect=test]"},
 		{sqlgen.MySQLTimeStyle, math.Inf(1), exp.SecondInterval, anyNumber + "float64 +Inf for SECOND [dialect=test]"},
+		{sqlgen.GreptimeDBTimeStyle, 1.5, exp.HourInterval, anyNumber + "float64 1.5 for HOUR [dialect=test]"},
 		{sqlgen.PostgresTimeStyle, exp.Ex{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
 		{sqlgen.PostgresTimeStyle, exp.ExOr{"a": 1}, exp.DayInterval, "goqu: Interval count goqu.Ex/ExOr is a condition, not a count"},
 		{

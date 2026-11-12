@@ -1,5 +1,6 @@
 # Unreleased
 
+* [FEATURE] Add the `greptimedb` dialect for the GreptimeDB MySQL wire protocol, with `sqlgen.GreptimeDBTimeStyle` [deyvidxie#191](https://github.com/deyvidxie/goqu/issues/191)
 * [BREAKING] An insert with both `Cols` and `Rows` returns an `InvalidExpressionError` instead of ignoring `Cols`; `Rows` take their columns from the records [deyvidxie#158](https://github.com/deyvidxie/goqu/issues/158)
 * [BREAKING] `SelectDataset.Update()`, `Delete()` and `Truncate()` return an `InvalidExpressionError` naming the first select clause the statement cannot carry, instead of dropping it: a `JOIN`, `OFFSET`, a second `FROM` table (`Update()`/`Delete()` only), `GROUP BY`, `HAVING`, `QUALIFY`, `DISTINCT`, `WINDOW`, a compound or a locking clause, and for `Truncate()` also `WITH`, `WHERE`, `ORDER BY` and `LIMIT` [deyvidxie#160](https://github.com/deyvidxie/goqu/issues/160)
 * [BREAKING] A `nil` entry in a column list (`Select`, `GroupBy`, `DistinctOn`, `Cols`, `Returning`, window `PartitionBy`/`OrderBy`, …) or a condition list (`Where`, `Having`, `Qualify`, `On`, `And`, `Or`) fails with "column and condition lists must not contain nil" instead of being dropped or rendered as `NULL` [deyvidxie#161](https://github.com/deyvidxie/goqu/issues/161)
