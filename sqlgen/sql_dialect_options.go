@@ -75,6 +75,8 @@ type (
 		SupportsAggregateOrderBy bool
 		// Set to true if ordered-set aggregates take WITHIN GROUP (ORDER BY ...) (DEFAULT=true)
 		SupportsWithinGroup bool
+		// Set to true if function arguments may end in SEPARATOR '...', e.g. GROUP_CONCAT(x SEPARATOR ';') (DEFAULT=false)
+		SupportsAggregateSeparator bool
 
 		// Set to true if the dialect requires join tables in UPDATE to be in a FROM clause (DEFAULT=true).
 		UseFromClauseForMultipleUpdateTables bool
@@ -547,6 +549,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsWindowClause:              true,
 		SupportsAggregateOrderBy:          true,
 		SupportsWithinGroup:               true,
+		SupportsAggregateSeparator:        false,
 		SupportsLateral:                   true,
 		SupportsQualify:                   false,
 		SupportsRangeQuery:                false,

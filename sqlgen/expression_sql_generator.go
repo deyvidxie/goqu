@@ -450,6 +450,10 @@ func (esg *expressionSQLGenerator) literalString(b sqlbuilder.SQLBuilder, s stri
 		b.SetError(errInvalidUTF8Literal(s))
 		return
 	}
+	esg.quotedStringSQL(b, s)
+}
+
+func (esg *expressionSQLGenerator) quotedStringSQL(b sqlbuilder.SQLBuilder, s string) {
 	b.GrowBuffer(len(s) + quoteOverhead)
 	b.WriteRunes(esg.dialectOptions.StringQuote)
 	for _, char := range s {
@@ -871,8 +875,8 @@ func (esg *expressionSQLGenerator) sqlFunctionExpressionSQL(b sqlbuilder.SQLBuil
 		}
 	}
 	b.WriteStrings(name)
-	if sqlFunc.HasOrder() {
-		esg.orderedArgumentsSQL(b, args, sqlFunc.OrderCols())
+	if sqlFunc.HasOrder() || sqlFunc.HasSeparator() {
+		esg.clausedArgumentsSQL(b, args, sqlFunc)
 	} else {
 		esg.argumentsSQL(b, args)
 	}
@@ -895,9 +899,16 @@ func (esg *expressionSQLGenerator) withinGroupError(sqlFunc exp.SQLFunctionExpre
 	return nil
 }
 
-func (esg *expressionSQLGenerator) orderedArgumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}, order exp.ColumnListExpression) {
-	if !esg.dialectOptions.SupportsAggregateOrderBy {
+func (esg *expressionSQLGenerator) clausedArgumentsSQL(b sqlbuilder.SQLBuilder, args []interface{}, sqlFunc exp.SQLFunctionExpression) {
+	switch {
+	case sqlFunc.HasOrder() && !esg.dialectOptions.SupportsAggregateOrderBy:
 		b.SetError(errAggregateOrderByNotSupported(esg.dialect))
+		return
+	case sqlFunc.HasSeparator() && !esg.dialectOptions.SupportsAggregateSeparator:
+		b.SetError(errAggregateSeparatorNotSupported(esg.dialect))
+		return
+	case sqlFunc.HasSeparator() && !utf8.ValidString(sqlFunc.GetSeparator()):
+		b.SetError(errInvalidUTF8Separator)
 		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
@@ -907,11 +918,22 @@ func (esg *expressionSQLGenerator) orderedArgumentsSQL(b sqlbuilder.SQLBuilder, 
 		}
 		esg.Generate(b, arg)
 	}
-	if len(args) > 0 {
-		b.WriteRunes(esg.dialectOptions.SpaceRune)
+	clauseStarted := len(args) > 0
+	if sqlFunc.HasOrder() {
+		if clauseStarted {
+			b.WriteRunes(esg.dialectOptions.SpaceRune)
+		}
+		b.Write(esg.dialectOptions.WindowOrderByFragment)
+		esg.Generate(b, sqlFunc.OrderCols())
+		clauseStarted = true
 	}
-	b.Write(esg.dialectOptions.WindowOrderByFragment)
-	esg.Generate(b, order)
+	if sqlFunc.HasSeparator() {
+		if clauseStarted {
+			b.WriteRunes(esg.dialectOptions.SpaceRune)
+		}
+		b.WriteStrings("SEPARATOR ")
+		esg.quotedStringSQL(b, sqlFunc.GetSeparator())
+	}
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }
 

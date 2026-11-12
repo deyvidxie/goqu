@@ -29,6 +29,22 @@ func (mds *mysqlDialectSuite) GetDs(table string) *goqu.SelectDataset {
 	return goqu.Dialect("mysql").From(table)
 }
 
+func (mds *mysqlDialectSuite) TestGroupConcatSeparator() {
+	ds := mds.GetDs("test")
+	mds.assertSQL(
+		sqlTestCase{
+			ds:  ds.Select(goqu.Func("GROUP_CONCAT", goqu.C("a")).OrderBy(goqu.C("a").Desc()).Separator(`a'b\c`)),
+			sql: "SELECT GROUP_CONCAT(`a` ORDER BY `a` DESC SEPARATOR 'a''b\\\\c') FROM `test`",
+		},
+		sqlTestCase{
+			ds:         ds.Prepared(true).Select(goqu.Func("GROUP_CONCAT", goqu.C("a")).Separator(";")).Where(goqu.C("a").Gt(1)),
+			sql:        "SELECT GROUP_CONCAT(`a` SEPARATOR ';') FROM `test` WHERE (`a` > ?)",
+			isPrepared: true,
+			args:       []interface{}{int64(1)},
+		},
+	)
+}
+
 func (mds *mysqlDialectSuite) TestWithinGroup() {
 	mds.assertSQL(sqlTestCase{
 		ds:  goqu.Dialect("mysql").From("t").Select(goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("a").Asc())),

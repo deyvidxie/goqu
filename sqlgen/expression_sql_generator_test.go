@@ -1311,6 +1311,38 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionOrder
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionSeparator() {
+	x := exp.NewIdentifierExpression("", "", "x")
+	groupConcat := exp.NewSQLFunctionExpression("GROUP_CONCAT", x)
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsAggregateSeparator = true
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{val: groupConcat.Separator(";"), sql: `GROUP_CONCAT("x" SEPARATOR ';')`},
+		expressionTestCase{val: groupConcat.Separator(";"), sql: `GROUP_CONCAT("x" SEPARATOR ';')`, isPrepared: true},
+		expressionTestCase{val: groupConcat.Separator(""), sql: `GROUP_CONCAT("x" SEPARATOR '')`},
+		expressionTestCase{val: groupConcat.Separator("a'b"), sql: `GROUP_CONCAT("x" SEPARATOR 'a''b')`},
+		expressionTestCase{
+			val:        exp.NewSQLFunctionExpression("GROUP_CONCAT", x, "-").OrderBy(x.Desc()).Separator(";"),
+			sql:        `GROUP_CONCAT("x", ? ORDER BY "x" DESC SEPARATOR ';')`,
+			isPrepared: true,
+			args:       []interface{}{"-"},
+		},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("f").Separator(","), sql: `f(SEPARATOR ',')`},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("f").OrderBy(x.Asc()).Separator(","), sql: `f(ORDER BY "x" ASC SEPARATOR ',')`},
+		expressionTestCase{
+			val: groupConcat.Separator(";").Over(exp.NewWindowExpression(nil, nil, exp.NewColumnListExpression(nil, "", "g"), nil)),
+			sql: `GROUP_CONCAT("x" SEPARATOR ';') OVER (PARTITION BY "g")`,
+		},
+		expressionTestCase{val: groupConcat.Separator(string([]byte{0xff})), err: "goqu: Separator is not valid UTF-8", isPrepared: true},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: groupConcat.Separator(";"), err: "goqu: dialect does not support SEPARATOR in function arguments [dialect=test]"},
+		expressionTestCase{val: groupConcat.OrderBy(x.Asc()), sql: `GROUP_CONCAT("x" ORDER BY "x" ASC)`},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionWithinGroup() {
 	v := exp.NewIdentifierExpression("", "", "v")
 	percentile := exp.NewSQLFunctionExpression("percentile_cont", 0.5)

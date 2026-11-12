@@ -51,6 +51,7 @@ var (
 	errEmptySelect            = errors.NewInvalidExpressionError(`Select requires at least one column`)
 	errUnexpectedNamedWindow  = errors.NewInvalidExpressionError(`unexpected named window function`)
 	errOrderByWithWithinGroup = errors.NewInvalidExpressionError("OrderBy and WithinGroup cannot both order one function")
+	errInvalidUTF8Separator   = errors.NewInvalidExpressionError("Separator is not valid UTF-8")
 	errNoWindowName           = errors.NewInvalidExpressionError("window expression has no valid name")
 
 	errExcludedOutsideConflictUpdate = errors.NewInvalidExpressionError("Excluded is only valid in an OnConflict DoUpdate")
@@ -87,6 +88,10 @@ func errDistinctOnNotSupported(dialect string) error {
 
 func errWithinGroupNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support WITHIN GROUP [dialect=%s]", dialect)
+}
+
+func errAggregateSeparatorNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support SEPARATOR in function arguments [dialect=%s]", dialect)
 }
 
 func errAggregateOrderByNotSupported(dialect string) error {

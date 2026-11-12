@@ -226,6 +226,18 @@ func (mt *mysqlTest) TestIntervalOfMilliseconds() {
 	}
 }
 
+func (mt *mysqlTest) TestGroupConcatSeparator() {
+	for _, prepared := range []bool{false, true} {
+		var joined string
+		found, err := mt.db.From("entry").Prepared(prepared).Where(goqu.C("int").Lt(3)).
+			Select(goqu.Func("GROUP_CONCAT", goqu.C("int")).OrderBy(goqu.C("int").Desc()).Separator(`'\;`)).
+			ScanVal(&joined)
+		mt.Require().NoError(err, "prepared=%v", prepared)
+		mt.True(found)
+		mt.Equal(`2'\;1'\;0`, joined, "prepared=%v", prepared)
+	}
+}
+
 func (mt *mysqlTest) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := mt.db.From("entry").Prepared(prepared)

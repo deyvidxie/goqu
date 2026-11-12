@@ -850,6 +850,15 @@ func ExampleFunc_withinGroup() {
 	// SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms" ASC), STRING_AGG("host", ',') WITHIN GROUP (ORDER BY "host" ASC) FROM "latency"
 }
 
+func ExampleFunc_separator() {
+	sql, _, _ := goqu.Dialect("mysql").From("hosts").Select(
+		goqu.Func("GROUP_CONCAT", goqu.C("name")).OrderBy(goqu.C("name").Asc()).Separator(";"),
+	).ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT GROUP_CONCAT(`name` ORDER BY `name` ASC SEPARATOR ';') FROM `hosts`
+}
+
 func ExampleI() {
 	ds := goqu.From("test").
 		Select(
