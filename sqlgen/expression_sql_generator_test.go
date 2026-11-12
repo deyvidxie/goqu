@@ -1625,7 +1625,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 	}{
 		{style: sqlgen.PostgresTimeStyle, millisecond: "(2 * INTERVAL '1 MILLISECOND')"},
 		{style: sqlgen.DuckDBTimeStyle, millisecond: "(2 * INTERVAL '1 MILLISECOND')"},
-		{style: sqlgen.MySQLTimeStyle},
+		{style: sqlgen.MySQLTimeStyle, millisecond: "INTERVAL (2 * 1000) MICROSECOND"},
 		{style: sqlgen.GreptimeDBTimeStyle, millisecond: "INTERVAL 2 MILLISECOND", nanosecond: "INTERVAL 2 NANOSECOND"},
 	} {
 		cases := make([]expressionTestCase, 0, 4)
@@ -1659,6 +1659,14 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 	esgs.assertCases(
 		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.MySQLTimeStyle)),
 		expressionTestCase{val: exp.NewDurationIntervalExpression(-time.Second), err: "goqu: IntervalOf requires a positive duration, got -1s"},
+		expressionTestCase{
+			val: exp.NewDurationIntervalExpression(1500 * time.Millisecond), sql: "INTERVAL (? * 1000) MICROSECOND",
+			isPrepared: true, args: []interface{}{int64(1500)},
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.MillisecondInterval),
+			sql: `INTERVAL ("n" * 1000) MICROSECOND`,
+		},
 	)
 }
 
@@ -1803,7 +1811,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewNowExpression(3))))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewUTCTimestampExpression())))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewIntervalExpression(1, exp.QuarterInterval))))
-	esgs.True(goqu.IsUnsupported(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, exp.MillisecondInterval))))
+	esgs.True(goqu.IsUnsupported(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, exp.NanosecondInterval))))
 	esgs.True(goqu.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewDurationIntervalExpression(0))))
 }
 

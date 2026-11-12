@@ -1421,7 +1421,7 @@ func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill ex
 
 var unsupportedIntervalUnits = map[TimeStyle][]exp.IntervalUnit{
 	PostgresTimeStyle:   {exp.NanosecondInterval},
-	MySQLTimeStyle:      {exp.NanosecondInterval, exp.MillisecondInterval},
+	MySQLTimeStyle:      {exp.NanosecondInterval},
 	DuckDBTimeStyle:     {exp.NanosecondInterval},
 	GreptimeDBTimeStyle: {exp.QuarterInterval},
 }
@@ -1444,6 +1444,10 @@ func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e e
 	unit, _, count, err := intervalUnit(esg.dialect, e, true)
 	if err != nil {
 		return err
+	}
+	if unit == exp.MillisecondInterval {
+		esg.Generate(b, exp.NewLiteralExpression("INTERVAL (? * 1000) MICROSECOND", count))
+		return nil
 	}
 	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
 	return nil
