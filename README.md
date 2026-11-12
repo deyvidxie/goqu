@@ -294,7 +294,7 @@ If you find an issue you want to work on please comment on it letting other peop
 If want to work on an issue but dont know where to start just leave a comment and I'll be more than happy to point you in the right direction.
 
 ### Running tests
-The test suite requires a postgres, mysql and sqlserver databases. You can override the connection strings with the [`MYSQL_URI`, `PG_URI`, `SQLSERVER_URI` environment variables](https://github.com/doug-martin/goqu/blob/2fe3349/docker-compose.yml#L26)*
+The test suite requires postgres, mysql, sqlserver and greptimedb databases. You can override the connection strings with the [`MYSQL_URI`, `PG_URI`, `SQLSERVER_URI`, `GREPTIMEDB_MYSQL_URI`, `GREPTIMEDB_PG_URI` environment variables](https://github.com/doug-martin/goqu/blob/2fe3349/docker-compose.yml#L26)*
 
 ```sh
 go test -v -race ./...
@@ -303,7 +303,7 @@ go test -v -race ./...
 You can also run the tests in a container using [Docker Compose](https://docs.docker.com/compose/) (v2, the `docker compose` command). These are the versions CI uses:
 
 ```sh
-MYSQL_VERSION=8 POSTGRES_VERSION=15 SQLSERVER_VERSION=2022-latest GO_VERSION=latest docker compose run --rm goqu
+MYSQL_VERSION=8 POSTGRES_VERSION=15 SQLSERVER_VERSION=2022-latest GREPTIMEDB_VERSION=v1.2.1 GO_VERSION=latest docker compose run --rm goqu
 ```
 
 When you are done, stop the databases with `docker compose down`.
