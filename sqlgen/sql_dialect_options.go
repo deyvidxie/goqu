@@ -354,6 +354,7 @@ type (
 		// How Now, UTCTimestamp and Interval render (Default=PostgresTimeStyle)
 		TimeStyle TimeStyle
 
+		// An empty *SQLOrder means the dialect has no such statement; generating it returns an UnsupportedError.
 		// The order of SQL fragments when creating a SELECT statement
 		// (Default=[]SQLFragmentType{
 		// 		CommonTableSQLFragment,
