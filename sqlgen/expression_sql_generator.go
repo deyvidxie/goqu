@@ -1423,14 +1423,14 @@ func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill ex
 type intervalConversion struct {
 	unit       exp.IntervalUnit
 	multiplier int64
-	divisor    int64
+	divisor    uint16
 	inSQL      bool
 }
 
 const (
 	monthsPerQuarter           = 3
 	microsecondsPerMillisecond = int64(time.Millisecond / time.Microsecond)
-	nanosecondsPerMicrosecond  = int64(time.Microsecond / time.Nanosecond)
+	nanosecondsPerMicrosecond  = uint16(time.Microsecond / time.Nanosecond)
 )
 
 var nanosecondsAsMicroseconds = intervalConversion{unit: exp.MicrosecondInterval, multiplier: 1, divisor: nanosecondsPerMicrosecond}
@@ -1491,7 +1491,7 @@ func (esg *expressionSQLGenerator) exactInterval(e exp.IntervalExpression) (exp.
 	if rv := reflect.Indirect(reflect.ValueOf(count)); rv.IsValid() && util.IsFloat(rv.Kind()) {
 		text := strconv.FormatFloat(rv.Float(), 'f', -1, 64)
 		if point := strings.IndexByte(text, '.'); point >= 0 && len(text)-point-1 > fraction.digits {
-			return nil, errIntervalNotExact(esg.dialect, count, unit, fraction.unit)
+			return nil, errIntervalNotExact(esg.dialect, text, unit, fraction.unit)
 		}
 	}
 	return exp.NewIntervalExpression(count, unit), nil
@@ -1504,27 +1504,26 @@ func (esg *expressionSQLGenerator) convertIntervalUnit(
 	if err != nil {
 		return nil, err
 	}
-	notExact := errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
 	rv := reflect.Indirect(reflect.ValueOf(count))
+	notExact := func() error { return errIntervalNotExact(esg.dialect, rv.Interface(), unit, conversion.unit) }
 	var quotient int64
 	switch {
 	case !rv.IsValid():
 		return exp.NewIntervalExpression(nil, conversion.unit), nil
 	case util.IsInt(rv.Kind()):
-		n := rv.Int()
-		if n%conversion.divisor != 0 {
-			return nil, notExact
+		n, divisor := rv.Int(), int64(conversion.divisor)
+		if n%divisor != 0 {
+			return nil, notExact()
 		}
-		quotient = n / conversion.divisor
-	case util.IsUint(rv.Kind()) && conversion.divisor > 0:
-		u := rv.Uint()
-		divisor := uint64(conversion.divisor)
+		quotient = n / divisor
+	case util.IsUint(rv.Kind()):
+		u, divisor := rv.Uint(), uint64(conversion.divisor)
 		if u%divisor != 0 {
-			return nil, notExact
+			return nil, notExact()
 		}
 		q := u / divisor
 		if q > math.MaxInt64 {
-			return nil, notExact
+			return nil, notExact()
 		}
 		quotient = int64(q)
 	case conversion.inSQL:
@@ -1533,7 +1532,7 @@ func (esg *expressionSQLGenerator) convertIntervalUnit(
 		return nil, errIntervalConversionNeedsCount(esg.dialect, unit, conversion.unit)
 	}
 	if quotient > math.MaxInt64/conversion.multiplier || quotient < math.MinInt64/conversion.multiplier {
-		return nil, notExact
+		return nil, notExact()
 	}
 	return exp.NewIntervalExpression(quotient*conversion.multiplier, conversion.unit), nil
 }

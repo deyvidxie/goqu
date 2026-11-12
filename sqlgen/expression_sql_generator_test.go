@@ -1622,6 +1622,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 		return "goqu: dialect renders Interval unit " + unit + " as " + target + ", which needs an integer count [dialect=test]"
 	}
 	n := exp.NewIdentifierExpression("", "", "n")
+	fifteenHundred := 1500
 	ns := func(count any) exp.IntervalExpression {
 		return exp.NewIntervalExpression(count, exp.NanosecondInterval)
 	}
@@ -1638,6 +1639,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 			},
 			expressionTestCase{val: ns(nil), sql: "(NULL * INTERVAL '1 MICROSECOND')"},
 			expressionTestCase{val: ns(1500), err: notExact("1500", "NANOSECOND", "MICROSECOND")},
+			expressionTestCase{val: ns(&fifteenHundred), err: notExact("1500", "NANOSECOND", "MICROSECOND")},
 			expressionTestCase{val: ns(uint64(math.MaxUint64)), err: notExact("18446744073709551615", "NANOSECOND", "MICROSECOND")},
 			expressionTestCase{val: ns(uint64(18446744073709551000)), sql: "(18446744073709551 * INTERVAL '1 MICROSECOND')"},
 			expressionTestCase{val: ns(n), err: needsCount("NANOSECOND", "MICROSECOND")},
@@ -1663,6 +1665,17 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 			val: exp.NewIntervalExpression(int64(math.MaxInt64), exp.MillisecondInterval),
 			err: notExact("9223372036854775807", "MILLISECOND", "MICROSECOND"),
 		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(int64(math.MinInt64), exp.MillisecondInterval),
+			err: notExact("-9223372036854775808", "MILLISECOND", "MICROSECOND"),
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(uint64(math.MaxUint64), exp.MillisecondInterval),
+			err: notExact("18446744073709551615", "MILLISECOND", "MICROSECOND"),
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(float32(0.1), exp.SecondInterval), err: notExact("0.10000000149011612", "SECOND", "MICROSECOND"),
+		},
 		expressionTestCase{val: exp.NewIntervalExpression(1.0000005, exp.SecondInterval), err: notExact("1.0000005", "SECOND", "MICROSECOND")},
 		expressionTestCase{val: exp.NewIntervalExpression(1.000001, exp.SecondInterval), sql: "INTERVAL 1.000001 SECOND"},
 		expressionTestCase{val: ns(2000), sql: "INTERVAL 2 MICROSECOND"},
@@ -1686,6 +1699,9 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 		},
 		expressionTestCase{
 			val: exp.NewIntervalExpression(int64(math.MinInt64), exp.QuarterInterval), err: notExact("-9223372036854775808", "QUARTER", "MONTH"),
+		},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(uint64(math.MaxUint64), exp.QuarterInterval), err: notExact("18446744073709551615", "QUARTER", "MONTH"),
 		},
 		expressionTestCase{val: exp.NewIntervalExpression(-2, exp.QuarterInterval), sql: "INTERVAL -6 MONTH"},
 		expressionTestCase{
