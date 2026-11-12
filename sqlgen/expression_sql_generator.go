@@ -1146,6 +1146,8 @@ func (esg *expressionSQLGenerator) timeRenderers() (timeRenderers, error) {
 		return timeRenderers{now: esg.sqlServerTimeSQL, interval: esg.unsupportedIntervalSQL}, nil
 	case DuckDBTimeStyle:
 		return timeRenderers{now: esg.duckDBTimeSQL, interval: esg.duckDBIntervalSQL}, nil
+	case GreptimeDBTimeStyle:
+		return timeRenderers{now: esg.greptimeDBTimeSQL, interval: esg.greptimeDBIntervalSQL}, nil
 	default:
 		return timeRenderers{}, errUnknownTimeStyle(esg.dialect, esg.dialectOptions.TimeStyle)
 	}
@@ -1272,6 +1274,14 @@ func (esg *expressionSQLGenerator) duckDBTimeSQL(b sqlbuilder.SQLBuilder, utc bo
 	return nil
 }
 
+func (esg *expressionSQLGenerator) greptimeDBTimeSQL(b sqlbuilder.SQLBuilder, _ bool, _ int, hasFSP bool) error {
+	if hasFSP {
+		return errTimeFSPNotSupportedAtAll(esg.dialect)
+	}
+	esg.Generate(b, exp.NewSQLFunctionExpression("NOW"))
+	return nil
+}
+
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {
 	render, err := esg.timeRenderers()
 	if err == nil {
@@ -1289,6 +1299,35 @@ func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e e
 	}
 	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
 	return nil
+}
+
+func (esg *expressionSQLGenerator) greptimeDBIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {
+	unit, _, count, err := intervalUnit(esg.dialect, e, true)
+	if err != nil {
+		return err
+	}
+	if unit == exp.QuarterInterval {
+		return errIntervalUnitNotSupported(esg.dialect, unit)
+	}
+	if _, isExpression := count.(exp.Expression); !isExpression {
+		count = exp.NewLiteralExpression(inlineNumber(count))
+	}
+	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))
+	return nil
+}
+
+func inlineNumber(n any) string {
+	rv := reflect.Indirect(reflect.ValueOf(n))
+	switch {
+	case !rv.IsValid():
+		return "NULL"
+	case util.IsInt(rv.Kind()):
+		return strconv.FormatInt(rv.Int(), 10)
+	case util.IsUint(rv.Kind()):
+		return strconv.FormatUint(rv.Uint(), 10)
+	default:
+		return strconv.FormatFloat(rv.Float(), 'f', -1, 64)
+	}
 }
 
 func (esg *expressionSQLGenerator) postgresIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {

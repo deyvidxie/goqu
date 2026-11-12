@@ -9,6 +9,7 @@ Dialects allow goqu to build the correct SQL for each database. Dialects package
 * [sqlite3](../dialect/sqlite3/sqlite3.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlite3"`
 * [sqlserver](../dialect/sqlserver/sqlserver.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/sqlserver"`
 * [duckdb](../dialect/duckdb/duckdb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"`
+* [greptimedb](../dialect/greptimedb/greptimedb.go) - `import _ "github.com/doug-martin/goqu/v9/dialect/greptimedb"`, for the MySQL wire protocol
 
 **NOTE** Dialects work like drivers in go where they are not registered until you import the package.
 
@@ -27,6 +28,7 @@ Behavior that differs between databases for the same goqu expression:
 * `Div` renders `/`, so two integers divide with truncation on postgres, sqlite3 and sqlserver (`7 / 2` is `3`) and exactly on mysql and duckdb (`3.5`).
 * `Like` and `ILike` both render `LIKE` on sqlserver, and `ILike` renders `LIKE` on mysql, so case sensitivity there follows the column collation.
 * Regexp matching (`Like`/`ILike` with a `*regexp.Regexp`) returns an `UnsupportedError` on sqlserver and duckdb.
+* greptimedb returns an `UnsupportedError` for `UPDATE`, `OnConflict`, `Returning`, `Lateral` and row locks.
 * sqlite3 `Like`/`NotLike` with anything other than a `*regexp.Regexp`, and `Op{"like"}`/`Op{"notlike"}`, return an `UnsupportedError`, also under `PRAGMA case_sensitive_like`; use `ILike`/`NotILike`, or `Like` with a `*regexp.Regexp` to match case-sensitively.
 * sqlite3 regexp `ILike`/`NotILike` render `REGEXP '(?i)' || pattern`, so the registered `REGEXP` function must accept `(?i)`: Go `regexp` and PCRE do, SQLite's `regexp.c` does not.
 

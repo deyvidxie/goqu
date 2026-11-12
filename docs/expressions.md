@@ -444,9 +444,9 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 <a name="time"></a>
 **[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
 
-* `Now(fsp)` and `UTCTimestamp(fsp)` take an optional fsp (fractional-second digits, 0 to 6); it rounds on postgres and sqlserver and truncates on mysql and duckdb.
+* `Now(fsp)` and `UTCTimestamp(fsp)` take an optional fsp (fractional-second digits, 0 to 6); it rounds on postgres and sqlserver, truncates on mysql and duckdb, and is an error on greptimedb.
 * `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `unit` is one of `goqu.MicrosecondInterval` through `goqu.YearInterval`.
-* `n` is an integer or an expression, or a finite fraction with `goqu.SecondInterval` on mysql and postgres. MySQL keeps a non-integer expression's fraction only for seconds.
+* `n` is an integer or an expression, or a finite fraction with `goqu.SecondInterval` on mysql, postgres and greptimedb. greptimedb inlines numeric counts in prepared mode and rejects `goqu.QuarterInterval`. MySQL keeps a non-integer expression's fraction only for seconds.
 
 | dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, goqu.DayInterval)` | scanned as |
 |---|---|---|---|---|
@@ -454,6 +454,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 | postgres, default | `NOW()` / `CURRENT_TIMESTAMP(3)` | `(NOW() AT TIME ZONE 'UTC')` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 | sqlite3 | `datetime('now', 'localtime')` / `strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')` | `datetime('now')` | error | `string` (`2006-01-02 15:04:05[.000]`, no offset; `Now()` is local), compared as text |
 | sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
+| greptimedb | `NOW()` / error | `NOW()` | `INTERVAL 1 DAY` | `[]byte` (`2006-01-02 15:04:05.999999999`); go-sql-driver's `parseTime=true` fails on nanosecond values |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 
 sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
