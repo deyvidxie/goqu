@@ -149,6 +149,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Qualify(goqu.C("a").Eq(1))
 		}},
+		{"aggregate SEPARATOR", "SEPARATOR in function arguments", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsAggregateSeparator = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.Func("GROUP_CONCAT", goqu.C("a")).Separator(";"))
+		}},
 		{"WITHIN GROUP", "WITHIN GROUP", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsWithinGroup = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -351,6 +356,15 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		{
 			"ALIGN TO origin", "ALIGN TO origin must be a whole number of milliseconds",
 			rangeExpression(exp.NewAlignExpression(time.Second).To(time.Unix(0, 1))),
+		},
+		{
+			"invalid UTF-8 separator", "Separator is not valid UTF-8",
+			toSQL(func(b sqlbuilder.SQLBuilder) {
+				separatorOpts := sqlgen.DefaultDialectOptions()
+				separatorOpts.SupportsAggregateSeparator = true
+				sqlgen.NewExpressionSQLGenerator("test", "db", separatorOpts).
+					Generate(b, exp.NewSQLFunctionExpression("GROUP_CONCAT").Separator(string([]byte{0xff})))
+			}),
 		},
 		{
 			"OrderBy with WithinGroup", "OrderBy and WithinGroup cannot both order one function",

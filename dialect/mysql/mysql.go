@@ -23,6 +23,7 @@ func DialectOptions() *goqu.SQLDialectOptions {
 	opts.SupportsWithCTERecursive = false
 	opts.SupportsLateral = false
 	opts.SupportsWithinGroup = false
+	opts.SupportsAggregateSeparator = true
 	opts.SupportsLimitAll = false
 	opts.OffsetWithoutLimitFragment = []byte(" LIMIT 18446744073709551615")
 	opts.SupportsTruncateIdentity = false

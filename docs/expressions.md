@@ -17,6 +17,7 @@
 * [`Now`, `UTCTimestamp`, `Interval`](#time) - Current time with fractional seconds and interval arithmetic.
 * [`Func(...).OrderBy`](#func-order-by) - `ORDER BY` inside function arguments.
 * [`Func(...).WithinGroup`](#func-within-group) - `WITHIN GROUP (ORDER BY ...)` for ordered-set aggregates.
+* [`Func(...).Separator`](#func-separator) - MySQL `GROUP_CONCAT(... SEPARATOR '...')`.
 * [`JSONExtract`, `JSONValue`, `JSONContains`](#json) - MySQL JSON functions.
 * [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
@@ -516,6 +517,25 @@ fmt.Println(sql)
 Output:
 ```sql
 SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms" ASC), STRING_AGG("host", ',') WITHIN GROUP (ORDER BY "host" ASC) FROM "latency"
+```
+
+<a name="func-separator"></a>
+**[`SQLFunctionExpression.Separator`](https://godoc.org/github.com/doug-martin/goqu/exp#SQLFunctionExpression)**
+
+Ends the arguments with `SEPARATOR '...'`, after any `OrderBy`. The separator is always an escaped string literal, also in prepared mode, because MySQL takes no placeholder there. A second argument to `GROUP_CONCAT` is another value to concatenate, not a separator.
+
+**NOTE** Only the mysql dialects support it; the others return a `goqu.UnsupportedError`.
+
+```go
+sql, _, _ := goqu.Dialect("mysql").From("hosts").Select(
+	goqu.Func("GROUP_CONCAT", goqu.C("name")).OrderBy(goqu.C("name").Asc()).Separator(";"),
+).ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```sql
+SELECT GROUP_CONCAT(`name` ORDER BY `name` ASC SEPARATOR ';') FROM `hosts`
 ```
 
 <a name="json"></a>

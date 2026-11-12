@@ -577,6 +577,9 @@ type (
 		WithinGroupCols() ColumnListExpression
 		HasWithinGroup() bool
 		WithinGroup(order ...OrderedExpression) SQLFunctionExpression
+		HasSeparator() bool
+		GetSeparator() string
+		Separator(separator string) SQLFunctionExpression
 	}
 
 	UpdateExpression interface {

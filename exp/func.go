@@ -11,6 +11,7 @@ type (
 		args        []interface{}
 		orderBy     ColumnListExpression
 		withinGroup ColumnListExpression
+		separator   *string
 	}
 )
 
@@ -24,6 +25,7 @@ func (sfe sqlFunctionExpression) Clone() Expression {
 		args:        cloneArgs(sfe.args),
 		orderBy:     cloneColumnList(sfe.orderBy),
 		withinGroup: cloneColumnList(sfe.withinGroup),
+		separator:   sfe.separator,
 	}
 }
 
@@ -48,6 +50,20 @@ func (sfe sqlFunctionExpression) HasWithinGroup() bool { return sfe.withinGroup 
 
 func (sfe sqlFunctionExpression) WithinGroup(order ...OrderedExpression) SQLFunctionExpression {
 	sfe.withinGroup = orderedList("WithinGroup", order)
+	return sfe
+}
+
+func (sfe sqlFunctionExpression) HasSeparator() bool { return sfe.separator != nil }
+
+func (sfe sqlFunctionExpression) GetSeparator() string {
+	if sfe.separator == nil {
+		return ""
+	}
+	return *sfe.separator
+}
+
+func (sfe sqlFunctionExpression) Separator(separator string) SQLFunctionExpression {
+	sfe.separator = &separator
 	return sfe
 }
 

@@ -74,6 +74,18 @@ func (sfes *sqlFunctionExpressionSuite) TestWithinGroup() {
 		"goqu: Order expressions must not be nil")
 }
 
+func (sfes *sqlFunctionExpressionSuite) TestSeparator() {
+	separated := sfes.fn.Separator(";")
+
+	sfes.False(sfes.fn.HasSeparator())
+	sfes.Equal("", sfes.fn.GetSeparator())
+	sfes.True(separated.HasSeparator())
+	sfes.Equal(";", separated.GetSeparator())
+	sfes.True(sfes.fn.Separator("").HasSeparator())
+	sfes.Equal(separated, separated.Clone())
+	sfes.Equal(sfes.fn.Args(), separated.Args())
+}
+
 func (sfes *sqlFunctionExpressionSuite) TestAllOthers() {
 	fn := sfes.fn
 
