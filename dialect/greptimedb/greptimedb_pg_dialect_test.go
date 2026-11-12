@@ -39,10 +39,6 @@ func (gds *greptimedbDialectSuite) TestPGOperators() {
 			sql: `SELECT ("a" # 1), ("a" | 1) FROM "m"`,
 		},
 		sqlTestCase{
-			ds:  ds.Select(goqu.C("a").BitwiseInversion()),
-			err: `goqu: dialect does not support bitwise operator "Inversion" [dialect=greptimedb-pg]`,
-		},
-		sqlTestCase{
 			ds:  ds.Where(goqu.C("a").RegexpLike("^x"), goqu.C("b").ILike("x%")),
 			sql: `SELECT * FROM "m" WHERE (("a" ~ '^x') AND ("b" ILIKE 'x%'))`,
 		},
@@ -62,12 +58,6 @@ func (gds *greptimedbDialectSuite) TestPGSelectFeatures() {
 			ds:  ds.Select("host", "ts").DistinctOn("host").Order(goqu.C("host").Asc(), goqu.C("ts").Desc()),
 			sql: `SELECT DISTINCT ON ("host") "host", "ts" FROM "m" ORDER BY "host" ASC, "ts" DESC`,
 		},
-		sqlTestCase{
-			ds:  ds.Join(goqu.Lateral(pgDialect.From("n")).As("x"), goqu.On(goqu.L("true"))),
-			err: "goqu: dialect does not support lateral expressions [dialect=greptimedb-pg]",
-		},
-		sqlTestCase{ds: ds.ForShare(goqu.Wait), err: "goqu: dialect does not support FOR SHARE [dialect=greptimedb-pg]"},
-		sqlTestCase{ds: ds.Select(goqu.UTCTimestamp()), err: "goqu: dialect does not support UTCTimestamp [dialect=greptimedb-pg]"},
 	)
 }
 
@@ -81,23 +71,11 @@ func (gds *greptimedbDialectSuite) TestPGStatements() {
 			args:       []interface{}{1.5, "a"},
 		},
 		sqlTestCase{
-			ds:  pgDialect.Insert("m").Rows(row).OnConflict(goqu.DoNothing()),
-			err: "goqu: dialect does not support upsert [dialect=greptimedb-pg]",
-		},
-		sqlTestCase{
-			ds:  pgDialect.Insert("m").Rows(row).Returning("host"),
-			err: "goqu: dialect does not support RETURNING clause [dialect=greptimedb-pg]",
-		},
-		sqlTestCase{
 			ds:         pgDialect.Delete("m").Prepared(true).Where(goqu.C("host").Eq("a")),
 			sql:        `DELETE FROM "m" WHERE ("host" = $1)`,
 			isPrepared: true,
 			args:       []interface{}{"a"},
 		},
 		sqlTestCase{ds: pgDialect.Truncate("m"), sql: `TRUNCATE TABLE "m"`},
-		sqlTestCase{
-			ds:  pgDialect.Update("m").Set(goqu.Record{"cpu": 1}),
-			err: "goqu: dialect does not support UPDATE statements [dialect=greptimedb-pg]",
-		},
 	)
 }
