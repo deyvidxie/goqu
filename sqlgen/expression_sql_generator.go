@@ -884,11 +884,10 @@ func (esg *expressionSQLGenerator) orderedArgumentsSQL(b sqlbuilder.SQLBuilder, 
 		}
 		esg.Generate(b, arg)
 	}
-	orderBy := esg.dialectOptions.OrderByFragment
-	if len(args) == 0 {
-		orderBy = bytes.TrimLeft(orderBy, string(esg.dialectOptions.SpaceRune))
+	if len(args) > 0 {
+		b.WriteRunes(esg.dialectOptions.SpaceRune)
 	}
-	b.Write(orderBy)
+	b.Write(esg.dialectOptions.WindowOrderByFragment)
 	esg.Generate(b, order)
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }

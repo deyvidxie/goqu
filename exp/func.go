@@ -32,11 +32,7 @@ func (sfe sqlFunctionExpression) OrderCols() ColumnListExpression { return sfe.o
 func (sfe sqlFunctionExpression) HasOrder() bool { return sfe.orderBy != nil }
 
 func (sfe sqlFunctionExpression) OrderBy(order ...OrderedExpression) SQLFunctionExpression {
-	cols := make([]interface{}, len(order))
-	for i, o := range order {
-		cols[i] = o
-	}
-	sfe.orderBy = newRenderTaggedColumnList(cols...)
+	sfe.orderBy = NewOrderedColumnList(order...)
 	if sfe.orderBy.IsEmpty() {
 		sfe.orderBy = emptyAppendList(nil, "OrderBy", "expression")
 	}

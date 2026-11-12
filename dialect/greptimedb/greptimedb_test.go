@@ -179,9 +179,9 @@ func (gt *greptimedbTest) TestAggregateOrderBy() {
 	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
 		var latest []string
 		gt.Require().NoError(ds.
-			Select(goqu.Func("last_value", goqu.C("host")).OrderBy(goqu.C("ts").Asc()).As("host")).
+			Select(goqu.Func("last_value", goqu.C("host")).OrderBy(goqu.C("ts").Desc()).As("host")).
 			GroupBy("ok").Order(goqu.C("host").Asc()).ScanVals(&latest))
-		gt.Equal([]string{"d", "e"}, latest, prepared)
+		gt.Equal([]string{"a", "b"}, latest, prepared)
 
 		var first []float64
 		gt.Require().NoError(ds.

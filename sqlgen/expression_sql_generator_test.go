@@ -1298,7 +1298,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionOrder
 		},
 		expressionTestCase{val: firstValue.OrderBy(ts.Asc()).As("p"), sql: `FIRST_VALUE("price" ORDER BY "ts" ASC) AS "p"`},
 		expressionTestCase{val: firstValue.OrderBy(), err: "goqu: OrderBy requires at least one expression"},
-		expressionTestCase{val: firstValue.OrderBy(ts.Asc(), nil), err: "goqu: column and condition lists must not contain nil"},
+		expressionTestCase{val: firstValue.OrderBy(ts.Asc(), nil), err: "goqu: Order expressions must not be nil"},
 	)
 	unsupported := sqlgen.DefaultDialectOptions()
 	unsupported.SupportsAggregateOrderBy = false
