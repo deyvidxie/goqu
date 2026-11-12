@@ -443,11 +443,11 @@ SELECT * FROM "test" WHERE EXISTS (SELECT * FROM "other" WHERE ("test_id" = "id"
 To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exists) on the dataset.
 
 <a name="time"></a>
-**[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp) and [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval)**
+**[`Now()`](https://godoc.org/github.com/doug-martin/goqu#Now), [`UTCTimestamp()`](https://godoc.org/github.com/doug-martin/goqu#UTCTimestamp), [`Interval()`](https://godoc.org/github.com/doug-martin/goqu#Interval) and [`IntervalOf()`](https://godoc.org/github.com/doug-martin/goqu#IntervalOf)**
 
 * `Now(fsp)` and `UTCTimestamp(fsp)` take an optional fsp (fractional-second digits, 0 to 6); it rounds on postgres and sqlserver and truncates on mysql and duckdb. greptimedb returns an error for an fsp and for `UTCTimestamp`, whose value it would render in the session time zone.
 * `Interval(n, unit)` is added to or subtracted from a time with `Add`/`Sub`; `unit` is one of `goqu.NanosecondInterval` through `goqu.YearInterval`. `IntervalOf(d)` takes a positive `time.Duration` and uses the largest of `HourInterval` down to `NanosecondInterval` that represents it exactly.
-* A unit the database lacks is rewritten when the result is exact: `MillisecondInterval` renders `INTERVAL (n * 1000) MICROSECOND` on mysql; `NanosecondInterval` with an integer count divisible by 1000 renders as microseconds on mysql, postgres and duckdb; `QuarterInterval` with an integer count renders as `3n` months on greptimedb. Any other count for those units returns an `UnsupportedError`.
+* A unit the database lacks is rewritten exactly: `MillisecondInterval` as microseconds on mysql (an expression count is multiplied in SQL); `NanosecondInterval` with an integer count divisible by 1000 as microseconds on mysql, postgres and duckdb; `QuarterInterval` with an integer count as `3n` months on greptimedb. An inexact count, or an expression count for `NanosecondInterval`/`QuarterInterval` there, returns an `UnsupportedError`, as does a `SecondInterval` fraction with more digits than the database keeps (6 on mysql and postgres, 9 on greptimedb).
 * `n` is an integer or an expression, or a finite fraction with `goqu.SecondInterval` on mysql, postgres and greptimedb. greptimedb inlines numeric counts in prepared mode. MySQL keeps a non-integer expression's fraction only for seconds.
 
 | dialect | `Now()` / `Now(3)` | `UTCTimestamp()` | `Interval(1, goqu.DayInterval)` | scanned as |

@@ -215,6 +215,14 @@ func (mt *mysqlTest) TestIntervalOfMilliseconds() {
 		mt.Require().NoError(err, "prepared=%v", prepared)
 		mt.True(found)
 		mt.Equal("2024-01-01 00:00:01.500000", shifted, "prepared=%v", prepared)
+
+		found, err = mt.db.From("entry").Prepared(prepared).Limit(1).
+			Select(goqu.Cast(goqu.Cast(goqu.V("2024-01-01 00:00:00"), "DATETIME(6)").
+				Add(goqu.Interval(goqu.L("? + 1", 1), goqu.MillisecondInterval)), "CHAR")).
+			ScanVal(&shifted)
+		mt.Require().NoError(err, "prepared=%v", prepared)
+		mt.True(found)
+		mt.Equal("2024-01-01 00:00:00.002000", shifted, "prepared=%v", prepared)
 	}
 }
 

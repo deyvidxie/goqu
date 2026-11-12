@@ -311,7 +311,7 @@ func errIntervalNotExact(dialect string, count any, unit, target exp.IntervalUni
 
 func errIntervalConversionNeedsCount(dialect string, unit, target exp.IntervalUnit) error {
 	return errors.NewUnsupportedError(
-		"dialect renders Interval unit %s as %s and needs an integer count to convert it [dialect=%s]", unit, target, dialect,
+		"dialect renders Interval unit %s as %s, which needs an integer count [dialect=%s]", unit, target, dialect,
 	)
 }
 

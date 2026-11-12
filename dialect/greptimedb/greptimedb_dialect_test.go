@@ -277,7 +277,7 @@ func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 			}
 			cases = append(cases, sqlTestCase{
 				ds:  ds.Select(goqu.Interval(goqu.C("n"), exp.QuarterInterval)),
-				err: "goqu: dialect renders Interval unit QUARTER as MONTH and needs an integer count to convert it [dialect=" + name + "]",
+				err: "goqu: dialect renders Interval unit QUARTER as MONTH, which needs an integer count [dialect=" + name + "]",
 			})
 			gds.assertSQL(cases...)
 		})

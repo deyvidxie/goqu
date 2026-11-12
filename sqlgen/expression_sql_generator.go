@@ -1074,7 +1074,7 @@ var intervalUnits = []struct {
 	unit     exp.IntervalUnit
 	quantity string
 }{
-	{exp.NanosecondInterval, "1 NANOSECOND"},
+	{exp.NanosecondInterval, ""},
 	{exp.MicrosecondInterval, "1 MICROSECOND"},
 	{exp.MillisecondInterval, "1 MILLISECOND"},
 	{exp.SecondInterval, "1 SECOND"},
@@ -1156,8 +1156,9 @@ func lookupIntervalUnit(unit exp.IntervalUnit) (canonical exp.IntervalUnit, quan
 }
 
 const (
-	millisecondFSP = 3
-	microsecondFSP = 6
+	millisecondFSP   = 3
+	microsecondFSP   = 6
+	nanosecondDigits = 9
 )
 
 type timeRenderers struct {
@@ -1423,25 +1424,40 @@ type intervalConversion struct {
 	unit       exp.IntervalUnit
 	multiplier int64
 	divisor    int64
+	inSQL      bool
 }
 
-const monthsPerQuarter = 3
+const (
+	monthsPerQuarter           = 3
+	microsecondsPerMillisecond = int64(time.Millisecond / time.Microsecond)
+	nanosecondsPerMicrosecond  = int64(time.Microsecond / time.Nanosecond)
+)
 
-var nanosecondsAsMicroseconds = intervalConversion{
-	unit: exp.MicrosecondInterval, multiplier: 1, divisor: int64(time.Microsecond / time.Nanosecond),
-}
+var nanosecondsAsMicroseconds = intervalConversion{unit: exp.MicrosecondInterval, multiplier: 1, divisor: nanosecondsPerMicrosecond}
 
 var intervalConversions = map[TimeStyle]map[exp.IntervalUnit]intervalConversion{
-	PostgresTimeStyle:   {exp.NanosecondInterval: nanosecondsAsMicroseconds},
-	MySQLTimeStyle:      {exp.NanosecondInterval: nanosecondsAsMicroseconds},
+	PostgresTimeStyle: {exp.NanosecondInterval: nanosecondsAsMicroseconds},
+	MySQLTimeStyle: {
+		exp.NanosecondInterval:  nanosecondsAsMicroseconds,
+		exp.MillisecondInterval: {unit: exp.MicrosecondInterval, multiplier: microsecondsPerMillisecond, divisor: 1, inSQL: true},
+	},
 	DuckDBTimeStyle:     {exp.NanosecondInterval: nanosecondsAsMicroseconds},
 	GreptimeDBTimeStyle: {exp.QuarterInterval: {unit: exp.MonthInterval, multiplier: monthsPerQuarter, divisor: 1}},
+}
+
+var fractionalSecondDigits = map[TimeStyle]struct {
+	digits int
+	unit   exp.IntervalUnit
+}{
+	PostgresTimeStyle:   {digits: microsecondFSP, unit: exp.MicrosecondInterval},
+	MySQLTimeStyle:      {digits: microsecondFSP, unit: exp.MicrosecondInterval},
+	GreptimeDBTimeStyle: {digits: nanosecondDigits, unit: exp.NanosecondInterval},
 }
 
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {
 	render, err := esg.timeRenderers()
 	if err == nil {
-		e, err = esg.convertIntervalUnit(e)
+		e, err = esg.exactInterval(e)
 	}
 	if err == nil {
 		err = render.interval(b, e)
@@ -1451,43 +1467,75 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder
 	}
 }
 
-func (esg *expressionSQLGenerator) convertIntervalUnit(e exp.IntervalExpression) (exp.IntervalExpression, error) {
-	conversions, ok := intervalConversions[esg.dialectOptions.TimeStyle]
-	if !ok {
+func (esg *expressionSQLGenerator) exactInterval(e exp.IntervalExpression) (exp.IntervalExpression, error) {
+	style := esg.dialectOptions.TimeStyle
+	conversions, converts := intervalConversions[style]
+	fraction, limitsFraction := fractionalSecondDigits[style]
+	if !converts && !limitsFraction {
 		return e, nil
 	}
 	unit, _, err := lookupIntervalUnit(e.Unit())
 	if err != nil {
 		return nil, err
 	}
-	conversion, ok := conversions[unit]
-	if !ok {
+	if conversion, ok := conversions[unit]; ok {
+		return esg.convertIntervalUnit(e, unit, conversion)
+	}
+	if unit != exp.SecondInterval || !limitsFraction {
 		return e, nil
 	}
+	count, err := intervalCount(esg.dialect, e.Count(), unit, true)
+	if err != nil {
+		return nil, err
+	}
+	if rv := reflect.Indirect(reflect.ValueOf(count)); rv.IsValid() && util.IsFloat(rv.Kind()) {
+		text := strconv.FormatFloat(rv.Float(), 'f', -1, 64)
+		if point := strings.IndexByte(text, '.'); point >= 0 && len(text)-point-1 > fraction.digits {
+			return nil, errIntervalNotExact(esg.dialect, count, unit, fraction.unit)
+		}
+	}
+	return exp.NewIntervalExpression(count, unit), nil
+}
+
+func (esg *expressionSQLGenerator) convertIntervalUnit(
+	e exp.IntervalExpression, unit exp.IntervalUnit, conversion intervalConversion,
+) (exp.IntervalExpression, error) {
 	count, err := intervalCount(esg.dialect, e.Count(), unit, false)
 	if err != nil {
 		return nil, err
 	}
+	notExact := errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
 	rv := reflect.Indirect(reflect.ValueOf(count))
-	var n int64
+	var quotient int64
 	switch {
 	case !rv.IsValid():
 		return exp.NewIntervalExpression(nil, conversion.unit), nil
 	case util.IsInt(rv.Kind()):
-		n = rv.Int()
-	case util.IsUint(rv.Kind()):
-		u := rv.Uint()
-		if u > math.MaxInt64 {
-			return nil, errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
+		n := rv.Int()
+		if n%conversion.divisor != 0 {
+			return nil, notExact
 		}
-		n = int64(u)
+		quotient = n / conversion.divisor
+	case util.IsUint(rv.Kind()) && conversion.divisor > 0:
+		u := rv.Uint()
+		divisor := uint64(conversion.divisor)
+		if u%divisor != 0 {
+			return nil, notExact
+		}
+		q := u / divisor
+		if q > math.MaxInt64 {
+			return nil, notExact
+		}
+		quotient = int64(q)
+	case conversion.inSQL:
+		return exp.NewIntervalExpression(count, unit), nil
 	default:
 		return nil, errIntervalConversionNeedsCount(esg.dialect, unit, conversion.unit)
 	}
-	if n%conversion.divisor != 0 || n > math.MaxInt64/conversion.multiplier || n < math.MinInt64/conversion.multiplier {
-		return nil, errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
+	if quotient > math.MaxInt64/conversion.multiplier || quotient < math.MinInt64/conversion.multiplier {
+		return nil, notExact
 	}
-	return exp.NewIntervalExpression(n/conversion.divisor*conversion.multiplier, conversion.unit), nil
+	return exp.NewIntervalExpression(quotient*conversion.multiplier, conversion.unit), nil
 }
 
 func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {
@@ -1496,7 +1544,16 @@ func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e e
 		return err
 	}
 	if unit == exp.MillisecondInterval {
-		esg.Generate(b, exp.NewLiteralExpression("INTERVAL (? * 1000) MICROSECOND", count))
+		b.WriteStrings("INTERVAL ")
+		b.WriteRunes(esg.dialectOptions.LeftParenRune)
+		if literal, isLiteral := count.(exp.LiteralExpression); isLiteral {
+			esg.parenthesizedSQL(b, literal)
+		} else {
+			esg.Generate(b, count)
+		}
+		b.WriteStrings(" * ").WriteInt(microsecondsPerMillisecond)
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+		b.WriteStrings(" " + string(exp.MicrosecondInterval))
 		return nil
 	}
 	esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), count))

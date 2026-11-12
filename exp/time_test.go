@@ -49,7 +49,7 @@ func TestNewDurationIntervalExpression(t *testing.T) {
 	for _, d := range []time.Duration{0, -time.Second} {
 		invalid, ok := exp.NewDurationIntervalExpression(d).Count().(exp.InvalidExpression)
 		if assert.True(t, ok, d.String()) {
-			assert.EqualError(t, invalid.Err(), "goqu: IntervalOf requires a positive duration, got "+d.String())
+			assert.EqualError(t, invalid.Err(), "goqu: IntervalOf duration must be positive, got "+d.String())
 		}
 	}
 }

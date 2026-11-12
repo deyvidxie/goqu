@@ -27,7 +27,7 @@ var errNilListEntry = errors.NewInvalidExpressionError("column and condition lis
 var errEmptyAlignBy = errors.NewInvalidExpressionError("Align By requires at least one column; use ByNone for BY ()")
 
 func errNonPositiveIntervalDuration(d time.Duration) error {
-	return errors.NewInvalidExpressionError("IntervalOf requires a positive duration, got %s", d)
+	return errors.NewInvalidExpressionError("IntervalOf duration must be positive, got %s", d)
 }
 
 var errNilRangeAggregate = errors.NewInvalidExpressionError("RangeAggregate requires an aggregate expression")
