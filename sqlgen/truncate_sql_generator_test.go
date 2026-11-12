@@ -81,6 +81,18 @@ func (tsgs *truncateSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	)
 }
 
+func (tsgs *truncateSQLGeneratorSuite) TestGenerate_unsupportedStatement() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.TruncateSQLOrder = nil
+	tc := exp.NewTruncateClauses().SetTable(exp.NewColumnListExpression(nil, "db", "a"))
+	expectedErr := "goqu: dialect does not support TRUNCATE statements [dialect=test]"
+	tsgs.assertCases(
+		sqlgen.NewTruncateSQLGenerator("test", "db", opts),
+		truncateTestCase{clause: tc, err: expectedErr},
+		truncateTestCase{clause: tc, err: expectedErr, isPrepared: true},
+	)
+}
+
 func (tsgs *truncateSQLGeneratorSuite) TestGenerate_WithErroredBuilder() {
 	opts := sqlgen.DefaultDialectOptions()
 	opts.TruncateSQLOrder = []sqlgen.SQLFragmentType{sqlgen.UpdateBeginSQLFragment}

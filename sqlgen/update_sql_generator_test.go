@@ -62,6 +62,20 @@ func (usgs *updateSQLGeneratorSuite) TestGenerate_unsupportedFragment() {
 	)
 }
 
+func (usgs *updateSQLGeneratorSuite) TestGenerate_unsupportedStatement() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.UpdateSQLOrder = nil
+	uc := exp.NewUpdateClauses().
+		SetTable(exp.NewIdentifierExpression("", "test", "")).
+		SetSetValues(exp.Record{"a": "b"})
+	expectedErr := "goqu: dialect does not support UPDATE statements [dialect=test]"
+	usgs.assertCases(
+		sqlgen.NewUpdateSQLGenerator("test", "db", opts),
+		updateTestCase{clause: uc, err: expectedErr},
+		updateTestCase{clause: uc, err: expectedErr, isPrepared: true},
+	)
+}
+
 func (usgs *updateSQLGeneratorSuite) TestGenerate_empty() {
 	uc := exp.NewUpdateClauses()
 	usgs.assertCases(

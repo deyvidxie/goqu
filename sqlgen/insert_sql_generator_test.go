@@ -62,6 +62,18 @@ func (igs *insertSQLGeneratorSuite) TestGenerate_UnsupportedFragment() {
 	igs.assertErrorSQL(b, `goqu: dialect does not support INSERT SQL fragment UpdateBeginSQLFragment [dialect=test]`)
 }
 
+func (igs *insertSQLGeneratorSuite) TestGenerate_unsupportedStatement() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.InsertSQLOrder = nil
+	ic := exp.NewInsertClauses().SetInto(exp.NewIdentifierExpression("", "test", ""))
+	expectedErr := "goqu: dialect does not support INSERT statements [dialect=test]"
+	igs.assertCases(
+		sqlgen.NewInsertSQLGenerator("test", "db", opts),
+		insertTestCase{clause: ic, err: expectedErr},
+		insertTestCase{clause: ic, err: expectedErr, isPrepared: true},
+	)
+}
+
 func (igs *insertSQLGeneratorSuite) TestGenerate_empty() {
 	ic := exp.NewInsertClauses().
 		SetInto(exp.NewIdentifierExpression("", "test", ""))

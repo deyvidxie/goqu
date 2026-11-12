@@ -39,6 +39,10 @@ func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Selec
 }
 
 func (ssg *selectSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
+	if len(ssg.DialectOptions().SelectSQLOrder) == 0 {
+		b.SetError(errStatementNotSupported(ssg.Dialect(), "SELECT"))
+		return
+	}
 	for _, f := range ssg.DialectOptions().SelectSQLOrder {
 		if b.Error() != nil {
 			return

@@ -27,6 +27,10 @@ func NewTruncateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Tru
 }
 
 func (tsg *truncateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.TruncateClauses) {
+	if len(tsg.DialectOptions().TruncateSQLOrder) == 0 {
+		b.SetError(errStatementNotSupported(tsg.Dialect(), "TRUNCATE"))
+		return
+	}
 	if !clauses.HasTable() {
 		b.SetError(errNoSourceForTruncate)
 		return

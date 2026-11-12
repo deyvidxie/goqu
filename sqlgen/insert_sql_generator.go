@@ -50,6 +50,10 @@ func (isg *insertSQLGenerator) Generate(
 	b sqlbuilder.SQLBuilder,
 	clauses exp.InsertClauses,
 ) {
+	if len(isg.DialectOptions().InsertSQLOrder) == 0 {
+		b.SetError(errStatementNotSupported(isg.Dialect(), "INSERT"))
+		return
+	}
 	if !clauses.HasInto() {
 		b.SetError(errNoSourceForInsert)
 		return

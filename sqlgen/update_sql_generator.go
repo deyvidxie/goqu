@@ -25,6 +25,10 @@ func NewUpdateSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Updat
 }
 
 func (usg *updateSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.UpdateClauses) {
+	if len(usg.DialectOptions().UpdateSQLOrder) == 0 {
+		b.SetError(errStatementNotSupported(usg.Dialect(), "UPDATE"))
+		return
+	}
 	if !clauses.HasTable() {
 		b.SetError(errNoSourceForUpdate)
 		return

@@ -36,6 +36,20 @@ func (uds *updateDatasetSuite) TestUpdate() {
 	uds.Implements((*exp.AppendableExpression)(nil), ds)
 }
 
+func (uds *updateDatasetSuite) TestToSQL_dialectWithoutUpdate() {
+	opts := goqu.DefaultDialectOptions()
+	opts.UpdateSQLOrder = nil
+	goqu.RegisterDialect("no-update", "db", opts)
+	defer goqu.DeregisterDialect("no-update")
+
+	ds := goqu.Dialect("no-update").Update("test").Set(goqu.Record{"a": 1})
+	for _, prepared := range []bool{false, true} {
+		_, _, err := ds.Prepared(prepared).ToSQL()
+		uds.True(goqu.IsUnsupported(err))
+		uds.EqualError(err, "goqu: dialect does not support UPDATE statements [dialect=no-update]")
+	}
+}
+
 func (uds *updateDatasetSuite) TestClone() {
 	ds := goqu.Update("test")
 	uds.Equal(ds, ds.Clone())
