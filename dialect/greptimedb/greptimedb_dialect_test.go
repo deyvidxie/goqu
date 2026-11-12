@@ -204,8 +204,7 @@ func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 			d := goqu.Dialect(name)
 			ds := d.From("m")
 			row := goqu.Record{"host": "a"}
-			var cases []sqlTestCase
-			for _, c := range []struct {
+			rejected := []struct {
 				ds      exp.SQLExpression
 				feature string
 			}{
@@ -230,7 +229,9 @@ func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 				{d.Truncate("m").Restrict(), "RESTRICT in TRUNCATE"},
 				{d.Truncate("m").Identity("RESTART"), "RESTART IDENTITY in TRUNCATE"},
 				{d.Update("m").Set(goqu.Record{"cpu": 1}), "UPDATE statements"},
-			} {
+			}
+			cases := make([]sqlTestCase, 0, len(rejected))
+			for _, c := range rejected {
 				cases = append(cases, sqlTestCase{ds: c.ds, err: "goqu: dialect does not support " + c.feature + " [dialect=" + name + "]"})
 			}
 			gds.assertSQL(cases...)
