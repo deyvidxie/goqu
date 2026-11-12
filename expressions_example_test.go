@@ -809,6 +809,16 @@ func ExampleJSONContains() {
 }
 
 // This example shows how to create custom SQL Functions
+func ExampleFunc_orderBy() {
+	sql, _, _ := goqu.From("prices").Select(
+		goqu.Func("string_agg", goqu.C("symbol"), ",").OrderBy(goqu.C("ts").Desc()),
+		goqu.Func("first_value", goqu.C("price")).OrderBy(goqu.Case().When(goqu.C("price").Eq(0), 1).Else(0).Asc(), goqu.C("ts").Asc()),
+	).ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT string_agg("symbol", ',' ORDER BY "ts" DESC), first_value("price" ORDER BY CASE  WHEN ("price" = 0) THEN 1 ELSE 0 END ASC, "ts" ASC) FROM "prices"
+}
+
 func ExampleFunc() {
 	stragg := func(expression exp.Expression, delimiter string) exp.SQLFunctionExpression {
 		return goqu.Func("str_agg", expression, goqu.L(delimiter))

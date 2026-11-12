@@ -84,6 +84,10 @@ func errDistinctOnNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support DISTINCT ON clause [dialect=%s]", dialect)
 }
 
+func errAggregateOrderByNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support ORDER BY in function arguments [dialect=%s]", dialect)
+}
+
 func errWindowNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support window functions [dialect=%s]", dialect)
 }

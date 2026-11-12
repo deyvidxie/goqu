@@ -175,6 +175,23 @@ func (gt *greptimedbTest) TestRangeQuery() {
 	})
 }
 
+func (gt *greptimedbTest) TestAggregateOrderBy() {
+	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
+		var latest []string
+		gt.Require().NoError(ds.
+			Select(goqu.Func("last_value", goqu.C("host")).OrderBy(goqu.C("ts").Asc()).As("host")).
+			GroupBy("ok").Order(goqu.C("host").Asc()).ScanVals(&latest))
+		gt.Equal([]string{"d", "e"}, latest, prepared)
+
+		var first []float64
+		gt.Require().NoError(ds.
+			Select(goqu.RangeAggregate(goqu.Func("first_value", goqu.C("cpu")).OrderBy(goqu.C("ts").Desc()), 5*time.Minute).As("cpu")).
+			Align(goqu.Align(5 * time.Minute).To(baseTime.Truncate(time.Millisecond)).ByNone()).
+			ScanVals(&first))
+		gt.Equal([]float64{6}, first, prepared)
+	})
+}
+
 func (gt *greptimedbTest) TestWindowsAndCTEs() {
 	ds := gt.db.From("entry")
 	latest := goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("ok").OrderBy(goqu.C("ts").Desc()))

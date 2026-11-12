@@ -224,6 +224,22 @@ func (gds *greptimedbDialectSuite) TestRangeQuery() {
 	)
 }
 
+func (gds *greptimedbDialectSuite) TestAggregateOrderBy() {
+	lastPrice := func() exp.SQLFunctionExpression {
+		return goqu.Func("first_value", goqu.C("price")).OrderBy(goqu.C("ts").Desc())
+	}
+	gds.assertSQL(
+		sqlTestCase{
+			ds:  dialect.From("m").Select(goqu.RangeAggregate(lastPrice(), 5*time.Minute)).Align(goqu.Align(5 * time.Minute)),
+			sql: "SELECT (first_value(`price` ORDER BY `ts` DESC) RANGE '5m') FROM `m` ALIGN '5m'",
+		},
+		sqlTestCase{
+			ds:  pgDialect.From("m").Select(lastPrice()).GroupBy("host"),
+			sql: `SELECT first_value("price" ORDER BY "ts" DESC) FROM "m" GROUP BY "host"`,
+		},
+	)
+}
+
 func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 	for _, name := range []string{"greptimedb", "greptimedb-pg"} {
 		gds.Run(name, func() {

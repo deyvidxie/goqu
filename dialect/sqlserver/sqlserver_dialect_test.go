@@ -45,6 +45,13 @@ func (sds *sqlserverDialectSuite) assertSQL(cases ...sqlTestCase) {
 	}
 }
 
+func (sds *sqlserverDialectSuite) TestAggregateOrderBy() {
+	sds.assertSQL(sqlTestCase{
+		ds:  goqu.Dialect("sqlserver").From("t").Select(goqu.Func("STRING_AGG", goqu.C("a"), ",").OrderBy(goqu.C("a").Asc())),
+		err: "goqu: dialect does not support ORDER BY in function arguments [dialect=sqlserver]",
+	})
+}
+
 func (sds *sqlserverDialectSuite) TestWindowFunctions() {
 	ds := sds.GetDs("test")
 	sds.assertSQL(

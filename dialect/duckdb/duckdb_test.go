@@ -148,6 +148,19 @@ func (st *duckdbSuite) TestTimeFunctions() {
 	}
 }
 
+func (st *duckdbSuite) TestAggregateOrderBy() {
+	for _, prepared := range []bool{false, true} {
+		var joined string
+		found, err := st.db.From("entry").Prepared(prepared).
+			Select(goqu.Func("string_agg", goqu.Cast(goqu.C("int"), "VARCHAR"), ",").OrderBy(goqu.C("int").Desc())).
+			Where(goqu.C("int").Lt(3)).
+			ScanVal(&joined)
+		st.Require().NoError(err, "prepared=%v", prepared)
+		st.True(found)
+		st.Equal("2,1,0", joined, "prepared=%v", prepared)
+	}
+}
+
 func (st *duckdbSuite) TestSelectSQL() {
 	ds := st.db.From("entry")
 	st.assertSQL(

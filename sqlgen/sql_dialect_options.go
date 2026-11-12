@@ -69,6 +69,8 @@ type (
 
 		// Set to true if window function are supported in SELECT statement. (DEFAULT=true)
 		SupportsWindowFunction bool
+		// Set to true if function arguments may end in ORDER BY, e.g. array_agg(x ORDER BY y) (DEFAULT=true)
+		SupportsAggregateOrderBy bool
 		// Set to true if the named WINDOW clause is supported; OVER (...) only needs SupportsWindowFunction (DEFAULT=true)
 		SupportsWindowClause bool
 
@@ -540,6 +542,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsDistinctOn:                true,
 		WrapCompoundsInParens:             true,
 		SupportsWindowFunction:            true,
+		SupportsAggregateOrderBy:          true,
 		SupportsWindowClause:              true,
 		SupportsLateral:                   true,
 		SupportsQualify:                   false,

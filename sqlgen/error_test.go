@@ -149,6 +149,11 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Qualify(goqu.C("a").Eq(1))
 		}},
+		{"aggregate ORDER BY", "ORDER BY in function arguments", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsAggregateOrderBy = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.Func("string_agg", goqu.C("a"), ",").OrderBy(goqu.C("a").Asc()))
+		}},
 		{"ALIGN", "range queries", func(o *sqlgen.SQLDialectOptions) {
 			o.SupportsRangeQuery = false
 		}, func(d goqu.DialectWrapper) sqlBuilder {

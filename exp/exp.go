@@ -571,6 +571,9 @@ type (
 		Name() string
 		// Arguments to be passed to the function
 		Args() []interface{}
+		OrderCols() ColumnListExpression
+		HasOrder() bool
+		OrderBy(order ...OrderedExpression) SQLFunctionExpression
 	}
 
 	UpdateExpression interface {
