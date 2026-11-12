@@ -456,6 +456,7 @@ To check whether a dataset returns any rows, see [`Exists`](./selecting.md#exist
 | sqlserver | `SYSDATETIME()` / `CAST(SYSDATETIME() AS DATETIME2(3))` | `SYSUTCDATETIME()` | error | `time.Time` |
 | duckdb | `CAST(now() AS TIMESTAMP)` / `CAST(CAST(now() AS TIMESTAMP) AS TIMESTAMP_MS)` | `make_timestamp(epoch_us(now()))` | `(1 * INTERVAL '1 DAY')` | `time.Time` |
 | greptimedb | `NOW()` / error | error | `INTERVAL 1 DAY` | `[]byte` (`2006-01-02 15:04:05.999999999`); go-sql-driver's `parseTime=true` fails on nanosecond values |
+| greptimedb-pg | `NOW()` / error | error | `INTERVAL 1 DAY` | `time.Time` with lib/pq, truncated to microseconds |
 
 sqlite3 supports a precision of 0 or 3 and duckdb 0, 3 or 6. Custom dialects choose a rendering with `SQLDialectOptions.TimeStyle`.
 

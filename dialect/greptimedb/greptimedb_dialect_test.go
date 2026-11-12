@@ -91,10 +91,6 @@ func (gds *greptimedbDialectSuite) TestOperators() {
 			ds:  ds.Select(goqu.C("a").BitwiseXor(1), goqu.C("a").BitwiseOr(1), goqu.C("a").BitwiseLeftShift(1)),
 			sql: "SELECT (`a` ^ 1), (`a` | 1), (`a` << 1) FROM `m`",
 		},
-		sqlTestCase{
-			ds:  ds.Select(goqu.C("a").BitwiseInversion()),
-			err: `goqu: dialect does not support bitwise operator "Inversion" [dialect=greptimedb]`,
-		},
 	)
 }
 
@@ -133,14 +129,6 @@ func (gds *greptimedbDialectSuite) TestSelectFeatures() {
 			sql: "WITH RECURSIVE r AS (SELECT 1 AS `n` UNION ALL (SELECT n + 1 FROM `r` WHERE (`n` < 3))) SELECT * FROM `r`",
 		},
 		sqlTestCase{
-			ds:  ds.Join(goqu.Lateral(dialect.From("n").Where(goqu.I("n.host").Eq(goqu.I("m.host")))).As("x"), goqu.On(goqu.L("true"))),
-			err: "goqu: dialect does not support lateral expressions [dialect=greptimedb]",
-		},
-		sqlTestCase{
-			ds:  ds.Select(goqu.JSONExtract("doc", "$.a")),
-			err: "goqu: dialect does not support JSONExtract [dialect=greptimedb]",
-		},
-		sqlTestCase{
 			ds:  ds.Select("host").Intersect(ds.Select("host")),
 			sql: "SELECT `host` FROM `m` INTERSECT (SELECT `host` FROM `m`)",
 		},
@@ -164,22 +152,6 @@ func (gds *greptimedbDialectSuite) TestTimeFunctions() {
 			sql:        "SELECT date_bin(INTERVAL 5 MINUTE, `ts`) FROM `m` WHERE (`ts` > (NOW() - INTERVAL 1.5 SECOND))",
 			isPrepared: true,
 		},
-		sqlTestCase{ds: ds.Select(goqu.Now(3)), err: "goqu: dialect does not support fsp 3 [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Select(goqu.UTCTimestamp()), err: "goqu: dialect does not support UTCTimestamp [dialect=greptimedb]"},
-		sqlTestCase{
-			ds:  ds.Select(goqu.Interval(1, exp.QuarterInterval)),
-			err: "goqu: dialect does not support Interval unit QUARTER [dialect=greptimedb]",
-		},
-	)
-}
-
-func (gds *greptimedbDialectSuite) TestLocking() {
-	ds := dialect.From("m")
-	gds.assertSQL(
-		sqlTestCase{ds: ds.ForUpdate(goqu.Wait), err: "goqu: dialect does not support FOR UPDATE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.ForShare(goqu.Wait), err: "goqu: dialect does not support FOR SHARE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.ForNoKeyUpdate(goqu.Wait), err: "goqu: dialect does not support FOR NO KEY UPDATE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.ForKeyShare(goqu.Wait), err: "goqu: dialect does not support FOR KEY SHARE [dialect=greptimedb]"},
 	)
 }
 
@@ -203,12 +175,6 @@ func (gds *greptimedbDialectSuite) TestInsert() {
 			ds:  ds.FromQuery(dialect.From("n").Select("cpu", "host", "ts")).Cols("cpu", "host", "ts"),
 			sql: "INSERT INTO `m` (`cpu`, `host`, `ts`) SELECT `cpu`, `host`, `ts` FROM `n`",
 		},
-		sqlTestCase{ds: ds.Rows(rows[0]).OnConflict(goqu.DoNothing()), err: "goqu: dialect does not support upsert [dialect=greptimedb]"},
-		sqlTestCase{
-			ds:  ds.Rows(rows[0]).OnConflict(goqu.DoUpdate("host", goqu.Record{"cpu": 1})),
-			err: "goqu: dialect does not support upsert [dialect=greptimedb]",
-		},
-		sqlTestCase{ds: ds.Rows(rows[0]).Returning("host"), err: "goqu: dialect does not support RETURNING clause [dialect=greptimedb]"},
 	)
 }
 
@@ -222,9 +188,6 @@ func (gds *greptimedbDialectSuite) TestDelete() {
 			isPrepared: true,
 			args:       []interface{}{"a"},
 		},
-		sqlTestCase{ds: ds.Order(goqu.C("ts").Asc()), err: "goqu: dialect does not support ORDER BY on DELETE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Limit(1), err: "goqu: dialect does not support LIMIT on DELETE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Returning("host"), err: "goqu: dialect does not support RETURNING clause [dialect=greptimedb]"},
 	)
 }
 
@@ -232,20 +195,48 @@ func (gds *greptimedbDialectSuite) TestTruncate() {
 	ds := dialect.Truncate("m")
 	gds.assertSQL(
 		sqlTestCase{ds: ds, sql: "TRUNCATE TABLE `m`"},
-		sqlTestCase{ds: dialect.Truncate("m", "n"), err: "goqu: dialect does not support multiple tables in TRUNCATE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Cascade(), err: "goqu: dialect does not support CASCADE in TRUNCATE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Restrict(), err: "goqu: dialect does not support RESTRICT in TRUNCATE [dialect=greptimedb]"},
-		sqlTestCase{ds: ds.Identity("RESTART"), err: "goqu: dialect does not support RESTART IDENTITY in TRUNCATE [dialect=greptimedb]"},
 	)
 }
 
-func (gds *greptimedbDialectSuite) TestUpdate() {
-	gds.assertSQL(
-		sqlTestCase{
-			ds:  dialect.Update("m").Set(goqu.Record{"cpu": 1}),
-			err: "goqu: dialect does not support UPDATE statements [dialect=greptimedb]",
-		},
-	)
+func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
+	for _, name := range []string{"greptimedb", "greptimedb-pg"} {
+		gds.Run(name, func() {
+			d := goqu.Dialect(name)
+			ds := d.From("m")
+			row := goqu.Record{"host": "a"}
+			rejected := []struct {
+				ds      exp.SQLExpression
+				feature string
+			}{
+				{ds.Select(goqu.C("a").BitwiseInversion()), `bitwise operator "Inversion"`},
+				{ds.Join(goqu.Lateral(d.From("n")).As("x"), goqu.On(goqu.L("true"))), "lateral expressions"},
+				{ds.Select(goqu.JSONExtract("doc", "$.a")), "JSONExtract"},
+				{ds.Select(goqu.Now(3)), "fsp 3"},
+				{ds.Select(goqu.UTCTimestamp()), "UTCTimestamp"},
+				{ds.Select(goqu.Interval(1, exp.QuarterInterval)), "Interval unit QUARTER"},
+				{ds.ForUpdate(goqu.Wait), "FOR UPDATE"},
+				{ds.ForShare(goqu.Wait), "FOR SHARE"},
+				{ds.ForNoKeyUpdate(goqu.Wait), "FOR NO KEY UPDATE"},
+				{ds.ForKeyShare(goqu.Wait), "FOR KEY SHARE"},
+				{d.Insert("m").Rows(row).OnConflict(goqu.DoNothing()), "upsert"},
+				{d.Insert("m").Rows(row).OnConflict(goqu.DoUpdate("host", goqu.Record{"cpu": 1})), "upsert"},
+				{d.Insert("m").Rows(row).Returning("host"), "RETURNING clause"},
+				{d.Delete("m").Order(goqu.C("ts").Asc()), "ORDER BY on DELETE"},
+				{d.Delete("m").Limit(1), "LIMIT on DELETE"},
+				{d.Delete("m").Returning("host"), "RETURNING clause"},
+				{d.Truncate("m", "n"), "multiple tables in TRUNCATE"},
+				{d.Truncate("m").Cascade(), "CASCADE in TRUNCATE"},
+				{d.Truncate("m").Restrict(), "RESTRICT in TRUNCATE"},
+				{d.Truncate("m").Identity("RESTART"), "RESTART IDENTITY in TRUNCATE"},
+				{d.Update("m").Set(goqu.Record{"cpu": 1}), "UPDATE statements"},
+			}
+			cases := make([]sqlTestCase, 0, len(rejected))
+			for _, c := range rejected {
+				cases = append(cases, sqlTestCase{ds: c.ds, err: "goqu: dialect does not support " + c.feature + " [dialect=" + name + "]"})
+			}
+			gds.assertSQL(cases...)
+		})
+	}
 }
 
 func TestGreptimeDBDialectSuite(t *testing.T) {
