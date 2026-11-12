@@ -1074,7 +1074,9 @@ var intervalUnits = []struct {
 	unit     exp.IntervalUnit
 	quantity string
 }{
+	{exp.NanosecondInterval, "1 NANOSECOND"},
 	{exp.MicrosecondInterval, "1 MICROSECOND"},
+	{exp.MillisecondInterval, "1 MILLISECOND"},
 	{exp.SecondInterval, "1 SECOND"},
 	{exp.MinuteInterval, "1 MINUTE"},
 	{exp.HourInterval, "1 HOUR"},
@@ -1417,8 +1419,19 @@ func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill ex
 	}
 }
 
+var unsupportedIntervalUnits = map[TimeStyle][]exp.IntervalUnit{
+	PostgresTimeStyle:   {exp.NanosecondInterval},
+	MySQLTimeStyle:      {exp.NanosecondInterval, exp.MillisecondInterval},
+	DuckDBTimeStyle:     {exp.NanosecondInterval},
+	GreptimeDBTimeStyle: {exp.QuarterInterval},
+}
+
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {
 	render, err := esg.timeRenderers()
+	if unit, _, lookupErr := lookupIntervalUnit(e.Unit()); err == nil && lookupErr == nil &&
+		slices.Contains(unsupportedIntervalUnits[esg.dialectOptions.TimeStyle], unit) {
+		err = errIntervalUnitNotSupported(esg.dialect, unit)
+	}
 	if err == nil {
 		err = render.interval(b, e)
 	}
@@ -1440,9 +1453,6 @@ func (esg *expressionSQLGenerator) greptimeDBIntervalSQL(b sqlbuilder.SQLBuilder
 	unit, _, count, err := intervalUnit(esg.dialect, e, true)
 	if err != nil {
 		return err
-	}
-	if unit == exp.QuarterInterval {
-		return errIntervalUnitNotSupported(esg.dialect, unit)
 	}
 	if expression, isExpression := count.(exp.Expression); isExpression {
 		esg.Generate(b, exp.NewLiteralExpression("INTERVAL ? "+string(unit), expression))

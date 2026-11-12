@@ -115,6 +115,18 @@ func (st *duckdbSuite) SetupTest() {
 	}
 }
 
+func (st *duckdbSuite) TestIntervalOfMilliseconds() {
+	for _, prepared := range []bool{false, true} {
+		var shifted string
+		found, err := st.db.From("entry").Prepared(prepared).Limit(1).
+			Select(goqu.Cast(goqu.L("TIMESTAMP '2024-01-01 00:00:00'").Add(goqu.IntervalOf(1500*time.Millisecond)), "VARCHAR")).
+			ScanVal(&shifted)
+		st.Require().NoError(err, "prepared=%v", prepared)
+		st.True(found)
+		st.Equal("2024-01-01 00:00:01.5", shifted, "prepared=%v", prepared)
+	}
+}
+
 func (st *duckdbSuite) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := st.db.From("entry").Prepared(prepared)

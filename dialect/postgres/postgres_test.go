@@ -116,6 +116,18 @@ func (pt *postgresTest) TestTimeFunctionsInNonUTCSession() {
 	pt.Equal(5*60*60+30*60, offset)
 }
 
+func (pt *postgresTest) TestIntervalOfMilliseconds() {
+	for _, prepared := range []bool{false, true} {
+		var shifted string
+		found, err := pt.db.From("entry").Prepared(prepared).Limit(1).
+			Select(goqu.Cast(goqu.L("TIMESTAMP '2024-01-01 00:00:00'").Add(goqu.IntervalOf(1500*time.Millisecond)), "TEXT")).
+			ScanVal(&shifted)
+		pt.Require().NoError(err, "prepared=%v", prepared)
+		pt.True(found)
+		pt.Equal("2024-01-01 00:00:01.5", shifted, "prepared=%v", prepared)
+	}
+}
+
 func (pt *postgresTest) TestTimeFunctions() {
 	for _, prepared := range []bool{false, true} {
 		ds := pt.db.From("entry").Prepared(prepared)

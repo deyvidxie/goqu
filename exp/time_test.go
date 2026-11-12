@@ -2,6 +2,7 @@ package exp_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,27 @@ func TestNewTimeFunctionExpressions(t *testing.T) {
 	assert.Equal(t, exp.SecondInterval, interval.Unit())
 	assert.Equal(t, interval, interval.Expression())
 	assert.Equal(t, interval, interval.Clone())
+}
+
+func TestNewDurationIntervalExpression(t *testing.T) {
+	for d, want := range map[time.Duration]exp.IntervalExpression{
+		2 * time.Hour:                       exp.NewIntervalExpression(int64(2), exp.HourInterval),
+		90 * time.Minute:                    exp.NewIntervalExpression(int64(90), exp.MinuteInterval),
+		time.Minute + time.Second:           exp.NewIntervalExpression(int64(61), exp.SecondInterval),
+		1500 * time.Millisecond:             exp.NewIntervalExpression(int64(1500), exp.MillisecondInterval),
+		3 * time.Microsecond:                exp.NewIntervalExpression(int64(3), exp.MicrosecondInterval),
+		time.Millisecond + time.Microsecond: exp.NewIntervalExpression(int64(1001), exp.MicrosecondInterval),
+		1500 * time.Nanosecond:              exp.NewIntervalExpression(int64(1500), exp.NanosecondInterval),
+		time.Nanosecond:                     exp.NewIntervalExpression(int64(1), exp.NanosecondInterval),
+	} {
+		assert.Equal(t, want, exp.NewDurationIntervalExpression(d), d.String())
+	}
+	for _, d := range []time.Duration{0, -time.Second} {
+		invalid, ok := exp.NewDurationIntervalExpression(d).Count().(exp.InvalidExpression)
+		if assert.True(t, ok, d.String()) {
+			assert.EqualError(t, invalid.Err(), "goqu: IntervalOf requires a positive duration, got "+d.String())
+		}
+	}
 }
 
 func TestTimeFunctionExpressionOperators(t *testing.T) {

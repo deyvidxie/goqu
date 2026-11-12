@@ -4,6 +4,7 @@ package goqu_test
 import (
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -729,6 +730,15 @@ func ExampleInterval() {
 
 	// Output:
 	// SELECT * FROM "sessions" WHERE ("expires" < ((NOW() AT TIME ZONE 'UTC') - ("grace_days" * INTERVAL '1 DAY'))) []
+}
+
+func ExampleIntervalOf() {
+	sql, _, _ := goqu.Dialect("greptimedb").From("cpu").
+		Select(goqu.Func("date_bin", goqu.IntervalOf(1500*time.Millisecond), goqu.C("ts"))).ToSQL()
+	fmt.Println(sql)
+
+	// Output:
+	// SELECT date_bin(INTERVAL 1500 MILLISECOND, `ts`) FROM `cpu`
 }
 
 func ExampleInterval_dialects() {
