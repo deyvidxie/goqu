@@ -1808,6 +1808,101 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_LikeHintOnlyWhenILikeIsPla
 	}
 }
 
+func rangeQueryOptions() *sqlgen.SQLDialectOptions {
+	do := sqlgen.DefaultDialectOptions()
+	do.SupportsRangeQuery = true
+	return do
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_RangeAggregate() {
+	avg := exp.NewSQLFunctionExpression("avg", exp.NewIdentifierExpression("", "", "cpu"))
+	ra := func(d time.Duration) exp.RangeAggregateExpression { return exp.NewRangeAggregateExpression(avg, d) }
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", rangeQueryOptions()),
+		expressionTestCase{val: ra(10 * time.Second), sql: `(avg("cpu") RANGE '10s')`},
+		expressionTestCase{val: ra(10 * time.Second), sql: `(avg("cpu") RANGE '10s')`, isPrepared: true},
+		expressionTestCase{val: ra(90*time.Minute + 1500*time.Millisecond), sql: `(avg("cpu") RANGE '1h30m1s500ms')`},
+		expressionTestCase{val: ra(25 * time.Hour), sql: `(avg("cpu") RANGE '25h')`},
+		expressionTestCase{val: ra(time.Millisecond), sql: `(avg("cpu") RANGE '1ms')`},
+		expressionTestCase{val: ra(time.Minute).Fill(exp.NewRangeFill(exp.RangeFillNull)), sql: `(avg("cpu") RANGE '1m' FILL NULL)`},
+		expressionTestCase{val: ra(time.Minute).Fill(exp.NewRangeFill(exp.RangeFillPrev)), sql: `(avg("cpu") RANGE '1m' FILL PREV)`},
+		expressionTestCase{val: ra(time.Minute).Fill(exp.NewRangeFill(exp.RangeFillLinear)), sql: `(avg("cpu") RANGE '1m' FILL LINEAR)`},
+		expressionTestCase{val: ra(time.Minute).Fill(exp.NewRangeFillValue(1.5)), sql: `(avg("cpu") RANGE '1m' FILL 1.5)`},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(1e21)), sql: `(avg("cpu") RANGE '1m' FILL 1000000000000000000000)`, isPrepared: true,
+		},
+		expressionTestCase{val: ra(time.Minute).As("a"), sql: `(avg("cpu") RANGE '1m') AS "a"`},
+		expressionTestCase{
+			val: exp.NewRangeAggregateExpression(exp.NewSQLFunctionExpression("sum", exp.NewIdentifierExpression("", "", "a").Mul(2)), time.Second),
+			sql: `(sum(("a" * ?)) RANGE '1s')`, isPrepared: true, args: []interface{}{int64(2)},
+		},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", rangeQueryOptions()),
+		expressionTestCase{val: ra(0), err: "goqu: RANGE duration must be a positive whole number of milliseconds, got 0s"},
+		expressionTestCase{val: ra(-time.Second), err: "goqu: RANGE duration must be a positive whole number of milliseconds, got -1s"},
+		expressionTestCase{
+			val: ra(1500 * time.Microsecond), err: "goqu: RANGE duration must be a positive whole number of milliseconds, got 1.5ms",
+		},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(-1)), err: "goqu: FILL value must be a finite non-negative number, got -1",
+		},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(math.NaN())), err: "goqu: FILL value must be a finite non-negative number, got NaN",
+		},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(math.Inf(1))), err: "goqu: FILL value must be a finite non-negative number, got +Inf",
+		},
+		expressionTestCase{
+			val: ra(time.Minute).Fill(exp.NewRangeFillValue(math.Copysign(0, -1))),
+			err: "goqu: FILL value must be a finite non-negative number, got -0",
+		},
+		expressionTestCase{val: ra(time.Minute).Fill(exp.RangeFill{}), err: "goqu: unknown FILL kind 0"},
+		expressionTestCase{
+			val: exp.NewRangeAggregateExpression(nil, time.Minute), err: "goqu: RangeAggregate requires an aggregate expression",
+		},
+	)
+	withoutAlign := rangeQueryOptions()
+	withoutAlign.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.SelectSQLFragment, sqlgen.FromSQLFragment}
+	for _, opts := range []*sqlgen.SQLDialectOptions{sqlgen.DefaultDialectOptions(), withoutAlign} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+			expressionTestCase{val: ra(time.Minute), err: "goqu: dialect does not support range queries [dialect=test]"},
+		)
+	}
+}
+
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_AlignExpression() {
+	a := exp.NewAlignExpression(10 * time.Second)
+	origin := time.Date(2024, 1, 2, 3, 4, 5, 123456789, time.FixedZone("x", 3600))
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", rangeQueryOptions()),
+		expressionTestCase{val: a, sql: `ALIGN '10s'`},
+		expressionTestCase{val: a.ToNow(), sql: `ALIGN '10s' TO NOW`},
+		expressionTestCase{val: a.To(origin.Truncate(time.Millisecond)), sql: `ALIGN '10s' TO '2024-01-02T02:04:05.123Z'`, isPrepared: true},
+		expressionTestCase{
+			val: a.To(origin), err: "goqu: ALIGN TO origin must be a whole number of milliseconds, got 2024-01-02T03:04:05.123456789+01:00",
+		},
+		expressionTestCase{val: a.By("host", "dc"), sql: `ALIGN '10s' BY ("host", "dc")`},
+		expressionTestCase{val: a.ByNone(), sql: `ALIGN '10s' BY ()`},
+		expressionTestCase{val: a.Fill(exp.NewRangeFillValue(7)), sql: `ALIGN '10s' FILL 7`, isPrepared: true},
+		expressionTestCase{
+			val: a.To(time.Unix(0, 0)).By(exp.NewSQLFunctionExpression("lower", exp.NewIdentifierExpression("", "", "host"))).
+				Fill(exp.NewRangeFill(exp.RangeFillLinear)),
+			sql: `ALIGN '10s' TO '1970-01-01T00:00:00Z' BY (lower("host")) FILL LINEAR`,
+		},
+		expressionTestCase{val: a.By(), err: "goqu: Align By requires at least one column; use ByNone for BY ()"},
+		expressionTestCase{
+			val: exp.NewAlignExpression(time.Nanosecond), err: "goqu: ALIGN duration must be a positive whole number of milliseconds, got 1ns",
+		},
+		expressionTestCase{val: a.Fill(exp.NewRangeFillValue(-2)), err: "goqu: FILL value must be a finite non-negative number, got -2"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", sqlgen.DefaultDialectOptions()),
+		expressionTestCase{val: a, err: "goqu: dialect does not support range queries [dialect=test]"},
+	)
+}
+
 func timeStyleOptions(style sqlgen.TimeStyle) *sqlgen.SQLDialectOptions {
 	do := sqlgen.DefaultDialectOptions()
 	do.TimeStyle = style

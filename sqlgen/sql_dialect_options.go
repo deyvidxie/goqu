@@ -58,9 +58,10 @@ type (
 		SupportsDistinctOn bool
 		// Set to true if LATERAL queries are supported (DEFAULT=true)
 		SupportsLateral bool
-		// Set to true if the dialect supports QUALIFY expressions, e.g. Teradata, Snowflake, BigQuery (DEFAULT=false).
-		// None of the built in dialects enable it: register your own dialect with it set to true.
+		// Set to true if the dialect supports QUALIFY expressions (DEFAULT=false)
 		SupportsQualify bool
+		// Set to true if the dialect supports GreptimeDB range queries: RangeAggregate and ALIGN (DEFAULT=false)
+		SupportsRangeQuery bool
 		// Set to true if the dialect renders JSONExtract, JSONValue and JSONContains; when false they fail ToSQL (DEFAULT=false)
 		SupportsMySQLJSONFunctions bool
 		// Set to false if the dialect does not require expressions to be wrapped in parens (DEFAULT=true)
@@ -362,6 +363,7 @@ type (
 		// 		FromSQLFragment,
 		// 		JoinSQLFragment,
 		// 		WhereSQLFragment,
+		// 		AlignSQLFragment,
 		// 		GroupBySQLFragment,
 		// 		HavingSQLFragment,
 		// 		QualifySQLFragment,
@@ -445,6 +447,7 @@ const (
 	WindowSQLFragment
 	// New fragment types are appended here so the values of the existing ones do not change.
 	QualifySQLFragment
+	AlignSQLFragment
 )
 
 //nolint:gocyclo // simple type to string conversion
@@ -466,6 +469,8 @@ func (sf SQLFragmentType) String() string {
 		return "HavingSQLFragment"
 	case QualifySQLFragment:
 		return "QualifySQLFragment"
+	case AlignSQLFragment:
+		return "AlignSQLFragment"
 	case CompoundsSQLFragment:
 		return "CompoundsSQLFragment"
 	case OrderSQLFragment:
@@ -538,6 +543,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 		SupportsWindowClause:              true,
 		SupportsLateral:                   true,
 		SupportsQualify:                   false,
+		SupportsRangeQuery:                false,
 		SupportsMySQLJSONFunctions:        false,
 		SupportsLockOf:                    true,
 
@@ -708,6 +714,7 @@ func DefaultDialectOptions() *SQLDialectOptions {
 			FromSQLFragment,
 			JoinSQLFragment,
 			WhereSQLFragment,
+			AlignSQLFragment,
 			GroupBySQLFragment,
 			HavingSQLFragment,
 			QualifySQLFragment,

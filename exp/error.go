@@ -23,6 +23,10 @@ var errNilOrder = errors.NewInvalidExpressionError("Order expressions must not b
 
 var errNilListEntry = errors.NewInvalidExpressionError("column and condition lists must not contain nil")
 
+var errEmptyAlignBy = errors.NewInvalidExpressionError("Align By requires at least one column; use ByNone for BY ()")
+
+var errNilRangeAggregate = errors.NewInvalidExpressionError("RangeAggregate requires an aggregate expression")
+
 var errRowsWithoutColumns = errors.NewInvalidExpressionError("insert rows have no columns")
 
 func errEmptyAppend(method, noun string) error {

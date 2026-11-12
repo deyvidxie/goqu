@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/greptimedb"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/doug-martin/goqu/v9/exp"
 	_ "github.com/lib/pq"
@@ -445,6 +446,18 @@ func ExampleSelectDataset_Having() {
 	// Output:
 	// SELECT * FROM "test" HAVING (SUM("income") > 1000)
 	// SELECT * FROM "test" GROUP BY "age" HAVING (SUM("income") > 1000)
+}
+
+func ExampleSelectDataset_Align() {
+	sql, _, _ := goqu.Dialect("greptimedb").From("cpu").
+		Select("ts", "host", goqu.RangeAggregate(goqu.AVG("usage"), 10*time.Second).Fill(goqu.FillLinear()).As("avg")).
+		Where(goqu.C("dc").Eq("x")).
+		Align(goqu.Align(10 * time.Second).To(time.Unix(0, 0)).By("host").Fill(goqu.FillNull())).
+		Order(goqu.C("ts").Asc()).
+		ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT `ts`, `host`, (AVG(`usage`) RANGE '10s' FILL LINEAR) AS `avg` FROM `cpu` WHERE (`dc` = 'x') ALIGN '10s' TO '1970-01-01T00:00:00Z' BY (`host`) FILL NULL ORDER BY `ts` ASC
 }
 
 func ExampleSelectDataset_Qualify() {

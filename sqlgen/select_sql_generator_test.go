@@ -2,6 +2,7 @@ package sqlgen_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -836,6 +837,54 @@ func (ssgs *selectSQLGeneratorSuite) TestGenerate_withQualifyNotSupported() {
 		selectTestCase{clause: sc, err: expectedErr},
 		selectTestCase{clause: sc, err: expectedErr, isPrepared: true},
 	)
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_withAlign() {
+	opts := sqlgen.DefaultDialectOptions()
+	opts.SupportsRangeQuery = true
+	avg := exp.NewRangeAggregateExpression(exp.NewSQLFunctionExpression("avg", exp.NewIdentifierExpression("", "", "cpu")), time.Minute)
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		SetSelect(exp.NewColumnListExpression(nil, "db", "ts", avg)).
+		WhereAppend(exp.Ex{"host": "a"}).
+		SetAlign(exp.NewAlignExpression(time.Minute).By("host")).
+		SetOrder(exp.NewIdentifierExpression("", "", "ts").Asc()).
+		SetLimit(10)
+
+	ssgs.assertCases(
+		sqlgen.NewSelectSQLGenerator("test", "db", opts),
+		selectTestCase{
+			clause: sc,
+			sql: `SELECT "ts", (avg("cpu") RANGE '1m') FROM "test" WHERE ("host" = 'a') ` +
+				`ALIGN '1m' BY ("host") ORDER BY "ts" ASC LIMIT 10`,
+		},
+		selectTestCase{
+			clause: sc,
+			sql: `SELECT "ts", (avg("cpu") RANGE '1m') FROM "test" WHERE ("host" = ?) ` +
+				`ALIGN '1m' BY ("host") ORDER BY "ts" ASC LIMIT ?`,
+			isPrepared: true,
+			args:       []interface{}{"a", int64(10)},
+		},
+	)
+}
+
+func (ssgs *selectSQLGeneratorSuite) TestGenerate_withAlignNotSupported() {
+	sc := exp.NewSelectClauses().
+		SetFrom(exp.NewColumnListExpression(nil, "db", "test")).
+		SetAlign(exp.NewAlignExpression(time.Minute))
+	expectedErr := "goqu: dialect does not support range queries [dialect=test]"
+
+	withoutFragment := sqlgen.DefaultDialectOptions()
+	withoutFragment.SupportsRangeQuery = true
+	withoutFragment.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.SelectSQLFragment, sqlgen.FromSQLFragment}
+
+	for _, opts := range []*sqlgen.SQLDialectOptions{sqlgen.DefaultDialectOptions(), withoutFragment} {
+		ssgs.assertCases(
+			sqlgen.NewSelectSQLGenerator("test", "db", opts),
+			selectTestCase{clause: sc, err: expectedErr},
+			selectTestCase{clause: sc, err: expectedErr, isPrepared: true},
+		)
+	}
 }
 
 func (ssgs *selectSQLGeneratorSuite) TestGenerate_customJoinNeedsLookupEntry() {

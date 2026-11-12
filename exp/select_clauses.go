@@ -75,6 +75,10 @@ type (
 		Qualify() ExpressionList
 		ClearQualify() SelectClauses
 		QualifyAppend(expressions ...Expression) SelectClauses
+
+		Align() AlignExpression
+		SetAlign(a AlignExpression) SelectClauses
+		ClearAlign() SelectClauses
 	}
 	selectClauses struct {
 		commonTables  []CommonTableExpression
@@ -94,6 +98,7 @@ type (
 		lock          Lock
 		windows       []WindowExpression
 		qualify       ExpressionList
+		align         AlignExpression
 	}
 )
 
@@ -139,6 +144,7 @@ func (c *selectClauses) clone() *selectClauses {
 		lock:          c.lock,
 		windows:       c.windows[0:len(c.windows):len(c.windows)],
 		qualify:       c.qualify,
+		align:         c.align,
 	}
 }
 
@@ -310,6 +316,20 @@ func (c *selectClauses) QualifyAppend(expressions ...Expression) SelectClauses {
 		ret.qualify = ret.qualify.Append(expressions...)
 	}
 	return ret
+}
+
+func (c *selectClauses) Align() AlignExpression {
+	return c.align
+}
+
+func (c *selectClauses) SetAlign(a AlignExpression) SelectClauses {
+	ret := c.clone()
+	ret.align = a
+	return ret
+}
+
+func (c *selectClauses) ClearAlign() SelectClauses {
+	return c.SetAlign(nil)
 }
 
 func (c *selectClauses) Lock() Lock {

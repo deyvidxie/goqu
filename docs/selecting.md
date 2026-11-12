@@ -11,6 +11,7 @@
   * [`Offset`](#offset)
   * [`GroupBy`](#group_by)
   * [`Having`](#having)
+  * [`Align`, `RangeAggregate`](#align)
   * [`Window`](#window)
   * [`With`](#with)
   * [`SetError`](#seterror)
@@ -751,6 +752,31 @@ Output:
 
 ```
 SELECT "a", ROW_NUMBER() OVER (PARTITION BY "a" ORDER BY "b" ASC) AS "rn" FROM "test" QUALIFY ("rn" = 1)
+```
+
+<a name="align"></a>
+**[`Align`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Align) and [`RangeAggregate`](https://godoc.org/github.com/doug-martin/goqu/#RangeAggregate)**
+
+Durations must be positive whole milliseconds, the `To` origin whole milliseconds and `FillValue` finite and non-negative; durations, the `To` origin and `FILL` values are inlined in prepared mode. `ByNone` renders `BY ()`.
+
+**NOTE** Only `greptimedb` and `greptimedb-pg` support range queries; the others return a `goqu.UnsupportedError`. A registered dialect needs `SupportsRangeQuery` and `sqlgen.AlignSQLFragment` in its `SelectSQLOrder`.
+
+```go
+// import _ "github.com/doug-martin/goqu/v9/dialect/greptimedb"
+
+sql, _, _ := goqu.Dialect("greptimedb").From("cpu").
+	Select("ts", "host", goqu.RangeAggregate(goqu.AVG("usage"), 10*time.Second).Fill(goqu.FillLinear()).As("avg")).
+	Where(goqu.C("dc").Eq("x")).
+	Align(goqu.Align(10*time.Second).To(time.Unix(0, 0)).By("host").Fill(goqu.FillNull())).
+	Order(goqu.C("ts").Asc()).
+	ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+
+```
+SELECT `ts`, `host`, (AVG(`usage`) RANGE '10s' FILL LINEAR) AS `avg` FROM `cpu` WHERE (`dc` = 'x') ALIGN '10s' TO '1970-01-01T00:00:00Z' BY (`host`) FILL NULL ORDER BY `ts` ASC
 ```
 
 <a name="with"></a>

@@ -213,6 +213,7 @@ func (sd *SelectDataset) uncarriedClauseError(method string, truncate bool) erro
 		{c.GroupBy() != nil, "GROUP BY"},
 		{c.Having() != nil, "HAVING"},
 		{c.Qualify() != nil, "QUALIFY"},
+		{c.Align() != nil, "ALIGN"},
 		{c.Distinct() || c.DistinctOn() != nil, "DISTINCT"},
 		{c.Windows() != nil, "WINDOW"},
 		{len(c.Compounds()) > 0, "compound (UNION/INTERSECT)"},
@@ -578,6 +579,18 @@ func (sd *SelectDataset) Qualify(expressions ...exp.Expression) *SelectDataset {
 
 func (sd *SelectDataset) ClearQualify() *SelectDataset {
 	return sd.copy(sd.clauses.ClearQualify())
+}
+
+// Sets the GreptimeDB ALIGN clause of a range query; dialects without SupportsRangeQuery return an UnsupportedError.
+func (sd *SelectDataset) Align(align exp.AlignExpression) *SelectDataset {
+	if align == nil {
+		return sd.copy(sd.clauses).SetError(errNilAlign)
+	}
+	return sd.copy(sd.clauses.SetAlign(align))
+}
+
+func (sd *SelectDataset) ClearAlign() *SelectDataset {
+	return sd.copy(sd.clauses.ClearAlign())
 }
 
 // Adds a ORDER clause. If the ORDER is currently set it replaces it. See examples.

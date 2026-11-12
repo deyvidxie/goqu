@@ -2,6 +2,7 @@ package exp
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/sqlbuilder"
 )
@@ -593,6 +594,35 @@ type (
 
 		HasWindow() bool
 		HasWindowName() bool
+	}
+
+	RangeAggregateExpression interface {
+		Expression
+		Aliaseable
+		Orderable
+		Aggregate() Expression
+		Duration() time.Duration
+		HasFill() bool
+		GetFill() RangeFill
+		Fill(fill RangeFill) RangeAggregateExpression
+	}
+
+	AlignExpression interface {
+		Expression
+		Duration() time.Duration
+		HasTo() bool
+		IsToNow() bool
+		ToTime() time.Time
+		HasBy() bool
+		ByCols() ColumnListExpression
+		HasFill() bool
+		GetFill() RangeFill
+
+		To(origin time.Time) AlignExpression
+		ToNow() AlignExpression
+		By(cols ...interface{}) AlignExpression
+		ByNone() AlignExpression
+		Fill(fill RangeFill) AlignExpression
 	}
 
 	WindowExpression interface {

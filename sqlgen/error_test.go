@@ -2,6 +2,7 @@ package sqlgen_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -148,6 +149,16 @@ func TestUnsupportedFeaturesReturnUnsupportedError(t *testing.T) {
 		}, func(d goqu.DialectWrapper) sqlBuilder {
 			return d.From("t").Qualify(goqu.C("a").Eq(1))
 		}},
+		{"ALIGN", "range queries", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsRangeQuery = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Align(goqu.Align(time.Minute))
+		}},
+		{"RangeAggregate", "range queries", func(o *sqlgen.SQLDialectOptions) {
+			o.SupportsRangeQuery = false
+		}, func(d goqu.DialectWrapper) sqlBuilder {
+			return d.From("t").Select(goqu.RangeAggregate(goqu.AVG("a"), time.Minute))
+		}},
 		{"lock strength", "FOR SHARE", func(o *sqlgen.SQLDialectOptions) {
 			o.UnsupportedLockStrengths = []exp.LockStrength{exp.ForShare}
 		}, func(d goqu.DialectWrapper) sqlBuilder {
@@ -281,6 +292,14 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		SetVals([][]any{{1}, {1, 2}})
 	badFragment := sqlgen.DefaultDialectOptions()
 	badFragment.SelectSQLOrder = []sqlgen.SQLFragmentType{sqlgen.InsertBeingSQLFragment}
+	rangeOpts := sqlgen.DefaultDialectOptions()
+	rangeOpts.SupportsRangeQuery = true
+	rangeExpression := func(e any) error {
+		return toSQL(func(b sqlbuilder.SQLBuilder) {
+			sqlgen.NewExpressionSQLGenerator("test", "db", rangeOpts).Generate(b, e)
+		})
+	}
+	avg := exp.NewSQLFunctionExpression("avg", exp.NewIdentifierExpression("", "", "a"))
 
 	invalid := []struct {
 		name string
@@ -310,6 +329,19 @@ func TestGeneratorErrorsAreTyped(t *testing.T) {
 		{"mismatched row length", "rows with different value length, expected 1 got 2", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewInsertSQLGenerator("test", "db", opts).Generate(b, mismatched)
 		})},
+		{
+			"RANGE duration", "RANGE duration must be a positive whole number of milliseconds",
+			rangeExpression(exp.NewRangeAggregateExpression(avg, 0)),
+		},
+		{
+			"FILL value", "FILL value must be a finite non-negative number",
+			rangeExpression(exp.NewRangeAggregateExpression(avg, time.Second).Fill(exp.NewRangeFillValue(-1))),
+		},
+		{"unknown FILL kind", "unknown FILL kind 0", rangeExpression(exp.NewRangeAggregateExpression(avg, time.Second).Fill(exp.RangeFill{}))},
+		{
+			"ALIGN TO origin", "ALIGN TO origin must be a whole number of milliseconds",
+			rangeExpression(exp.NewAlignExpression(time.Second).To(time.Unix(0, 1))),
+		},
 		{"truncate without source", "no source found when generating truncate sql", toSQL(func(b sqlbuilder.SQLBuilder) {
 			sqlgen.NewTruncateSQLGenerator("test", "db", opts).Generate(b, exp.NewTruncateClauses())
 		})},
