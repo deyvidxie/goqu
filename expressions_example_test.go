@@ -840,6 +840,16 @@ func ExampleFunc_orderBy() {
 	// SELECT string_agg("symbol", ',' ORDER BY "ts" DESC), first_value("price" ORDER BY CASE  WHEN ("price" = 0) THEN 1 ELSE 0 END ASC, "ts" ASC) FROM "prices"
 }
 
+func ExampleFunc_withinGroup() {
+	sql, _, _ := goqu.From("latency").Select(
+		goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("ms").Asc()),
+		goqu.Func("STRING_AGG", goqu.C("host"), goqu.L("','")).WithinGroup(goqu.C("host").Asc()),
+	).ToSQL()
+	fmt.Println(sql)
+	// Output:
+	// SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms" ASC), STRING_AGG("host", ',') WITHIN GROUP (ORDER BY "host" ASC) FROM "latency"
+}
+
 func ExampleI() {
 	ds := goqu.From("test").
 		Select(

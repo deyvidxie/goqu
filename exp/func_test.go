@@ -57,6 +57,23 @@ func (sfes *sqlFunctionExpressionSuite) TestOrderBy() {
 	sfes.EqualError(sfes.fn.OrderBy().OrderCols().Columns()[0].(exp.InvalidExpression).Err(), "goqu: OrderBy requires at least one expression")
 }
 
+func (sfes *sqlFunctionExpressionSuite) TestWithinGroup() {
+	ts := exp.NewIdentifierExpression("", "", "ts")
+	grouped := sfes.fn.WithinGroup(ts.Desc(), ts.Asc())
+
+	sfes.False(sfes.fn.HasWithinGroup())
+	sfes.Nil(sfes.fn.WithinGroupCols())
+	sfes.True(grouped.HasWithinGroup())
+	sfes.False(grouped.HasOrder())
+	sfes.Equal(exp.NewOrderedColumnList(ts.Desc(), ts.Asc()), grouped.WithinGroupCols())
+	sfes.Equal(grouped, grouped.Clone())
+	sfes.Equal(sfes.fn.Args(), grouped.Args())
+	sfes.EqualError(sfes.fn.WithinGroup().WithinGroupCols().Columns()[0].(exp.InvalidExpression).Err(),
+		"goqu: WithinGroup requires at least one expression")
+	sfes.EqualError(sfes.fn.WithinGroup(nil).WithinGroupCols().Columns()[0].(exp.InvalidExpression).Err(),
+		"goqu: Order expressions must not be nil")
+}
+
 func (sfes *sqlFunctionExpressionSuite) TestAllOthers() {
 	fn := sfes.fn
 

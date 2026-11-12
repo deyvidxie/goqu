@@ -16,6 +16,7 @@
 * [`Exists`](#exists) - An `EXISTS` condition for a subquery.
 * [`Now`, `UTCTimestamp`, `Interval`](#time) - Current time with fractional seconds and interval arithmetic.
 * [`Func(...).OrderBy`](#func-order-by) - `ORDER BY` inside function arguments.
+* [`Func(...).WithinGroup`](#func-within-group) - `WITHIN GROUP (ORDER BY ...)` for ordered-set aggregates.
 * [`JSONExtract`, `JSONValue`, `JSONContains`](#json) - MySQL JSON functions.
 * [`DialectWrapper.ExpressionSQL`](#expression-sql) - Renders one expression with a dialect, without a surrounding statement.
 * [Complex Example](#complex) - Complex Example using most of the Expression DSL.
@@ -495,6 +496,26 @@ fmt.Println(sql)
 Output:
 ```sql
 SELECT string_agg("symbol", ',' ORDER BY "ts" DESC), first_value("price" ORDER BY CASE  WHEN ("price" = 0) THEN 1 ELSE 0 END ASC, "ts" ASC) FROM "prices"
+```
+
+<a name="func-within-group"></a>
+**[`SQLFunctionExpression.WithinGroup`](https://godoc.org/github.com/doug-martin/goqu/exp#SQLFunctionExpression)**
+
+Adds `WITHIN GROUP (ORDER BY ...)` after the arguments of an ordered-set aggregate. `WithinGroup` with no expressions, or together with `OrderBy` on the same function, returns an error.
+
+**NOTE** mysql and sqlite3 return a `goqu.UnsupportedError`; set `SupportsWithinGroup` to `false` for a registered dialect without it.
+
+```go
+sql, _, _ := goqu.From("latency").Select(
+	goqu.Func("percentile_cont", 0.5).WithinGroup(goqu.C("ms").Asc()),
+	goqu.Func("STRING_AGG", goqu.C("host"), goqu.L("','")).WithinGroup(goqu.C("host").Asc()),
+).ToSQL()
+fmt.Println(sql)
+```
+
+Output:
+```sql
+SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms" ASC), STRING_AGG("host", ',') WITHIN GROUP (ORDER BY "host" ASC) FROM "latency"
 ```
 
 <a name="json"></a>

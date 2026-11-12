@@ -1311,6 +1311,44 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionOrder
 	)
 }
 
+func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpressionWithinGroup() {
+	v := exp.NewIdentifierExpression("", "", "v")
+	percentile := exp.NewSQLFunctionExpression("percentile_cont", 0.5)
+	opts := sqlgen.DefaultDialectOptions()
+	opts.FunctionNameLookup = map[string][]byte{"percentile_cont": []byte("PERCENTILE_CONT")}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", opts),
+		expressionTestCase{val: percentile.WithinGroup(v.Asc()), sql: `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "v" ASC)`},
+		expressionTestCase{
+			val:        percentile.WithinGroup(v.Asc(), exp.NewCaseExpression().When(v.Eq(0), 1).Else(0).Desc()),
+			sql:        `PERCENTILE_CONT(?) WITHIN GROUP (ORDER BY "v" ASC, CASE  WHEN ("v" = ?) THEN ? ELSE ? END DESC)`,
+			isPrepared: true,
+			args:       []interface{}{0.5, int64(0), int64(1), int64(0)},
+		},
+		expressionTestCase{val: exp.NewSQLFunctionExpression("mode").WithinGroup(v.Desc()), sql: `mode() WITHIN GROUP (ORDER BY "v" DESC)`},
+		expressionTestCase{
+			val: percentile.WithinGroup(v.Asc()).Over(exp.NewWindowExpression(nil, nil, exp.NewColumnListExpression(nil, "", "g"), nil)),
+			sql: `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "v" ASC) OVER (PARTITION BY "g")`,
+		},
+		expressionTestCase{val: percentile.WithinGroup(v.Asc()).As("p"), sql: `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "v" ASC) AS "p"`},
+		expressionTestCase{
+			val: percentile.OrderBy(v.Asc()).WithinGroup(v.Asc()), err: "goqu: OrderBy and WithinGroup cannot both order one function",
+		},
+		expressionTestCase{val: percentile.WithinGroup(), err: "goqu: WithinGroup requires at least one expression"},
+		expressionTestCase{val: percentile.WithinGroup(v.Asc(), nil), err: "goqu: Order expressions must not be nil"},
+	)
+	unsupported := sqlgen.DefaultDialectOptions()
+	unsupported.SupportsWithinGroup = false
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", unsupported),
+		expressionTestCase{val: percentile.WithinGroup(v.Asc()), err: "goqu: dialect does not support WITHIN GROUP [dialect=test]"},
+		expressionTestCase{
+			val: percentile.OrderBy(v.Asc()).WithinGroup(v.Asc()), err: "goqu: dialect does not support WITHIN GROUP [dialect=test]",
+		},
+		expressionTestCase{val: percentile, sql: `percentile_cont(0.5)`},
+	)
+}
+
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_SQLFunctionExpression() {
 	minimum := exp.NewSQLFunctionExpression("MIN", exp.NewIdentifierExpression("", "", "a"))
 	coalesce := exp.NewSQLFunctionExpression("COALESCE", exp.NewIdentifierExpression("", "", "a"), "a")

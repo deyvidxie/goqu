@@ -7,9 +7,10 @@ const (
 
 type (
 	sqlFunctionExpression struct {
-		name    string
-		args    []interface{}
-		orderBy ColumnListExpression
+		name        string
+		args        []interface{}
+		orderBy     ColumnListExpression
+		withinGroup ColumnListExpression
 	}
 )
 
@@ -18,7 +19,12 @@ func NewSQLFunctionExpression(name string, args ...interface{}) SQLFunctionExpre
 }
 
 func (sfe sqlFunctionExpression) Clone() Expression {
-	return sqlFunctionExpression{name: sfe.name, args: cloneArgs(sfe.args), orderBy: cloneColumnList(sfe.orderBy)}
+	return sqlFunctionExpression{
+		name:        sfe.name,
+		args:        cloneArgs(sfe.args),
+		orderBy:     cloneColumnList(sfe.orderBy),
+		withinGroup: cloneColumnList(sfe.withinGroup),
+	}
 }
 
 func (sfe sqlFunctionExpression) Expression() Expression { return sfe }
@@ -32,11 +38,25 @@ func (sfe sqlFunctionExpression) OrderCols() ColumnListExpression { return sfe.o
 func (sfe sqlFunctionExpression) HasOrder() bool { return sfe.orderBy != nil }
 
 func (sfe sqlFunctionExpression) OrderBy(order ...OrderedExpression) SQLFunctionExpression {
-	sfe.orderBy = NewOrderedColumnList(order...)
-	if sfe.orderBy.IsEmpty() {
-		sfe.orderBy = emptyAppendList(nil, "OrderBy", "expression")
-	}
+	sfe.orderBy = orderedList("OrderBy", order)
 	return sfe
+}
+
+func (sfe sqlFunctionExpression) WithinGroupCols() ColumnListExpression { return sfe.withinGroup }
+
+func (sfe sqlFunctionExpression) HasWithinGroup() bool { return sfe.withinGroup != nil }
+
+func (sfe sqlFunctionExpression) WithinGroup(order ...OrderedExpression) SQLFunctionExpression {
+	sfe.withinGroup = orderedList("WithinGroup", order)
+	return sfe
+}
+
+func orderedList(method string, order []OrderedExpression) ColumnListExpression {
+	cols := NewOrderedColumnList(order...)
+	if cols.IsEmpty() {
+		return emptyAppendList(nil, method, "expression")
+	}
+	return cols
 }
 
 func (sfe sqlFunctionExpression) As(val interface{}) AliasedExpression {

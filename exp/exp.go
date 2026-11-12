@@ -574,6 +574,9 @@ type (
 		OrderCols() ColumnListExpression
 		HasOrder() bool
 		OrderBy(order ...OrderedExpression) SQLFunctionExpression
+		WithinGroupCols() ColumnListExpression
+		HasWithinGroup() bool
+		WithinGroup(order ...OrderedExpression) SQLFunctionExpression
 	}
 
 	UpdateExpression interface {
