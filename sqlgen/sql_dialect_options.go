@@ -512,6 +512,7 @@ const (
 	SQLiteTimeStyle
 	SQLServerTimeStyle
 	DuckDBTimeStyle
+	GreptimeDBTimeStyle
 )
 
 //nolint:funlen

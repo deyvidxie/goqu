@@ -270,7 +270,18 @@ func errTimeFSPNotSupported(dialect string, fsp int, supported ...int) error {
 	for i, s := range supported {
 		names[i] = strconv.Itoa(s)
 	}
+	if len(names) == 0 {
+		return errors.NewUnsupportedError("dialect does not support fsp %d [dialect=%s]", fsp, dialect)
+	}
 	return errors.NewUnsupportedError("dialect does not support fsp %d, want one of %s [dialect=%s]", fsp, strings.Join(names, ", "), dialect)
+}
+
+func errUTCTimestampNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support UTCTimestamp [dialect=%s]", dialect)
+}
+
+func errIntervalUnitNotSupported(dialect string, unit exp.IntervalUnit) error {
+	return errors.NewUnsupportedError("dialect does not support Interval unit %s [dialect=%s]", unit, dialect)
 }
 
 func errUnknownTimeFunction(function exp.TimeFunction) error {

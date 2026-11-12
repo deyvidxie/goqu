@@ -68,5 +68,5 @@ When a `time.Time` is interpolated (non-prepared mode, `goqu`'s default) it is f
 | `mysql8nano` | nanoseconds; MySQL rounds them to the column's precision, as it does for prepared values |
 | `sqlserver` | 100 nanoseconds |
 | `sqlite3` | nanoseconds as `2006-01-02 15:04:05.999999999-07:00`, the text the go-sqlite3 driver binds in prepared mode; prepared mode keeps the value's own zone, so the two match only for a `time.Time` in goqu's time location (UTC unless `SetTimeLocation`) |
-| `postgres`, `duckdb`, default | nanoseconds (`time.RFC3339Nano`) |
+| `postgres`, `duckdb`, `greptimedb`, default | nanoseconds (`time.RFC3339Nano`) |
 

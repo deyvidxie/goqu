@@ -184,7 +184,7 @@ SELECT DISTINCT "a", "b" FROM "test"
 
 If your dialect supports `DISTINCT ON`, pass the columns to `DistinctOn`.
 
-**NOTE** currently only the `postgres`, `duckdb` and the default dialects support `DISTINCT ON` clauses
+**NOTE** currently only the `postgres`, `duckdb`, `greptimedb` and the default dialects support `DISTINCT ON` clauses
 
 ```go
 sql, _, _ := goqu.From("test").DistinctOn("a").ToSQL()
@@ -263,7 +263,7 @@ SELECT * FROM (SELECT * FROM "test" WHERE ("age" > 10)) AS "test2"
 
 Lateral Query
 
-**NOTE** `sqlite3`, `sqlserver` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
+**NOTE** `sqlite3`, `sqlserver`, `greptimedb` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
 
 ```go
 maxEntry := goqu.From("entry").
@@ -533,7 +533,7 @@ SELECT * FROM "test" ARRAY JOIN tags AS "tag"
 
 Join with a Lateral
 
-**NOTE** `sqlite3`, `sqlserver` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
+**NOTE** `sqlite3`, `sqlserver`, `greptimedb` and `mysql` (MySQL 5.x) return a `goqu.UnsupportedError` for `Lateral`; use `mysql8` for MySQL 8.0.14+.
 
 ```go
 maxEntry := goqu.From("entry").
@@ -735,7 +735,7 @@ SELECT * FROM "test" GROUP BY "age" HAVING (SUM("income") > 1000)
 
 `QUALIFY` filters rows on the result of window functions (Teradata, Snowflake, BigQuery and others).
 
-**NOTE** Of the built in dialects only `duckdb` supports `QUALIFY`; the others return an error. Register a dialect with `SupportsQualify` set to `true` to use it elsewhere.
+**NOTE** Of the built in dialects only `duckdb` and `greptimedb` support `QUALIFY`; the others return an error. Register a dialect with `SupportsQualify` set to `true` to use it elsewhere.
 
 ```go
 // import _ "github.com/doug-martin/goqu/v9/dialect/duckdb"
@@ -878,7 +878,7 @@ WITH del AS (DELETE FROM "foo" WHERE ("bar" = ?) RETURNING "id") SELECT "bar_nam
 <a name="window"></a>
 **[`Window Function`](https://godoc.org/github.com/doug-martin/goqu/#SelectDataset.Window)**
 
-**NOTE** `postgres`, `mysql8` (NOT `mysql`), `sqlite3`, `duckdb`, `sqlserver` and the default dialect support window functions; `sqlserver` returns an error for the named `WINDOW` clause, which needs SQL Server 2022
+**NOTE** `postgres`, `mysql8` (NOT `mysql`), `sqlite3`, `duckdb`, `greptimedb`, `sqlserver` and the default dialect support window functions; `sqlserver` returns an error for the named `WINDOW` clause, which needs SQL Server 2022
 
 To use windowing in `SELECT` statements you can use the `Over` method on an `SQLFunction`
 
@@ -980,7 +980,7 @@ Output:
 SELECT * FROM "test" FOR UPDATE OF "test"
 ```
 
-**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3` and `duckdb` have no locking clause either, so every lock strength returns an error.
+**NOTE** `sqlserver` has no locking clause on `SELECT`, so every lock strength returns an error. `mysql` and `mysql8` return an error for `ForNoKeyUpdate` and `ForKeyShare`; `mysql` (MySQL 5.x) also renders `ForShare` as `LOCK IN SHARE MODE` and returns an error for `NOWAIT`, `SKIP LOCKED` and `OF`. `sqlite3`, `duckdb` and `greptimedb` have no locking clause either, so every lock strength returns an error.
 
 ## Executing Queries
 
