@@ -255,7 +255,6 @@ func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 				{ds.Select(goqu.JSONExtract("doc", "$.a")), "JSONExtract"},
 				{ds.Select(goqu.Now(3)), "fsp 3"},
 				{ds.Select(goqu.UTCTimestamp()), "UTCTimestamp"},
-				{ds.Select(goqu.Interval(1, exp.QuarterInterval)), "Interval unit QUARTER"},
 				{ds.ForUpdate(goqu.Wait), "FOR UPDATE"},
 				{ds.ForShare(goqu.Wait), "FOR SHARE"},
 				{ds.ForNoKeyUpdate(goqu.Wait), "FOR NO KEY UPDATE"},
@@ -276,6 +275,10 @@ func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 			for _, c := range rejected {
 				cases = append(cases, sqlTestCase{ds: c.ds, err: "goqu: dialect does not support " + c.feature + " [dialect=" + name + "]"})
 			}
+			cases = append(cases, sqlTestCase{
+				ds:  ds.Select(goqu.Interval(goqu.C("n"), exp.QuarterInterval)),
+				err: "goqu: dialect renders Interval unit QUARTER as MONTH, which needs an integer count [dialect=" + name + "]",
+			})
 			gds.assertSQL(cases...)
 		})
 	}

@@ -192,6 +192,36 @@ func (gt *greptimedbTest) TestAggregateOrderBy() {
 	})
 }
 
+func (gt *greptimedbTest) TestQuarterIntervalAsMonths() {
+	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
+		var shifted string
+		found, err := ds.Where(goqu.C("host").Eq("a")).
+			Select(goqu.Cast(goqu.C("ts").Add(goqu.Interval(1, goqu.QuarterInterval)), "STRING")).
+			ScanVal(&shifted)
+		gt.Require().NoError(err, prepared)
+		gt.True(found)
+		gt.Equal("2024-04-02T03:04:05.123456789", shifted, prepared)
+	})
+}
+
+func (gt *greptimedbTest) TestIntervalOfSubSecond() {
+	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
+		var row struct {
+			Shifted string `db:"shifted"`
+			Bucket  string `db:"bucket"`
+		}
+		found, err := ds.Where(goqu.C("host").Eq("a")).
+			Select(
+				goqu.Cast(goqu.C("ts").Add(goqu.IntervalOf(1500*time.Nanosecond)), "STRING").As("shifted"),
+				goqu.Cast(goqu.Func("date_bin", goqu.IntervalOf(300*time.Millisecond), goqu.C("ts")), "STRING").As("bucket"),
+			).ScanStruct(&row)
+		gt.Require().NoError(err, prepared)
+		gt.True(found)
+		gt.Equal("2024-01-02T03:04:05.123458289", row.Shifted, prepared)
+		gt.Equal("2024-01-02T03:04:05.100", row.Bucket, prepared)
+	})
+}
+
 func (gt *greptimedbTest) TestWindowsAndCTEs() {
 	ds := gt.db.From("entry")
 	latest := goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("ok").OrderBy(goqu.C("ts").Desc()))

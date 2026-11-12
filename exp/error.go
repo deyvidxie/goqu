@@ -2,6 +2,7 @@ package exp
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/internal/errors"
 	"github.com/doug-martin/goqu/v9/internal/util"
@@ -24,6 +25,10 @@ var errNilOrder = errors.NewInvalidExpressionError("Order expressions must not b
 var errNilListEntry = errors.NewInvalidExpressionError("column and condition lists must not contain nil")
 
 var errEmptyAlignBy = errors.NewInvalidExpressionError("Align By requires at least one column; use ByNone for BY ()")
+
+func errNonPositiveIntervalDuration(d time.Duration) error {
+	return errors.NewInvalidExpressionError("IntervalOf duration must be positive, got %s", d)
+}
 
 var errNilRangeAggregate = errors.NewInvalidExpressionError("RangeAggregate requires an aggregate expression")
 

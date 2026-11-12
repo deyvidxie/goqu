@@ -25,7 +25,9 @@ const (
 	NoWait     = exp.NoWait
 	SkipLocked = exp.SkipLocked
 
+	NanosecondInterval  = exp.NanosecondInterval
 	MicrosecondInterval = exp.MicrosecondInterval
+	MillisecondInterval = exp.MillisecondInterval
 	SecondInterval      = exp.SecondInterval
 	MinuteInterval      = exp.MinuteInterval
 	HourInterval        = exp.HourInterval
@@ -112,6 +114,11 @@ func FillLinear() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillLinear) }
 
 // value must be finite and non-negative.
 func FillValue(value float64) exp.RangeFill { return exp.NewRangeFillValue(value) }
+
+// d must be positive; the interval uses the largest of HOUR down to NANOSECOND that represents d exactly.
+func IntervalOf(d time.Duration) exp.IntervalExpression {
+	return exp.NewDurationIntervalExpression(d)
+}
 
 func Interval(count any, unit exp.IntervalUnit) exp.IntervalExpression {
 	return exp.NewIntervalExpression(count, unit)

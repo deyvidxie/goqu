@@ -1,11 +1,16 @@
 package exp
 
-import "slices"
+import (
+	"slices"
+	"time"
+)
 
 type IntervalUnit string
 
 const (
+	NanosecondInterval  IntervalUnit = "NANOSECOND"
 	MicrosecondInterval IntervalUnit = "MICROSECOND"
+	MillisecondInterval IntervalUnit = "MILLISECOND"
 	SecondInterval      IntervalUnit = "SECOND"
 	MinuteInterval      IntervalUnit = "MINUTE"
 	HourInterval        IntervalUnit = "HOUR"
@@ -37,6 +42,29 @@ func NewUTCTimestampExpression(fsp ...int) TimeFunctionExpression {
 
 func NewIntervalExpression(count any, unit IntervalUnit) IntervalExpression {
 	return intervalExpression{count: count, unit: unit}
+}
+
+var durationIntervalUnits = []struct {
+	length time.Duration
+	unit   IntervalUnit
+}{
+	{time.Hour, HourInterval},
+	{time.Minute, MinuteInterval},
+	{time.Second, SecondInterval},
+	{time.Millisecond, MillisecondInterval},
+	{time.Microsecond, MicrosecondInterval},
+}
+
+func NewDurationIntervalExpression(d time.Duration) IntervalExpression {
+	if d <= 0 {
+		return NewIntervalExpression(newInvalidExpression(errNonPositiveIntervalDuration(d)), SecondInterval)
+	}
+	for _, u := range durationIntervalUnits {
+		if d%u.length == 0 {
+			return NewIntervalExpression(int64(d/u.length), u.unit)
+		}
+	}
+	return NewIntervalExpression(int64(d), NanosecondInterval)
 }
 
 func (te timeFunctionExpression) Clone() Expression {
