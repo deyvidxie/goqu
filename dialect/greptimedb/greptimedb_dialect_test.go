@@ -198,6 +198,32 @@ func (gds *greptimedbDialectSuite) TestTruncate() {
 	)
 }
 
+func (gds *greptimedbDialectSuite) TestRangeQuery() {
+	query := func(d goqu.DialectWrapper) *goqu.SelectDataset {
+		return d.From("m").Prepared(true).
+			Select("ts", goqu.RangeAggregate(goqu.AVG("cpu"), 10*time.Second).Fill(goqu.FillLinear()).As("a")).
+			Where(goqu.C("host").Eq("a")).
+			Align(goqu.Align(10 * time.Second).To(time.Unix(0, 0)).By("host").Fill(goqu.FillNull())).
+			Order(goqu.C("ts").Asc()).Limit(5)
+	}
+	gds.assertSQL(
+		sqlTestCase{
+			ds: query(dialect),
+			sql: "SELECT `ts`, (AVG(`cpu`) RANGE '10s' FILL LINEAR) AS `a` FROM `m` WHERE (`host` = ?) " +
+				"ALIGN '10s' TO '1970-01-01T00:00:00Z' BY (`host`) FILL NULL ORDER BY `ts` ASC LIMIT ?",
+			isPrepared: true,
+			args:       []interface{}{"a", int64(5)},
+		},
+		sqlTestCase{
+			ds: query(pgDialect),
+			sql: `SELECT "ts", (AVG("cpu") RANGE '10s' FILL LINEAR) AS "a" FROM "m" WHERE ("host" = $1) ` +
+				`ALIGN '10s' TO '1970-01-01T00:00:00Z' BY ("host") FILL NULL ORDER BY "ts" ASC LIMIT $2`,
+			isPrepared: true,
+			args:       []interface{}{"a", int64(5)},
+		},
+	)
+}
+
 func (gds *greptimedbDialectSuite) TestRejectedFeatures() {
 	for _, name := range []string{"greptimedb", "greptimedb-pg"} {
 		gds.Run(name, func() {

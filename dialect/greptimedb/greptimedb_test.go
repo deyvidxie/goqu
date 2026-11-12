@@ -134,6 +134,34 @@ func (gt *greptimedbTest) TestTimeFunctions() {
 	})
 }
 
+func (gt *greptimedbTest) TestRangeQuery() {
+	type bucket struct {
+		TS  string  `db:"ts"`
+		CPU float64 `db:"cpu"`
+	}
+	gt.bothModes(func(ds *goqu.SelectDataset, prepared bool) {
+		var buckets []bucket
+		gt.Require().NoError(ds.
+			Select(goqu.Cast(goqu.C("ts"), "STRING").As("ts"),
+				goqu.RangeAggregate(goqu.AVG("cpu"), time.Minute).Fill(goqu.FillLinear()).As("cpu")).
+			Where(goqu.C("host").In("a", "c")).
+			Align(goqu.Align(time.Minute).To(baseTime).ByNone()).
+			Order(goqu.C("ts").Asc()).ScanStructs(&buckets))
+		gt.Equal([]bucket{
+			{TS: "2024-01-02T03:04:05.123", CPU: 0},
+			{TS: "2024-01-02T03:05:05.123", CPU: 1.5},
+			{TS: "2024-01-02T03:06:05.123", CPU: 3},
+		}, buckets, prepared)
+
+		var counts []int64
+		gt.Require().NoError(ds.
+			Select(goqu.RangeAggregate(goqu.COUNT(goqu.Star()), 5*time.Minute).As("n")).
+			Align(goqu.Align(5 * time.Minute).To(baseTime).By("ok")).
+			Order(goqu.C("n").Asc()).ScanVals(&counts))
+		gt.Equal([]int64{2, 3}, counts, prepared)
+	})
+}
+
 func (gt *greptimedbTest) TestWindowsAndCTEs() {
 	ds := gt.db.From("entry")
 	latest := goqu.ROW_NUMBER().Over(goqu.W().PartitionBy("ok").OrderBy(goqu.C("ts").Desc()))

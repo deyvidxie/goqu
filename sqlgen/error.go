@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/doug-martin/goqu/v9/internal/errors"
@@ -93,6 +94,22 @@ func errWindowClauseNotSupported(dialect string) error {
 
 func errNestedCTENotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support a WITH clause inside a subquery [dialect=%s]", dialect)
+}
+
+func errRangeQueryNotSupported(dialect string) error {
+	return errors.NewUnsupportedError("dialect does not support range queries [dialect=%s]", dialect)
+}
+
+func errRangeDuration(clause string, d time.Duration) error {
+	return errors.NewInvalidExpressionError("%s duration must be a positive whole number of milliseconds, got %s", clause, d)
+}
+
+func errRangeFillValue(v float64) error {
+	return errors.NewInvalidExpressionError("FILL value must be a finite non-negative number, got %v", v)
+}
+
+func errUnknownRangeFill(kind exp.RangeFillKind) error {
+	return errors.NewInvalidExpressionError("unknown FILL kind %d", kind)
 }
 
 func errQualifyNotSupported(dialect string) error {

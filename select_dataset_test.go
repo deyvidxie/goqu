@@ -790,6 +790,24 @@ func (sds *selectDatasetSuite) TestQualify_notSupportedByBuiltInDialects() {
 	}
 }
 
+func (sds *selectDatasetSuite) TestAlign() {
+	a := goqu.Align(time.Minute).By("host")
+	bd := goqu.From("test")
+	base := exp.NewSelectClauses().SetFrom(exp.NewColumnListExpression(nil, "db", "test"))
+	sds.assertCases(
+		selectTestCase{ds: bd.Align(a), clauses: base.SetAlign(a)},
+		selectTestCase{ds: bd.Align(a).ClearAlign(), clauses: base},
+		selectTestCase{ds: bd, clauses: base},
+	)
+	_, _, err := bd.Align(nil).ToSQL()
+	sds.EqualError(err, "goqu: Align requires an AlignExpression; use ClearAlign to drop ALIGN")
+	_, _, err = bd.Align(a).ToSQL()
+	sds.EqualError(err, "goqu: dialect does not support range queries [dialect=default]")
+	sds.True(goqu.IsUnsupported(err))
+	_, _, err = bd.Select(goqu.RangeAggregate(goqu.AVG("cpu"), time.Minute)).ToSQL()
+	sds.True(goqu.IsUnsupported(err))
+}
+
 func (sds *selectDatasetSuite) TestWhere() {
 	w := goqu.Ex{"a": 1}
 	w2 := goqu.Ex{"b": "c"}

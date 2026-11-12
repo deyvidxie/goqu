@@ -59,6 +59,7 @@ var (
 	errEmptyWhere          = errors.NewInvalidExpressionError("Where requires at least one expression; use ClearWhere to drop WHERE")
 	errEmptyHaving         = errors.NewInvalidExpressionError("Having requires at least one expression; use ClearHaving to drop HAVING")
 	errEmptyQualify        = errors.NewInvalidExpressionError("Qualify requires at least one expression; use ClearQualify to drop QUALIFY")
+	errNilAlign            = errors.NewInvalidExpressionError("Align requires an AlignExpression; use ClearAlign to drop ALIGN")
 	errEmptyCols           = errors.NewInvalidExpressionError("Cols requires at least one column; use ClearCols to drop Cols")
 	errEmptyColsAppend     = errors.NewInvalidExpressionError("ColsAppend requires at least one column")
 	errEmptySelectAppend   = errors.NewInvalidExpressionError("SelectAppend requires at least one column")

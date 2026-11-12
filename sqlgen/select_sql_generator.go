@@ -39,50 +39,56 @@ func NewSelectSQLGenerator(dialect, tagName string, do *SQLDialectOptions) Selec
 }
 
 func (ssg *selectSQLGenerator) Generate(b sqlbuilder.SQLBuilder, clauses exp.SelectClauses) {
-	if len(ssg.DialectOptions().SelectSQLOrder) == 0 {
-		b.SetError(errStatementNotSupported(ssg.Dialect(), "SELECT"))
+	if err := ssg.unsupportedSelectError(clauses); err != nil {
+		b.SetError(err)
 		return
 	}
 	for _, f := range ssg.DialectOptions().SelectSQLOrder {
 		if b.Error() != nil {
 			return
 		}
-		switch f {
-		case CommonTableSQLFragment:
-			ssg.ExpressionSQLGenerator().Generate(b, clauses.CommonTables())
-		case SelectSQLFragment:
-			ssg.SelectSQL(b, clauses)
-		case SelectWithLimitSQLFragment:
-			ssg.SelectWithLimitSQL(b, clauses)
-		case FromSQLFragment:
-			ssg.FromSQL(b, clauses.From())
-		case JoinSQLFragment:
-			ssg.JoinSQL(b, clauses.Joins())
-		case WhereSQLFragment:
-			ssg.WhereSQL(b, clauses.Where())
-		case GroupBySQLFragment:
-			ssg.GroupBySQL(b, clauses.GroupBy())
-		case HavingSQLFragment:
-			ssg.HavingSQL(b, clauses.Having())
-		case QualifySQLFragment:
-			ssg.QualifySQL(b, clauses.Qualify())
-		case WindowSQLFragment:
-			ssg.WindowSQL(b, clauses.Windows())
-		case CompoundsSQLFragment:
-			ssg.CompoundsSQL(b, clauses.Compounds())
-		case OrderSQLFragment:
-			ssg.OrderSQL(b, clauses.Order())
-		case OrderWithOffsetFetchSQLFragment:
-			ssg.OrderWithOffsetFetchSQL(b, clauses.Order(), clauses.Offset(), clauses.Limit())
-		case LimitSQLFragment:
-			ssg.selectLimitSQL(b, clauses)
-		case OffsetSQLFragment:
-			ssg.OffsetSQL(b, clauses.Offset())
-		case ForSQLFragment:
-			ssg.ForSQL(b, clauses.Lock())
-		default:
-			b.SetError(errFragmentNotSupported(ssg.Dialect(), "SELECT", f))
-		}
+		ssg.fragmentSQL(b, f, clauses)
+	}
+}
+
+func (ssg *selectSQLGenerator) fragmentSQL(b sqlbuilder.SQLBuilder, f SQLFragmentType, clauses exp.SelectClauses) {
+	switch f {
+	case CommonTableSQLFragment:
+		ssg.ExpressionSQLGenerator().Generate(b, clauses.CommonTables())
+	case SelectSQLFragment:
+		ssg.SelectSQL(b, clauses)
+	case SelectWithLimitSQLFragment:
+		ssg.SelectWithLimitSQL(b, clauses)
+	case FromSQLFragment:
+		ssg.FromSQL(b, clauses.From())
+	case JoinSQLFragment:
+		ssg.JoinSQL(b, clauses.Joins())
+	case WhereSQLFragment:
+		ssg.WhereSQL(b, clauses.Where())
+	case GroupBySQLFragment:
+		ssg.GroupBySQL(b, clauses.GroupBy())
+	case HavingSQLFragment:
+		ssg.HavingSQL(b, clauses.Having())
+	case QualifySQLFragment:
+		ssg.QualifySQL(b, clauses.Qualify())
+	case AlignSQLFragment:
+		ssg.AlignSQL(b, clauses.Align())
+	case WindowSQLFragment:
+		ssg.WindowSQL(b, clauses.Windows())
+	case CompoundsSQLFragment:
+		ssg.CompoundsSQL(b, clauses.Compounds())
+	case OrderSQLFragment:
+		ssg.OrderSQL(b, clauses.Order())
+	case OrderWithOffsetFetchSQLFragment:
+		ssg.OrderWithOffsetFetchSQL(b, clauses.Order(), clauses.Offset(), clauses.Limit())
+	case LimitSQLFragment:
+		ssg.selectLimitSQL(b, clauses)
+	case OffsetSQLFragment:
+		ssg.OffsetSQL(b, clauses.Offset())
+	case ForSQLFragment:
+		ssg.ForSQL(b, clauses.Lock())
+	default:
+		b.SetError(errFragmentNotSupported(ssg.Dialect(), "SELECT", f))
 	}
 }
 
@@ -206,6 +212,24 @@ func (ssg *selectSQLGenerator) HavingSQL(b sqlbuilder.SQLBuilder, having exp.Exp
 	if having != nil {
 		b.Write(ssg.DialectOptions().HavingFragment)
 		ssg.ExpressionSQLGenerator().Generate(b, having)
+	}
+}
+
+func (ssg *selectSQLGenerator) unsupportedSelectError(clauses exp.SelectClauses) error {
+	opts := ssg.DialectOptions()
+	switch {
+	case len(opts.SelectSQLOrder) == 0:
+		return errStatementNotSupported(ssg.Dialect(), "SELECT")
+	case clauses.Align() != nil && (!opts.SupportsRangeQuery || !slices.Contains(opts.SelectSQLOrder, AlignSQLFragment)):
+		return errRangeQueryNotSupported(ssg.Dialect())
+	}
+	return nil
+}
+
+func (ssg *selectSQLGenerator) AlignSQL(b sqlbuilder.SQLBuilder, align exp.AlignExpression) {
+	if align != nil {
+		b.WriteRunes(ssg.DialectOptions().SpaceRune)
+		ssg.ExpressionSQLGenerator().Generate(b, align)
 	}
 }
 

@@ -1,6 +1,8 @@
 package exp_test
 
 import (
+	"time"
+
 	"testing"
 
 	"github.com/doug-martin/goqu/v9/exp"
@@ -282,6 +284,19 @@ func (scs *selectClausesSuite) TestClearQualify() {
 	scs.Equal(exp.NewExpressionList(exp.AndType, w), c.Qualify())
 
 	scs.Nil(c2.Qualify())
+}
+
+func (scs *selectClausesSuite) TestAlign() {
+	a := exp.NewAlignExpression(time.Second)
+
+	c := exp.NewSelectClauses()
+	c2 := c.SetAlign(a)
+	c3 := c2.ClearAlign()
+
+	scs.Nil(c.Align())
+	scs.Equal(a, c2.Align())
+	scs.Nil(c3.Align())
+	scs.Equal(a, c2.SetLimit(1).Align())
 }
 
 func (scs *selectClausesSuite) TestQualifyAppend() {

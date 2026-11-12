@@ -250,6 +250,10 @@ func (esg *expressionSQLGenerator) expressionSQL(b sqlbuilder.SQLBuilder, expres
 		esg.bitwiseExpressionSQL(b, e)
 	case exp.ArithmeticExpression:
 		esg.arithmeticExpressionSQL(b, e)
+	case exp.RangeAggregateExpression:
+		esg.rangeAggregateSQL(b, e)
+	case exp.AlignExpression:
+		esg.alignExpressionSQL(b, e)
 	case exp.RangeExpression:
 		esg.rangeExpressionSQL(b, e)
 	case exp.OrderedExpression:
@@ -1283,6 +1287,94 @@ func (esg *expressionSQLGenerator) greptimeDBTimeSQL(b sqlbuilder.SQLBuilder, ut
 	}
 	esg.Generate(b, exp.NewSQLFunctionExpression("NOW"))
 	return nil
+}
+
+func (esg *expressionSQLGenerator) rangeAggregateSQL(b sqlbuilder.SQLBuilder, e exp.RangeAggregateExpression) {
+	if !esg.dialectOptions.SupportsRangeQuery {
+		b.SetError(errRangeQueryNotSupported(esg.dialect))
+		return
+	}
+	b.WriteRunes(esg.dialectOptions.LeftParenRune)
+	esg.Generate(b, e.Aggregate())
+	b.WriteStrings(" RANGE ")
+	esg.rangeDurationSQL(b, "RANGE", e.Duration())
+	if fill, ok := e.GetFill(); ok {
+		esg.rangeFillSQL(b, fill)
+	}
+	b.WriteRunes(esg.dialectOptions.RightParenRune)
+}
+
+func (esg *expressionSQLGenerator) alignExpressionSQL(b sqlbuilder.SQLBuilder, a exp.AlignExpression) {
+	if !esg.dialectOptions.SupportsRangeQuery {
+		b.SetError(errRangeQueryNotSupported(esg.dialect))
+		return
+	}
+	b.WriteStrings("ALIGN ")
+	esg.rangeDurationSQL(b, "ALIGN", a.Duration())
+	if a.IsToNow() {
+		b.WriteStrings(" TO NOW")
+	} else if origin, ok := a.ToTime(); ok {
+		b.WriteStrings(" TO ")
+		b.WriteRunes(esg.dialectOptions.StringQuote)
+		b.WriteStrings(origin.In(timeLocation).Format(esg.dialectOptions.TimeFormat))
+		b.WriteRunes(esg.dialectOptions.StringQuote)
+	}
+	if by := a.ByCols(); by != nil {
+		b.WriteStrings(" BY ")
+		b.WriteRunes(esg.dialectOptions.LeftParenRune)
+		if !by.IsEmpty() {
+			esg.Generate(b, by)
+		}
+		b.WriteRunes(esg.dialectOptions.RightParenRune)
+	}
+	if fill, ok := a.GetFill(); ok {
+		esg.rangeFillSQL(b, fill)
+	}
+}
+
+var rangeDurationUnits = []struct {
+	unit time.Duration
+	name string
+}{
+	{time.Hour, "h"},
+	{time.Minute, "m"},
+	{time.Second, "s"},
+	{time.Millisecond, "ms"},
+}
+
+func (esg *expressionSQLGenerator) rangeDurationSQL(b sqlbuilder.SQLBuilder, clause string, d time.Duration) {
+	if d <= 0 || d%time.Millisecond != 0 {
+		b.SetError(errRangeDuration(clause, d))
+		return
+	}
+	b.WriteRunes(esg.dialectOptions.StringQuote)
+	for _, u := range rangeDurationUnits {
+		if n := d / u.unit; n > 0 {
+			b.WriteInt(int64(n)).WriteStrings(u.name)
+			d -= n * u.unit
+		}
+	}
+	b.WriteRunes(esg.dialectOptions.StringQuote)
+}
+
+func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill exp.RangeFill) {
+	switch fill.Kind() {
+	case exp.RangeFillNull:
+		b.WriteStrings(" FILL NULL")
+	case exp.RangeFillPrev:
+		b.WriteStrings(" FILL PREV")
+	case exp.RangeFillLinear:
+		b.WriteStrings(" FILL LINEAR")
+	case exp.RangeFillValue:
+		v := fill.Value()
+		if v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+			b.SetError(errRangeFillValue(v))
+			return
+		}
+		b.WriteStrings(" FILL ").WriteFloat(v)
+	default:
+		b.SetError(errUnknownRangeFill(fill.Kind()))
+	}
 }
 
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {

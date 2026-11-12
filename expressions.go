@@ -1,6 +1,8 @@
 package goqu
 
 import (
+	"time"
+
 	"github.com/doug-martin/goqu/v9/exp"
 )
 
@@ -91,6 +93,24 @@ func Now(fsp ...int) exp.TimeFunctionExpression {
 func UTCTimestamp(fsp ...int) exp.TimeFunctionExpression {
 	return exp.NewUTCTimestampExpression(fsp...)
 }
+
+// Creates a GreptimeDB range aggregate; duration must be a positive whole number of milliseconds.
+func RangeAggregate(aggregate exp.Expression, duration time.Duration) exp.RangeAggregateExpression {
+	return exp.NewRangeAggregateExpression(aggregate, duration)
+}
+
+// Creates the ALIGN clause for SelectDataset.Align; duration must be a positive whole number of milliseconds.
+func Align(duration time.Duration) exp.AlignExpression {
+	return exp.NewAlignExpression(duration)
+}
+
+func FillNull() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillNull) }
+
+func FillPrev() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillPrev) }
+
+func FillLinear() exp.RangeFill { return exp.NewRangeFill(exp.RangeFillLinear) }
+
+func FillValue(value float64) exp.RangeFill { return exp.NewRangeFillValue(value) }
 
 func Interval(count any, unit exp.IntervalUnit) exp.IntervalExpression {
 	return exp.NewIntervalExpression(count, unit)

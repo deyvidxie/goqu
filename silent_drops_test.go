@@ -1,6 +1,8 @@
 package goqu_test
 
 import (
+	"time"
+
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
@@ -37,6 +39,7 @@ func TestSelectConversionsRejectClausesTheyCannotCarry(t *testing.T) {
 		"Update with GROUP BY":     {base.GroupBy("a").Update().Set(goqu.Record{"a": 2}), "Update", "GROUP BY"},
 		"Delete with HAVING":       {base.Having(goqu.C("a").Gt(1)).Delete(), "Delete", "HAVING"},
 		"Delete with QUALIFY":      {base.Qualify(goqu.C("a").Gt(1)).Delete(), "Delete", "QUALIFY"},
+		"Delete with ALIGN":        {base.Align(goqu.Align(time.Minute)).Delete(), "Delete", "ALIGN"},
 		"Delete with DISTINCT":     {base.Distinct().Delete(), "Delete", "DISTINCT"},
 		"Update with DISTINCT ON":  {base.DistinctOn("a").Update().Set(goqu.Record{"a": 2}), "Update", "DISTINCT"},
 		"Delete with WINDOW":       {base.Window(goqu.W("w")).Delete(), "Delete", "WINDOW"},

@@ -32,6 +32,7 @@ func commonOptions() *goqu.SQLDialectOptions {
 	opts.TimeStyle = sqlgen.GreptimeDBTimeStyle
 
 	opts.SupportsQualify = true
+	opts.SupportsRangeQuery = true
 	opts.SupportsReturn = false
 	opts.SupportsLateral = false
 	opts.SupportsOnConflict = false
@@ -46,6 +47,7 @@ func commonOptions() *goqu.SQLDialectOptions {
 		sqlgen.FromSQLFragment,
 		sqlgen.JoinSQLFragment,
 		sqlgen.WhereSQLFragment,
+		sqlgen.AlignSQLFragment,
 		sqlgen.GroupBySQLFragment,
 		sqlgen.HavingSQLFragment,
 		sqlgen.WindowSQLFragment,
