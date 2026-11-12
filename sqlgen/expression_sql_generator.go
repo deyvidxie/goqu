@@ -1419,18 +1419,29 @@ func (esg *expressionSQLGenerator) rangeFillSQL(b sqlbuilder.SQLBuilder, fill ex
 	}
 }
 
-var unsupportedIntervalUnits = map[TimeStyle][]exp.IntervalUnit{
-	PostgresTimeStyle:   {exp.NanosecondInterval},
-	MySQLTimeStyle:      {exp.NanosecondInterval},
-	DuckDBTimeStyle:     {exp.NanosecondInterval},
-	GreptimeDBTimeStyle: {exp.QuarterInterval},
+type intervalConversion struct {
+	unit       exp.IntervalUnit
+	multiplier int64
+	divisor    int64
+}
+
+const monthsPerQuarter = 3
+
+var nanosecondsAsMicroseconds = intervalConversion{
+	unit: exp.MicrosecondInterval, multiplier: 1, divisor: int64(time.Microsecond / time.Nanosecond),
+}
+
+var intervalConversions = map[TimeStyle]map[exp.IntervalUnit]intervalConversion{
+	PostgresTimeStyle:   {exp.NanosecondInterval: nanosecondsAsMicroseconds},
+	MySQLTimeStyle:      {exp.NanosecondInterval: nanosecondsAsMicroseconds},
+	DuckDBTimeStyle:     {exp.NanosecondInterval: nanosecondsAsMicroseconds},
+	GreptimeDBTimeStyle: {exp.QuarterInterval: {unit: exp.MonthInterval, multiplier: monthsPerQuarter, divisor: 1}},
 }
 
 func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) {
 	render, err := esg.timeRenderers()
-	if unit, _, lookupErr := lookupIntervalUnit(e.Unit()); err == nil && lookupErr == nil &&
-		slices.Contains(unsupportedIntervalUnits[esg.dialectOptions.TimeStyle], unit) {
-		err = errIntervalUnitNotSupported(esg.dialect, unit)
+	if err == nil {
+		e, err = esg.convertIntervalUnit(e)
 	}
 	if err == nil {
 		err = render.interval(b, e)
@@ -1438,6 +1449,45 @@ func (esg *expressionSQLGenerator) intervalExpressionSQL(b sqlbuilder.SQLBuilder
 	if err != nil {
 		b.SetError(err)
 	}
+}
+
+func (esg *expressionSQLGenerator) convertIntervalUnit(e exp.IntervalExpression) (exp.IntervalExpression, error) {
+	conversions, ok := intervalConversions[esg.dialectOptions.TimeStyle]
+	if !ok {
+		return e, nil
+	}
+	unit, _, err := lookupIntervalUnit(e.Unit())
+	if err != nil {
+		return nil, err
+	}
+	conversion, ok := conversions[unit]
+	if !ok {
+		return e, nil
+	}
+	count, err := intervalCount(esg.dialect, e.Count(), unit, false)
+	if err != nil {
+		return nil, err
+	}
+	rv := reflect.Indirect(reflect.ValueOf(count))
+	var n int64
+	switch {
+	case !rv.IsValid():
+		return exp.NewIntervalExpression(nil, conversion.unit), nil
+	case util.IsInt(rv.Kind()):
+		n = rv.Int()
+	case util.IsUint(rv.Kind()):
+		u := rv.Uint()
+		if u > math.MaxInt64 {
+			return nil, errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
+		}
+		n = int64(u)
+	default:
+		return nil, errIntervalConversionNeedsCount(esg.dialect, unit, conversion.unit)
+	}
+	if n%conversion.divisor != 0 || n > math.MaxInt64/conversion.multiplier || n < math.MinInt64/conversion.multiplier {
+		return nil, errIntervalNotExact(esg.dialect, count, unit, conversion.unit)
+	}
+	return exp.NewIntervalExpression(n/conversion.divisor*conversion.multiplier, conversion.unit), nil
 }
 
 func (esg *expressionSQLGenerator) mysqlIntervalSQL(b sqlbuilder.SQLBuilder, e exp.IntervalExpression) error {

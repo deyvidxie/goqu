@@ -305,8 +305,14 @@ func errUTCTimestampNotSupported(dialect string) error {
 	return errors.NewUnsupportedError("dialect does not support UTCTimestamp [dialect=%s]", dialect)
 }
 
-func errIntervalUnitNotSupported(dialect string, unit exp.IntervalUnit) error {
-	return errors.NewUnsupportedError("dialect does not support Interval unit %s [dialect=%s]", unit, dialect)
+func errIntervalNotExact(dialect string, count any, unit, target exp.IntervalUnit) error {
+	return errors.NewUnsupportedError("dialect cannot represent Interval %v %s exactly as %s [dialect=%s]", count, unit, target, dialect)
+}
+
+func errIntervalConversionNeedsCount(dialect string, unit, target exp.IntervalUnit) error {
+	return errors.NewUnsupportedError(
+		"dialect renders Interval unit %s as %s and needs an integer count to convert it [dialect=%s]", unit, target, dialect,
+	)
 }
 
 func errUnknownTimeFunction(function exp.TimeFunction) error {

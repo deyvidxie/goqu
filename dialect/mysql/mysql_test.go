@@ -194,6 +194,18 @@ func (mt *mysqlTest) TestAggregateOrderBy() {
 	}
 }
 
+func (mt *mysqlTest) TestNanosecondIntervalAsMicroseconds() {
+	for _, prepared := range []bool{false, true} {
+		var shifted string
+		found, err := mt.db.From("entry").Prepared(prepared).Limit(1).
+			Select(goqu.Cast(goqu.Cast(goqu.V("2024-01-01 00:00:00"), "DATETIME(6)").Add(goqu.Interval(3000, goqu.NanosecondInterval)), "CHAR")).
+			ScanVal(&shifted)
+		mt.Require().NoError(err, "prepared=%v", prepared)
+		mt.True(found)
+		mt.Equal("2024-01-01 00:00:00.000003", shifted, "prepared=%v", prepared)
+	}
+}
+
 func (mt *mysqlTest) TestIntervalOfMilliseconds() {
 	for _, prepared := range []bool{false, true} {
 		var shifted string

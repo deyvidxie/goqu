@@ -1,6 +1,6 @@
 # Unreleased
 
-* [FEATURE] Add `goqu.MillisecondInterval`, `goqu.NanosecondInterval` and `goqu.IntervalOf(time.Duration)`; milliseconds render as microseconds on mysql, and nanoseconds return an `UnsupportedError` on mysql, postgres and duckdb [deyvidxie#197](https://github.com/deyvidxie/goqu/issues/197)
+* [FEATURE] Add `goqu.MillisecondInterval`, `goqu.NanosecondInterval` and `goqu.IntervalOf(time.Duration)`; a unit the database lacks is rewritten when exact (milliseconds as microseconds on mysql, nanosecond counts divisible by 1000 as microseconds on mysql, postgres and duckdb, quarters as months on greptimedb) and is otherwise an `UnsupportedError` [deyvidxie#197](https://github.com/deyvidxie/goqu/issues/197)
 * [FEATURE] Add `SQLFunctionExpression.OrderBy` for `ORDER BY` inside function arguments (`first_value(x ORDER BY ts)`, `string_agg(x, ',' ORDER BY y)`), gated by `SQLDialectOptions.SupportsAggregateOrderBy`, which is off for sqlserver [deyvidxie#196](https://github.com/deyvidxie/goqu/issues/196)
 * [FEATURE] Add GreptimeDB range queries: `goqu.RangeAggregate`, `SelectDataset.Align`/`ClearAlign` with `goqu.Align(...).To/ToNow/By/ByNone/Fill`, and `goqu.FillNull/FillPrev/FillLinear/FillValue`; `SQLDialectOptions.SupportsRangeQuery` and `sqlgen.AlignSQLFragment` [deyvidxie#194](https://github.com/deyvidxie/goqu/issues/194)
 * [FEATURE] Add the `greptimedb-pg` dialect for the GreptimeDB PostgreSQL wire protocol [deyvidxie#192](https://github.com/deyvidxie/goqu/issues/192)

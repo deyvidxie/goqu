@@ -115,6 +115,18 @@ func (st *duckdbSuite) SetupTest() {
 	}
 }
 
+func (st *duckdbSuite) TestNanosecondIntervalAsMicroseconds() {
+	for _, prepared := range []bool{false, true} {
+		var shifted string
+		found, err := st.db.From("entry").Prepared(prepared).Limit(1).
+			Select(goqu.Cast(goqu.L("TIMESTAMP '2024-01-01 00:00:00'").Add(goqu.Interval(3000, goqu.NanosecondInterval)), "VARCHAR")).
+			ScanVal(&shifted)
+		st.Require().NoError(err, "prepared=%v", prepared)
+		st.True(found)
+		st.Equal("2024-01-01 00:00:00.000003", shifted, "prepared=%v", prepared)
+	}
+}
+
 func (st *duckdbSuite) TestIntervalOfMilliseconds() {
 	for _, prepared := range []bool{false, true} {
 		var shifted string

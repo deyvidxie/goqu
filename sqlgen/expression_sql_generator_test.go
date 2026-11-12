@@ -1615,31 +1615,60 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeFunctionExpression() {
 }
 
 func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
-	unsupported := func(unit string) string {
-		return "goqu: dialect does not support Interval unit " + unit + " [dialect=test]"
+	notExact := func(count, unit, target string) string {
+		return "goqu: dialect cannot represent Interval " + count + " " + unit + " exactly as " + target + " [dialect=test]"
 	}
-	for _, tc := range []struct {
-		style       sqlgen.TimeStyle
-		millisecond string
-		nanosecond  string
-	}{
-		{style: sqlgen.PostgresTimeStyle, millisecond: "(2 * INTERVAL '1 MILLISECOND')"},
-		{style: sqlgen.DuckDBTimeStyle, millisecond: "(2 * INTERVAL '1 MILLISECOND')"},
-		{style: sqlgen.MySQLTimeStyle, millisecond: "INTERVAL (2 * 1000) MICROSECOND"},
-		{style: sqlgen.GreptimeDBTimeStyle, millisecond: "INTERVAL 2 MILLISECOND", nanosecond: "INTERVAL 2 NANOSECOND"},
-	} {
-		cases := make([]expressionTestCase, 0, 4)
-		for unit, sql := range map[exp.IntervalUnit]string{exp.MillisecondInterval: tc.millisecond, exp.NanosecondInterval: tc.nanosecond} {
-			for _, spelling := range []exp.IntervalUnit{unit, exp.IntervalUnit(strings.ToLower(string(unit)))} {
-				c := expressionTestCase{val: exp.NewIntervalExpression(2, spelling), sql: sql}
-				if sql == "" {
-					c.err = unsupported(string(unit))
-				}
-				cases = append(cases, c)
-			}
-		}
-		esgs.assertCases(sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(tc.style)), cases...)
+	needsCount := func(unit, target string) string {
+		return "goqu: dialect renders Interval unit " + unit + " as " + target + " and needs an integer count to convert it [dialect=test]"
 	}
+	n := exp.NewIdentifierExpression("", "", "n")
+	ns := func(count any) exp.IntervalExpression {
+		return exp.NewIntervalExpression(count, exp.NanosecondInterval)
+	}
+	for _, style := range []sqlgen.TimeStyle{sqlgen.PostgresTimeStyle, sqlgen.DuckDBTimeStyle} {
+		esgs.assertCases(
+			sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(style)),
+			expressionTestCase{val: exp.NewIntervalExpression(2, exp.MillisecondInterval), sql: "(2 * INTERVAL '1 MILLISECOND')"},
+			expressionTestCase{val: ns(2000), sql: "(2 * INTERVAL '1 MICROSECOND')"},
+			expressionTestCase{val: exp.NewIntervalExpression(3000, "nanosecond"), sql: "(3 * INTERVAL '1 MICROSECOND')"},
+			expressionTestCase{val: ns(-2000), sql: "(-2 * INTERVAL '1 MICROSECOND')"},
+			expressionTestCase{val: ns(uint16(4000)), sql: "(4 * INTERVAL '1 MICROSECOND')"},
+			expressionTestCase{
+				val: ns(countValuer{int64(5000)}), sql: "(? * INTERVAL '1 MICROSECOND')", isPrepared: true, args: []interface{}{int64(5)},
+			},
+			expressionTestCase{val: ns(nil), sql: "(NULL * INTERVAL '1 MICROSECOND')"},
+			expressionTestCase{val: ns(1500), err: notExact("1500", "NANOSECOND", "MICROSECOND")},
+			expressionTestCase{val: ns(uint64(math.MaxUint64)), err: notExact("18446744073709551615", "NANOSECOND", "MICROSECOND")},
+			expressionTestCase{val: ns(n), err: needsCount("NANOSECOND", "MICROSECOND")},
+			expressionTestCase{
+				val: ns(1.5), err: "goqu: Interval count must be an integer or an expression, got float64 1.5 for NANOSECOND [dialect=test]",
+			},
+		)
+	}
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.MySQLTimeStyle)),
+		expressionTestCase{val: exp.NewIntervalExpression(2, exp.MillisecondInterval), sql: "INTERVAL (2 * 1000) MICROSECOND"},
+		expressionTestCase{val: exp.NewIntervalExpression(n, exp.MillisecondInterval), sql: `INTERVAL ("n" * 1000) MICROSECOND`},
+		expressionTestCase{val: ns(2000), sql: "INTERVAL 2 MICROSECOND"},
+		expressionTestCase{val: ns(2000), sql: "INTERVAL ? MICROSECOND", isPrepared: true, args: []interface{}{int64(2)}},
+		expressionTestCase{val: ns(1), err: notExact("1", "NANOSECOND", "MICROSECOND")},
+		expressionTestCase{
+			val: exp.NewDurationIntervalExpression(1500 * time.Millisecond), sql: "INTERVAL (? * 1000) MICROSECOND",
+			isPrepared: true, args: []interface{}{int64(1500)},
+		},
+		expressionTestCase{val: exp.NewDurationIntervalExpression(-time.Second), err: "goqu: IntervalOf requires a positive duration, got -1s"},
+	)
+	esgs.assertCases(
+		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.GreptimeDBTimeStyle)),
+		expressionTestCase{val: exp.NewIntervalExpression(2, exp.MillisecondInterval), sql: "INTERVAL 2 MILLISECOND"},
+		expressionTestCase{val: ns(2), sql: "INTERVAL 2 NANOSECOND", isPrepared: true},
+		expressionTestCase{val: exp.NewIntervalExpression(2, exp.QuarterInterval), sql: "INTERVAL 6 MONTH", isPrepared: true},
+		expressionTestCase{val: exp.NewIntervalExpression(uint8(1), "quarter"), sql: "INTERVAL 3 MONTH"},
+		expressionTestCase{val: exp.NewIntervalExpression(n, exp.QuarterInterval), err: needsCount("QUARTER", "MONTH")},
+		expressionTestCase{
+			val: exp.NewIntervalExpression(int64(math.MaxInt64), exp.QuarterInterval), err: notExact("9223372036854775807", "QUARTER", "MONTH"),
+		},
+	)
 	for _, style := range []sqlgen.TimeStyle{sqlgen.SQLiteTimeStyle, sqlgen.SQLServerTimeStyle} {
 		esgs.assertCases(
 			sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(style)),
@@ -1655,18 +1684,6 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalUnitSupport() {
 			isPrepared: true, args: []interface{}{int64(1500)},
 		},
 		expressionTestCase{val: exp.NewDurationIntervalExpression(0), err: "goqu: IntervalOf requires a positive duration, got 0s"},
-	)
-	esgs.assertCases(
-		sqlgen.NewExpressionSQLGenerator("test", "db", timeStyleOptions(sqlgen.MySQLTimeStyle)),
-		expressionTestCase{val: exp.NewDurationIntervalExpression(-time.Second), err: "goqu: IntervalOf requires a positive duration, got -1s"},
-		expressionTestCase{
-			val: exp.NewDurationIntervalExpression(1500 * time.Millisecond), sql: "INTERVAL (? * 1000) MICROSECOND",
-			isPrepared: true, args: []interface{}{int64(1500)},
-		},
-		expressionTestCase{
-			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.MillisecondInterval),
-			sql: `INTERVAL ("n" * 1000) MICROSECOND`,
-		},
 	)
 }
 
@@ -1757,9 +1774,7 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_IntervalExpression() {
 		expressionTestCase{
 			val: exp.NewIntervalExpression(exp.NewIdentifierExpression("", "", "n"), exp.DayInterval), sql: `INTERVAL "n" DAY`,
 		},
-		expressionTestCase{
-			val: exp.NewIntervalExpression(1, exp.QuarterInterval), err: "goqu: dialect does not support Interval unit QUARTER [dialect=test]",
-		},
+		expressionTestCase{val: exp.NewIntervalExpression(1, exp.QuarterInterval), sql: "INTERVAL 3 MONTH"},
 	)
 	nullOpts := timeStyleOptions(sqlgen.GreptimeDBTimeStyle)
 	nullOpts.Null = []byte("null")
@@ -1810,7 +1825,8 @@ func (esgs *expressionSQLGeneratorSuite) TestGenerate_TimeExpressionErrorTypes()
 	esgs.True(goqu.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewIntervalExpression(1.5, exp.DayInterval))))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewNowExpression(3))))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewUTCTimestampExpression())))
-	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, exp.NewIntervalExpression(1, exp.QuarterInterval))))
+	quarters := exp.NewIntervalExpression(exp.NewLiteralExpression("n"), exp.QuarterInterval)
+	esgs.True(goqu.IsUnsupported(render(sqlgen.GreptimeDBTimeStyle, quarters)))
 	esgs.True(goqu.IsUnsupported(render(sqlgen.MySQLTimeStyle, exp.NewIntervalExpression(1, exp.NanosecondInterval))))
 	esgs.True(goqu.IsInvalidExpression(render(sqlgen.PostgresTimeStyle, exp.NewDurationIntervalExpression(0))))
 }
