@@ -907,6 +907,9 @@ func (esg *expressionSQLGenerator) clausedArgumentsSQL(b sqlbuilder.SQLBuilder, 
 	case sqlFunc.HasSeparator() && !esg.dialectOptions.SupportsAggregateSeparator:
 		b.SetError(errAggregateSeparatorNotSupported(esg.dialect))
 		return
+	case sqlFunc.HasSeparator() && !utf8.ValidString(sqlFunc.GetSeparator()):
+		b.SetError(errInvalidUTF8Separator)
+		return
 	}
 	b.WriteRunes(esg.dialectOptions.LeftParenRune)
 	for i, arg := range args {
@@ -928,13 +931,8 @@ func (esg *expressionSQLGenerator) clausedArgumentsSQL(b sqlbuilder.SQLBuilder, 
 		if clauseStarted {
 			b.WriteRunes(esg.dialectOptions.SpaceRune)
 		}
-		separator := sqlFunc.GetSeparator()
-		if !utf8.ValidString(separator) {
-			b.SetError(errInvalidUTF8Separator)
-			return
-		}
 		b.WriteStrings("SEPARATOR ")
-		esg.quotedStringSQL(b, separator)
+		esg.quotedStringSQL(b, sqlFunc.GetSeparator())
 	}
 	b.WriteRunes(esg.dialectOptions.RightParenRune)
 }

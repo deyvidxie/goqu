@@ -522,9 +522,9 @@ SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "ms" ASC), STRING_AGG("host",
 <a name="func-separator"></a>
 **[`SQLFunctionExpression.Separator`](https://godoc.org/github.com/doug-martin/goqu/exp#SQLFunctionExpression)**
 
-Ends the arguments with `SEPARATOR '...'`, after any `OrderBy`. The separator is always an escaped string literal, also in prepared mode, because MySQL takes no placeholder there. A second argument to `GROUP_CONCAT` is another value to concatenate, not a separator.
+Ends the arguments with `SEPARATOR '...'`. The separator is always an escaped string literal, also in prepared mode.
 
-**NOTE** Only the mysql dialects support it; the others return a `goqu.UnsupportedError`.
+**NOTE** Dialects other than mysql return a `goqu.UnsupportedError`; set `SupportsAggregateSeparator` to `true` for a registered dialect with it.
 
 ```go
 sql, _, _ := goqu.Dialect("mysql").From("hosts").Select(
